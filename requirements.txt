@@ -1,0 +1,10 @@
+numpy
+scipy
+matplotlib
+scikit-learn
+ipython[notebook]
+pytest
+# Other things you may want (uncomment to add these to requirements)
+# Theano
+# -e git+http://github.com/petered/plato#egg=plato
+# -e git+http://github.com/lisa-lab/pylearn2.git#egg=pylearn2
