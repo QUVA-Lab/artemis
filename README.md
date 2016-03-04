@@ -18,7 +18,7 @@ cd my-repo
 
 ## Step 2: Merge in the template
 
-Now, to initialize the repo with this templayte, you can copy the following lines into your terminal:
+Now, to initialize the repo with this template, you can copy the following lines into your terminal:
 
 ```
 git remote add ml_template git@github.com:petered/ml-template.git
