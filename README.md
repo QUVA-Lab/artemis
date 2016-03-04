@@ -34,6 +34,8 @@ Take a look at `requirements.txt`.  A list of default requirements (numpy, matpl
 
 Now run `setup.sh`.  This should run without error and set up your virtualenv.
 
+If everything works and you're happy, run `git push`, which will push directly to master.
+
 ## Step 4: (Optional) PyCharm setup
 
 Download (PyCharm).  Open it:
