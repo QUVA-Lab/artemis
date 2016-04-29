@@ -4,7 +4,7 @@ matplotlib
 bokeh
 pytest
 # scikit-learn
-# ipython[notebook]
+ipython[notebook]
 # Other things you may want (uncomment to add these to requirements)
 # Theano
 # -e git+http://github.com/petered/plato#egg=plato

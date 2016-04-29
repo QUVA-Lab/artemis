@@ -1,7 +1,6 @@
-from pip._vendor.distlib.compat import OrderedDict
-from artemis.live_plotting import LiveStream
-# from plotting.matplotlib_backend import LinePlot, ImagePlot
-from artemis.bokeh_backend import LinePlot,ImagePlot
+from collections import OrderedDict
+from artemis.plotting.live_plotting import LiveStream
+from artemis.plotting.bokeh_backend import LinePlot,ImagePlot
 
 __author__ = 'peter'
 

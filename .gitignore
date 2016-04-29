@@ -67,3 +67,6 @@ venv/
 
 # Mac Stuff
 *.DS_Store
+
+# Files
+Data

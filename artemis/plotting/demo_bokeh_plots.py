@@ -2,7 +2,7 @@ import numpy as np
 from artemis.plotting.db_plotting import dbplot
 # from plotting.matplotlib_backend import HistogramPlot
 
-from artemis.plotting.bokeh_backend import set_url, LinePlot
+from artemis.plotting.  bokeh_backend import set_url, LinePlot
 import os
 os.environ["DISPLAY"] = "localhost:10.0"
 import time

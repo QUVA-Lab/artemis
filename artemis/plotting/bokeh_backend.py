@@ -1,4 +1,6 @@
 from collections import OrderedDict
+from artemis.general.should_be_builtins import bad_value
+from artemis.plotting.data_conversion import put_data_in_grid, data_to_image
 import numpy as np
 
 from bokeh.models import GridPlot

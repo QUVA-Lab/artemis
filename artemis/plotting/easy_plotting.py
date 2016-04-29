@@ -1,8 +1,8 @@
 from collections import OrderedDict
-from general.nested_structures import flatten_struct
-from artemis.data_conversion import vector_length_to_tile_dims
+from artemis.general.nested_structures import flatten_struct
+from artemis.plotting.data_conversion import vector_length_to_tile_dims
 # import plotting.matplotlib_backend as eplt
-import artemis.bokeh_backend as eplt
+import artemis.plotting.plotting_backend as eplt
 import numpy as np
 
 __author__ = 'peter'

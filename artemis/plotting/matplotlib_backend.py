@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 # from general.should_be_builtins import bad_value
 from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, scale_data_to_8_bit, data_to_image
 import numpy as np
+from matplotlib.pyplot import *
 __author__ = 'peter'
 
 
@@ -80,7 +81,8 @@ class MovingImagePlot(ImagePlot):
 
 class LinePlot(object):
 
-    def __init__(self, yscale = None):
+    def __init__(self, yscale = None, y_axis_type = 'lin'):
+        assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
         self._plots = None
         self._yscale = yscale
         self._oldlims = (float('inf'), -float('inf'))
