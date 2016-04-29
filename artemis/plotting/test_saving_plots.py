@@ -1,8 +1,8 @@
 import shutil
-from fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_local_path
 
 import os
-from fileman.saving_plots import always_save_figures, get_saved_figure_locs, get_local_figures_dir, \
+from artemis.fileman.saving_plots import always_save_figures, get_saved_figure_locs, get_local_figures_dir, \
     clear_saved_figure_locs
 import matplotlib.pyplot as plt
 import numpy as np

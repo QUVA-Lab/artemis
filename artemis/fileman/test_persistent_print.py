@@ -1,6 +1,6 @@
-from fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_local_path
 import os
-from fileman.persistent_print import capture_print, read_print, new_log_file
+from artemis.fileman.persistent_print import capture_print, read_print, new_log_file
 
 __author__ = 'peter'
 

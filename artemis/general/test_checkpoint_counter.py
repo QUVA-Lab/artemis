@@ -1,5 +1,5 @@
 from itertools import count
-from general.checkpoint_counter import CheckPointCounter
+from artemis.general.checkpoint_counter import CheckPointCounter
 
 __author__ = 'peter'
 

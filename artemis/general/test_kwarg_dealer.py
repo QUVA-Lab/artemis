@@ -1,4 +1,4 @@
-from general.kwarg_dealer import KwargDealer
+from artemis.general.kwarg_dealer import KwargDealer
 import pytest
 
 __author__ = 'peter'

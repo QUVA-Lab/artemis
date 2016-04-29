@@ -3,16 +3,16 @@ from datetime import datetime
 import inspect
 import shlex
 from IPython.core.magics import logging
-from general.test_mode import is_test_mode, TestMode
+from artemis.general.test_mode import is_test_mode, TestMode
 import os
 import pickle
 from IPython.core.display import display, HTML
-from fileman.local_dir import format_filename, make_file_dir, get_local_path, get_relative_path
-from fileman.notebook_plots import show_embedded_figure
-from fileman.notebook_utils import get_local_server_dir
-from fileman.notebook_utils import get_relative_link_from_relative_path
-from fileman.persistent_print import capture_print
-from fileman.saving_plots import clear_saved_figure_locs, get_saved_figure_locs, \
+from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, get_relative_path
+from artemis.fileman.notebook_plots import show_embedded_figure
+from artemis.fileman.notebook_utils import get_local_server_dir
+from artemis.fileman.notebook_utils import get_relative_link_from_relative_path
+from artemis.fileman.persistent_print import capture_print
+from artemis.fileman.saving_plots import clear_saved_figure_locs, get_saved_figure_locs, \
     set_show_callback, always_save_figures, show_saved_figure
 import matplotlib.pyplot as plt
 import re

@@ -2,7 +2,7 @@ import urllib2
 from StringIO import StringIO
 import gzip
 
-from fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_local_path
 import os
 
 __author__ = 'peter'

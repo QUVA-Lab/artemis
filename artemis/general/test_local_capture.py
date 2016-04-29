@@ -1,5 +1,5 @@
 import sys
-from general.local_capture import execute_and_capture_locals
+from artemis.general.local_capture import execute_and_capture_locals
 
 __author__ = 'peter'
 

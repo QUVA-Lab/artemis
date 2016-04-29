@@ -2,7 +2,7 @@ from datetime import datetime
 import pickle
 import sys
 import subprocess
-from fileman.local_dir import get_local_path, make_file_dir
+from artemis.fileman.local_dir import get_local_path, make_file_dir
 import os
 from matplotlib import pyplot as plt
 

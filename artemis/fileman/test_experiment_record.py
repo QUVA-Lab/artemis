@@ -1,8 +1,8 @@
 import time
-from general.test_mode import set_test_mode
+from artemis.general.test_mode import set_test_mode
 import os
 import pickle
-from fileman.experiment_record import ExperimentRecord, start_experiment, run_experiment, show_experiment, \
+from artemis.fileman.experiment_record import ExperimentRecord, start_experiment, run_experiment, show_experiment, \
     get_latest_experiment_identifier, get_or_run_notebook_experiment, get_local_experiment_path, register_experiment, \
     get_experiment_info, load_experiment
 import numpy as np

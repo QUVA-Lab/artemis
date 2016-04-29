@@ -1,6 +1,6 @@
 import time
-from artemis.live_plotting import LiveStream, LiveCanal, LivePlot
-from artemis.matplotlib_backend import MovingImagePlot, MovingPointPlot, LinePlot, ImagePlot, HistogramPlot
+from artemis.plotting.live_plotting import LiveStream, LiveCanal, LivePlot
+from artemis.plotting.matplotlib_backend import MovingImagePlot, MovingPointPlot, LinePlot, ImagePlot, HistogramPlot
 from itertools import count
 
 __author__ = 'peter'

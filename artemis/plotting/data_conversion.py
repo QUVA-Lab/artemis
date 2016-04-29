@@ -1,4 +1,4 @@
-from general.should_be_builtins import memoize
+from artemis.general.should_be_builtins import memoize
 import numpy as np
 
 

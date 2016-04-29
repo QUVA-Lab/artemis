@@ -1,4 +1,4 @@
-from general.newline_writer import TextWrappingPrinter
+from artemis.general.newline_writer import TextWrappingPrinter
 
 __author__ = 'peter'
 

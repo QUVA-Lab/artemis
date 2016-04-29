@@ -1,4 +1,4 @@
-from artemis.fast import find_interval_extremes, fastplot, fastloglog
+from artemis.plotting.fast import find_interval_extremes, fastplot, fastloglog
 import matplotlib.pyplot as plt
 
 __author__ = 'peter'

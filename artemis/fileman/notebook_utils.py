@@ -1,6 +1,6 @@
 from datetime import datetime
 import sys
-from fileman.local_dir import get_local_path, get_relative_path
+from artemis.fileman.local_dir import get_local_path, get_relative_path
 import os
 
 __author__ = 'peter'

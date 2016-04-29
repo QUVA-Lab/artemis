@@ -1,7 +1,7 @@
 import hashlib
 from collections import OrderedDict
 import logging
-from fileman.local_dir import get_local_path, make_file_dir
+from artemis.fileman.local_dir import get_local_path, make_file_dir
 import numpy as np
 import pickle
 import os

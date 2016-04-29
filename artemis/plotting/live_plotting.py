@@ -1,9 +1,9 @@
 from collections import namedtuple, OrderedDict
 from abc import abstractmethod
 from general.nested_structures import flatten_struct
-from artemis.easy_plotting import plot_data_dict
+from artemis.plotting.easy_plotting import plot_data_dict
 
-import artemis.bokeh_backend as eplt
+import artemis.plotting.bokeh_backend as eplt
 
 __author__ = 'peter'
 

@@ -1,4 +1,4 @@
-from general.redict import ReDict, MultipleMatchesError, ReCurseDict
+from artemis.general.redict import ReDict, MultipleMatchesError, ReCurseDict
 import pytest
 
 __author__ = 'peter'

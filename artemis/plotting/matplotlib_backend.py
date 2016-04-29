@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 # from general.should_be_builtins import bad_value
-from artemis.data_conversion import put_data_in_grid, RecordBuffer, scale_data_to_8_bit, data_to_image
+from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, scale_data_to_8_bit, data_to_image
 import numpy as np
 __author__ = 'peter'
 

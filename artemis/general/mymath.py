@@ -1,4 +1,4 @@
-from general.should_be_builtins import memoize, bad_value
+from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
 from scipy import weave
 from scipy.stats import norm, mode as sp_mode

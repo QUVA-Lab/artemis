@@ -2,8 +2,8 @@ from datetime import datetime
 import sys
 from StringIO import StringIO
 from IPython.core.display import display, HTML
-from fileman.local_dir import get_local_path, make_file_dir, format_filename
-from fileman.notebook_utils import get_relative_link_from_local_path, get_relative_link_from_relative_path
+from artemis.fileman.local_dir import get_local_path, make_file_dir, format_filename
+from artemis.fileman.notebook_utils import get_relative_link_from_local_path, get_relative_link_from_relative_path
 import os
 
 

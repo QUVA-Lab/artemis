@@ -1,5 +1,5 @@
 import time
-from fileman.disk_memoize import memoize_to_disk, clear_memo_files_for_function, DisableMemos, memoize_to_disk_and_cache
+from artemis.fileman.disk_memoize import memoize_to_disk, clear_memo_files_for_function, DisableMemos, memoize_to_disk_and_cache
 import numpy as np
 
 __author__ = 'peter'

@@ -1,4 +1,4 @@
-from general.nested_structures import flatten_struct
+from artemis.general.nested_structures import flatten_struct
 import numpy as np
 
 

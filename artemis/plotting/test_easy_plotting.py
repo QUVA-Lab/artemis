@@ -1,5 +1,5 @@
 import numpy as np
-from artemis.easy_plotting import ezplot
+from artemis.plotting.easy_plotting import ezplot
 __author__ = 'peter'
 
 
