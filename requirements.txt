@@ -1,9 +1,10 @@
 numpy
 scipy
 matplotlib
-scikit-learn
-ipython[notebook]
+bokeh
 pytest
+# scikit-learn
+# ipython[notebook]
 # Other things you may want (uncomment to add these to requirements)
 # Theano
 # -e git+http://github.com/petered/plato#egg=plato
