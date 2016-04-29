@@ -1,42 +1,14 @@
-# ML Template Repo
+# Artemis
 
-This is a useful template with which you can start Python Machine Learning Projects.
+Artemis is a plotting library which can use either Bokeh or Matplotlib as a backend.
 
-It includes a setup script which will install the basics (numpy, scipy, matplotlib, ipython notebook, scikit-learn, pytest).
+It is made mainly for creating live plots to monitor things.
 
-To use:
-
-## Step 1: Create your new repo
-
-Create your own repo on github.  Lets say it's called my-repo, and your name is helga
+To import:
 
 ```
 cd ~/my/projects/folder
-git clone https://github.com/helga/my-repo.git
-cd my-repo
+git clone https://github.com/quva-lab/artemis.git
+cd artemis
 ```
 
-## Step 2: Merge in the template
-
-Now, to initialize the repo with this template, you can copy the following lines into your terminal:
-
-```
-git remote add ml_template git@github.com:petered/ml-template.git
-git fetch ml_template
-git merge -s ours --no-commit ml_template/master
-git read-tree --prefix=ml_template/ -u ml_template/master
-git commit -m "Started repo from ML template."
-```
-
-## Step 3: Customize and setup
-
-Take a look at `requirements.txt`.  A list of default requirements (numpy, matplotlib, etc) are included.  Add or remove requirements as necessary.  
-
-Now run `setup.sh`.  This should run without error and set up your virtualenv.
-
-If everything works and you're happy, run `git push`, which will push directly to master.
-
-## Step 4: (Optional) PyCharm setup
-
-Download (PyCharm).  Open it:
-`File > New Project`, select your the folder of your repo.  For the interpreter, select `</my/projects/folder>/venv/bin/python2.7`.  You should now be ready to go.
