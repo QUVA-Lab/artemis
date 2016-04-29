@@ -1,7 +1,7 @@
 import numpy as np
-from plotting.db_plotting import dbplot
+from artemis.db_plotting import dbplot
 # from plotting.matplotlib_backend import HistogramPlot
-from plotting.bokeh_backend import LinePlot
+from artemis.bokeh_backend import LinePlot
 __author__ = 'peter'
 
 
