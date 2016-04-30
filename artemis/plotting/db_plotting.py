@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from artemis.plotting.live_plotting import LiveStream
-from artemis.plotting.bokeh_backend import LinePlot,ImagePlot
+from artemis.plotting.plotting_backend import LinePlot,ImagePlot
 
 __author__ = 'peter'
 

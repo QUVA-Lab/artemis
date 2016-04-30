@@ -180,3 +180,21 @@ class RecordBuffer(object):
         self._buffer[self._ix] = data
         self._ix = (self._ix+1) % self._buffer_len
         return self._buffer[(self._base_indices+self._ix) % self._buffer_len]
+
+
+class UnlimitedRecordBuffer(object):
+    def __init__(self):
+        self._buffer = []
+        self._counter = 0
+        self._shape = ()
+        pass
+
+    def __call__(self, data):
+        if self._counter == 0:
+            self._shape = () if np.isscalar(data) else data.shape
+        self._counter += 1
+        self._buffer.append(data)
+        return np.reshape(self._buffer, newshape=((self._counter,) + self._shape))
+
+
+
