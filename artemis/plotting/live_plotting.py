@@ -96,7 +96,7 @@ class LiveStream(BaseStream):
         struct = self._callback()
         assert struct is not None, 'Your plotting-data callback returned None.  Probably you forgot to include a return statememnt.'
 
-        flat_struct = flatten_struct(struct, custom_handlers=self._custom_handlers)  # list<*tuple<str, data>>
+        flat_struct = flatten_struct(struct, custom_handlers=self._custom_handlers, detect_duplicates=False)  # list<*tuple<str, data>>
         return OrderedDict(flat_struct)
 
     def _get_plots_from_first_data(self, first_data):

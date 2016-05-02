@@ -54,7 +54,20 @@ def test_history_plot_updating():
         dbplot(np.random.randn(), 'c', plot_constructor=lambda: MovingPointPlot())
 
 
+def test_same_object():
+    """
+    There was a bug where when you plotted two of the same array, you got "already seen object".  This tests makes
+    sure it's gotten rid of.  If it's gone, both matrices should plot.  Otherwise you'll get "Already seen object" showing
+    up on one of the plots.
+    """
+    a = np.random.randn(20, 20)
+    for _ in xrange(5):
+        dbplot(a, 'a')
+        dbplot(a, 'b')
+
+
 if __name__ == '__main__':
+    test_same_object()
     test_history_plot_updating()
     test_particular_plot()
     test_dbplot()

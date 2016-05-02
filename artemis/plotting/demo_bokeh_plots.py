@@ -7,26 +7,18 @@ import time
 
 def tet_dbplot(n_steps = 3):
 
-    # arr = np.random.rand(10, 10)
+    arr = np.random.rand(10, 10)
 
     for i in xrange(n_steps):
-        for j in xrange(3):
-            barr = np.random.randn(10, 2)
-            dbplot(barr, 'barr', plot_constructor=lambda: LinePlot())
-            time.sleep(1)
-
-    # arr = np.random.rand(10, 10)
-    #
-    # for i in xrange(n_steps):
-    #     arr_sq=arr**2
-    #     arr = arr_sq/np.mean(arr_sq)
-    #     barr = np.array([[x**10 for x in np.arange(0,5)], [x**10 for x in np.arange(0,5)]])
-    #     barr = barr.T
-    #     barr2 = np.array([[x**9 for x in np.arange(0,5)], [x**8 for x in np.arange(0,5)]])
-    #     barr2 = barr2.T
-    #     kw = {"y_axis_type":"log"}
-    #     dbplot(barr, 'barr', plot_constructor=lambda: LinePlot(**kw))
-    #     dbplot(barr2, 'barr2', plot_constructor=lambda: LinePlot(**kw))
+        arr_sq=arr**2
+        arr = arr_sq/np.mean(arr_sq)
+        barr = np.array([[x**10 for x in np.arange(0,5)], [x**10 for x in np.arange(0,5)]])
+        barr = barr.T
+        barr2 = np.array([[x**9 for x in np.arange(0,5)], [x**8 for x in np.arange(0,5)]])
+        barr2 = barr2.T
+        kw = {"y_axis_type":"log"}
+        dbplot(barr, 'barr', plot_constructor=lambda: LinePlot(**kw))
+        dbplot(barr2, 'barr2', plot_constructor=lambda: LinePlot(**kw))
 
 
 def moving_point_plot(n_steps = 20):
