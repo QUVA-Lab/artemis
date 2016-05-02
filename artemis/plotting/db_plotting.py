@@ -35,7 +35,9 @@ def dbplot(data, name = None, plot_constructor = None, **kwargs):
         stream = get_dbplot_stream(**kwargs)
         # Following is a kludge - the data is flattened in LivePlot, so we reference
         # it by the "flattened" key.
-        stream.add_plot_type("['%s']" % name, plot_constructor())
+        flattened_key = "['%s']" % name
+
+        stream.add_plot_type(flattened_key, plot_constructor())
 
     set_plot_data_and_update(name, data, **kwargs)
 
@@ -43,7 +45,8 @@ def dbplot(data, name = None, plot_constructor = None, **kwargs):
 def set_plot_data_and_update(name, data, **kwargs):
     PLOT_DATA[name] = data
     stream = get_dbplot_stream(**kwargs)
-    stream.update()
+    flattened_key = "['%s']" % name
+    stream.update(flattened_key)
 
 
 def get_dbplot_stream(**kwargs):

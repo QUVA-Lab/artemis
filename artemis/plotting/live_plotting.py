@@ -17,7 +17,13 @@ class BaseStream(object):
         self._fig = figure
         # TODO: Allow plots to be updated every iteration but only rendered every N'th iteration.  Important for streaming.
 
-    def update(self):
+    def update(self, name = None):
+        """
+        Update all plots.  Note that when calling this function, we assume that you've updated the data returned by the
+        callback.  When you call update multiple times without updating the data it can lead to incorrect results on
+        plots with history (samples will be repeated)
+        :param name: The name of the plot to update.  If not specified, updates all plots.
+        """
         self._counter += 1
         if self._counter % self._update_every != 0:
             return
@@ -35,14 +41,17 @@ class BaseStream(object):
             self._plot_keys = set(self._plots.keys())
             plot_data_dict(data_dict, plots = self._plots, hang = False, figure = self._fig)
         else:
-            for k, v in data_dict.iteritems():
-                self._plots[k].update(v)
+            if name is None:  # Update all plots
+                for k, v in data_dict.iteritems():
+                    self._plots[k].update(v)
+            else:
+                self._plots[name].update(data_dict[name])
         eplt.draw()
 
     @abstractmethod
     def _get_data_structure(self):
         """
-        :return a dict<str: data> where data is some form of plottable data
+        :return a dict<s    tr: data> where data is some form of plottable data
         """
 
     @abstractmethod
