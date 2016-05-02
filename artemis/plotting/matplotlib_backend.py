@@ -2,7 +2,9 @@ from abc import ABCMeta, abstractmethod
 # from general.should_be_builtins import bad_value
 from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, scale_data_to_8_bit, data_to_image
 import numpy as np
+import matplotlib.pyplot as plt
 from matplotlib.pyplot import *
+
 __author__ = 'peter'
 
 
@@ -25,6 +27,11 @@ class IPlot(object):
     def update(self):
         pass
 
+
+def draw():
+    # Somehow at least in some backends the pause command is required.
+    plt.draw()
+    plt.pause(0.0001)
 
 class ImagePlot(object):
 

@@ -3,7 +3,8 @@ import numpy as np
 __author__ = 'peter'
 
 
-def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, bool), custom_handlers = {}, break_into_objects = True, memo = None):
+def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, bool), custom_handlers = {},
+        break_into_objects = True, detect_duplicates = True, memo = None):
     """
     Given some nested struct, return a list<*(str, primative)>, where primative
     is some some kind of object that you don't break down any further, and str is a
@@ -23,7 +24,7 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
 
     if id(struct) in memo:
         return [(None, memo[id(struct)])]
-    else:
+    elif detect_duplicates:
         memo[id(struct)] = 'Already Seen object at %s' % hex(id(struct))
 
     if isinstance(struct, primatives):
@@ -34,14 +35,14 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
     elif isinstance(struct, dict):
         return sum([
             [("[%s]%s" % (("'%s'" % key if isinstance(key, str) else key), subkey if subkey is not None else ''), v)
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo)]
+                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)]
                 for key, value in struct.iteritems()
             ], [])
     elif isinstance(struct, (list, tuple)):
         # for i, value in enumerate(struct):
         return sum([
             [("[%s]%s" % (i, subkey if subkey is not None else ''), v)
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo)]
+                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)]
                 for i, value in enumerate(struct)
             ], [])
     elif struct is None or not hasattr(struct, '__dict__'):
@@ -49,7 +50,7 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
     elif break_into_objects:  # It's some kind of object, lets break it down.
         return sum([
             [(".%s%s" % (key, subkey if subkey is not None else ''), v)
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo)]
+                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)]
                 for key, value in struct.__dict__.iteritems()
             ], [])
     else:

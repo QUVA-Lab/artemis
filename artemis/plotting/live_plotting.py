@@ -3,14 +3,12 @@ from abc import abstractmethod
 from artemis.general.nested_structures import flatten_struct
 from artemis.plotting.easy_plotting import plot_data_dict
 
-
-import artemis.plotting.matplotlib_backend as eplt
+import artemis.plotting.plotting_backend as eplt
 
 __author__ = 'peter'
 
 
 class BaseStream(object):
-
     def __init__(self, update_every = 1, figure = None):
         self._plots = None
         self._counter = -1
@@ -19,7 +17,13 @@ class BaseStream(object):
         self._fig = figure
         # TODO: Allow plots to be updated every iteration but only rendered every N'th iteration.  Important for streaming.
 
-    def update(self):
+    def update(self, name = None):
+        """
+        Update all plots.  Note that when calling this function, we assume that you've updated the data returned by the
+        callback.  When you call update multiple times without updating the data it can lead to incorrect results on
+        plots with history (samples will be repeated)
+        :param name: The name of the plot to update.  If not specified, updates all plots.
+        """
         self._counter += 1
         if self._counter % self._update_every != 0:
             return
@@ -37,14 +41,17 @@ class BaseStream(object):
             self._plot_keys = set(self._plots.keys())
             plot_data_dict(data_dict, plots = self._plots, hang = False, figure = self._fig)
         else:
-            for k, v in data_dict.iteritems():
-                self._plots[k].update(v)
+            if name is None:  # Update all plots
+                for k, v in data_dict.iteritems():
+                    self._plots[k].update(v)
+            else:
+                self._plots[name].update(data_dict[name])
         eplt.draw()
 
     @abstractmethod
     def _get_data_structure(self):
         """
-        :return a dict<str: data> where data is some form of plottable data
+        :return a dict<s    tr: data> where data is some form of plottable data
         """
 
     @abstractmethod
@@ -89,7 +96,7 @@ class LiveStream(BaseStream):
         struct = self._callback()
         assert struct is not None, 'Your plotting-data callback returned None.  Probably you forgot to include a return statememnt.'
 
-        flat_struct = flatten_struct(struct, custom_handlers=self._custom_handlers)  # list<*tuple<str, data>>
+        flat_struct = flatten_struct(struct, custom_handlers=self._custom_handlers, detect_duplicates=False)  # list<*tuple<str, data>>
         return OrderedDict(flat_struct)
 
     def _get_plots_from_first_data(self, first_data):
