@@ -1,11 +1,19 @@
+from logging import Logger
 from time import time
 from collections import OrderedDict
+
 __author__ = 'peter'
 
 
 class EZProfiler(object):
 
     def __init__(self, profiler_name = 'Profile', print_result = True, record_stop = True):
+        """
+        :param profiler_name: The name of this profiler (will be included in report)
+        :param print_result: Print
+        :param record_stop:
+        :return:
+        """
         self.print_result = print_result
         self.profiler_name = profiler_name
         self.record_stop = record_stop
@@ -28,15 +36,16 @@ class EZProfiler(object):
     def __exit__(self, *args):
         if self.record_stop:
             self._lap_times['Stop'] = time()
-        if self.print_result:
+        if self.print_result is True:
             self.print_elapsed()
+        elif isinstance(self.print_result, Logger):
+            self.print_result.info(self.get_report())
 
     def print_elapsed(self):
         print self.get_report()
 
     def get_report(self):
         keys = self._lap_times.keys()
-
         if len(keys)==2:
             return '%s: Elapsed time is %.4gs' % (self.profiler_name, self._lap_times['Stop']-self._lap_times['Start'])
         else:

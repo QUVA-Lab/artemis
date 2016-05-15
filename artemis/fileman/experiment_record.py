@@ -33,10 +33,53 @@ class _ExpLibClass(object):
     def get_experiments(self):
         return GLOBAL_EXPERIMENT_LIBRARY
 
+    def _get_experiment_listing(self):
+        experiment_listing = OrderedDict()
+        for i, (name, exp) in enumerate(GLOBAL_EXPERIMENT_LIBRARY.iteritems()):
+            if exp.versions is None:
+                experiment_listing['%s' % (i, )] = (name, None)
+            else:
+                assert len(exp.versions)<26, "Really?  You have more then 26 versions?  Time to code the z, aa, bb, ... system"
+                for j, version in enumerate(exp.versions):
+                    experiment_listing['%s%s' % (i, chr(ord('a')+j))] = (name, version)
+        return experiment_listing
+
+    def select_experiment(self):
+        listing = self._get_experiment_listing()
+        print '\n'.join(['%s : %s' % (identifier, name) if version is None else '%s: %s-%s' % (identifier, name, version) for identifier, (name, version) in listing.iteritems()])
+        which_one = raw_input('Select Experiment >> ')
+        if which_one.lstrip(' ').rstrip(' ') in listing:
+            name, version = listing[which_one]
+            GLOBAL_EXPERIMENT_LIBRARY[name].run(version=version)
+        else:
+            raise Exception('No experiment with id: "%s"' % (which_one, ))
+
+    def __getattr__(self, name):
+        if name in GLOBAL_EXPERIMENT_LIBRARY:
+            return GLOBAL_EXPERIMENT_LIBRARY[name]
+        else:
+            return _ExperimentConstructor(name)
+
+
+class _ExperimentConstructor(object):
+
+    def __init__(self, name):
+        self.name = name
+
+    def __call__(self, **kwargs):
+        if self.name in GLOBAL_EXPERIMENT_LIBRARY:
+            raise Exception("You tried to run create experiment '%s', but it already exists in the library.  Give it another name!" % (self.name, ))
+        # exp = Experiment(name=self.name, **kwargs)
+        return register_experiment(name = self.name, **kwargs)
+
+    def run(self):
+        raise Exception("You tried to run experiment '%s', but it hasn't been made yet!" % (self.name, ))
+
+
 
 ExperimentLibrary = _ExpLibClass()
 
-GLOBAL_EXPERIMENT_LIBRARY = {}
+GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()
 
 
 def _am_in_ipython():
@@ -410,16 +453,19 @@ class Experiment(object):
         return 'Experiment: %s\n  Defined in: %s\n  Description: %s\n  Conclusion: %s' % \
             (self.name, inspect.getmodule(self.function).__name__, self.description, self.conclusion)
 
-    def run(self, print_to_console = True, show_figs = None, test_mode=False, **experiment_record_kwargs):
+    def run(self, print_to_console = True, show_figs = None, version = None, test_mode=False, **experiment_record_kwargs):
         """
         Run the experiment, and return the ExperimentRecord that is generated.
         Note, if you want the output of the function, you should just run the function directly.
         :param experiment_record_kwargs: See ExperimentRecord for kwargs
         """
+        version_to_run = self.current_version if version is None else version
+
         if self.versions is not None:
-            assert self.current_version in self.versions, "Experiment %s: Your current version: '%s' is not in the list of versions: %s" % (self.name, self.current_version, self.versions.keys())
-            kwargs = self.versions[self.current_version]
-            name = self.name+'-'+(self.current_version if isinstance(self.current_version, str) else str(self.versions[self.current_version]))
+
+            assert version_to_run in self.versions, "Experiment %s: The version you're trying to run: '%s' is not in the list of versions: %s" % (self.name, version_to_run, self.versions.keys())
+            kwargs = self.versions[version_to_run]
+            name = self.name+'-'+(version_to_run if isinstance(version_to_run, str) else str(self.versions[version_to_run]))
         else:
             kwargs = {}
             name = self.name
@@ -439,8 +485,7 @@ class Experiment(object):
 
     def run_all(self, **kwargs):
         for v in (self.versions.keys() if isinstance(self.versions, dict) else xrange(len(self.versions))):
-            self.current_version = v
-            self.run(**kwargs)
+            self.run(version = v, **kwargs)
 
     def test(self, **kwargs):
         self.run(test_mode=True, **kwargs)
