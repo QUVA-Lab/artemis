@@ -23,6 +23,7 @@ LOCAL_DIR = \
 
 
 def get_local_path(relative_path = '', make_local_dir = False):
+    assert not relative_path.startswith('/'), "Relative path should not start with a '/'"
     file_path = os.path.join(LOCAL_DIR, format_filename(relative_path))
     if make_local_dir:
         make_file_dir(file_path)

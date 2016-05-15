@@ -5,7 +5,7 @@ __author__ = 'peter'
 
 class EZProfiler(object):
 
-    def __init__(self, print_result = True, profiler_name = 'Profile', record_stop = True):
+    def __init__(self, profiler_name = 'Profile', print_result = True, record_stop = True):
         self.print_result = print_result
         self.profiler_name = profiler_name
         self.record_stop = record_stop
@@ -36,6 +36,10 @@ class EZProfiler(object):
 
     def get_report(self):
         keys = self._lap_times.keys()
-        deltas = OrderedDict((key, self._lap_times[key] - self._lap_times[last_key]) for last_key, key in zip(keys[:-1], keys[1:]))
-        return self.profiler_name + '\n  '.join(['']+['%s: Elapsed time is %.4gs' % (key, val) for key, val in deltas.iteritems()] +
-            (['Total: %.4gs' % (self._lap_times.values()[-1] - self._lap_times.values()[0])] if len(deltas)>1 else []))
+
+        if len(keys)==2:
+            return '%s: Elapsed time is %.4gs' % (self.profiler_name, self._lap_times['Stop']-self._lap_times['Start'])
+        else:
+            deltas = OrderedDict((key, self._lap_times[key] - self._lap_times[last_key]) for last_key, key in zip(keys[:-1], keys[1:]))
+            return self.profiler_name + '\n  '.join(['']+['%s: Elapsed time is %.4gs' % (key, val) for key, val in deltas.iteritems()] +
+                (['Total: %.4gs' % (self._lap_times.values()[-1] - self._lap_times.values()[0])] if len(deltas)>1 else []))
