@@ -50,7 +50,8 @@ class _ExpLibClass(object):
         which_one = raw_input('Select Experiment >> ')
         if which_one.lstrip(' ').rstrip(' ') in listing:
             name, version = listing[which_one]
-            GLOBAL_EXPERIMENT_LIBRARY[name].run(version=version)
+            GLOBAL_EXPERIMENT_LIBRARY[name].current_version = version  # HACK!
+            return GLOBAL_EXPERIMENT_LIBRARY[name]
         else:
             raise Exception('No experiment with id: "%s"' % (which_one, ))
 
