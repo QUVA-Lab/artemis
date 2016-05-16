@@ -440,7 +440,6 @@ class Experiment(object):
     def __init__(self, function, description='', conclusion = '', name = None, versions = None, current_version = None):
         if versions is not None:
             assert isinstance(versions, (list, dict))
-            assert current_version is not None, 'If you specify multiple versions, you have to pick a current version'
         if isinstance(versions, list):
             assert isinstance(current_version, int)
         self.name = name
@@ -461,9 +460,8 @@ class Experiment(object):
         :param experiment_record_kwargs: See ExperimentRecord for kwargs
         """
         version_to_run = self.current_version if version is None else version
-
         if self.versions is not None:
-
+            assert version_to_run is not None, 'If you specify multiple versions, you have to pick a current version'
             assert version_to_run in self.versions, "Experiment %s: The version you're trying to run: '%s' is not in the list of versions: %s" % (self.name, version_to_run, self.versions.keys())
             kwargs = self.versions[version_to_run]
             name = self.name+'-'+(version_to_run if isinstance(version_to_run, str) else str(self.versions[version_to_run]))

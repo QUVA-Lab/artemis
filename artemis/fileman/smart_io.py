@@ -25,12 +25,12 @@ def smart_save(obj, relative_path):
     local_path = get_local_path(relative_path, make_local_dir=True)
 
     print 'Saved object <%s at %s> to file: "%s"' % (obj.__class__.__name__, hex(id(object)), local_path)
-
     if ext=='pkl':
         with open(local_path, 'w') as f:
             pickle.dump(obj, f)
     else:
         raise Exception("No method exists yet to save '.%s' files.  Add it!" % (ext, ))
+    return local_path
 
 
 def smart_load(relative_path):
