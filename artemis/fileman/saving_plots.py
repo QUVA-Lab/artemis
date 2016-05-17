@@ -94,6 +94,14 @@ def set_show_callback(cb):
     return _old_show_callback
 
 
+def _get_alternate_show_callback(**default_kwargs):
+
+    def _alternate_show_callback(fig, **kwargs):
+        old_kwargs = default_kwargs.copy()
+        old_kwargs.update(kwargs)
+        save_and_show(fig, **old_kwargs)
+
+
 def always_save_figures(state = True, **save_and_show_args):
     """
     :param state: True to save figures, False to not save them.
@@ -101,7 +109,8 @@ def always_save_figures(state = True, **save_and_show_args):
     """
 
     if state:
-        set_show_callback(lambda fig = None: save_and_show(fig, **save_and_show_args))
+        # set_show_callback(lambda fig = None, **kwargs: save_and_show(fig, **save_and_show_args))
+        set_show_callback(_get_alternate_show_callback(**save_and_show_args))
     else:
         set_show_callback(None)
 

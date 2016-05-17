@@ -1,5 +1,6 @@
 from collections import namedtuple, OrderedDict
 from abc import abstractmethod
+from artemis.general.ezprofile import EZProfiler
 from artemis.general.nested_structures import flatten_struct
 from artemis.plotting.easy_plotting import plot_data_dict
 
@@ -47,6 +48,9 @@ class BaseStream(object):
             else:
                 self._plots[name].update(data_dict[name])
         eplt.draw()
+        if eplt.get_backend()=='agg':
+            with EZProfiler('imagesave'):
+                eplt.savefig('artemis_figure.png')
 
     @abstractmethod
     def _get_data_structure(self):
