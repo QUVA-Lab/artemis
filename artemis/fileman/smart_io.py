@@ -23,11 +23,11 @@ def smart_save(obj, relative_path, remove_file_after = False):
         relative_path = relative_path.replace('%T', iso_time)
     if '%R' in relative_path:
         relative_path = relative_path.replace('%R', get_current_experiment_id())
-    _, ext = os.splitext(relative_path)
+    _, ext = os.path.splitext(relative_path)
     local_path = get_local_path(relative_path, make_local_dir=True)
 
     print 'Saved object <%s at %s> to file: "%s"' % (obj.__class__.__name__, hex(id(object)), local_path)
-    if ext=='pkl':
+    if ext=='.pkl':
         with open(local_path, 'w') as f:
             pickle.dump(obj, f)
     else:
@@ -45,8 +45,14 @@ def smart_load(relative_path):
     :param relative_path: Path, relative to your data directory.  The extension determines the type of object you will load.
     :return: An object, whose type depends on the extension.  Generally a numpy array for data or an object for pickles.
     """
-
-    _, ext = os.splitext(relative_path)
-
+    # TODO... Support for local files, urls, etc...
+    _, ext = os.path.splitext(relative_path)
+    local_path = get_local_path(relative_path)
+    if ext=='.pkl':
+        with open(local_path) as f:
+            obj = pickle.load(f)
+    else:
+        raise Exception("No method exists yet to load '.%s' files.  Add it!" % (ext, ))
+    return obj
 
 
