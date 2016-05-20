@@ -30,6 +30,8 @@ def smart_save(obj, relative_path, remove_file_after = False):
     if ext=='.pkl':
         with open(local_path, 'w') as f:
             pickle.dump(obj, f)
+    elif ext=='.pdf':
+        obj.savefig(local_path)
     else:
         raise Exception("No method exists yet to save '.%s' files.  Add it!" % (ext, ))
 

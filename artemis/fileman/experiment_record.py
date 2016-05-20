@@ -130,6 +130,7 @@ class ExperimentRecord(object):
         self._has_run = False
         self._print_to_console = print_to_console
         self._save_result = save_result
+        self.result = None
         self._show_figs = show_figs
 
     def __enter__(self):
@@ -201,6 +202,13 @@ class ExperimentRecord(object):
         if not self._has_run:
             self.__exit__()
         self.show()
+
+    def set_result(self, result):
+        self.result = result
+
+    def get_result(self):
+        return self.result
+
 
     def __str__(self):
         return '<ExperimentRecord object %s at %s>' % (self._experiment_identifier, hex(id(self)))
@@ -349,10 +357,28 @@ def get_latest_experiment_identifier(name, template = '%T-%N'):
 
 def show_latest_results(experiment_name, template = '%T-%N'):
     print GLOBAL_EXPERIMENT_LIBRARY[experiment_name]
+
+    experiment_record_identifier =  get_latest_record_identifier(experiment_name, template)
+    #
+    # experiment_record_identifier = get_latest_experiment_identifier(experiment_name, template)
+    # if experiment_record_identifier is None:
+    #     raise Exception('No records for experiment "%s" exist.' % (experiment_name, ))
+    show_experiment(experiment_record_identifier)
+
+
+def get_latest_record_identifier(experiment_name, template = None):
+    if template is None:
+        template = '%T-%N'
     experiment_record_identifier = get_latest_experiment_identifier(experiment_name, template)
     if experiment_record_identifier is None:
         raise Exception('No records for experiment "%s" exist.' % (experiment_name, ))
-    show_experiment(experiment_record_identifier)
+    return experiment_record_identifier
+
+
+def get_lastest_result(experiment_name):
+    experiment_record_identifier = get_latest_experiment_identifier(experiment_name)
+    exp_rec = get_experiment_record(experiment_record_identifier)
+    return exp_rec.get_result()
 
 
 def load_experiment(experiment_identifier):
@@ -437,7 +463,7 @@ def get_experiment_info(name):
 
 class Experiment(object):
 
-    def __init__(self, function, description='', conclusion = '', name = None, versions = None, current_version = None):
+    def __init__(self, function, description='', conclusion = '', display_function = None, name = None, versions = None, current_version = None):
         if versions is not None:
             assert isinstance(versions, (list, dict))
         if isinstance(versions, list):
@@ -448,6 +474,7 @@ class Experiment(object):
         self.conclusion = conclusion
         self.versions = versions
         self.current_version = current_version
+        self.display_function = display_function
 
     def __str__(self):
         return 'Experiment: %s\n  Defined in: %s\n  Description: %s\n  Conclusion: %s' % \
@@ -461,6 +488,8 @@ class Experiment(object):
         """
         version_to_run = self.current_version if version is None else version
         if self.versions is not None:
+            if len(self.versions)==1:
+                version_to_run = self.versions.keys()[0]
             assert version_to_run is not None, 'If you specify multiple versions, you have to pick a current version'
             assert version_to_run in self.versions, "Experiment %s: The version you're trying to run: '%s' is not in the list of versions: %s" % (self.name, version_to_run, self.versions.keys())
             kwargs = self.versions[version_to_run]
@@ -473,14 +502,21 @@ class Experiment(object):
             with TestMode():
                 print '%s Testing Experiment: %s %s' % ('='*10, name, '='*10)
                 with ExperimentRecord(name = name, print_to_console=print_to_console, show_figs=show_figs, **experiment_record_kwargs) as exp_rec:
-                    self.function(**kwargs)
+                    results = self.function(**kwargs)
+                    exp_rec.set_result(results)
                 print '%s Done Testing Experiment: %s %s' % ('-'*11, name, '-'*12)
         else:
             print '%s Running Experiment: %s %s' % ('='*10, name, '='*10)
             with ExperimentRecord(name = name, print_to_console=print_to_console, show_figs=show_figs, **experiment_record_kwargs) as exp_rec:
-                self.function(**kwargs)
+                results = self.function(**kwargs)
+                exp_rec.set_result(results)
             print '%s Done Experiment: %s %s' % ('-'*11, name, '-'*12)
         return exp_rec
+
+    def display_last(self):
+        assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )
+        result = get_lastest_result(self.name)
+        self.display_function(result)
 
     def run_all(self, **kwargs):
         for v in (self.versions.keys() if isinstance(self.versions, dict) else xrange(len(self.versions))):

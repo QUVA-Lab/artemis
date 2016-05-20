@@ -2,6 +2,7 @@ import hashlib
 from collections import OrderedDict
 import logging
 from artemis.fileman.local_dir import get_local_path, make_file_dir
+from artemis.general.test_mode import is_test_mode
 import numpy as np
 import pickle
 import os
@@ -44,7 +45,7 @@ def memoize_to_disk(fcn, local_cache = False):
     def check_memos(*args, **kwargs):
         result_computed = False
 
-        if MEMO_READ_ENABLED:
+        if MEMO_READ_ENABLED and not is_test_mode():
             if local_cache:
                 local_cache_signature = get_local_cache_signature(args, kwargs)
                 if local_cache_signature in cached_local_results:
@@ -65,7 +66,7 @@ def memoize_to_disk(fcn, local_cache = False):
             result_computed = True
             result = fcn(*args, **kwargs)
 
-        if MEMO_WRITE_ENABLED:
+        if MEMO_WRITE_ENABLED and not is_test_mode():
             if local_cache:
                 cached_local_results[local_cache_signature] = result
             if result_computed:  # Result was computed, so write it down
