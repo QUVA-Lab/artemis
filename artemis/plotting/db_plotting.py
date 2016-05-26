@@ -29,6 +29,7 @@ def dbplot(data, name = None, plot_constructor = None, **kwargs):
             plot_constructor = {
                 'line': LinePlot,
                 'img': ImagePlot,
+                'colour': lambda: ImagePlot(is_colour_data=True)
                 }[plot_constructor]
 
         assert hasattr(plot_constructor, '__call__'), 'Plot constructor must be callable!'

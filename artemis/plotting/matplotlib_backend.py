@@ -33,15 +33,17 @@ def draw():
     plt.draw()
     plt.pause(0.0001)
 
+
 class ImagePlot(object):
 
-    def __init__(self, interpolation = 'nearest', show_axes = False, clims = None, aspect = 'auto', cmap = 'gray'):
+    def __init__(self, interpolation = 'nearest', show_axes = False, clims = None, aspect = 'auto', cmap = 'gray', is_colour_data = None):
         self._plot = None
         self._interpolation = interpolation
         self._show_axes = show_axes
         self._clims = clims
         self._aspect = aspect
         self._cmap = cmap
+        self._is_colour_data = is_colour_data
 
     def update(self, data):
 
@@ -50,8 +52,11 @@ class ImagePlot(object):
 
         clims = ((np.nanmin(data), np.nanmax(data)) if data.size != 0 else (0, 1)) if self._clims is None else self._clims
 
-        plottable_data = put_data_in_grid(data, clims = clims, cmap = self._cmap) \
-            if not (data.ndim == 2 or data.ndim == 3 and data.shape[2] == 3) else \
+        if self._is_colour_data is None:
+            self._is_colour_data = (data.ndim == 2 or data.ndim == 3 and data.shape[2] == 3)
+
+        plottable_data = put_data_in_grid(data, clims = clims, cmap = self._cmap, is_color_data = self._is_colour_data) \
+            if not (self._is_colour_data and data.ndim==3) else \
             data_to_image(data, clims = clims, cmap = self._cmap)
 
         if self._plot is None:

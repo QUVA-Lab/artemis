@@ -1,8 +1,10 @@
 import pickle
 import time
+from artemis.fileman.images2gif import readGif
 import os
 from artemis.fileman.experiment_record import get_current_experiment_id
 from artemis.fileman.local_dir import get_local_path
+import numpy as np
 
 
 def smart_save(obj, relative_path, remove_file_after = False):
@@ -53,6 +55,8 @@ def smart_load(relative_path):
     if ext=='.pkl':
         with open(local_path) as f:
             obj = pickle.load(f)
+    elif ext=='.gif':
+        obj = np.array(readGif(local_path))
     else:
         raise Exception("No method exists yet to load '.%s' files.  Add it!" % (ext, ))
     return obj
