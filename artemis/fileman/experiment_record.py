@@ -125,6 +125,7 @@ class ExperimentRecord(object):
 
         assert show_figs in ('hang', 'draw', False)
 
+        self._experiment_name = name
         self._experiment_identifier = format_filename(file_string = filename, base_name=name, current_time = now)
         self._log_file_name = format_filename('%T-%N', base_name = name, current_time = now)
         self._has_run = False
@@ -141,8 +142,8 @@ class ExperimentRecord(object):
             plt.ioff()
         self._log_file_path = capture_print(True, to_file = True, log_file_path = self._log_file_name, print_to_console = self._print_to_console)
         always_save_figures(show = self._show_figs, print_loc = False, name = self._experiment_identifier+'-%N')
-        global _CURRENT_EXPERIMENT
-        _CURRENT_EXPERIMENT = self._experiment_identifier
+        global _CURRENT_EXPERIMENT_ID
+        _CURRENT_EXPERIMENT_ID = self._experiment_identifier
         return self
 
     def __exit__(self, *args):
@@ -157,8 +158,10 @@ class ExperimentRecord(object):
 
         self._has_run = True
 
-        global _CURRENT_EXPERIMENT
-        _CURRENT_EXPERIMENT = None
+        global _CURRENT_EXPERIMENT_ID
+        _CURRENT_EXPERIMENT_ID = None
+        global _CURRENT_EXPERIMENT_NAME
+        _CURRENT_EXPERIMENT_NAME = None
 
         if self._save_result:
             file_path = get_local_experiment_path(self._experiment_identifier)
@@ -214,15 +217,23 @@ class ExperimentRecord(object):
         return '<ExperimentRecord object %s at %s>' % (self._experiment_identifier, hex(id(self)))
 
 
-_CURRENT_EXPERIMENT = None
+_CURRENT_EXPERIMENT_ID = None
+_CURRENT_EXPERIMENT_NAME = None
 
 def get_current_experiment_id():
     """
     :return: A string identifying the current experiment
     """
-    if _CURRENT_EXPERIMENT is None:
+    if _CURRENT_EXPERIMENT_ID is None:
         raise Exception("No experiment is currently running!")
-    return _CURRENT_EXPERIMENT
+    return _CURRENT_EXPERIMENT_ID
+
+
+def get_current_experiment_name():
+     if _CURRENT_EXPERIMENT_NAME is None:
+        raise Exception("No experiment is currently running!")
+     return _CURRENT_EXPERIMENT_NAME
+
 
 
 def start_experiment(*args, **kwargs):

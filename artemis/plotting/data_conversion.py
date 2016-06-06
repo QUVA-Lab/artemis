@@ -136,7 +136,7 @@ def data_to_image(data, is_color_data = None, clims = None, cmap = 'gray'):
 
     if is_color_data is None:
         is_color_data = data.shape[-1] == 3
-    else:
+    if is_color_data:
         assert data.shape[-1] == 3, 'If data is specified as being colour data, the final axis must have length 3.'
 
     if not is_color_data:

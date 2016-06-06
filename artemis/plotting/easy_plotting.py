@@ -44,6 +44,7 @@ def plot_data_dict(data_dict, plots = None, mode = 'static', hang = True, figure
     for i, (k, v) in enumerate(data_dict.iteritems()):
         eplt.subplot(n_rows, n_cols, i+1)
         plots[k].update(v)
+        plots[k].plot()
         eplt.title(k, fontdict = {'fontsize': 8})
     oldhang = eplt.isinteractive()
     eplt.interactive(not hang)
