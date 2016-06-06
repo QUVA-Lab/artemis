@@ -1,67 +1,86 @@
-from weakref import WeakKeyDictionary
-from artemis.fileman.local_dir import get_local_path
+from tempfile import gettempdir
+import time
+import thread
 import SimpleHTTPServer
 import SocketServer
+from artemis.plotting.pyplot_plus import set_show_and_hang_callback
 import os
-from shutil import copyfile
-
 from matplotlib import pyplot as plt
-
-
-import numpy as np
+import logging
+logging.basicConfig()
+ARTEMIS_LOGGER = logging.getLogger('artemis')
 
 __author__ = 'peter'
 
 
-_CURRENT_FIGURE = None
+def _make_plot_html(plot_directory, update_period=1.):
+    """
+    Generate the html file which will show the plots.
+    :param update_period: The period of the update, in seconds.
+    :return:
+    """
 
-_FIG_DIRS = WeakKeyDictionary()
+    with open(os.path.join(os.path.dirname(__file__), 'artemis_plots.html')) as f:
+        html_template = f.read()
 
+    raw_html = html_template.replace('{update_period}', '%s' % update_period)
 
-def update_figure(fig=None):
-    if fig is None:
-        plt.savefig('artemis_figure.png')
-    else:
-        fig.savefig('artemis_figure.png')
-
-
-def get_figure_file(fig):
-    if fig in _FIG_DIRS:
-        return _FIG_DIRS[fig]
-    else:
-        new_plot_dir = get_local_path('.live_plots/%R%R%R%R%R%R.png', make_local_dir=True)
-        _FIG_DIRS[fig] = new_plot_dir
-        return new_plot_dir
-
-
-def save_fig(fig):
-    file = get_figure_file(fig)
-    fig.savefig(file)
-
-
-def make_plot_file_if_necessary():
-    dest = get_local_path('.live_plots/index.html', make_local_dir=True)
-    if not os.path.exists(dest):
-        plot_html = os.path.join(os.path.dirname(__file__), 'artemis_plots.html')
-        copyfile(plot_html, dest)
+    # dest = get_local_path(os.path.join(plot_directory, 'index.html'), make_local_dir=True)
+    dest = os.path.join(plot_directory, 'index.html')
+    with open(dest, 'w') as f:
+        f.write(raw_html)
     return dest
 
 
-def start_plotting_server(port = 8000):
-    #
-    # plot_html = os.path.join(os.path.dirname(__file__), 'artemis_plots.html')
-    # dest = get_local_path('.live_plots/index.html')
+class QuietHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 
-    import thread
+    def log_request(self, code='-', size='-'):
+        pass  # Overrides: # self.log_message('"%s" %s %s', self.requestline, str(code), str(size))
 
-    dest = make_plot_file_if_necessary()
+
+def _launch_on_first_available_port(first_port):
+    Handler = QuietHTTPRequestHandler
+    port = first_port
+    while True:
+        try:
+            httpd = SocketServer.TCPServer(('', port), Handler)
+            # print 'Serving on port', port
+            ARTEMIS_LOGGER.warn("Serving Plots at http://localhost:%s" % (port, ))
+            httpd.serve_forever()
+        except SocketServer.socket.error as exc:
+            if exc.args[0] != 48:
+                raise
+            ARTEMIS_LOGGER.info('Port', port, 'already in use')
+            port += 1
+        else:
+            break
+
+
+def start_plotting_server(plot_directory, port = 8000, update_period=1.):
+    dest = _make_plot_html(plot_directory, update_period=update_period)
     plot_directory, _ = os.path.split(dest)
     os.chdir(plot_directory)
-    Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
-    httpd = SocketServer.TCPServer(("", port), Handler)
-    print "serving at port", port
-    thread.start_new(httpd.serve_forever, ())
+    thread.start_new(_launch_on_first_available_port, (port, ))
 
 
-if __name__ == '__main__':
-    start_plotting_server()
+class TimedFigureSaver(object):
+
+    def __init__(self, fig_loc, update_period = 1):
+        self.fig_loc = fig_loc
+        self._last_update = -float('inf')
+        self.update_period = update_period
+
+    def __call__(self, fig=None):
+        current_time = time.time()
+        if current_time - self._last_update > self.update_period:
+            if fig is None:
+                plt.savefig(self.fig_loc)
+            else:
+                fig.savefig(self.fig_loc)
+            self._last_update = current_time
+
+
+def setup_web_plotting(update_period = 1.):
+    plot_directory = gettempdir()  # Temporary directory
+    start_plotting_server(plot_directory=plot_directory, update_period=update_period)
+    set_show_and_hang_callback(TimedFigureSaver(os.path.join(plot_directory, 'artemis_figure.png'), update_period=update_period))

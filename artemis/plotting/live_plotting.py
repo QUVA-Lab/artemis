@@ -6,6 +6,7 @@ from artemis.plotting.easy_plotting import plot_data_dict
 
 import artemis.plotting.plotting_backend as eplt
 from artemis.plotting.plotting_server import save_fig
+from artemis.plotting.pyplot_plus import show_and_continue
 
 __author__ = 'peter'
 
@@ -48,11 +49,7 @@ class BaseStream(object):
                     self._plots[k].update(v)
             else:
                 self._plots[name].update(data_dict[name])
-        eplt.draw()
-        if eplt.get_backend()=='agg':
-            with EZProfiler('imagesave'):
-                # eplt.savefig('artemis_figure.png')
-                save_fig(self._fig)
+        show_and_continue()
 
     @abstractmethod
     def _get_data_structure(self):

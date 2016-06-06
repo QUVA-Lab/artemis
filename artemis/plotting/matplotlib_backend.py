@@ -1,23 +1,10 @@
 from abc import ABCMeta, abstractmethod
-# from artemis.general.should_be_builtins import bad_value
 from artemis.general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, scale_data_to_8_bit, data_to_image
+from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image
+from matplotlib import pyplot as plt
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import *
 
 __author__ = 'peter'
-
-
-
-
-def set_default_figure_size(width, height):
-    """
-    :param width: Width (in inches, for some reason)
-    :param height: Height (also in inches.  One inch is about 2.54cm)
-    """
-    from pylab import rcParams
-    rcParams['figure.figsize'] = width, height
 
 
 class IPlot(object):
@@ -31,12 +18,6 @@ class IPlot(object):
     @abstractmethod
     def plot(self):
         pass
-
-
-def draw():
-    # Somehow at least in some backends the pause command is required.
-    plt.draw()
-    plt.pause(0.0001)
 
 
 class HistoryFreePlot(IPlot):
@@ -78,7 +59,7 @@ class ImagePlot(HistoryFreePlot):
             data_to_image(data, clims = clims, cmap = self._cmap)
 
         if self._plot is None:
-            self._plot = imshow(plottable_data, interpolation = self._interpolation, aspect = self._aspect, cmap = self._cmap)
+            self._plot = plt.imshow(plottable_data, interpolation = self._interpolation, aspect = self._aspect, cmap = self._cmap)
             if not self._show_axes:
                 self._plot.axes.tick_params(labelbottom = 'off')
                 self._plot.axes.get_yaxis().set_visible(False)
@@ -117,7 +98,7 @@ class LinePlot(HistoryFreePlot):
         lower, upper = (np.nanmin(data), np.nanmax(data)) if self._yscale is None else self._yscale
 
         if self._plots is None:
-            self._plots = plot(np.arange(-data.shape[0]+1, 1), data)
+            self._plots = plt.plot(np.arange(-data.shape[0]+1, 1), data)
             for p, d in zip(self._plots, data[None] if data.ndim==1 else data.T):
                 p.axes.set_xbound(-len(d), 0)
                 if lower != upper:  # This happens in moving point plots when there's only one point.
@@ -163,7 +144,7 @@ class TextPlot(IPlot):
 
     def plot(self):
         if self._text_plot is None:
-            ax = gca()
+            ax = plt.gca()
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
             self._text_plot = ax.text(0.05, 0.05, self._full_text)
@@ -205,13 +186,13 @@ class HistogramPlot(IPlot):
         heights = self._last_heights
         if self._plot_type == 'bar':
             if self._plot is None:
-                self._plot = bar(self._lefts, heights, width = self._widths)
+                self._plot = plt.bar(self._lefts, heights, width = self._widths)
             else:
                 for rect, h in zip(self._plot, heights):
                     rect.set_height(h)
         elif self._plot_type == 'line':
             if self._plot is None:
-                self._plot = plot(self._edges[:-1], heights)
+                self._plot = plt.plot(self._edges[:-1], heights)
             else:
                 self._plot[0].set_ydata(heights)
 

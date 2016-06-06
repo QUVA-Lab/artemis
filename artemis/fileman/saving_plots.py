@@ -1,6 +1,5 @@
 from datetime import datetime
 import pickle
-import sys
 import subprocess
 from artemis.fileman.local_dir import get_local_path, make_file_dir
 import os
@@ -11,6 +10,8 @@ __author__ = 'peter'
 
 
 _ORIGINAL_SHOW_FCN = plt.show
+_ORIGINAL_DRAW_FCN = plt.draw
+
 
 _SAVED_FIGURES = []
 
@@ -94,6 +95,13 @@ def set_show_callback(cb):
     return _old_show_callback
 
 
+def set_draw_callback(cb):
+    """
+    :param cb: A function that is called in place of plt.draw()
+    """
+    plt.draw = cb
+
+
 def _get_alternate_show_callback(**default_kwargs):
 
     def _alternate_show_callback(fig, **kwargs):
@@ -109,7 +117,7 @@ def always_save_figures(state = True, **save_and_show_args):
     """
 
     if state:
-        # set_show_callback(lambda fig = None, **kwargs: save_and_show(fig, **save_and_show_args))
+        # set_show_and_hang_callback(lambda fig = None, **kwargs: save_and_show(fig, **save_and_show_args))
         set_show_callback(_get_alternate_show_callback(**save_and_show_args))
     else:
         set_show_callback(None)
@@ -138,6 +146,9 @@ class FigureCollector(object):
     def iter_figures(self):
         for serfig in self._ser_figures:
             yield pickle.loads(serfig)
+
+
+
 
 
 def serialize_figure(fig):
