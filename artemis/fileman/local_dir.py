@@ -22,13 +22,16 @@ LOCAL_DIR = \
 
 def get_local_path(relative_path = '', make_local_dir = False):
     """
-    Get the full local path of a file relative to the Data folder.
-    :param relative_path:
-    :param make_local_dir:
-    :return:
+    Get the full local path of a file relative to the Data folder.  If the relative path starts with a "/", we consider
+    it to be a local path already.  TODO: Make this Windows-friendly
+
+    :param relative_path: A path relative to the data directory.  If it starts with "/", we consider it to be already
+    :param make_local_dir: True to create the directory that the path points to, if it does not already exist.
+    :return: The full path to the file
     """
-    assert not relative_path.startswith('/'), "Relative path should not start with a '/'"
-    file_path = os.path.join(LOCAL_DIR, format_filename(relative_path))
+    if not relative_path.startswith('/'):
+        # Path is considered relative to data directory.
+        file_path = os.path.join(LOCAL_DIR, format_filename(relative_path))
     if make_local_dir:
         make_file_dir(file_path)
     return file_path

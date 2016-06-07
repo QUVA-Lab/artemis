@@ -1,7 +1,7 @@
 from IPython.core.display import HTML
 from IPython.display import display
 from artemis.fileman.notebook_utils import get_relative_link_from_local_path, get_relative_link_from_relative_path
-from artemis.fileman.saving_plots import save_and_show, get_local_figures_dir, set_show_callback
+from artemis.plotting.saving_plots import save_and_show, set_show_callback
 
 __author__ = 'peter'
 
@@ -23,7 +23,7 @@ def link_and_show(embed = False, **save_and_show_kwargs):
     See function save_and_show for parameters.
     """
 
-    base_dir = get_local_figures_dir()
+    base_dir = 'figures'
     full_figure_loc = save_and_show(print_loc = False, base_dir=base_dir, show = not embed, **save_and_show_kwargs)
     relative_link = get_relative_link_from_local_path(full_figure_loc)
     figure_folder_loc = get_relative_link_from_relative_path('figures')

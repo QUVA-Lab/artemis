@@ -56,7 +56,7 @@ def _launch_on_first_available_port(first_port):
             break
 
 
-def start_plotting_server(plot_directory, port = 8000, update_period=1.):
+def _start_plotting_server(plot_directory, port = 8000, update_period=1.):
     dest = _make_plot_html(plot_directory, update_period=update_period)
     plot_directory, _ = os.path.split(dest)
     os.chdir(plot_directory)
@@ -82,5 +82,5 @@ class TimedFigureSaver(object):
 
 def setup_web_plotting(update_period = 1.):
     plot_directory = gettempdir()  # Temporary directory
-    start_plotting_server(plot_directory=plot_directory, update_period=update_period)
+    _start_plotting_server(plot_directory=plot_directory, update_period=update_period)
     set_show_and_hang_callback(TimedFigureSaver(os.path.join(plot_directory, 'artemis_figure.png'), update_period=update_period))

@@ -1,8 +1,8 @@
 import shutil
 
 import os
-from artemis.fileman.notebook_plots import always_link_figures
-from artemis.fileman.saving_plots import get_saved_figure_locs, get_local_figures_dir, clear_saved_figure_locs
+from artemis.plotting.notebook_plots import always_link_figures
+from artemis.plotting.saving_plots import get_saved_figure_locs, get_local_figures_dir, clear_saved_figure_locs
 import matplotlib.pyplot as plt
 import numpy as np
 

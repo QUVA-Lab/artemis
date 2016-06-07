@@ -7,7 +7,7 @@ __author__ = 'peter'
 
 def test_persistent_print():
 
-    test_log_path = capture_print(to_file=True)
+    test_log_path = capture_print()
     print 'aaa'
     print 'bbb'
     assert read_print()  == 'aaa\nbbb\n'

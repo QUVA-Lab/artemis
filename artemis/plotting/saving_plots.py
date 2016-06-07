@@ -55,15 +55,15 @@ def save_and_show(fig = None, name = '%T-%N', ext = 'pdf', base_dir = 'figures',
     if block is None:
         block = not is_interactive
 
-    rel_figure_loc = os.path.join(base_dir, subdir, name)
-    local_figure_loc = get_local_path(rel_figure_loc)
+    figure_loc = os.path.join(base_dir, subdir, name)
+    local_figure_loc = get_local_path(figure_loc)
 
     make_file_dir(local_figure_loc)
 
     fig.savefig(local_figure_loc)
     if print_loc:
         print 'Saved figure to "%s"' % (local_figure_loc, )
-    _SAVED_FIGURES.append(rel_figure_loc)  # Which is technically a memory leak, but you'd have to make a lot of figures.
+    _SAVED_FIGURES.append(figure_loc)  # Which is technically a memory leak, but you'd have to make a lot of figures.
 
     if show:
         plt.interactive(not block)
@@ -72,7 +72,13 @@ def save_and_show(fig = None, name = '%T-%N', ext = 'pdf', base_dir = 'figures',
     else:
         plt.close()
 
-    return rel_figure_loc
+    return figure_loc
+
+
+# def CaptureFigures(object):
+#
+#     def __init__(self, names, )
+
 
 
 def get_saved_figure_locs():
