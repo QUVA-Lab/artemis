@@ -1,7 +1,7 @@
 from IPython.core.display import HTML
 from IPython.display import display
 from artemis.fileman.notebook_utils import get_relative_link_from_local_path, get_relative_link_from_relative_path
-from artemis.plotting.saving_plots import save_and_show, set_show_callback
+from artemis.notebooks.saving_plots_deprecated import save_and_show, set_show_callback
 
 __author__ = 'peter'
 

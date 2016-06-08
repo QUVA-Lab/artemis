@@ -1,8 +1,8 @@
 from collections import OrderedDict
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
+from artemis.plotting.manage_plotting import draw
 from artemis.plotting.matplotlib_backend import get_plot_from_data
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
-from artemis.plotting.pyplot_plus import show_and_continue, show_and_hang
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
 __author__ = 'peter'
@@ -39,9 +39,10 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
     if draw_now:
         # plt.draw()  # Note: Could be optimized with blit.
         if hang:
-            show_and_hang()
+            plt.show()
         else:
-            show_and_continue()
+            draw()  # Ensures that plot actually shows (whereas plt.draw() may not)
+
 
 def _extend_subplots(key_names):
     n_rows, n_cols = vector_length_to_tile_dims(len(key_names))

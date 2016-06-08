@@ -2,7 +2,7 @@ import shutil
 
 from artemis.fileman.local_dir import get_local_path
 import os
-from artemis.plotting.saving_plots import always_save_figures, get_saved_figure_locs, get_local_figures_dir, \
+from artemis.notebooks.saving_plots_deprecated import always_save_figures, get_saved_figure_locs, get_local_figures_dir, \
     clear_saved_figure_locs
 import artemis.plotting.plotting_backend as plt
 import numpy as np

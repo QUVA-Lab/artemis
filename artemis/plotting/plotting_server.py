@@ -3,7 +3,7 @@ import time
 import thread
 import SimpleHTTPServer
 import SocketServer
-from artemis.plotting.pyplot_plus import set_show_and_hang_callback
+from artemis.plotting.manage_plotting import set_show_callback, set_draw_callback
 import os
 from matplotlib import pyplot as plt
 import logging
@@ -83,4 +83,5 @@ class TimedFigureSaver(object):
 def setup_web_plotting(update_period = 1.):
     plot_directory = gettempdir()  # Temporary directory
     _start_plotting_server(plot_directory=plot_directory, update_period=update_period)
-    set_show_and_hang_callback(TimedFigureSaver(os.path.join(plot_directory, 'artemis_figure.png'), update_period=update_period))
+    set_draw_callback(TimedFigureSaver(os.path.join(plot_directory, 'artemis_figure.png'), update_period=update_period))
+    set_show_callback(TimedFigureSaver(os.path.join(plot_directory, 'artemis_figure.png'), update_period=update_period))
