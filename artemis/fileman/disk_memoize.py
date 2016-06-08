@@ -1,5 +1,6 @@
 import hashlib
 from collections import OrderedDict
+import inspect
 import logging
 from artemis.fileman.local_dir import get_local_path, make_file_dir
 from artemis.general.test_mode import is_test_mode
@@ -42,15 +43,21 @@ def memoize_to_disk(fcn, local_cache = False):
 
     cached_local_results = {}
 
+    arg_spec = inspect.getargspec(fcn)
+    assert arg_spec[1] is None, "You cannot have variable arguments in a disk-memoized function... for now."
+    all_arg_names, _, _, defaults = arg_spec
+    default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-len(defaults):], defaults)}
+
     def check_memos(*args, **kwargs):
         result_computed = False
+        full_args = tuple(zip(all_arg_names, args) + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]])
 
         if MEMO_READ_ENABLED and not is_test_mode():
             if local_cache:
-                local_cache_signature = get_local_cache_signature(args, kwargs)
-                if local_cache_signature in cached_local_results:
-                    return cached_local_results[local_cache_signature]
-            filepath = get_function_hash_filename(fcn, args, kwargs)
+                # local_cache_signature = get_local_cache_signature(args, kwargs)
+                if full_args in cached_local_results:
+                    return cached_local_results[full_args]
+            filepath = get_function_hash_filename(fcn, full_args)
             if os.path.exists(filepath):
                 with open(filepath) as f:
                     try:
@@ -66,9 +73,9 @@ def memoize_to_disk(fcn, local_cache = False):
             result_computed = True
             result = fcn(*args, **kwargs)
 
-        if MEMO_WRITE_ENABLED and not is_test_mode():
+        if MEMO_WRITE_ENABLED and not is_test_mode() and result is not None:  # We assume result of None means you haven't done coding your function.
             if local_cache:
-                cached_local_results[local_cache_signature] = result
+                cached_local_results[full_args] = result
             if result_computed:  # Result was computed, so write it down
                 filepath = get_function_hash_filename(fcn, args, kwargs)
                 make_file_dir(filepath)
@@ -89,12 +96,12 @@ def memoize_to_disk_and_cache(fcn):
     return memoize_to_disk(fcn, local_cache=True)
 
 
-def get_local_cache_signature(args, kwargs):
-    return args + ('5243643254_kwargs_start_here', ) + tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
+# def get_local_cache_signature(argname_argvalue_list):
+#     return args + ('5243643254_kwargs_start_here', ) + tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
 
 
-def get_function_hash_filename(fcn, args, kwargs):
-    args_code = compute_fixed_hash((args, kwargs))
+def get_function_hash_filename(fcn, argname_argvalue_list):
+    args_code = compute_fixed_hash(argname_argvalue_list)
     return os.path.join(MEMO_DIR, '%s-%s.pkl' % (fcn.__name__, args_code))
 
 

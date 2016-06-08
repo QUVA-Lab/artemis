@@ -70,7 +70,7 @@ class PrintAndStoreLogger(object):
         return getattr(self.terminal, item)
 
 
-def capture_print(log_file_path = 'logs/dump/%T-log', print_to_console=True):
+def capture_print(log_file_path = 'logs/dump/%T-log.txt', print_to_console=True):
     """
     :param log_file_path: Path of file to print to, if (state and to_file).  If path does not start with a "/", it will
         be relative to the data directory.  You can use placeholders such as %T, %R, ... in the path name (see format
@@ -79,7 +79,7 @@ def capture_print(log_file_path = 'logs/dump/%T-log', print_to_console=True):
     :param print_to_console: Also continue printing to console.
     :return: The absolute path to the log file.
     """
-    local_log_file_path = get_local_path(log_file_path, current_time = datetime.now(), ext = 'txt')
+    local_log_file_path = get_local_path(log_file_path)
     logger = PrintAndStoreLogger(log_file_path=local_log_file_path, print_to_console=print_to_console)
     logger.__enter__()
     sys.stdout = logger

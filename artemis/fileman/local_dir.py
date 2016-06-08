@@ -32,6 +32,8 @@ def get_local_path(relative_path = '', make_local_dir = False):
     if not relative_path.startswith('/'):
         # Path is considered relative to data directory.
         file_path = os.path.join(LOCAL_DIR, format_filename(relative_path))
+    else:
+        file_path = relative_path
     if make_local_dir:
         make_file_dir(file_path)
     return file_path

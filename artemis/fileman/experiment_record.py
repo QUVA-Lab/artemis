@@ -12,7 +12,7 @@ from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_
 from artemis.plotting.notebook_plots import show_embedded_figure
 from artemis.fileman.notebook_utils import get_local_server_dir
 from artemis.fileman.notebook_utils import get_relative_link_from_relative_path
-from artemis.fileman.persistent_print import capture_print
+from artemis.fileman.persistent_print import capture_print, stop_capturing_print
 from artemis.plotting.saving_plots import clear_saved_figure_locs, get_saved_figure_locs, \
     set_show_callback, always_save_figures, show_saved_figure
 import matplotlib.pyplot as plt
@@ -129,7 +129,7 @@ class ExperimentRecord(object):
 
         self._experiment_name = name
         self._experiment_identifier = format_filename(file_string = filename, base_name=name, current_time = now)
-        self._experiment_directory = get_local_path('experiments/{identifier}'.format(name=self._experiment_identifier))
+        self._experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=self._experiment_identifier))
 
         self._log_file_name = os.path.join(self._experiment_directory, 'output.txt')
 
@@ -146,7 +146,7 @@ class ExperimentRecord(object):
             plt.ion()
         else:
             plt.ioff()
-        self._log_file_path = capture_print(True, log_file_path = self._log_file_name, print_to_console = self._print_to_console)
+        self._log_file_path = capture_print(log_file_path = self._log_file_name, print_to_console = self._print_to_console)
         always_save_figures(show = self._show_figs, print_loc = False, name = self._experiment_identifier+'-%N')
         global _CURRENT_EXPERIMENT_ID
         _CURRENT_EXPERIMENT_ID = self._experiment_identifier
@@ -154,7 +154,8 @@ class ExperimentRecord(object):
 
     def __exit__(self, *args):
         # On exit, we read the log file.  After this, the log file is no longer associated with the experiment.
-        capture_print(False)
+        # capture_print(False)
+        stop_capturing_print()
 
         with open(get_local_path(self._log_file_path)) as f:
             self._captured_logs = f.read()
