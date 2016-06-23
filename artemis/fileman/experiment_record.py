@@ -5,7 +5,6 @@ import shlex
 import pickle
 import shutil
 import subprocess
-
 from decorator import contextmanager
 import os
 import re
@@ -171,7 +170,6 @@ def record_experiment(name = 'unnamed', filename = '%T-%N', description = '', pr
 
     with open(os.path.join(experiment_directory, 'info.pkl'), 'w') as f:
         pickle.dump({'name': name, 'id': experiment_identifier, 'description': description}, f)
-    # self._log_file_name = format_filename('%T-%N', base_name = name, current_time = now)
 
     blocking_show_context = WhatToDoOnShow(show_figs)
     blocking_show_context.__enter__()
@@ -181,13 +179,7 @@ def record_experiment(name = 'unnamed', filename = '%T-%N', description = '', pr
         figure_save_context = SaveFiguresOnShow(path = os.path.join(experiment_directory, 'fig-%T-%L'+saved_figure_ext))
         figure_save_context.__enter__()
 
-    # self._log_file_path = capture_print(log_file_path = self._log_file_name, print_to_console = self._print_to_console)
-    # always_save_figures(show = self._show_figs, print_loc = False, name = self._experiment_identifier+'-%N')
     _register_current_experiment(name, experiment_identifier)
-    # global _CURRENT_EXPERIMENT_ID
-    # _CURRENT_EXPERIMENT_ID = experiment_identifier
-    # global _CURRENT_EXPERIMENT_NAME
-    # _CURRENT_EXPERIMENT_NAME = name
 
     yield ExperimentRecord(experiment_directory)
 
@@ -196,175 +188,7 @@ def record_experiment(name = 'unnamed', filename = '%T-%N', description = '', pr
     if save_figs:
         figure_save_context.__exit__(None, None, None)
 
-
-    # self._blocking_show_context = WhatToDoOnShow(self._show_figs).__exit__(*args)
-    # stop_capturing_print()
-    # with open(get_local_path(self._log_file_path)) as f:
-    #     self._captured_logs = f.read()
-    # set_show_callback(None)
-    # self._captured_figure_locs = get_saved_figure_locs()
-    # self._has_run = True
     _deregister_current_experiment()
-
-    # global _CURRENT_EXPERIMENT_ID
-    # _CURRENT_EXPERIMENT_ID = None
-    # global _CURRENT_EXPERIMENT_NAME
-    # _CURRENT_EXPERIMENT_NAME = None
-
-
-
-
-# class RecordExperiment(object):
-#     """
-#     Captures all logs and figures generated, and saves the result.  Usage:
-#
-#     with RecordExperiment() as exp_1:
-#         do_stuff()
-#         plot_figures()
-#
-#     exp_1.get_record().shows_figures()
-#     """
-#
-#     def __init__(self, name, filename = '%T-%N', description = '', print_to_console = True, save_result = None, show_figs = None,
-#             save_figs = True, saved_figure_ext = '.pdf'):
-#         """
-#         :param name: Base-name of the experiment
-#         :param filename: Format of the filename (placeholders: %T is replaced by time, %N by name)
-#         :param experiment_dir: Relative directory (relative to data dir) to save this experiment when it closes
-#         :param print_to_console: If True, print statements still go to console - if False, they're just rerouted to file.
-#         :param show_figs: Show figures when the experiment produces them.  Can be:
-#             'hang': Show and hang
-#             'draw': Show but keep on going
-#             False: Don't show figures
-#         """
-#         now = datetime.now()
-#         if save_result is None:
-#             save_result = not is_test_mode()
-#
-#         if show_figs is None:
-#             show_figs = 'draw' if is_test_mode() else 'hang'
-#
-#         assert show_figs in ('hang', 'draw', False)
-#
-#         self._experiment_name = name
-#         self._experiment_identifier = format_filename(file_string = filename, base_name=name, current_time = now)
-#         self._experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=self._experiment_identifier))
-#
-#         self._log_file_name = os.path.join(self._experiment_directory, 'output.txt')
-#
-#         # self._log_file_name = format_filename('%T-%N', base_name = name, current_time = now)
-#         self._has_run = False
-#         self._print_to_console = print_to_console
-#         self._save_result = save_result
-#         self.result = None
-#         self._show_figs = show_figs
-#         self._save_figs = save_figs
-#         self._saved_figure_ext = saved_figure_ext
-#         self.description = description
-#
-#     def __enter__(self):
-#         # clear_saved_figure_locs()
-#         # if self._show_figs == 'draw':
-#         #     plt.ion()
-#         # else:
-#         #     plt.ioff()
-#
-#         self._blocking_show_context = WhatToDoOnShow(self._show_figs)
-#         self._blocking_show_context.__enter__()
-#         self._log_capture_context = PrintAndStoreLogger(log_file_path = self._log_file_name, print_to_console = self._print_to_console)
-#         self._log_capture_context.__enter__()
-#         if self._save_figs:
-#             self._figure_save_context = SaveFiguresOnShow(path = os.path.join(self._experiment_directory, 'fig-%T-%L'+self._saved_figure_ext))
-#             self._figure_save_context.__enter__()
-#
-#         # self._log_file_path = capture_print(log_file_path = self._log_file_name, print_to_console = self._print_to_console)
-#         # always_save_figures(show = self._show_figs, print_loc = False, name = self._experiment_identifier+'-%N')
-#         global _CURRENT_EXPERIMENT_ID
-#         _CURRENT_EXPERIMENT_ID = self._experiment_identifier
-#         return ExperimentRecord(self)
-#
-#     def __exit__(self, *args):
-#         # On exit, we read the log file.  After this, the log file is no longer associated with the experiment.
-#         # capture_print(False)
-#
-#         self._blocking_show_context.__exit__(*args)
-#         self._log_capture_context.__exit__(*args)
-#         if self._save_figs:
-#             self._figure_save_context.__exit__(*args)
-#
-#         with open(os.path.join(self._experiment_directory, 'info.pkl'), 'w') as f:
-#             pickle.dump({'name': self._experiment_name, 'id': self._experiment_identifier, 'description': self.description}, f)
-#
-#         # self._blocking_show_context = WhatToDoOnShow(self._show_figs).__exit__(*args)
-#         # stop_capturing_print()
-#         # with open(get_local_path(self._log_file_path)) as f:
-#         #     self._captured_logs = f.read()
-#         # set_show_callback(None)
-#         # self._captured_figure_locs = get_saved_figure_locs()
-#         # self._has_run = True
-#
-#         global _CURRENT_EXPERIMENT_ID
-#         _CURRENT_EXPERIMENT_ID = None
-#         global _CURRENT_EXPERIMENT_NAME
-#         _CURRENT_EXPERIMENT_NAME = None
-#
-#         if self._save_result and self.result:
-#             file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
-#             make_file_dir(file_path)
-#             with open(file_path, 'w') as f:
-#                 pickle.dump(self.result, f)
-#                 print 'Saving Experiment "%s"' % (self._experiment_identifier, )
-#
-#     def get_identifier(self):
-#         return self._experiment_identifier
-#
-#     def get_record(self):
-#         return ExperimentRecord(self._experiment_directory)
-
-    # def get_log(self):
-    #     return self._log_capture_context.read()
-    #
-    # def get_figure_locs(self):
-    #     return self._figure_save_context.get_figure_locs()
-
-    # def show_figures(self):
-    #     for loc in self._captured_figure_locs:
-    #         if _am_in_ipython():
-    #             rel_loc = get_relative_link_from_relative_path(loc)
-    #             show_embedded_figure(rel_loc)
-    #         else:
-    #             show_saved_figure(loc)
-    #
-    # def show(self):
-    #     if _am_in_ipython():
-    #         display(HTML("<a href = '%s' target='_blank'>View Log File for this experiment</a>"
-    #                      % get_relative_link_from_relative_path(self._log_file_path)))
-    #     else:
-    #         self.print_logs()
-    #     self.show_figures()
-
-    # def print_logs(self):
-    #     print self._captured_logs
-
-    # def get_file_path(self):
-    #     return get_local_experiment_path(self._experiment_identifier)
-
-    # def end_and_show(self):
-    #     if not self._has_run:
-    #         self.__exit__()
-    #     self.show()
-
-    # def set_result(self, result):
-    #     """
-    #     Don't touch this... it should only really be used in the "run experiment" function.
-    #     """
-    #     self.result = result
-    #
-    # # def get_result(self):
-    # #     return self.result
-    #
-    # def __str__(self):
-    #     return '<ExperimentRecord object %s at %s>' % (self._experiment_identifier, hex(id(self)))
 
 
 _CURRENT_EXPERIMENT_ID = None
@@ -402,14 +226,9 @@ def get_current_experiment_id():
 
 
 def get_current_experiment_name():
-     if _CURRENT_EXPERIMENT_NAME is None:
+    if _CURRENT_EXPERIMENT_NAME is None:
         raise Exception("No experiment is currently running!")
-     return _CURRENT_EXPERIMENT_NAME
-
-
-
-
-
+    return _CURRENT_EXPERIMENT_NAME
 
 
 def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_record_kwargs):
@@ -423,25 +242,8 @@ def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_reco
 
     :return: A location_string, uniquely identifying the experiment.
     """
-
-    # if isinstance(exp_dict, dict):
-    #     assert name in exp_dict, 'Could not find experiment "%s" in the experiment dictionary with keys %s' % (name, exp_dict.keys())
-    #     func = exp_dict[name]
-    # else:
-    #     assert hasattr(exp_dict, '__call__')
-    #     func = exp_dict
-
     experiment = exp_dict[name]
-
-    # if isinstance(experiment, Experiment):
     return experiment.run(**experiment_record_kwargs)
-    # else:
-    #     logging.warn('DEPRECATED: Switch to register_experiment.')
-    #     with ExperimentContext(name = name, print_to_console=print_to_console, show_figs=show_figs, **experiment_record_kwargs) as exp_context:
-    #         print '%s Running Experiment: %s %s' % ('='*10, name, '='*10)
-    #         func()
-    #         print '%s Done Experiment: %s %s' % ('-'*11, name, '-'*12)
-    #     return exp_context.get_record()
 
 
 def _get_matching_template_from_experiment_name(experiment_name, template = '%T-%N'):
@@ -494,42 +296,6 @@ def merge_experiment_dicts(*dicts):
     return merge_dict
 
 
-# def get_or_run_notebook_experiment(name, exp_dict, display_module = True, force_compute = False, **notebook_experiment_record_kwargs):
-#     """
-#     Get the latest experiment with the given name,
-#     :param name: Name of the experiment
-#     :param exp_dict: Dictionary of experiments to chose from
-#     :param force_compute: Recompute the experiment no matter what
-#     :param notebook_experiment_record_kwargs:
-#     :return:
-#     """
-#     exp_id = get_latest_experiment_identifier(name=name)
-#
-#     recompute = exp_id is None or force_compute
-#
-#     if display_module:
-#         func = exp_dict[name]
-#         if hasattr(inspect.getmodule(func), '__file__'):
-#             module_rel_path = inspect.getmodule(func).__file__
-#             if module_rel_path.endswith('.pyc'):
-#                 module_rel_path = module_rel_path[:-1]
-#             module_name = inspect.getmodule(func).__name__
-#             server_path = get_local_server_dir()
-#             rel_path = get_relative_path(module_rel_path, server_path)
-#             if recompute:
-#                 display(HTML("Running Experiment %s from module <a href = '/edit/%s' target='_blank'>%s</a>" % (name, rel_path, module_name)))
-#             else:
-#                 display(HTML("Showing Completed Experiment %s from module <a href = '/edit/%s' target='_blank'>%s</a>" % (exp_id, rel_path, module_name)))
-#
-#     if recompute:
-#         exp = run_notebook_experiment(name, exp_dict, **notebook_experiment_record_kwargs)
-#     else:
-#         exp = load_experiment(exp_id)
-#     return exp
-
-
-
-
 def get_latest_experiment_identifier(name, template = '%T-%N'):
     """
     Show results of the latest experiment matching the given template.
@@ -548,12 +314,7 @@ def get_latest_experiment_identifier(name, template = '%T-%N'):
 
 def show_latest_results(experiment_name, template = '%T-%N'):
     print GLOBAL_EXPERIMENT_LIBRARY[experiment_name]
-
     experiment_record_identifier =  get_latest_record_identifier(experiment_name, template)
-    #
-    # experiment_record_identifier = get_latest_experiment_identifier(experiment_name, template)
-    # if experiment_record_identifier is None:
-    #     raise Exception('No records for experiment "%s" exist.' % (experiment_name, ))
     show_experiment(experiment_record_identifier)
 
 
@@ -580,9 +341,6 @@ def load_experiment(experiment_identifier):
     """
     full_path = get_local_experiment_path(identifier=experiment_identifier)
     return ExperimentRecord(full_path)
-    # with open(full_path) as f:
-    #     exp = pickle.load(f)
-    # return exp
 
 
 def get_all_experiment_ids(expr = None):
@@ -717,15 +475,6 @@ class Experiment(object):
         exp_rec.set_result(results)
         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
         set_test_mode(old_test_mode)
-        #     with TestMode():
-        #
-        # else:
-        #     print '%s Running Experiment: %s %s' % ('='*10, name, '='*10)
-        #     with record_experiment(name = name, print_to_console=print_to_console, show_figs=show_figs, **experiment_record_kwargs) as exp_rec:
-        #         results = self.function(**kwargs)
-        #         exp_rec.set_result(results)
-        #     print '%s Done Experiment: %s %s' % ('-'*11, name, '-'*12)
-
         if not keep_record:
             exp_rec.delete()
 
@@ -763,9 +512,6 @@ def end_current_experiment():
     global _CURRENT_EXPERIMENT_CONTEXT
     _CURRENT_EXPERIMENT_CONTEXT.__exit__(None, None, None)
     _CURRENT_EXPERIMENT_CONTEXT = None
-
-# ---
-
 
 
 def show_saved_figure(relative_loc):

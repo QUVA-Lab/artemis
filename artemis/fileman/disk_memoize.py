@@ -104,7 +104,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True):
 def memoize_to_disk_test(fcn):
     """
     Use this just when testing the memoization itself (because normally memoization is disabled when is_test_mode() is True.
-    :param fcn: 
+    :param fcn:
     :return:
     """
     return memoize_to_disk(fcn, disable_on_tests=False)
