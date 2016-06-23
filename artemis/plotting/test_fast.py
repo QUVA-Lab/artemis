@@ -1,3 +1,4 @@
+from artemis.general.test_mode import set_test_mode
 from artemis.plotting.fast import find_interval_extremes, fastplot, fastloglog
 import matplotlib.pyplot as plt
 
@@ -26,5 +27,6 @@ def test_find_interval_extremes():
 
 
 if __name__ == '__main__':
+    set_test_mode(True)
     test_fastplot()
     test_find_interval_extremes()

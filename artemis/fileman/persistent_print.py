@@ -46,6 +46,7 @@ class PrintAndStoreLogger(object):
         self.close()
 
     def get_log_file_path(self):
+        assert self._log_file_path is not None, "You never specified a path when you created this logger, so don't come back and ask for one now"
         return self._log_file_path
 
     def write(self, message):
@@ -99,7 +100,7 @@ def new_log_file(log_file_path = 'dump/%T-log', print_to_console = False):
     :param log_file_path: Path to the log file - %T is replaced with time
     :param print_to_console: True to continue printing to console
     """
-    return capture_print(state = True, log_file_path=log_file_path, print_to_console=print_to_console)
+    return capture_print(log_file_path=log_file_path, print_to_console=print_to_console)
 
 
 def read_print():

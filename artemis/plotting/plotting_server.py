@@ -70,7 +70,7 @@ class TimedFigureSaver(object):
         self._last_update = -float('inf')
         self.update_period = update_period
 
-    def __call__(self, fig=None):
+    def __call__(self, fig=None, block=False):
         current_time = time.time()
         if current_time - self._last_update > self.update_period:
             if fig is None:

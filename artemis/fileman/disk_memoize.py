@@ -46,7 +46,7 @@ def memoize_to_disk(fcn, local_cache = False):
     arg_spec = inspect.getargspec(fcn)
     assert arg_spec[1] is None, "You cannot have variable arguments in a disk-memoized function... for now."
     all_arg_names, _, _, defaults = arg_spec
-    default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-len(defaults):], defaults)}
+    default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-(len(defaults) if defaults is not None else 0):], defaults if defaults is not None else [])}
 
     def check_memos(*args, **kwargs):
         result_computed = False
