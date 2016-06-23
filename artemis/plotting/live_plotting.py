@@ -2,7 +2,7 @@ from collections import namedtuple, OrderedDict
 from abc import abstractmethod
 from artemis.general.nested_structures import flatten_struct
 from artemis.plotting.easy_plotting import plot_data_dict
-from artemis.plotting.manage_plotting import draw
+from artemis.plotting.manage_plotting import redraw_figure
 import artemis.plotting.plotting_backend as eplt
 
 __author__ = 'peter'
@@ -46,7 +46,7 @@ class BaseStream(object):
                     self._plots[k].update(v)
             else:
                 self._plots[name].update(data_dict[name])
-        draw()
+        redraw_figure()
 
     @abstractmethod
     def _get_data_structure(self):

@@ -4,6 +4,8 @@ import inspect
 import shlex
 import pickle
 import shutil
+import subprocess
+
 from decorator import contextmanager
 import os
 import re
@@ -12,7 +14,6 @@ from artemis.plotting.manage_plotting import WhatToDoOnShow
 from artemis.plotting.saving_plots import SaveFiguresOnShow
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_print import PrintAndStoreLogger
-from artemis.notebooks.saving_plots_deprecated import show_saved_figure
 import logging
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
@@ -764,6 +765,14 @@ def end_current_experiment():
     _CURRENT_EXPERIMENT_CONTEXT = None
 
 # ---
+
+
+
+def show_saved_figure(relative_loc):
+    _, ext = os.path.splitext(relative_loc)
+    abs_loc = get_local_path(relative_loc)
+    assert os.path.exists(abs_loc), '"%s" did not exist.  That is odd.' % (abs_loc, )
+    subprocess.call('open "%s"' % abs_loc, shell = True)   # Note... Not cross platform
 
 
 if __name__ == '__main__':

@@ -1,10 +1,12 @@
 import time
-from artemis.fileman.disk_memoize import memoize_to_disk, clear_memo_files_for_function, DisableMemos, memoize_to_disk_and_cache
+from artemis.fileman.disk_memoize import memoize_to_disk, clear_memo_files_for_function, DisableMemos, memoize_to_disk_and_cache, \
+    memoize_to_disk_test, memoize_to_disk_and_cache_test
+from artemis.general.test_mode import set_test_mode
 import numpy as np
 
 __author__ = 'peter'
 
-@memoize_to_disk
+@memoize_to_disk_test
 def compute_slow_thing(a, b, c):
     call_time = time.time()
     time.sleep(0.01)
@@ -38,7 +40,7 @@ def test_memoize_to_disk():
     assert t5 == t3
 
 
-@memoize_to_disk
+@memoize_to_disk_and_cache_test
 def complex_arg_fcn(a, b):
     time.sleep(0.01)
     return str(a)+str(b), time.time()
@@ -63,7 +65,7 @@ def test_complex_args():
     assert t1!=t3
 
 
-@memoize_to_disk_and_cache
+@memoize_to_disk_and_cache_test
 def compute_slow_thing_again(a, b, c):
     call_time = time.time()
     time.sleep(0.01)
@@ -99,6 +101,7 @@ def test_memoize_to_disk_and_cache():
 
 
 if __name__ == '__main__':
+    set_test_mode(True)
     test_memoize_to_disk_and_cache()
     test_memoize_to_disk()
     test_complex_args()
