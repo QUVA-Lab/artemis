@@ -68,6 +68,6 @@ def test_same_object():
 
 if __name__ == '__main__':
     test_same_object()
-    test_history_plot_updating()
-    test_particular_plot()
-    test_dbplot()
+    # test_history_plot_updating()
+    # test_particular_plot()
+    # test_dbplot()

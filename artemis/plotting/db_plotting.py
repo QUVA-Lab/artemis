@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
-from artemis.plotting.manage_plotting import draw
+from artemis.plotting.manage_plotting import redraw_figure
 from artemis.plotting.matplotlib_backend import get_plot_from_data
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from matplotlib import gridspec
@@ -41,11 +41,12 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         if hang:
             plt.show()
         else:
-            draw()  # Ensures that plot actually shows (whereas plt.draw() may not)
+            redraw_figure()  # Ensures that plot actually shows (whereas plt.draw() may not)
 
 
 def _extend_subplots(key_names):
     n_rows, n_cols = vector_length_to_tile_dims(len(key_names))
+    print n_rows, n_cols
     gs = gridspec.GridSpec(n_rows, n_cols)
     fig = plt.gcf()
     for g, k in zip(gs, key_names):

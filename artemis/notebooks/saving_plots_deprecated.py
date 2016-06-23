@@ -43,7 +43,7 @@ def save_and_show(fig = None, name = '%T-%N', ext = 'pdf', base_dir = 'figures',
     :param block: Should the desiplay block execution?  (If None, just go with current interactivemode setting)
     :param print_loc: Print the save location?
     :param show: Actually show the figure?
-    :return: The local file-path of the saved figure.
+    :return: The relative file-path of the saved figure.
     """
 
     if fig is None:

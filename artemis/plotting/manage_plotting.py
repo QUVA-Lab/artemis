@@ -1,3 +1,5 @@
+from artemis.general.test_mode import is_test_mode
+from decorator import contextmanager
 from matplotlib import pyplot as plt
 __author__ = 'peter'
 
@@ -27,24 +29,35 @@ You can also do the same for drawing figures (showing without hanging on the fig
 _ORIGINAL_SHOW_CALLBACK = plt.show
 _ORIGINAL_PLT_DRAW = plt.draw
 
-
-def draw(fig=None):
-    _ORIGINAL_PLT_DRAW()
-    plt.pause(0.00001)  # Required to display, at least on some backends.
+_WHAT_TO_DO_ON_SHOW = True
 
 
-_ORIGINAL_DRAW_CALLBACK = draw
+def redraw_figure(fig=None):
+    plt.draw()
+    _ORIGINAL_SHOW_CALLBACK(block=False)
+
+
+def show_figure(*args, **kwargs):
+
+    if is_test_mode():
+        redraw_figure()  # Designed to
+    elif _WHAT_TO_DO_ON_SHOW=='hang':
+        _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
+    elif _WHAT_TO_DO_ON_SHOW=='draw':
+        redraw_figure()
+    elif _WHAT_TO_DO_ON_SHOW is False:
+        pass
 
 class FigureCallBackManager(object):
 
     def __init__(self, callbacks):
         self.callbacks = callbacks
 
-    def __call__(self, fig=None):
+    def __call__(self, fig=None, **kwargs):
         if fig is None:
             fig = plt.gcf()
         for cb in self.callbacks:
-            cb(fig)
+            cb(fig, **kwargs)
 
     def insert_callback(self, cb, idx = 0):
         old_callbacks = list(self.callbacks)
@@ -69,12 +82,31 @@ class FigureCallBackManager(object):
     def clear_callbacks(self):
         self.callbacks = []
 
-show_callback = FigureCallBackManager([_ORIGINAL_SHOW_CALLBACK])
+show_callback = FigureCallBackManager([show_figure])
 plt.show=show_callback
 
-draw_callback = FigureCallBackManager([_ORIGINAL_DRAW_CALLBACK])
-plt.draw=draw_callback
-draw = draw_callback
+draw_callback = FigureCallBackManager([redraw_figure])
+# plt.draw=draw_callback
+redraw_figure = draw_callback
+
+
+@contextmanager
+def WhatToDoOnShow(state):
+    """
+    Deterine whether or not show blocks.
+    *Note: In test mode, this is overridden, and show will never block.
+    :param state: One of:
+        'hang': Show and hang
+        'draw': Show but keep on going
+        False: Don't show figures
+    :return:
+    """
+    assert state in ('hang', 'draw', False)
+    global _WHAT_TO_DO_ON_SHOW
+    old_block_val = _WHAT_TO_DO_ON_SHOW
+    _WHAT_TO_DO_ON_SHOW = state
+    yield
+    _WHAT_TO_DO_ON_SHOW = old_block_val
 
 
 class ShowContext(object):

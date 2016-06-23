@@ -77,7 +77,7 @@ def memoize_to_disk(fcn, local_cache = False):
             if local_cache:
                 cached_local_results[full_args] = result
             if result_computed:  # Result was computed, so write it down
-                filepath = get_function_hash_filename(fcn, args, kwargs)
+                filepath = get_function_hash_filename(fcn, full_args)
                 make_file_dir(filepath)
                 with open(filepath, 'w') as f:
                     pickle.dump(result, f)

@@ -24,8 +24,9 @@ def link_and_show(embed = False, **save_and_show_kwargs):
     """
 
     base_dir = 'figures'
-    full_figure_loc = save_and_show(print_loc = False, base_dir=base_dir, show = not embed, **save_and_show_kwargs)
-    relative_link = get_relative_link_from_local_path(full_figure_loc)
+    relative_path = save_and_show(print_loc = False, base_dir=base_dir, show = not embed, **save_and_show_kwargs)
+    relative_link = get_relative_link_from_relative_path(relative_path)
+    # relative_link = get_relative_link_from_local_path(full_figure_loc)
     figure_folder_loc = get_relative_link_from_relative_path('figures')
 
     if embed:
