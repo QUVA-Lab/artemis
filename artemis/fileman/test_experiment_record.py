@@ -28,6 +28,7 @@ def _run_experiment():
     plt.imshow(dat, interpolation = 'nearest', cmap = 'gray')
     plt.show()
     print 'bbb'
+    plt.figure()
     plt.plot(np.random.randn(10))
     plt.show()
 
@@ -55,6 +56,7 @@ def test_experiment_with():
     assert exp_rec_copy.get_log() == 'aaa\nbbb\n'
     exp_rec_copy.show_figures()
     assert len(exp_rec_copy.get_figure_locs()) == 2
+    time.sleep(.5)  # Gives time for browser to open and display... just for test
     exp_rec.delete()
 
 
@@ -112,7 +114,6 @@ def test_experiment_interface():
 if __name__ == '__main__':
 
     set_test_mode(True)
-
     test_experiment_interface()
     test_get_latest()
     test_run_and_show()

@@ -12,7 +12,7 @@ logging.basicConfig()
 def save_figure(fig, path, default_ext = '.pdf', print_loc = True):
     """
     :param fig: The figure to show
-    :param path: The path to the figure.  If it does not start with "/", it is assumed to be relative to the Data directory.
+    :param path: The absolute path to the figure.
     :param default_ext: The default extension to use, if none is specified.
     :param print_loc: Print the location when you save it.
     :return:
@@ -57,7 +57,7 @@ def show_saved_figure(relative_loc):
             ARTEMIS_LOGGER.error("Cannot display image '%s', because PIL is not installed.  Go pip install pillow to use this.  Currently it is a soft requirement.")
     else:
         import webbrowser
-        webbrowser.open(abs_loc)
+        webbrowser.open('file://'+abs_loc)
 
 
 
