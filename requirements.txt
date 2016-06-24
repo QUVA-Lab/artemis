@@ -9,3 +9,4 @@ ipython[notebook]
 # Theano
 # -e git+http://github.com/petered/plato#egg=plato
 # -e git+http://github.com/lisa-lab/pylearn2.git#egg=pylearn2
+# pillow

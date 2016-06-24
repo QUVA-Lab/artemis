@@ -1,17 +1,10 @@
-from artemis.fileman.local_dir import get_local_path
 import matplotlib.pyplot as plt
 import logging
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
 """
-An extension to matplotlib's pyplot library.
-
-We use this to
-
-a) Get rid of this "interactive/non-interactive" mode paradigm.  Instead we just have different functions to plot /
-   plot and hang.
-b) Add some useful functions.
+An few extension functions to pyplot
 """
 
 
@@ -25,4 +18,10 @@ def axvlines(xs, **specs):
     return [plt.axvline(x, **specs) for x in xs]
 
 
-
+def set_default_figure_size(width, height):
+    """
+    :param width: Width (in inches, for some reason)
+    :param height: Height (also in inches.  One inch is about 2.54cm)
+    """
+    from pylab import rcParams
+    rcParams['figure.figsize'] = width, height

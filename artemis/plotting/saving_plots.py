@@ -1,5 +1,5 @@
 from functools import partial
-from artemis.fileman.local_dir import make_file_dir, format_filename
+from artemis.fileman.local_dir import make_file_dir, format_filename, get_local_path
 from artemis.plotting.manage_plotting import ShowContext
 import os
 __author__ = 'peter'
@@ -34,6 +34,31 @@ def save_figure(fig, path, default_ext = '.pdf', print_loc = True):
     else:
         ARTEMIS_LOGGER.info('Saved Figure: %s' % path)
     return path
+
+
+def show_saved_figure(relative_loc):
+    """
+    Display a saved figure.
+
+    Behaviour: this simply opens a window with the figure, and then continues executing the code.
+
+    :param relative_loc: Relative path (within the data directory) to the figure.  Treated as an absolute path
+        if it begins with "/"
+    :return:
+    """
+    _, ext = os.path.splitext(relative_loc)
+    abs_loc = get_local_path(relative_loc)
+    assert os.path.exists(abs_loc), '"%s" did not exist.  That is odd.' % (abs_loc, )
+    if ext in ('.jpg', '.png', '.tif'):
+        try:
+            from PIL import Image
+            Image.open(abs_loc).show()
+        except ImportError:
+            ARTEMIS_LOGGER.error("Cannot display image '%s', because PIL is not installed.  Go pip install pillow to use this.  Currently it is a soft requirement.")
+    else:
+        import webbrowser
+        webbrowser.open(abs_loc)
+
 
 
 class SaveFiguresOnShow(ShowContext):

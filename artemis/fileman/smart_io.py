@@ -57,8 +57,13 @@ def smart_load(relative_path):
             obj = pickle.load(f)
     elif ext=='.gif':
         obj = np.array(readGif(local_path))
+    elif ext=='.jpg':
+        from PIL import Image
+        pic = Image.open(local_path)
+        pix = np.array(pic.getdata(), dtype='uint8').reshape(pic.size[1], pic.size[0], 3)
+        return pix
     else:
-        raise Exception("No method exists yet to load '.%s' files.  Add it!" % (ext, ))
+        raise Exception("No method exists yet to load '%s' files.  Add it!" % (ext, ))
     return obj
 
 

@@ -5,12 +5,13 @@ import shlex
 import pickle
 import shutil
 import subprocess
+import sys
 from decorator import contextmanager
 import os
 import re
 from artemis.general.test_mode import is_test_mode, set_test_mode
 from artemis.plotting.manage_plotting import WhatToDoOnShow
-from artemis.plotting.saving_plots import SaveFiguresOnShow
+from artemis.plotting.saving_plots import SaveFiguresOnShow, show_saved_figure
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_print import PrintAndStoreLogger
 import logging
@@ -514,11 +515,20 @@ def end_current_experiment():
     _CURRENT_EXPERIMENT_CONTEXT = None
 
 
-def show_saved_figure(relative_loc):
-    _, ext = os.path.splitext(relative_loc)
-    abs_loc = get_local_path(relative_loc)
-    assert os.path.exists(abs_loc), '"%s" did not exist.  That is odd.' % (abs_loc, )
-    subprocess.call('open "%s"' % abs_loc, shell = True)   # Note... Not cross platform
+
+
+# def x_platform_open(abs_path):
+#     if sys.platform=='win32':
+#         subprocess.Popen(['start', d], shell= True)
+#     elif sys.platform=='darwin':
+#         subprocess.Popen(['open', d])
+#     else:
+#         try:
+#             subprocess.Popen(['xdg-open', d])
+#         except OSError:
+#             # er, think of something else to try
+#             # xdg-open *should* be supported by recent Gnome, KDE, Xfce
+
 
 
 if __name__ == '__main__':
