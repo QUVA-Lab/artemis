@@ -20,4 +20,6 @@ You'll need to make sure your virtualenv already has artemis dependencies (numpy
 
 Or if your project has a `requirements.txt` file, add the line `-e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis` before running `pip install -r requirements.txt`
 
+During installation, the file `.artemisrc` is created in your home directory. In it you can specify the backend to use
+
 ![](https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Tizian_015.jpg/800px-Tizian_015.jpg)
