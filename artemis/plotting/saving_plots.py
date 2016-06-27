@@ -1,4 +1,3 @@
-from functools import partial
 from artemis.fileman.local_dir import make_file_dir, format_filename, get_local_path
 from artemis.plotting.manage_plotting import ShowContext
 import os
@@ -58,7 +57,6 @@ def show_saved_figure(relative_loc):
     else:
         import webbrowser
         webbrowser.open('file://'+abs_loc)
-
 
 
 class SaveFiguresOnShow(ShowContext):

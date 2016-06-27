@@ -60,11 +60,11 @@ def make_file_dir(full_file_path):
 
 
 def make_dir(full_dir):
-
     try:
         os.makedirs(full_dir)
     except OSError:
         pass
+    return full_dir
 
 
 _ALPHANUMERICS = [chr(a) for a in xrange(ord('a'), ord('z')+1)]+[chr(a) for a in xrange(ord('0'), ord('9')+1)]

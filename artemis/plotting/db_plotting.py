@@ -10,9 +10,17 @@ __author__ = 'peter'
 
 _PLOT_DATA_OBJECTS = OrderedDict()
 _SUBPLOTS = OrderedDict()
+_DBPLOT_FIGURE = None
 
 
-def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None):
+def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None, fig = None):
+
+    global _DBPLOT_FIGURE
+    if fig is not None:
+        assert _DBPLOT_FIGURE is None, "You can only pass fig as an argument on your first call to dbplot"
+        _DBPLOT_FIGURE = fig
+    elif _DBPLOT_FIGURE is None:
+        _DBPLOT_FIGURE = plt.figure()
 
     if name not in _PLOT_DATA_OBJECTS:
         if isinstance(plot_constructor, str):
@@ -44,7 +52,15 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
             redraw_figure()  # Ensures that plot actually shows (whereas plt.draw() may not)
 
 
+def clear_dbplot():
+    plt.figure(_DBPLOT_FIGURE.number)
+    plt.clf()
+    _SUBPLOTS.clear()
+    _PLOT_DATA_OBJECTS.clear()
+
+
 def _extend_subplots(key_names):
+    plt.figure(_DBPLOT_FIGURE.number)
     n_rows, n_cols = vector_length_to_tile_dims(len(key_names))
     print n_rows, n_cols
     gs = gridspec.GridSpec(n_rows, n_cols)

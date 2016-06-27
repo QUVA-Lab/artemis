@@ -1,11 +1,11 @@
+import atexit
 from collections import OrderedDict
 from datetime import datetime
 import inspect
 import shlex
 import pickle
 import shutil
-import subprocess
-import sys
+import tempfile
 from decorator import contextmanager
 import os
 import re
@@ -144,7 +144,7 @@ class ExperimentRecord(object):
 
 @contextmanager
 def record_experiment(name = 'unnamed', filename = '%T-%N', description = '', print_to_console = True, show_figs = None,
-            save_figs = True, saved_figure_ext = '.pdf'):
+            save_figs = True, saved_figure_ext = '.pdf', use_temp_dir = False):
     """
     :param name: Base-name of the experiment
     :param filename: Format of the filename (placeholders: %T is replaced by time, %N by name)
@@ -163,7 +163,11 @@ def record_experiment(name = 'unnamed', filename = '%T-%N', description = '', pr
     assert show_figs in ('hang', 'draw', False)
 
     experiment_identifier = format_filename(file_string = filename, base_name=name, current_time = now)
-    experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=experiment_identifier))
+    if use_temp_dir:
+        experiment_directory = tempfile.mkdtemp()
+        atexit.register(lambda: shutil.rmtree(experiment_directory))
+    else:
+        experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=experiment_identifier))
     make_dir(experiment_directory)
     make_file_dir(experiment_directory)
     log_file_name = os.path.join(experiment_directory, 'output.txt')
@@ -474,15 +478,12 @@ class Experiment(object):
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
         ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
-        with record_experiment(name = name, description=self.description, print_to_console=print_to_console, show_figs=show_figs, **experiment_record_kwargs) as exp_rec:
+        with record_experiment(name = name, description=self.description, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
             results = self.function(**kwargs)
         exp_rec.set_result(results)
         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
         set_test_mode(old_test_mode)
-        if not keep_record:
-            exp_rec.delete()
-
-        return exp_rec if keep_record else None
+        return exp_rec
 
     def display_last(self):
         assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )

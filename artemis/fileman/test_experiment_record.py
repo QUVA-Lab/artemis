@@ -1,3 +1,4 @@
+import atexit
 import time
 from artemis.general.test_mode import set_test_mode
 from artemis.fileman.experiment_record import start_experiment, run_experiment, show_experiment, \
@@ -56,8 +57,7 @@ def test_experiment_with():
     assert exp_rec_copy.get_log() == 'aaa\nbbb\n'
     exp_rec_copy.show_figures()
     assert len(exp_rec_copy.get_figure_locs()) == 2
-    time.sleep(.5)  # Gives time for browser to open and display... just for test
-    exp_rec.delete()
+    atexit.register(lambda: shutil.rmtree(exp_rec_copy.get_dir()))
 
 
 def test_start_experiment():
@@ -82,7 +82,9 @@ def test_run_and_show():
     """
     experiment_record = run_experiment('test_experiment', keep_record = True)
     show_experiment(experiment_record.get_identifier())
-    shutil.rmtree(experiment_record.get_dir())
+
+    # Delay cleanup otherwise the show complains that file does not exist due to race condition.
+    atexit.register(lambda: shutil.rmtree(experiment_record.get_dir()))
 
 
 def test_get_latest():
@@ -108,7 +110,7 @@ def test_experiment_interface():
     assert exp_rec.get_log() == 'aaa\nbbb\n'
     same_exp_rec = load_experiment(get_latest_experiment_identifier(name = 'my_test_experiment'))
     assert same_exp_rec.get_log() == 'aaa\nbbb\n'
-    exp_rec.delete()
+    same_exp_rec.delete()
 
 
 if __name__ == '__main__':
