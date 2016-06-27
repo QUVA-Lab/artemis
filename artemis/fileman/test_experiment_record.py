@@ -117,8 +117,8 @@ def test_experiment_interface():
 if __name__ == '__main__':
 
     set_test_mode(True)
-    # test_experiment_interface()
-    # test_get_latest()
+    test_experiment_interface()
+    test_get_latest()
     test_run_and_show()
-    # test_experiment_with()
-    # test_start_experiment()
+    test_experiment_with()
+    test_start_experiment()

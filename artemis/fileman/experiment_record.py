@@ -271,7 +271,6 @@ def clear_experiment_records_with_name(experiment_name=None):
 
 def get_local_experiment_path(identifier):
     return os.path.join(get_local_path('experiments'), identifier)
-    # return format_filename(identifier, directory = get_local_path('experiments'), ext = 'exp.pkl')
 
 
 def get_experiment_record(identifier):
@@ -360,7 +359,6 @@ def get_all_experiment_ids(expr = None):
 
     expdir = get_local_path('experiments')
     experiments = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
-    # experiments = [e[:-len('.exp.pkl')] for e in os.listdir(expdir) if e.endswith('.exp.pkl')]
     if expr is not None:
         experiments = [e for e in experiments if re.match(expr, e)]
     return experiments

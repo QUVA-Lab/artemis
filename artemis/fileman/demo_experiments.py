@@ -86,5 +86,5 @@ if __name__ == "__main__":
 
     # After this, you can show the saved results.  You can run the file "experiment_record.py" to
     # browse through all past experiments.
-    # They are stored in ~/
+    # They are stored in <Your project folder>/Data/experiments/
     get_latest_experiment_record('demo_linear_regression_experiment').show()
