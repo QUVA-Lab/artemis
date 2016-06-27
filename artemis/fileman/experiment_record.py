@@ -105,8 +105,7 @@ class ExperimentRecord(object):
         return [os.path.join(self._experiment_directory, f) for f in os.listdir(self._experiment_directory) if f.startswith('fig-')]
 
     def show(self):
-        print '{border}\n{info}\\n{subborder}\n{log}\n{border}'.format(border="="*20, info=self.get_info(), subborder='-'*20, log=self.get_log())
-        print(self.get_log())
+        print '{header}Showing Experiment{header}\n{info}\n{subborder}\n{log}\n{border}'.format(header="="*20, border="="*50, info=self.get_info_text(), subborder='-'*50, log=self.get_log())
         self.show_figures()
 
     def get_info(self):
@@ -115,7 +114,7 @@ class ExperimentRecord(object):
         return experiment_info
 
     def get_info_text(self):
-        return "name: {name}\nid: {id}\ndescription: {description}".format(**self._experiment_info)
+        return "name: {name}\nid: {id}\ndescription: {description}".format(**self.get_info())
 
     def get_result(self):
         result_loc = os.path.join(self._experiment_directory, 'output.txt')
@@ -329,9 +328,13 @@ def get_latest_record_identifier(experiment_name, template = None):
 
 
 def get_lastest_result(experiment_name):
+    return get_latest_experiment_record().get_result()
+
+
+def get_latest_experiment_record(experiment_name):
     experiment_record_identifier = get_latest_experiment_identifier(experiment_name)
     exp_rec = get_experiment_record(experiment_record_identifier)
-    return exp_rec.get_result()
+    return exp_rec
 
 
 def load_experiment(experiment_identifier):
@@ -471,7 +474,7 @@ class Experiment(object):
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
         ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
-        with record_experiment(name = name, print_to_console=print_to_console, show_figs=show_figs, **experiment_record_kwargs) as exp_rec:
+        with record_experiment(name = name, description=self.description, print_to_console=print_to_console, show_figs=show_figs, **experiment_record_kwargs) as exp_rec:
             results = self.function(**kwargs)
         exp_rec.set_result(results)
         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
@@ -513,22 +516,6 @@ def end_current_experiment():
     global _CURRENT_EXPERIMENT_CONTEXT
     _CURRENT_EXPERIMENT_CONTEXT.__exit__(None, None, None)
     _CURRENT_EXPERIMENT_CONTEXT = None
-
-
-
-
-# def x_platform_open(abs_path):
-#     if sys.platform=='win32':
-#         subprocess.Popen(['start', d], shell= True)
-#     elif sys.platform=='darwin':
-#         subprocess.Popen(['open', d])
-#     else:
-#         try:
-#             subprocess.Popen(['xdg-open', d])
-#         except OSError:
-#             # er, think of something else to try
-#             # xdg-open *should* be supported by recent Gnome, KDE, Xfce
-
 
 
 if __name__ == '__main__':

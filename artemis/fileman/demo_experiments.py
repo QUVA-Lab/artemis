@@ -1,12 +1,14 @@
-from artemis.fileman.experiment_record import register_experiment, run_experiment
+from artemis.fileman.experiment_record import register_experiment, run_experiment, get_latest_record_identifier, \
+    get_latest_experiment_record
 import numpy as np
 from matplotlib import pyplot as plt
 __author__ = 'peter'
 
 
 """
-This file demonstates
+This file demonstates you you can use experiments.
 
+After running, all results will be saved
 """
 
 
@@ -78,4 +80,11 @@ register_experiment(
 
 
 if __name__ == "__main__":
+
+    # First, run the experiment
     run_experiment('demo_linear_regression_experiment')
+
+    # After this, you can show the saved results.  You can run the file "experiment_record.py" to
+    # browse through all past experiments.
+    # They are stored in ~/
+    get_latest_experiment_record('demo_linear_regression_experiment').show()
