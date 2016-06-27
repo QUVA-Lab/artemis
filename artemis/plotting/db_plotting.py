@@ -1,56 +1,75 @@
 from collections import OrderedDict
-from artemis.plotting.live_plotting import LiveStream
-from artemis.plotting.plotting_backend import LinePlot,ImagePlot
-
+from artemis.plotting.data_conversion import vector_length_to_tile_dims
+from artemis.plotting.manage_plotting import redraw_figure
+from artemis.plotting.matplotlib_backend import get_plot_from_data
+from artemis.plotting.plotting_backend import LinePlot, ImagePlot
+from matplotlib import gridspec
+from matplotlib import pyplot as plt
 __author__ = 'peter'
 
 
-PLOT_DATA = OrderedDict()
-STREAM = None
+_PLOT_DATA_OBJECTS = OrderedDict()
+_SUBPLOTS = OrderedDict()
+_DBPLOT_FIGURE = None
 
 
-def dbplot(data, name = None, plot_constructor = None, **kwargs):
-    """
-    Quick plot of some variable - you can call this in a loop and it will know to update the
-    same plot.  See test_db_plotting.py for examples.
+def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None, fig = None):
 
-    :param data: The data to plot
-    :param name: The name of this plot (you need to specify this if you want to make more than one plot)
-    :param plot_mode: Affects the type of plots generated.
-        'live' is more appropriate when you're monitoring something and want an online plot with memory
-        'static' is better for step-by-step debugging, or plotting from the debugger.
-    """
+    global _DBPLOT_FIGURE
+    if fig is not None:
+        assert _DBPLOT_FIGURE is None, "You can only pass fig as an argument on your first call to dbplot"
+        _DBPLOT_FIGURE = fig
+    elif _DBPLOT_FIGURE is None:
+        _DBPLOT_FIGURE = plt.figure()
 
-    if not isinstance(name, str):
-        name = str(name)
-
-    if name not in PLOT_DATA and plot_constructor is not None:
+    if name not in _PLOT_DATA_OBJECTS:
         if isinstance(plot_constructor, str):
-            plot_constructor = {
+            plot = {
                 'line': LinePlot,
                 'img': ImagePlot,
-                }[plot_constructor]
+                'colour': lambda: ImagePlot(is_colour_data=True)
+                }[plot_constructor]()
+        elif plot_constructor is None:
+            plot = get_plot_from_data(data, mode=plot_mode)
+        else:
+            assert hasattr(plot_constructor, "__call__")
+            plot = plot_constructor()
+        _PLOT_DATA_OBJECTS[name] = plot
+        _extend_subplots(_PLOT_DATA_OBJECTS.keys())
 
-        assert hasattr(plot_constructor, '__call__'), 'Plot constructor must be callable!'
-        stream = get_dbplot_stream(**kwargs)
-        # Following is a kludge - the data is flattened in LivePlot, so we reference
-        # it by the "flattened" key.
-        flattened_key = "['%s']" % name
-
-        stream.add_plot_type(flattened_key, plot_constructor())
-
-    set_plot_data_and_update(name, data, **kwargs)
-
-
-def set_plot_data_and_update(name, data, **kwargs):
-    PLOT_DATA[name] = data
-    stream = get_dbplot_stream(**kwargs)
-    flattened_key = "['%s']" % name
-    stream.update(flattened_key)
+    # Update the relevant data and plot it.  TODO: Add option for plotting update interval
+    plot = _PLOT_DATA_OBJECTS[name]
+    plot.update(data)
+    plt.subplot(_SUBPLOTS[name])
+    if title is not None:
+        plt.subplot(_SUBPLOTS[name]).set_title(title)
+    plot.plot()
+    if draw_now:
+        # plt.draw()  # Note: Could be optimized with blit.
+        if hang:
+            plt.show()
+        else:
+            redraw_figure()  # Ensures that plot actually shows (whereas plt.draw() may not)
 
 
-def get_dbplot_stream(**kwargs):
-    global STREAM
-    if STREAM is None:
-        STREAM = LiveStream(lambda: PLOT_DATA, **kwargs)
-    return STREAM
+def clear_dbplot():
+    plt.figure(_DBPLOT_FIGURE.number)
+    plt.clf()
+    _SUBPLOTS.clear()
+    _PLOT_DATA_OBJECTS.clear()
+
+
+def _extend_subplots(key_names):
+    plt.figure(_DBPLOT_FIGURE.number)
+    n_rows, n_cols = vector_length_to_tile_dims(len(key_names))
+    print n_rows, n_cols
+    gs = gridspec.GridSpec(n_rows, n_cols)
+    fig = plt.gcf()
+    for g, k in zip(gs, key_names):
+        if k in _SUBPLOTS:
+            ax = _SUBPLOTS[k]
+            ax.set_position(g.get_position(plt.gcf()))
+        else:
+            ax=fig.add_subplot(g)
+            ax.set_title(k)
+            _SUBPLOTS[k] = ax

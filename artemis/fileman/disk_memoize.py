@@ -1,7 +1,10 @@
 import hashlib
 from collections import OrderedDict
+import inspect
 import logging
 from artemis.fileman.local_dir import get_local_path, make_file_dir
+from artemis.general.test_mode import is_test_mode
+from functools import partial
 import numpy as np
 import pickle
 import os
@@ -13,7 +16,7 @@ MEMO_READ_ENABLED = True
 MEMO_DIR = get_local_path('memoize_to_disk')
 
 
-def memoize_to_disk(fcn, local_cache = False):
+def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True):
     """
     Save (memoize) computed results to disk, so that the same function, called with the
     same arguments, does not need to be recomputed.  This is useful if you have a long-running
@@ -36,20 +39,37 @@ def memoize_to_disk(fcn, local_cache = False):
     b) You only want to memoize the function in one use-case, but not all.
 
     :param fcn: The function you're decorating
+    :param local_cache: Keep a cache in python (so you don't need to go to disk if you call again in the same process)
+    :param disable_on_tests: Persistent memos can really screw up tests, so disable memos when is_test_mode() returns
+        True.  Generally, leave this as true, unless you are testing memoization itself.
     :return: A wrapper around the function that checks for memos and loads old results if they exist.
     """
 
     cached_local_results = {}
 
-    def check_memos(*args, **kwargs):
-        result_computed = False
+    arg_spec = inspect.getargspec(fcn)
+    assert arg_spec[1] is None, "You cannot have variable arguments in a disk-memoized function... for now."
+    all_arg_names, _, _, defaults = arg_spec
+    default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-(len(defaults) if defaults is not None else 0):], defaults if defaults is not None else [])}
 
+    def check_memos(*args, **kwargs):
+
+        if disable_on_tests and is_test_mode():
+            return fcn(*args, **kwargs)
+
+        result_computed = False
+        full_args = tuple(zip(all_arg_names, args) + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]])
+
+        filepath = get_function_hash_filename(fcn, full_args)
+        # The filepath is used as the unique identifier, for both the local path and the disk-path
+        # It may be more efficient to use the built-in hashability of certain types for the local cash, and just have special
+        # ways of dealing with non-hashables like lists and numpy arrays - it's a bit dangerous because we need to check
+        # that no object or subobjects have been changed.
         if MEMO_READ_ENABLED:
             if local_cache:
-                local_cache_signature = get_local_cache_signature(args, kwargs)
-                if local_cache_signature in cached_local_results:
-                    return cached_local_results[local_cache_signature]
-            filepath = get_function_hash_filename(fcn, args, kwargs)
+                # local_cache_signature = get_local_cache_signature(args, kwargs)
+                if filepath in cached_local_results:
+                    return cached_local_results[filepath]
             if os.path.exists(filepath):
                 with open(filepath) as f:
                     try:
@@ -65,11 +85,11 @@ def memoize_to_disk(fcn, local_cache = False):
             result_computed = True
             result = fcn(*args, **kwargs)
 
-        if MEMO_WRITE_ENABLED:
+        if MEMO_WRITE_ENABLED and result is not None:  # We assume result of None means you haven't done coding your function.
             if local_cache:
-                cached_local_results[local_cache_signature] = result
+                cached_local_results[filepath] = result
             if result_computed:  # Result was computed, so write it down
-                filepath = get_function_hash_filename(fcn, args, kwargs)
+                filepath = get_function_hash_filename(fcn, full_args)
                 make_file_dir(filepath)
                 with open(filepath, 'w') as f:
                     pickle.dump(result, f)
@@ -81,6 +101,15 @@ def memoize_to_disk(fcn, local_cache = False):
     return check_memos
 
 
+def memoize_to_disk_test(fcn):
+    """
+    Use this just when testing the memoization itself (because normally memoization is disabled when is_test_mode() is True.
+    :param fcn:
+    :return:
+    """
+    return memoize_to_disk(fcn, disable_on_tests=False)
+
+
 def memoize_to_disk_and_cache(fcn):
     """
     Memoize to disk AND keep a local cache (as you would with the @memoize decorator).
@@ -88,12 +117,12 @@ def memoize_to_disk_and_cache(fcn):
     return memoize_to_disk(fcn, local_cache=True)
 
 
-def get_local_cache_signature(args, kwargs):
-    return args + ('5243643254_kwargs_start_here', ) + tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
+def memoize_to_disk_and_cache_test(fcn):
+    return memoize_to_disk(fcn, local_cache=True, disable_on_tests=False)
 
 
-def get_function_hash_filename(fcn, args, kwargs):
-    args_code = compute_fixed_hash((args, kwargs))
+def get_function_hash_filename(fcn, argname_argvalue_list):
+    args_code = compute_fixed_hash(argname_argvalue_list)
     return os.path.join(MEMO_DIR, '%s-%s.pkl' % (fcn.__name__, args_code))
 
 

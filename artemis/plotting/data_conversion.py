@@ -33,10 +33,11 @@ def put_vector_in_grid(vec):
 
 
 @memoize
-def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_width):
+def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_width, is_colour = None):
 
     assert len(shape) in (3, 4) or len(shape)==5 and shape[-1]==3
-    is_colour = shape[-1]==3
+    if is_colour is None:
+        is_colour = shape[-1]==3
     size_y, size_x = (shape[-3], shape[-2]) if is_colour else (shape[-2], shape[-1])
     is_vector = (len(shape)==4 and is_colour) or (len(shape)==3 and not is_colour)
 
@@ -60,16 +61,19 @@ def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_wi
     return output_shape, index_pairs
 
 
-def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128), dtype = 'uint8'), cmap = 'gray', boundary_width = 1, clims = None):
+def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128), dtype = 'uint8'), cmap = 'gray', boundary_width = 1, clims = None, is_color_data=None):
     """
     Given a 3-d or 4-D array, put it in a 2-d grid.
     :param data: A 4-D array of any data type
     :return: A 3-D uint8 array of shape (n_rows, n_cols, 3)
     """
-    output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width)
+
+
+
+    output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width, is_colour=is_color_data)
     output_data = np.empty(output_shape+(3, ), dtype='uint8')
     output_data[..., :] = fill_colour  # Maybe more efficient just to set the spaces.
-    scaled_data = data_to_image(data, clims = clims, cmap = cmap)
+    scaled_data = data_to_image(data, clims = clims, cmap = cmap, is_color_data=is_color_data)
     for pull_slice, push_slice in slice_pairs:
         output_data[push_slice] = scaled_data[pull_slice]
     return output_data
@@ -135,7 +139,7 @@ def data_to_image(data, is_color_data = None, clims = None, cmap = 'gray'):
 
     if is_color_data is None:
         is_color_data = data.shape[-1] == 3
-    else:
+    if is_color_data:
         assert data.shape[-1] == 3, 'If data is specified as being colour data, the final axis must have length 3.'
 
     if not is_color_data:

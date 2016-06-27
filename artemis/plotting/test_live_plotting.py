@@ -26,7 +26,6 @@ def test_streaming(duration = 10):
         'moving_point': np.random.randn(),
         'moving_points': np.random.randn(3),
         })
-
     for i in xrange(duration):
         if i==1:
             start_time = time.time()
@@ -88,5 +87,5 @@ def test_canaling(duration = 10):
 if __name__ == '__main__':
 
     test_dynamic_rebuild()
-    test_streaming(100)
+    test_streaming(10)
     test_canaling(10)

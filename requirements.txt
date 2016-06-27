@@ -3,9 +3,8 @@ scipy
 matplotlib
 bokeh
 pytest
+pillow
+# Other things we may want (uncomment to add these to requirements)
 # scikit-learn
-ipython[notebook]
-# Other things you may want (uncomment to add these to requirements)
-# Theano
-# -e git+http://github.com/petered/plato#egg=plato
-# -e git+http://github.com/lisa-lab/pylearn2.git#egg=pylearn2
+# ipython[notebook]
+# pillow

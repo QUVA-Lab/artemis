@@ -1,0 +1,36 @@
+<html>
+  <head>
+
+  <script type="text/JavaScript">
+
+    var timeoutPeriod = {update_period}*1000;
+    var imageURI = 'artemis_figure.png';
+    var x=0, y=0;
+    var img = new Image();
+    img.onload = function() {
+        var canvas = document.getElementById("x");
+        var context = canvas.getContext("2d");
+
+        context.drawImage(img, x, y);
+        // x+=20; y+=20; What was this doing here?
+        //setTimeout(timedRefresh,timeoutPeriod);
+    };
+
+    function timedRefresh() {
+        // just change src attribute, will always trigger the onload callback
+        img.src = imageURI + '?d=' + Date.now();
+    }
+
+    setInterval(timedRefresh, timeoutPeriod);
+
+  </script>
+
+ </head>
+
+<body onload="JavaScript:timedRefresh();">
+  <p>This page will refresh every {update_period} second(s).</p>
+  <!--<img src="artemis_figure.png"/>-->
+    <canvas id="x" width="1000" height="800" />
+</body>
+
+</html>

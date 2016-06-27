@@ -1,22 +1,10 @@
 from abc import ABCMeta, abstractmethod
-# from general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, scale_data_to_8_bit, data_to_image
+from artemis.general.should_be_builtins import bad_value
+from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image
+from matplotlib import pyplot as plt
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import *
 
 __author__ = 'peter'
-
-
-
-
-def set_default_figure_size(width, height):
-    """
-    :param width: Width (in inches, for some reason)
-    :param height: Height (also in inches.  One inch is about 2.54cm)
-    """
-    from pylab import rcParams
-    rcParams['figure.figsize'] = width, height
 
 
 class IPlot(object):
@@ -27,45 +15,58 @@ class IPlot(object):
     def update(self):
         pass
 
+    @abstractmethod
+    def plot(self):
+        pass
 
-def draw():
-    # Somehow at least in some backends the pause command is required.
-    plt.draw()
-    plt.pause(0.0001)
 
-class ImagePlot(object):
+class HistoryFreePlot(IPlot):
 
-    def __init__(self, interpolation = 'nearest', show_axes = False, clims = None, aspect = 'auto', cmap = 'gray'):
+    def update(self, data):
+        self._last_data = data
+
+    def plot(self):
+        self._plot_last_data(self._last_data)
+
+    @abstractmethod
+    def _plot_last_data(self, data):
+        pass
+
+
+class ImagePlot(HistoryFreePlot):
+
+    def __init__(self, interpolation = 'nearest', show_axes = False, clims = None, aspect = 'auto', cmap = 'gray', is_colour_data = None):
         self._plot = None
         self._interpolation = interpolation
         self._show_axes = show_axes
         self._clims = clims
         self._aspect = aspect
         self._cmap = cmap
+        self._is_colour_data = is_colour_data
 
-    def update(self, data):
+    def _plot_last_data(self, data):
 
         if data.ndim == 1:
             data = data[None]
 
         clims = ((np.nanmin(data), np.nanmax(data)) if data.size != 0 else (0, 1)) if self._clims is None else self._clims
 
-        plottable_data = put_data_in_grid(data, clims = clims, cmap = self._cmap) \
-            if not (data.ndim == 2 or data.ndim == 3 and data.shape[2] == 3) else \
+        if self._is_colour_data is None:
+            # self._is_colour_data = (data.ndim == 2 or data.ndim >= 3 and data.shape[2] == 3)
+            self._is_colour_data = data.shape[-1]==3
+
+        plottable_data = put_data_in_grid(data, clims = clims, cmap = self._cmap, is_color_data = self._is_colour_data) \
+            if not (self._is_colour_data and data.ndim==3 or data.ndim==2) else \
             data_to_image(data, clims = clims, cmap = self._cmap)
 
         if self._plot is None:
-            self._plot = imshow(plottable_data, interpolation = self._interpolation, aspect = self._aspect, cmap = self._cmap)
+            self._plot = plt.imshow(plottable_data, interpolation = self._interpolation, aspect = self._aspect, cmap = self._cmap)
             if not self._show_axes:
-                # self._plot.axes.get_xaxis().set_visible(False)
                 self._plot.axes.tick_params(labelbottom = 'off')
                 self._plot.axes.get_yaxis().set_visible(False)
-            # colorbar()
-
         else:
             self._plot.set_array(plottable_data)
         self._plot.axes.set_xlabel('%.2f - %.2f' % clims)
-            # self._plot.axes.get_caxis
 
 
 class MovingImagePlot(ImagePlot):
@@ -81,12 +82,11 @@ class MovingImagePlot(ImagePlot):
             data = data.flatten()
         else:
             assert data.ndim == 1
-
         buffer_data = self._buffer(data)
         ImagePlot.update(self, buffer_data)
 
 
-class LinePlot(object):
+class LinePlot(HistoryFreePlot):
 
     def __init__(self, yscale = None, y_axis_type = 'lin'):
         assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
@@ -94,12 +94,12 @@ class LinePlot(object):
         self._yscale = yscale
         self._oldlims = (float('inf'), -float('inf'))
 
-    def update(self, data):
+    def _plot_last_data(self, data):
 
         lower, upper = (np.nanmin(data), np.nanmax(data)) if self._yscale is None else self._yscale
 
         if self._plots is None:
-            self._plots = plot(np.arange(-data.shape[0]+1, 1), data)
+            self._plots = plt.plot(np.arange(-data.shape[0]+1, 1), data)
             for p, d in zip(self._plots, data[None] if data.ndim==1 else data.T):
                 p.axes.set_xbound(-len(d), 0)
                 if lower != upper:  # This happens in moving point plots when there's only one point.
@@ -126,6 +126,9 @@ class MovingPointPlot(LinePlot):
         buffer_data = self._buffer(data)
         LinePlot.update(self, buffer_data)
 
+    def plot(self):
+        LinePlot.plot(self)
+
 
 class TextPlot(IPlot):
 
@@ -138,14 +141,16 @@ class TextPlot(IPlot):
         if not isinstance(string, basestring):
             string = str(string)
         history = self._buffer(string)
-        full_text = '\n'.join(history)
+        self._full_text = '\n'.join(history)
+
+    def plot(self):
         if self._text_plot is None:
-            ax = gca()
+            ax = plt.gca()
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-            self._text_plot = ax.text(0.05, 0.05, full_text)
+            self._text_plot = ax.text(0.05, 0.05, self._full_text)
         else:
-            self._text_plot.set_text(full_text)
+            self._text_plot.set_text(self._full_text)
 
 
 class HistogramPlot(IPlot):
@@ -176,15 +181,19 @@ class HistogramPlot(IPlot):
         heights = self._binvals if self._mode == 'mass' else self._binvals/self._widths
         if self._cumulative:
             heights = np.cumsum(heights)
+        self._last_heights = heights
+
+    def plot(self):
+        heights = self._last_heights
         if self._plot_type == 'bar':
             if self._plot is None:
-                self._plot = bar(self._lefts, heights, width = self._widths)
+                self._plot = plt.bar(self._lefts, heights, width = self._widths)
             else:
                 for rect, h in zip(self._plot, heights):
                     rect.set_height(h)
         elif self._plot_type == 'line':
             if self._plot is None:
-                self._plot = plot(self._edges[:-1], heights)
+                self._plot = plt.plot(self._edges[:-1], heights)
             else:
                 self._plot[0].set_ydata(heights)
 

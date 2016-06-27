@@ -1,40 +1,20 @@
-import shutil
 from artemis.fileman.local_dir import get_local_path
-
-import os
-from artemis.fileman.saving_plots import always_save_figures, get_saved_figure_locs, get_local_figures_dir, \
-    clear_saved_figure_locs
-import artemis.plotting.plotting_backend as plt
-import numpy as np
-import pytest
-
+from artemis.plotting.saving_plots import save_figure, show_saved_figure
 
 __author__ = 'peter'
+import matplotlib.pyplot as plt
+import numpy as np
 
 
-@pytest.mark.skipif("True", reason="Don't know why...need to fix")
-def test_save_figures():
+def test_save_and_show_figure():
 
-    clear_saved_figure_locs()
-    test_dir = os.path.join(get_local_figures_dir(), 'testing')
-
-    try:  # Remove dir if not already removed
-        shutil.rmtree(test_dir)
-    except OSError:
-        pass
-
-    always_save_figures(subdir = 'testing', block = False, name = 'test_fig')
-
-    plt.plot(np.random.randn(100, 3))
-    plt.show()
-    figures = get_saved_figure_locs()
-    assert len(figures) == 1 and os.path.exists(get_local_path(figures[0])) and figures[0].endswith('testing/test_fig.pdf')
-
-    try:  # Always good to clean up after yourself.
-        shutil.rmtree(test_dir)
-    except OSError:
-        pass
+    fig = plt.figure()
+    plt.imshow(np.random.randn(10, 10))
+    plt.title('Test Figure')
+    path = get_local_path('tests/test_fig.pdf')
+    save_figure(fig, path = path)
+    show_saved_figure(path)
 
 
 if __name__ == '__main__':
-    test_save_figures()
+    test_save_and_show_figure()

@@ -1,5 +1,5 @@
 import numpy as np
-from artemis.plotting.db_plotting import dbplot
+from artemis.plotting.db_plotting import dbplot, clear_dbplot
 from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPointPlot
 import pytest
 
@@ -9,7 +9,6 @@ __author__ = 'peter'
 def test_dbplot(n_steps = 3):
 
     arr = np.random.rand(10, 10)
-
     for i in xrange(n_steps):
         arr_sq=arr**2
         arr = arr_sq/np.mean(arr_sq)
@@ -17,6 +16,7 @@ def test_dbplot(n_steps = 3):
         for j in xrange(3):
             barr = np.random.randn(10, 2)
             dbplot(barr, 'barr', plot_constructor=lambda: LinePlot())
+    clear_dbplot()
 
 
 @pytest.mark.skipif('True', reason = 'Need to make matplotlib backend work with scales.')
@@ -32,6 +32,7 @@ def test_dbplot_logscale(n_steps = 3):
             barr = np.random.randn(10, 2)
             kw = {"y_axis_type":"log"}
             dbplot(barr, 'barr', plot_constructor=lambda: LinePlot(y_axis_type='log'))
+    clear_dbplot()
 
 
 def test_particular_plot(n_steps = 3):
@@ -39,6 +40,7 @@ def test_particular_plot(n_steps = 3):
     for i in xrange(n_steps):
         r = np.random.randn(1)
         dbplot(r, plot_constructor=lambda: HistogramPlot(edges=np.linspace(-5, 5, 20)))
+    clear_dbplot()
 
 
 def test_history_plot_updating():
@@ -52,6 +54,7 @@ def test_history_plot_updating():
         dbplot(np.random.randn(20, 20), 'a')
         dbplot(np.random.randn(20, 20), 'b')
         dbplot(np.random.randn(), 'c', plot_constructor=lambda: MovingPointPlot())
+    clear_dbplot()
 
 
 def test_same_object():
@@ -64,6 +67,7 @@ def test_same_object():
     for _ in xrange(5):
         dbplot(a, 'a')
         dbplot(a, 'b')
+    clear_dbplot()
 
 
 if __name__ == '__main__':

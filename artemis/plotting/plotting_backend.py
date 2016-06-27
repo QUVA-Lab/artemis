@@ -1,23 +1,14 @@
-import ConfigParser
-import os
+from artemis.config import get_artemis_config
 
 __author__ = 'peter'
 
-CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.artemisrc')
-
-if not os.path.exists(CONFIG_PATH):
-    with open(CONFIG_PATH, 'w') as f:
-        f.write('[plotting]\nbackend: matplotlib')
-
-
-config = ConfigParser.ConfigParser()
-config.read(os.path.join(os.path.expanduser('~'), '.artemisrc'))
-
+config = get_artemis_config()
 BACKEND = config.get('plotting', 'backend')
 
-assert BACKEND in ('matplotlib', 'bokeh'), 'Your config file ~/.artimisrc lists "%s" as the backend.  Valid backends are "matplotlib" and "bokeh".  Change the file.' % (BACKEND, )
+assert BACKEND in ('matplotlib', 'matplotlib-web', 'bokeh'), 'Your config file ~/.artimisrc lists "%s" as the backend.  Valid backends are "matplotlib" and "bokeh".  Change the file.' % (BACKEND, )
 
-if BACKEND == 'matplotlib':
+if BACKEND in ('matplotlib', 'matplotlib-web'):
+    from matplotlib.pyplot import *
     from artemis.plotting.matplotlib_backend import *
 elif BACKEND == 'bokeh':
     from artemis.plotting.bokeh_backend import *
