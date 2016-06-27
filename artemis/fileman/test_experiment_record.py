@@ -3,7 +3,7 @@ import time
 from artemis.general.test_mode import set_test_mode
 from artemis.fileman.experiment_record import start_experiment, run_experiment, show_experiment, \
     get_latest_experiment_identifier, register_experiment, \
-    get_experiment_info, load_experiment, clear_experiment_records_with_name, ExperimentRecord, record_experiment, \
+    get_experiment_info, load_experiment, ExperimentRecord, record_experiment, \
     end_current_experiment
 import numpy as np
 import matplotlib.pyplot as plt
@@ -57,7 +57,6 @@ def test_experiment_with():
     assert exp_rec_copy.get_log() == 'aaa\nbbb\n'
     exp_rec_copy.show_figures()
     assert len(exp_rec_copy.get_figure_locs()) == 2
-    atexit.register(lambda: shutil.rmtree(exp_rec_copy.get_dir()))
 
 
 def test_start_experiment():
@@ -93,7 +92,9 @@ def test_get_latest():
     experiment_2 = run_experiment('test_experiment', keep_record = True)
     identifier = get_latest_experiment_identifier('test_experiment')
     assert identifier == experiment_2.get_identifier()
-    clear_experiment_records_with_name('test_experiment')
+
+    atexit.register(lambda: shutil.rmtree(experiment_1.get_dir()))
+    atexit.register(lambda: shutil.rmtree(experiment_2.get_dir()))
 
 
 def test_experiment_interface():
@@ -116,8 +117,8 @@ def test_experiment_interface():
 if __name__ == '__main__':
 
     set_test_mode(True)
-    test_experiment_interface()
-    test_get_latest()
+    # test_experiment_interface()
+    # test_get_latest()
     test_run_and_show()
-    test_experiment_with()
-    test_start_experiment()
+    # test_experiment_with()
+    # test_start_experiment()
