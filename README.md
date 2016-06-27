@@ -18,9 +18,9 @@ Or if your project has a `requirements.txt` file, add the line `-e git+http://gi
 Note: During installation, the settings file `.artemisrc` is created in your home directory. In it you can specify the plotting backend to use, and other settings.
 ## Quick Demos
 
-**Live Plotting**: [artemis.plotting.demo_dbplot](/quva-lab/artemis/blob/master/artemis/plotting/demo_dbplot.py)  
+**Live Plotting**: [artemis.plotting.demo_dbplot](/artemis/plotting/demo_dbplot.py)  
 
-**Recording Experiment Results**:  [artemis.fileman.demo_experiments.py](/quva-lab/artemis/blob/master/artemis/fileman/demo_experiments.py)  
+**Recording Experiment Results**:  [artemis.fileman.demo_experiments](/artemis/fileman/demo_experiments.py)  
 
  ![](https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Tizian_015.jpg/800px-Tizian_015.jpg)
 
