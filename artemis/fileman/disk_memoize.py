@@ -24,7 +24,8 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True):
     of Global variables/time/whatever else the function may use, so you need to make sure your
     function is truly a function in that outputs only depend on inputs.  Otherwise, this will
     give you misleading results.
-    e.g.
+
+    Usage:
         @memoize_to_disk
         def fcn(a, b, c = None):
             results = ...

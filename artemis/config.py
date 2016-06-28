@@ -12,6 +12,7 @@ def get_artemis_config():
     :return: A ConfigParser object, containing the information in the ~/.artemisrc file.  Create a default file if none
         exists.
     """
+    global _CONFIG
     if _CONFIG is None:
         config_path = os.path.join(os.path.expanduser('~'), '.artemisrc')
         if not os.path.exists(config_path):
@@ -21,6 +22,5 @@ def get_artemis_config():
             'update_period': '1',
             })
         config.read(os.path.join(os.path.expanduser('~'), '.artemisrc'))
-        global _CONFIG
         _CONFIG = config
     return _CONFIG
