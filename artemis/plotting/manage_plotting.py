@@ -1,5 +1,5 @@
 from artemis.general.test_mode import is_test_mode
-from decorator import contextmanager
+from contextlib import contextmanager
 from matplotlib import pyplot as plt
 __author__ = 'peter'
 
