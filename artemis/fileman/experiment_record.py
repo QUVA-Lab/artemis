@@ -117,9 +117,9 @@ class ExperimentRecord(object):
         return "name: {name}\nid: {id}\ndescription: {description}".format(**self.get_info())
 
     def get_result(self):
-        result_loc = os.path.join(self._experiment_directory, 'output.txt')
+        result_loc = os.path.join(self._experiment_directory, 'result.pkl')
         if os.path.exists(result_loc):
-            with open(self._result_loc) as f:
+            with open(result_loc) as f:
                 result = pickle.load(f)
             return result
         else:
@@ -142,8 +142,14 @@ class ExperimentRecord(object):
         shutil.rmtree(self._experiment_directory)
 
 
+def get_experiment_identifier(name, version = None, template = '%T-%N'):
+    if version is not None:
+        name = name + '-' + version
+    return format_filename(file_string = template, base_name=name, current_time = datetime.now())
+
+
 @contextmanager
-def record_experiment(name = 'unnamed', filename = '%T-%N', description = '', print_to_console = True, show_figs = None,
+def record_experiment(identifier, name = 'unnamed', description = '', print_to_console = True, show_figs = None,
             save_figs = True, saved_figure_ext = '.pdf', use_temp_dir = False):
     """
     :param name: Base-name of the experiment
@@ -156,24 +162,24 @@ def record_experiment(name = 'unnamed', filename = '%T-%N', description = '', pr
         False: Don't show figures
     """
 
-    now = datetime.now()
+    # now = datetime.now()
     if show_figs is None:
         show_figs = 'draw' if is_test_mode() else 'hang'
 
     assert show_figs in ('hang', 'draw', False)
 
-    experiment_identifier = format_filename(file_string = filename, base_name=name, current_time = now)
+    # experiment_identifier = format_filename(file_string = filename, base_name=name, current_time = now)
     if use_temp_dir:
         experiment_directory = tempfile.mkdtemp()
         atexit.register(lambda: shutil.rmtree(experiment_directory))
     else:
-        experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=experiment_identifier))
+        experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=identifier))
     make_dir(experiment_directory)
     make_file_dir(experiment_directory)
     log_file_name = os.path.join(experiment_directory, 'output.txt')
 
     with open(os.path.join(experiment_directory, 'info.pkl'), 'w') as f:
-        pickle.dump({'name': name, 'id': experiment_identifier, 'description': description}, f)
+        pickle.dump({'name': name, 'id': identifier, 'description': description}, f)
 
     blocking_show_context = WhatToDoOnShow(show_figs)
     blocking_show_context.__enter__()
@@ -183,7 +189,7 @@ def record_experiment(name = 'unnamed', filename = '%T-%N', description = '', pr
         figure_save_context = SaveFiguresOnShow(path = os.path.join(experiment_directory, 'fig-%T-%L'+saved_figure_ext))
         figure_save_context.__enter__()
 
-    _register_current_experiment(name, experiment_identifier)
+    _register_current_experiment(name, identifier)
 
     yield ExperimentRecord(experiment_directory)
 
@@ -250,7 +256,9 @@ def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_reco
     return experiment.run(**experiment_record_kwargs)
 
 
-def _get_matching_template_from_experiment_name(experiment_name, template = '%T-%N'):
+def _get_matching_template_from_experiment_name(experiment_name, version = None, template = '%T-%N'):
+    if version is not None:
+        experiment_name = experiment_name + '-' + version
     named_template = template.replace('%N', re.escape(experiment_name))
     expr = named_template.replace('%T', '\d\d\d\d\.\d\d\.\d\d\T\d\d\.\d\d\.\d\d\.\d\d\d\d\d\d')
     expr = '^' + expr + '$'
@@ -299,14 +307,14 @@ def merge_experiment_dicts(*dicts):
     return merge_dict
 
 
-def get_latest_experiment_identifier(name, template = '%T-%N'):
+def get_latest_experiment_identifier(name, version=None, template = '%T-%N'):
     """
     Show results of the latest experiment matching the given template.
     :param name: The experiment name
     :param template: The template which turns a name into an experiment identifier
     :return: A string identifying the latest matching experiment, or None, if not found.
     """
-    expr = _get_matching_template_from_experiment_name(name, template=template)
+    expr = _get_matching_template_from_experiment_name(name, version = version, template=template)
     matching_experiments = get_all_experiment_ids(expr)
     if len(matching_experiments) == 0:
         return None
@@ -315,27 +323,29 @@ def get_latest_experiment_identifier(name, template = '%T-%N'):
         return latest_experiment_id
 
 
-def show_latest_results(experiment_name, template = '%T-%N'):
-    print GLOBAL_EXPERIMENT_LIBRARY[experiment_name]
-    experiment_record_identifier =  get_latest_record_identifier(experiment_name, template)
-    show_experiment(experiment_record_identifier)
+# def show_latest_results(experiment_name, template = '%T-%N'):
+#     print GLOBAL_EXPERIMENT_LIBRARY[experiment_name]
+#     experiment_record_identifier =  get_latest_record_identifier(experiment_name, template)
+#     show_experiment(experiment_record_identifier)
 
 
-def get_latest_record_identifier(experiment_name, template = None):
-    if template is None:
-        template = '%T-%N'
-    experiment_record_identifier = get_latest_experiment_identifier(experiment_name, template)
+# def get_latest_record_identifier(experiment_name, template = None):
+#     if template is None:
+#         template = '%T-%N'
+#     experiment_record_identifier = get_latest_experiment_identifier(experiment_name, template)
+#     if experiment_record_identifier is None:
+#         raise Exception('No records for experiment "%s" exist.' % (experiment_name, ))
+#     return experiment_record_identifier
+
+
+def get_lastest_result(experiment_name, version = None):
+    return get_latest_experiment_record(experiment_name, version).get_result()
+
+
+def get_latest_experiment_record(experiment_name, version=None):
+    experiment_record_identifier = get_latest_experiment_identifier(experiment_name, version=version)
     if experiment_record_identifier is None:
-        raise Exception('No records for experiment "%s" exist.' % (experiment_name, ))
-    return experiment_record_identifier
-
-
-def get_lastest_result(experiment_name):
-    return get_latest_experiment_record().get_result()
-
-
-def get_latest_experiment_record(experiment_name):
-    experiment_record_identifier = get_latest_experiment_identifier(experiment_name)
+        raise Exception("No saved records for experiment '{name}', version '{version}'".format(name=experiment_name, version=version))
     exp_rec = get_experiment_record(experiment_record_identifier)
     return exp_rec
 
@@ -400,6 +410,15 @@ def browse_experiment_records():
                 exp_id = ids[int(index)]
                 show_experiment(exp_id)
                 wait_for_continue()
+            elif cmd == 'clearall':
+                conf = raw_input("Going to clear all experiment records.  Enter 'y' to confirm: ")
+                if conf=='y':
+                    clear_experiments()
+                    ids = get_all_experiment_ids()
+                    assert len(ids)==0, "Failed to delete them?"
+                    print "Deleted all experiments"
+                else:
+                    print "Did not delete experiments"
             else:
                 print 'Bad Command: %s.' % cmd
                 wait_for_continue()
@@ -407,6 +426,20 @@ def browse_experiment_records():
             res = raw_input('%s: %s\nEnter "e" to view the message, or anything else to continue.' % (e.__class__.__name__, e.message))
             if res == 'e':
                 raise
+
+
+def clear_experiments():
+    # Credit: http://stackoverflow.com/questions/185936/delete-folder-contents-in-python
+    folder = get_local_path('experiments')
+    for the_file in os.listdir(folder):
+        file_path = os.path.join(folder, the_file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(e)
 
 
 def wait_for_continue():
@@ -418,17 +451,27 @@ def get_experiment_info(name):
     return str(experiment)
 
 
+def get_experiment(name):
+    return GLOBAL_EXPERIMENT_LIBRARY[name]
+
+
 class Experiment(object):
 
-    def __init__(self, function, description='', conclusion = '', display_function = None, name = None, versions = None, current_version = None):
+    def __init__(self, function=None, compute_function = None, display_function = None, description='', conclusion = '', name = None, versions = None, current_version = None):
         if versions is not None:
             assert isinstance(versions, (list, dict))
         if isinstance(versions, list):
             assert isinstance(current_version, int)
+        assert (function is None) != (display_function is None and compute_function is None), "You must either specify a function, both a display and compute function."
+        if function is None:
+            def full_function(**kwargs):
+                results = compute_function(**kwargs)
+                display_function(results)
+                return results
+            function = full_function
         self.name = name
         self.function = function
         self.description = description
-        self.conclusion = conclusion
         self.versions = versions
         self.current_version = current_version
         self.display_function = display_function
@@ -436,6 +479,8 @@ class Experiment(object):
     def __str__(self):
         return 'Experiment: %s\n  Defined in: %s\n  Description: %s\n  Conclusion: %s' % \
             (self.name, inspect.getmodule(self.function).__name__, self.description, self.conclusion)
+
+    def add_variant(self, ):
 
     def run(self, print_to_console = True, show_figs = None, version = None, test_mode=None, keep_record=None, **experiment_record_kwargs):
         """
@@ -463,7 +508,7 @@ class Experiment(object):
             assert version_to_run is not None, 'If you specify multiple versions, you have to pick a current version'
             assert version_to_run in self.versions, "Experiment %s: The version you're trying to run: '%s' is not in the list of versions: %s" % (self.name, version_to_run, self.versions.keys())
             kwargs = self.versions[version_to_run]
-            name = self.name+'-'+(version_to_run if isinstance(version_to_run, str) else str(self.versions[version_to_run]))
+            name = self.name
         else:
             kwargs = {}
             name = self.name
@@ -475,17 +520,17 @@ class Experiment(object):
 
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
-        ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
-        with record_experiment(name = name, description=self.description, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
+        ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
+        with record_experiment(name = name, identifier = get_experiment_identifier(name, version), description=self.description, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
             results = self.function(**kwargs)
         exp_rec.set_result(results)
-        ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
+        ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
         set_test_mode(old_test_mode)
         return exp_rec
 
-    def display_last(self):
+    def display_last(self, version = None):
         assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )
-        result = get_lastest_result(self.name)
+        result = get_lastest_result(self.name, version=version)
         self.display_function(result)
 
     def run_all(self, **kwargs):

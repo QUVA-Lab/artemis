@@ -1,5 +1,5 @@
+from contextlib import contextmanager
 from artemis.general.test_mode import is_test_mode
-from decorator import contextmanager
 from matplotlib import pyplot as plt
 __author__ = 'peter'
 
@@ -29,7 +29,7 @@ You can also do the same for drawing figures (showing without hanging on the fig
 _ORIGINAL_SHOW_CALLBACK = plt.show
 _ORIGINAL_PLT_DRAW = plt.draw
 
-_WHAT_TO_DO_ON_SHOW = True
+_WHAT_TO_DO_ON_SHOW = 'hang'
 
 
 def redraw_figure(fig=None):
