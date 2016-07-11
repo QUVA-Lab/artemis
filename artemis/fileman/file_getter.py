@@ -1,3 +1,4 @@
+import tempfile
 import urllib2
 from StringIO import StringIO
 import gzip
@@ -29,10 +30,17 @@ def get_file(relative_name, url = None, data_transformation = None):
         print '...Done.'
 
         if data_transformation is not None:
+            print 'Processing downloaded data...'
             data = data_transformation(data)
         with open(full_filename, 'w') as f:
             f.write(data)
     return full_filename
+
+
+def get_temp_file(url, data_transformation = None):
+    _, ext = os.path.splitext(url)
+    tmp_file = tempfile.mktemp() + ext
+    return get_file(tmp_file, url, data_transformation=data_transformation)
 
 
 def unzip_gz(data):

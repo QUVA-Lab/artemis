@@ -44,7 +44,7 @@ register_experiment(
 
 def test_experiment_with():
 
-    with record_experiment(name = 'test_exp', print_to_console=True) as exp_rec:
+    with record_experiment(identifier = 'test_exp', print_to_console=True) as exp_rec:
         _run_experiment()
 
     assert exp_rec.get_log() == 'aaa\nbbb\n'

@@ -1,6 +1,7 @@
 import atexit
 from collections import OrderedDict
 from datetime import datetime
+from functools import partial
 import inspect
 import shlex
 import pickle
@@ -39,21 +40,21 @@ class _ExpLibClass(object):
     def _get_experiment_listing(self):
         experiment_listing = OrderedDict()
         for i, (name, exp) in enumerate(GLOBAL_EXPERIMENT_LIBRARY.iteritems()):
-            if exp.versions is None:
-                experiment_listing['%s' % (i, )] = (name, None)
-            else:
-                assert len(exp.versions)<26, "Really?  You have more then 26 versions?  Time to code the z, aa, bb, ... system"
-                for j, version in enumerate(exp.versions):
-                    experiment_listing['%s%s' % (i, chr(ord('a')+j))] = (name, version)
+            experiment_listing['%s' % (i, )] = name
+            # if exp.versions is None:
+            # else:
+            #     assert len(exp.versions)<26, "Really?  You have more then 26 versions?  Time to code the z, aa, bb, ... system"
+            #     for j, version in enumerate(exp.versions):
+            #         experiment_listing['%s%s' % (i, chr(ord('a')+j))] = (name, version)
         return experiment_listing
 
     def select_experiment(self):
         listing = self._get_experiment_listing()
-        print '\n'.join(['%s : %s' % (identifier, name) if version is None else '%s: %s-%s' % (identifier, name, version) for identifier, (name, version) in listing.iteritems()])
+        print '\n'.join(['%s : %s' % (identifier, name) for identifier, name in listing.iteritems()])
         which_one = raw_input('Select Experiment >> ')
         if which_one.lstrip(' ').rstrip(' ') in listing:
-            name, version = listing[which_one]
-            GLOBAL_EXPERIMENT_LIBRARY[name].current_version = version  # HACK!
+            name = listing[which_one]
+            # GLOBAL_EXPERIMENT_LIBRARY[name].current_version = version  # HACK!
             return GLOBAL_EXPERIMENT_LIBRARY[name]
         else:
             raise Exception('No experiment with id: "%s"' % (which_one, ))
@@ -105,16 +106,13 @@ class ExperimentRecord(object):
         return [os.path.join(self._experiment_directory, f) for f in os.listdir(self._experiment_directory) if f.startswith('fig-')]
 
     def show(self):
-        print '{header}Showing Experiment{header}\n{info}\n{subborder}\n{log}\n{border}'.format(header="="*20, border="="*50, info=self.get_info_text(), subborder='-'*50, log=self.get_log())
+        print '{header}Showing Experiment{header}\n{info}\n{subborder}\n{log}\n{border}'.format(header="="*20, border="="*50, info=self.get_info()['info'], subborder='-'*50, log=self.get_log())
         self.show_figures()
 
     def get_info(self):
         with open(os.path.join(self._experiment_directory, 'info.pkl')) as f:
             experiment_info = pickle.load(f)
         return experiment_info
-
-    def get_info_text(self):
-        return "name: {name}\nid: {id}\ndescription: {description}".format(**self.get_info())
 
     def get_result(self):
         result_loc = os.path.join(self._experiment_directory, 'result.pkl')
@@ -149,7 +147,7 @@ def get_experiment_identifier(name, version = None, template = '%T-%N'):
 
 
 @contextmanager
-def record_experiment(identifier, name = 'unnamed', description = '', print_to_console = True, show_figs = None,
+def record_experiment(identifier, name = 'unnamed', info = '', print_to_console = True, show_figs = None,
             save_figs = True, saved_figure_ext = '.pdf', use_temp_dir = False):
     """
     :param name: Base-name of the experiment
@@ -174,12 +172,14 @@ def record_experiment(identifier, name = 'unnamed', description = '', print_to_c
         atexit.register(lambda: shutil.rmtree(experiment_directory))
     else:
         experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=identifier))
+    info += 'Identifier: %s\n' % (identifier, )
+
     make_dir(experiment_directory)
     make_file_dir(experiment_directory)
     log_file_name = os.path.join(experiment_directory, 'output.txt')
 
     with open(os.path.join(experiment_directory, 'info.pkl'), 'w') as f:
-        pickle.dump({'name': name, 'id': identifier, 'description': description}, f)
+        pickle.dump({'name': name, 'id': identifier, 'info': info}, f)
 
     blocking_show_context = WhatToDoOnShow(show_figs)
     blocking_show_context.__enter__()
@@ -374,12 +374,21 @@ def get_all_experiment_ids(expr = None):
     return experiments
 
 
-def register_experiment(name, **kwargs):
-    """ See Experiment """
+def register_experiment(name, description = None, conclusion = None, **kwargs):
+    """ This is the old interface to experiments.   """
+    info = ''
+    if description is not None:
+        info += 'Description: %s\n' % (description, )
+    if conclusion is not None:
+        info += 'Conclusion: %s\n' % (description, )
     assert name not in GLOBAL_EXPERIMENT_LIBRARY, 'An experiment with name "%s" has already been registered!' % (name, )
-    experiment = Experiment(name = name, **kwargs)
+    experiment = Experiment(name = name, info=info, **kwargs)
     GLOBAL_EXPERIMENT_LIBRARY[name] = experiment
     return experiment
+
+
+def _register_experiment(experiment):
+    GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
 def browse_experiment_records():
@@ -455,32 +464,44 @@ def get_experiment(name):
     return GLOBAL_EXPERIMENT_LIBRARY[name]
 
 
+def experiment_function(f):
+    return ExperimentFunction()(f)
+
+
+class ExperimentFunction():
+    """ Decorator for an experiment
+    """
+    def __init__(self, display_function = None, info=None):
+        self.display_function = display_function
+        self.info = info
+
+    def __call__(self, f):
+        ex = Experiment(
+            name = f.__name__,
+            function = f,
+            display_function=self.display_function,
+            info='Root Experiment: {name}\nDefined in: {file}\n'.format(name=f.__name__, file=inspect.getmodule(f).__file__ )
+            )
+        _register_experiment(ex)
+        return ex
+
+
 class Experiment(object):
 
-    def __init__(self, function=None, compute_function = None, display_function = None, description='', conclusion = '', name = None, versions = None, current_version = None):
-        if versions is not None:
-            assert isinstance(versions, (list, dict))
-        if isinstance(versions, list):
-            assert isinstance(current_version, int)
-        assert (function is None) != (display_function is None and compute_function is None), "You must either specify a function, both a display and compute function."
-        if function is None:
-            def full_function(**kwargs):
-                results = compute_function(**kwargs)
-                display_function(results)
-                return results
-            function = full_function
+    def __init__(self, function=None, display_function = None, info='', conclusion = '', name = None):
         self.name = name
         self.function = function
-        self.description = description
-        self.versions = versions
-        self.current_version = current_version
+        self.info = info
         self.display_function = display_function
+        self.variants = OrderedDict()
+
+    def __call__(self, *args, **kwargs):
+        """ Run the function as normal, without recording or anything. """
+        return self.function(*args, **kwargs)
 
     def __str__(self):
-        return 'Experiment: %s\n  Defined in: %s\n  Description: %s\n  Conclusion: %s' % \
-            (self.name, inspect.getmodule(self.function).__name__, self.description, self.conclusion)
-
-    def add_variant(self, ):
+        return 'Experiment: %s\n  Description: %s' % \
+            (self.name, self.info)
 
     def run(self, print_to_console = True, show_figs = None, version = None, test_mode=None, keep_record=None, **experiment_record_kwargs):
         """
@@ -501,18 +522,6 @@ class Experiment(object):
         :param experiment_record_kwargs: Passed to the "record_experiment" context.
         :return: The ExperimentRecord object, if keep_record is true, otherwise None
         """
-        version_to_run = self.current_version if version is None else version
-        if self.versions is not None:
-            if len(self.versions)==1:
-                version_to_run = self.versions.keys()[0]
-            assert version_to_run is not None, 'If you specify multiple versions, you have to pick a current version'
-            assert version_to_run in self.versions, "Experiment %s: The version you're trying to run: '%s' is not in the list of versions: %s" % (self.name, version_to_run, self.versions.keys())
-            kwargs = self.versions[version_to_run]
-            name = self.name
-        else:
-            kwargs = {}
-            name = self.name
-
         if test_mode is None:
             test_mode = is_test_mode()
         if keep_record is None:
@@ -521,27 +530,155 @@ class Experiment(object):
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
         ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
-        with record_experiment(name = name, identifier = get_experiment_identifier(name, version), description=self.description, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
-            results = self.function(**kwargs)
+        with record_experiment(name = self.name, identifier = get_experiment_identifier(self.name), info=self.info, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
+            results = self.function()
+            if self.display_function is not None:
+                self.display_function(results)
         exp_rec.set_result(results)
         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
         set_test_mode(old_test_mode)
         return exp_rec
 
-    def display_last(self, version = None):
+    def add_variant(self, name, *args, **kwargs):
+        ex = Experiment(
+            name='-'.join((self.name, name)),
+            function=partial(self.function, *args, **kwargs),
+            display_function=self.display_function,
+            info=self.info+'Variant: {variant}\n'.format(variant=name))
+        self.variants[name] = name
+        _register_experiment(ex)
+        return ex
+
+    def get_variant(self, name):
+        return self.variants[name]
+
+    def display_last(self):
         assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )
-        result = get_lastest_result(self.name, version=version)
+        result = get_lastest_result(self.name)
+        assert result is not None, "No result was computed for the last run of '%s'" % (self.name, )
         self.display_function(result)
 
-    def run_all(self, **kwargs):
-        for v in (self.versions.keys() if isinstance(self.versions, dict) else xrange(len(self.versions))):
-            self.run(version = v, **kwargs)
+    def run_all(self, including_self = None, **kwargs):
+        """
+        Run all variants.
+        :param including_self: Can be:
+            True: Runs the raw experiment and any variants (and their subvariants)
+            False: Only runs the variants
+            None: Runs the raw if there are no variants, otherwise only the variants
+        """
+        if including_self is None:
+            including_self is len(self.variants)==0
+        if including_self:
+            self.run()
+        for v in self.variants:
+            v.run_all(including_self=None if including_self is False else True, **kwargs)
+
+        # for v in self.variants()
+
+        # for v in (self.versions.keys() if isinstance(self.versions, dict) else xrange(len(self.versions))):
+        #     self.run(version = v, **kwargs)
 
     def test(self, **kwargs):
         self.run(test_mode=True, **kwargs)
 
     def test_all(self, **kwargs):
         self.run_all(test_mode=True, **kwargs)
+
+    # def __getattr__(self, name):
+    #     """
+    #     For ugly convenience, assume that name refers to a variant.  This allows you to go
+    #     function_name.variant.subvariant.run()
+    #     """
+    #     if name not in self.variants:
+    #         raise Exception('"%s" is not a variant of experiment "%s".  Neither is it an attribute or a method."' % (name, self.name))
+    #     return self.variants[name]
+
+
+# class Experiment(object):
+#
+#     def __init__(self, function=None, compute_function = None, display_function = None, description='', conclusion = '', name = None):
+#         if versions is not None:
+#             assert isinstance(versions, (list, dict))
+#         if isinstance(versions, list):
+#             assert isinstance(current_version, int)
+#         assert (function is None) != (display_function is None and compute_function is None), "You must either specify a function, both a display and compute function."
+#         if function is None:
+#             def full_function(**kwargs):
+#                 results = compute_function(**kwargs)
+#                 display_function(results)
+#                 return results
+#             function = full_function
+#         self.name = name
+#         self.function = function
+#         self.description = description
+#         self.versions = versions
+#         self.current_version = current_version
+#         self.display_function = display_function
+#
+#     def __str__(self):
+#         return 'Experiment: %s\n  Defined in: %s\n  Description: %s\n  Conclusion: %s' % \
+#             (self.name, inspect.getmodule(self.function).__name__, self.description, self.conclusion)
+#
+#     def run(self, print_to_console = True, show_figs = None, version = None, test_mode=None, keep_record=None, **experiment_record_kwargs):
+#         """
+#         Run the experiment, and return the ExperimentRecord that is generated.
+#
+#         :param print_to_console: Print to console (as well as logging to file)
+#         :param show_figs: Show figures (as well as saving to file)
+#         :param version: String identifying which version of the experiment to run (refer to "versions" argument of __init__)
+#         :param test_mode: Run in "test_mode".  This sets the global "test_mode" flag when running the experiment.  This
+#             flag can be used to, for example, shorten a training session to verify that the code runs.  Can be:
+#                 True: Run in test mode
+#                 False: Don't run in test mode:
+#                 None: Keep the current state of the global "is_test_mode()" flag.
+#         :param keep_record: Keep the folder that results are saved into.
+#                 True: Results are saved into a folder
+#                 False: Results folder is deleted at the end.
+#                 None: If "test_mode" is true, then delete results at end, otherwise save them.
+#         :param experiment_record_kwargs: Passed to the "record_experiment" context.
+#         :return: The ExperimentRecord object, if keep_record is true, otherwise None
+#         """
+#         version_to_run = self.current_version if version is None else version
+#         if self.versions is not None:
+#             if len(self.versions)==1:
+#                 version_to_run = self.versions.keys()[0]
+#             assert version_to_run is not None, 'If you specify multiple versions, you have to pick a current version'
+#             assert version_to_run in self.versions, "Experiment %s: The version you're trying to run: '%s' is not in the list of versions: %s" % (self.name, version_to_run, self.versions.keys())
+#             kwargs = self.versions[version_to_run]
+#             name = self.name
+#         else:
+#             kwargs = {}
+#             name = self.name
+#
+#         if test_mode is None:
+#             test_mode = is_test_mode()
+#         if keep_record is None:
+#             keep_record = not test_mode
+#
+#         old_test_mode = is_test_mode()
+#         set_test_mode(test_mode)
+#         ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
+#         with record_experiment(name = name, identifier = get_experiment_identifier(name, version), description=self.description, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
+#             results = self.function(**kwargs)
+#         exp_rec.set_result(results)
+#         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
+#         set_test_mode(old_test_mode)
+#         return exp_rec
+#
+#     def display_last(self, version = None):
+#         assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )
+#         result = get_lastest_result(self.name, version=version)
+#         self.display_function(result)
+#
+#     def run_all(self, **kwargs):
+#         for v in (self.versions.keys() if isinstance(self.versions, dict) else xrange(len(self.versions))):
+#             self.run(version = v, **kwargs)
+#
+#     def test(self, **kwargs):
+#         self.run(test_mode=True, **kwargs)
+#
+#     def test_all(self, **kwargs):
+#         self.run_all(test_mode=True, **kwargs)
 
 
 # The following is an alternate interface to experiments.  It may be useful in things like notebooks where it is

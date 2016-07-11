@@ -62,7 +62,6 @@ def clear_dbplot():
 def _extend_subplots(key_names):
     plt.figure(_DBPLOT_FIGURE.number)
     n_rows, n_cols = vector_length_to_tile_dims(len(key_names))
-    print n_rows, n_cols
     gs = gridspec.GridSpec(n_rows, n_cols)
     fig = plt.gcf()
     for g, k in zip(gs, key_names):
