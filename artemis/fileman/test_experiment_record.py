@@ -4,7 +4,7 @@ from artemis.general.test_mode import set_test_mode
 from artemis.fileman.experiment_record import start_experiment, run_experiment, show_experiment, \
     get_latest_experiment_identifier, register_experiment, \
     get_experiment_info, load_experiment, ExperimentRecord, record_experiment, \
-    end_current_experiment
+    end_current_experiment, get_experiment, experiment_exists, get_experiment_record, delete_experiment_with_id
 import numpy as np
 import matplotlib.pyplot as plt
 import shutil
@@ -43,6 +43,8 @@ register_experiment(
 
 
 def test_experiment_with():
+
+    delete_experiment_with_id('test_exp')
 
     with record_experiment(identifier = 'test_exp', print_to_console=True) as exp_rec:
         _run_experiment()
