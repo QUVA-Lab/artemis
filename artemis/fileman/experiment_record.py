@@ -7,7 +7,7 @@ import shlex
 import pickle
 import shutil
 import tempfile
-from decorator import contextmanager
+from contextlib import contextmanager
 import os
 import re
 from artemis.general.test_mode import is_test_mode, set_test_mode
