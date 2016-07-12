@@ -108,7 +108,7 @@ def run_experiment_menu():
                     name = listing[cmd]
                     GLOBAL_EXPERIMENT_LIBRARY[name].run()
         else:
-            'You must either enter'
+            warn_with_prompt('You must either enter a number to run the experiment, or "cmd #" to do some operation.  See help.')
 
 
 class _ExperimentConstructor(object):
@@ -161,9 +161,6 @@ class ExperimentRecord(object):
         with open(os.path.join(self._experiment_directory, 'info.txt')) as f:
             data = f.read()
         return data
-        # with open(os.path.join(self._experiment_directory, 'info.pkl')) as f:
-        #     experiment_info = pickle.load(f)
-        # return experiment_info
 
     def add_info(self, more_info):
         with open(os.path.join(self._experiment_directory, 'info.txt'), 'a') as f:
@@ -188,8 +185,6 @@ class ExperimentRecord(object):
     def get_identifier(self):
         root, identifier = os.path.split(self._experiment_directory)
         return identifier
-        # import pdb; pdb.set_trace()
-        # return self.get_info()['id']
 
     def get_dir(self):
         return self._experiment_directory
@@ -227,18 +222,9 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', info = '', print_to_
     else:
         experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=identifier))
 
-    # info_file = os.path.join(experiment_directory, 'info.txt')
-
-
-    # info += 'Identifier: %s\n' % (identifier, )
-
     make_dir(experiment_directory)
     make_file_dir(experiment_directory)
     log_file_name = os.path.join(experiment_directory, 'output.txt')
-
-    # with open(os.path.join(experiment_directory, 'info.pkl'), 'w') as f:
-    #     pickle.dump({'name': name, 'id': identifier, 'info': info}, f)
-
     blocking_show_context = WhatToDoOnShow(show_figs)
     blocking_show_context.__enter__()
     log_capture_context = PrintAndStoreLogger(log_file_path = log_file_name, print_to_console = print_to_console)
@@ -672,7 +658,7 @@ class Experiment(object):
 # We keep these for backwards compatibility and to show how else we could organize the experiment API.
 # The best is currently to use the @experiment_function decorator.
 
-def register_experiment(name, description = None, conclusion = None, **kwargs):
+def register_experiment(name, function, description = None, conclusion = None, versions = None, current_version = None, **kwargs):
     """
     This is the old interface to experiments.  We keep it, for now, for the sake of
     backwards-compatibility.
@@ -684,8 +670,16 @@ def register_experiment(name, description = None, conclusion = None, **kwargs):
         info += 'Description: %s\n' % (description, )
     if conclusion is not None:
         info += 'Conclusion: %s\n' % (description, )
+
+    if versions is not None:
+        if current_version is None:
+            assert len(versions)==1
+            current_version = versions.keys()[0]
+        assert current_version is not None
+        function = partial(function, **versions[current_version])
+
     assert name not in GLOBAL_EXPERIMENT_LIBRARY, 'An experiment with name "%s" has already been registered!' % (name, )
-    experiment = Experiment(name = name, info=info, **kwargs)
+    experiment = Experiment(name = name, function=function, info=info, **kwargs)
     GLOBAL_EXPERIMENT_LIBRARY[name] = experiment
     return experiment
 
