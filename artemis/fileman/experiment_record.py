@@ -25,24 +25,47 @@ ARTEMIS_LOGGER.setLevel(logging.INFO)
 __author__ = 'peter'
 
 
-class _ExpLibClass(object):
 
-    def __setattr__(self, experiment_name, experiment):
-        assert isinstance(experiment, Experiment), "Your experiment must be an experiment!"
-        if experiment.name is None:
-            experiment.name = experiment_name
-        assert experiment_name not in GLOBAL_EXPERIMENT_LIBRARY, "Experiment %s is already in the library" % (experiment_name, )
-        self.__dict__[experiment_name] = experiment
-        GLOBAL_EXPERIMENT_LIBRARY[experiment_name] = experiment
+def experiment_function(f):
+    """
+    Use this decorator (@experiment_function) on a function that you want to run.  e.g.
 
-    def get_experiments(self):
-        return GLOBAL_EXPERIMENT_LIBRARY
+        @experiment_function
+        def demo_my_experiment(a=1, b=2, c=3):
+            ...
 
-    def __getattr__(self, name):
-        if name in GLOBAL_EXPERIMENT_LIBRARY:
-            return GLOBAL_EXPERIMENT_LIBRARY[name]
-        else:
-            return _ExperimentConstructor(name)
+    To run the experiment in a mode where it records all print statements and matplotlib figures, go:
+    demo_my_experiment.run()
+
+    To create a variant on the experiment, with different arguments, go:
+
+        v1 = demo_my_experiment.add_variant('try_a=2', a=2)
+
+    The variant v1 is then also an experiment, so you can go
+
+        v1.run()
+
+    """
+    return ExperimentFunction()(f)
+
+
+class ExperimentFunction():
+    """ Decorator for an experiment
+    """
+    def __init__(self, display_function = None, info=None):
+        self.display_function = display_function
+        self.info = info
+
+    def __call__(self, f):
+        f.is_base_experiment = True
+        ex = Experiment(
+            name = f.__name__,
+            function = f,
+            display_function=self.display_function,
+            info='Root Experiment: {name}\nDefined in: {file}\n'.format(name=f.__name__, file=inspect.getmodule(f).__file__ )
+            )
+        _register_experiment(ex)
+        return ex
 
 
 def _get_experiment_listing():
@@ -68,64 +91,109 @@ def warn_with_prompt(message, prompt = 'Press Enter to continue'):
     raw_input('%s\n  (%s) >> ' % (message, prompt))
 
 
-def run_experiment_menu():
+def browse_experiments():
     while True:
         listing = _get_experiment_listing()
         print "==================== Experiments ===================="
         print '\n'.join(['%s : %s' % (identifier, name) for identifier, name in listing.iteritems()])
         print '-----------------------------------------------------'
         cmd = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
-        split = cmd.split(' ')
-        if len(split)==2:
-            cmd, number = split
-            if number not in listing:
-                warn_with_prompt('No experiment with number "%s"' % (number, ))
-            else:
-                name = listing[number]
-            if cmd == 'run':
-                GLOBAL_EXPERIMENT_LIBRARY[name].run()
-            elif cmd == 'show':
-                last_identifier = get_latest_experiment_identifier(name)
-                if last_identifier is None:
-                    warn_with_prompt("No record for experiment '%s' exists yet.  Run it to create one." % (name, ))
+
+        try:
+            split = cmd.split(' ')
+            if len(split)==2:
+                cmd, number = split
+                if number not in listing:
+                    warn_with_prompt('No experiment with number "%s"' % (number, ))
                 else:
-                    show_experiment(get_latest_experiment_identifier(name))
-                    warn_with_prompt('')
-            else:
-                warn_with_prompt("Unrecognised command '%s'" % (cmd, ))
-        elif len(split)==1:
-            if cmd == 'h':
-                warn_with_prompt("  Enter '4' to run experiment 4\n  Enter 'show 4' to show the last run version of experiment 4.\n  "
-                    "Enter 'browse' to browse through all experiment records.\n  Enter 'q' to quit.", prompt = 'Press Enter to exit help.')
-            elif cmd == 'q':
-                break
-            elif cmd == 'browse':
-                browse_experiment_records()
-            else:
-                if cmd not in listing:
-                    warn_with_prompt('No experiment with number "%s"' % (cmd, ))
-                else:
-                    name = listing[cmd]
+                    name = listing[number]
+                if cmd == 'run':
                     GLOBAL_EXPERIMENT_LIBRARY[name].run()
-        else:
-            warn_with_prompt('You must either enter a number to run the experiment, or "cmd #" to do some operation.  See help.')
+                elif cmd == 'show':
+                    last_identifier = get_latest_experiment_identifier(name)
+                    if last_identifier is None:
+                        warn_with_prompt("No record for experiment '%s' exists yet.  Run it to create one." % (name, ))
+                    else:
+                        show_experiment(get_latest_experiment_identifier(name))
+                        warn_with_prompt('')
+                elif cmd == 'display':
+                    try:
+                        GLOBAL_EXPERIMENT_LIBRARY[name].display_last()
+                    except Exception as err:
+                        warn_with_prompt("Error: %s: %s" % (err.__class__.__name__, err.message))
+                else:
+                    warn_with_prompt("Unrecognised command '%s'" % (cmd, ))
+            elif len(split)==1:
+                if cmd == 'h':
+                    warn_with_prompt("  Enter '4' to run experiment 4\n  Enter 'show 4' to show the output from the last run of experiment 4 (if it has been run already).\n  "
+                        "Enter 'records' to browse through all experiment records.\n  Enter 'display 4' to replot the result of experiment 4 (if it has been run already, "
+                        "only works if you've defined a display function for the experiment.)\n  Enter 'q' to quit.",
+                        prompt = 'Press Enter to exit help.')
+                elif cmd == 'q':
+                    break
+                elif cmd == 'records':
+                    browse_experiment_records()
+                else:
+                    if cmd not in listing:
+                        warn_with_prompt('No experiment with number "%s"' % (cmd, ))
+                    else:
+                        name = listing[cmd]
+                        GLOBAL_EXPERIMENT_LIBRARY[name].run()
+            else:
+                warn_with_prompt('You must either enter a number to run the experiment, or "cmd #" to do some operation.  See help.')
+        except Exception as e:
+            res = raw_input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (e.__class__.__name__, e.message))
+            if res == 'e':
+                raise
 
 
-class _ExperimentConstructor(object):
+def browse_experiment_records():
 
-    def __init__(self, name):
-        self.name = name
+    ids = get_all_experiment_ids()
+    while True:
 
-    def __call__(self, **kwargs):
-        if self.name in GLOBAL_EXPERIMENT_LIBRARY:
-            raise Exception("You tried to run create experiment '%s', but it already exists in the library.  Give it another name!" % (self.name, ))
-        return register_experiment(name = self.name, **kwargs)
+        print "=============== Experiment Records =================="
+        print '\n'.join(['%s: %s' % (i, exp_id) for i, exp_id in enumerate(ids)])
+        print '-----------------------------------------------------'
 
-    def run(self):
-        raise Exception("You tried to run experiment '%s', but it hasn't been made yet!" % (self.name, ))
+        user_input = raw_input('Enter Command (show # to show and experiment, or h for help) >>')
+        parts = shlex.split(user_input)
+
+        cmd = parts[0]
+        args = parts[1:]
+
+        try:
+            if cmd == 'q':
+                break
+            elif cmd == 'h':
+                warn_with_prompt('q: Quit\nfilter <text>: filter experiments\nrmfilters: Remove all filters\nshow <number> show experiment with number')
+            elif cmd == 'filter':
+                filter_text, = args
+                ids = get_all_experiment_ids(filter_text)
+            elif cmd == 'rmfilters':
+                ids = get_all_experiment_ids()
+            elif cmd == 'show':
+                index, = args
+                exp_id = ids[int(index)]
+                show_experiment(exp_id)
+                warn_with_prompt('')
+            elif cmd == 'clearall':
+                conf = raw_input("Going to clear all experiment records.  Enter 'y' to confirm: ")
+                if conf=='y':
+                    clear_experiments()
+                    ids = get_all_experiment_ids()
+                    assert len(ids)==0, "Failed to delete them?"
+                    print "Deleted all experiments"
+                else:
+                    print "Did not delete experiments"
+            else:
+                warn_with_prompt('Bad Command: %s.' % cmd)
+        except Exception as e:
+            res = raw_input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (e.__class__.__name__, e.message))
+            if res == 'e':
+                raise
 
 
-ExperimentLibrary = _ExpLibClass()
 
 GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()
 
@@ -154,7 +222,7 @@ class ExperimentRecord(object):
             return locs
 
     def show(self):
-        print '{header}Showing Experiment{header}\n{info}{subborder}Logs{subborder}\n{log}\n{border}'.format(header="="*20, border="="*50, info=self.get_info(), subborder='-'*20, log=self.get_log())
+        print '{header} Showing Experiment {header}\n{info}{subborder} Logs {subborder}\n{log}\n{border}'.format(header="="*20, border="="*50, info=self.get_info(), subborder='-'*20, log=self.get_log())
         self.show_figures()
 
     def get_info(self):
@@ -423,50 +491,6 @@ def _register_experiment(experiment):
     GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
-def browse_experiment_records():
-
-    ids = get_all_experiment_ids()
-    while True:
-        print '\n'.join(['%s: %s' % (i, exp_id) for i, exp_id in enumerate(ids)])
-
-        user_input = raw_input('Enter Command (show # to show and experiment, or h for help) >>')
-        parts = shlex.split(user_input)
-
-        cmd = parts[0]
-        args = parts[1:]
-
-        try:
-            if cmd == 'q':
-                break
-            elif cmd == 'h':
-                print 'q: Quit\nfilter <text>: filter experiments\brmfilters: Remove all filters\nshow <number> show experiment with number'
-                wait_for_continue()
-            elif cmd == 'filter':
-                filter_text, = args
-                ids = get_all_experiment_ids(filter_text)
-            elif cmd == 'rmfilters':
-                ids = get_all_experiment_ids()
-            elif cmd == 'show':
-                index, = args
-                exp_id = ids[int(index)]
-                show_experiment(exp_id)
-                wait_for_continue()
-            elif cmd == 'clearall':
-                conf = raw_input("Going to clear all experiment records.  Enter 'y' to confirm: ")
-                if conf=='y':
-                    clear_experiments()
-                    ids = get_all_experiment_ids()
-                    assert len(ids)==0, "Failed to delete them?"
-                    print "Deleted all experiments"
-                else:
-                    print "Did not delete experiments"
-            else:
-                print 'Bad Command: %s.' % cmd
-                wait_for_continue()
-        except Exception as e:
-            res = raw_input('%s: %s\nEnter "e" to view the message, or anything else to continue.' % (e.__class__.__name__, e.message))
-            if res == 'e':
-                raise
 
 
 def clear_experiments():
@@ -483,10 +507,6 @@ def clear_experiments():
             print(e)
 
 
-def wait_for_continue():
-    raw_input('<Press Enter to Continue>')
-
-
 def get_experiment_info(name):
     experiment = GLOBAL_EXPERIMENT_LIBRARY[name]
     return str(experiment)
@@ -495,46 +515,6 @@ def get_experiment_info(name):
 def get_experiment(name):
     return GLOBAL_EXPERIMENT_LIBRARY[name]
 
-
-def experiment_function(f):
-    """
-    Use this decorator (@experiment_function) on a function that you want to run.  e.g.
-
-        @experiment_function
-        def demo_my_experiment(a=1, b=2, c=3):
-            ...
-
-    To run the experiment in a mode where it records all print statements and matplotlib figures, go:
-    demo_my_experiment.run()
-
-    To create a variant on the experiment, with different arguments, go:
-
-        v1 = demo_my_experiment.add_variant('try_a=2', a=2)
-
-    The variant v1 is then also an experiment, so you can go
-
-        v1.run()
-
-    """
-    return ExperimentFunction()(f)
-
-
-class ExperimentFunction():
-    """ Decorator for an experiment
-    """
-    def __init__(self, display_function = None, info=None):
-        self.display_function = display_function
-        self.info = info
-
-    def __call__(self, f):
-        ex = Experiment(
-            name = f.__name__,
-            function = f,
-            display_function=self.display_function,
-            info='Root Experiment: {name}\nDefined in: {file}\n'.format(name=f.__name__, file=inspect.getmodule(f).__file__ )
-            )
-        _register_experiment(ex)
-        return ex
 
 
 class Experiment(object):
@@ -548,7 +528,8 @@ class Experiment(object):
 
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything. """
-        if (_CURRENT_EXPERIMENT_RECORD is not None) and not isinstance(self.function, partial):
+        # if (_CURRENT_EXPERIMENT_RECORD is not None) and not isinstance(self.function, partial):
+        if (_CURRENT_EXPERIMENT_RECORD is not None) and hasattr(self.function, 'is_base_experiment'):
             # If we are in the wrapped function, and running it as an experiment, we log some metadata around the experiment run.
             # for the info file.
             start_time = time.time()
@@ -559,6 +540,8 @@ class Experiment(object):
                 _CURRENT_EXPERIMENT_RECORD.add_info('Args: %s' % (default_args, ))
             except Exception as err:
                 ARTEMIS_LOGGER.error('Could not record arguments because %s: %s' % (err.__class__.__name__, err.message))
+            _CURRENT_EXPERIMENT_RECORD.add_info('Function: %s' % (self.function.__name__, ))
+            _CURRENT_EXPERIMENT_RECORD.add_info('Module: %s' % (inspect.getmodule(self.function).__file__, ))
             try:
                 out = self.function(*args, **kwargs)
                 _CURRENT_EXPERIMENT_RECORD.add_info('Status: Ran Successfully')
@@ -656,7 +639,10 @@ class Experiment(object):
 
 # ALTERNATE INTERFACES.
 # We keep these for backwards compatibility and to show how else we could organize the experiment API.
-# The best is currently to use the @experiment_function decorator.
+# These are out of use, as we at Artemis prefer the @experiment_function decorator.
+
+
+# Register interface:
 
 def register_experiment(name, function, description = None, conclusion = None, versions = None, current_version = None, **kwargs):
     """
@@ -687,6 +673,8 @@ def register_experiment(name, function, description = None, conclusion = None, v
 _CURRENT_EXPERIMENT_CONTEXT = None
 
 
+# Start/Stop Interface:
+
 def start_experiment(*args, **kwargs):
     global _CURRENT_EXPERIMENT_CONTEXT
     _CURRENT_EXPERIMENT_CONTEXT = record_experiment(*args, **kwargs)
@@ -697,6 +685,45 @@ def end_current_experiment():
     global _CURRENT_EXPERIMENT_CONTEXT
     _CURRENT_EXPERIMENT_CONTEXT.__exit__(None, None, None)
     _CURRENT_EXPERIMENT_CONTEXT = None
+
+
+# Experiment Library interface:
+
+class _ExpLibClass(object):
+
+    def __setattr__(self, experiment_name, experiment):
+        assert isinstance(experiment, Experiment), "Your experiment must be an experiment!"
+        if experiment.name is None:
+            experiment.name = experiment_name
+        assert experiment_name not in GLOBAL_EXPERIMENT_LIBRARY, "Experiment %s is already in the library" % (experiment_name, )
+        self.__dict__[experiment_name] = experiment
+        GLOBAL_EXPERIMENT_LIBRARY[experiment_name] = experiment
+
+    def get_experiments(self):
+        return GLOBAL_EXPERIMENT_LIBRARY
+
+    def __getattr__(self, name):
+        if name in GLOBAL_EXPERIMENT_LIBRARY:
+            return GLOBAL_EXPERIMENT_LIBRARY[name]
+        else:
+            return _ExperimentConstructor(name)
+
+
+class _ExperimentConstructor(object):
+
+    def __init__(self, name):
+        self.name = name
+
+    def __call__(self, **kwargs):
+        if self.name in GLOBAL_EXPERIMENT_LIBRARY:
+            raise Exception("You tried to run create experiment '%s', but it already exists in the library.  Give it another name!" % (self.name, ))
+        return register_experiment(name = self.name, **kwargs)
+
+    def run(self):
+        raise Exception("You tried to run experiment '%s', but it hasn't been made yet!" % (self.name, ))
+
+
+ExperimentLibrary = _ExpLibClass()
 
 
 if __name__ == '__main__':
