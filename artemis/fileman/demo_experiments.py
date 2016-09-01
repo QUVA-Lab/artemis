@@ -1,14 +1,16 @@
-from artemis.fileman.experiment_record import register_experiment, run_experiment, get_latest_record_identifier, \
-    get_latest_experiment_record
+from artemis.fileman.experiment_record import experiment_function, browse_experiments
 import numpy as np
 from matplotlib import pyplot as plt
 __author__ = 'peter'
 
 
 """
-This file demonstates you you can use experiments.
+This file demonstates Artemis's "Experiments"
 
-After running, all results will be saved
+When you run an experiment, all figures and console output, as well as some metadata such as total run time, arguments,
+etc are saved to disk.
+
+This demo illustrates how you can create an experiment, create variations on that experiment, and view the results.
 """
 
 
@@ -26,17 +28,32 @@ class OnlineLinearRegressor:
         return x.dot(self.w)
 
 
+@experiment_function
 def demo_linear_regression(
         n_in = 100,
         n_out = 4,
         n_training_samples = 500,
         n_test_samples = 500,
-        n_epochs = 10,
         noise = .1,
+        n_epochs = 10,
         eta = 0.001,
         random_seed = 1234,
         score_report_period = 100,
         ):
+    """
+    Generate a random linear regression problem and train an online predictor to solve it with Stochastic gradient descent.
+    Log the scores and plot the resulting learning curves.
+
+    :param n_in: Number of inputs
+    :param n_out: Number of outputs
+    :param n_training_samples: Number of training samples in generated dataset.
+    :param n_test_samples: Number of test samples in generated dataset.
+    :param noise: Noise to add to generated dataset
+    :param n_epochs: Number of epochs to run for
+    :param eta: Learning rate for SGD
+    :param random_seed: Random seed (for generating data)
+    :param score_report_period: Report score every X training iterations.
+    """
 
     # Setup data
     rng = np.random.RandomState(random_seed)
@@ -59,7 +76,6 @@ def demo_linear_regression(
             epoch = float(i) / n_training_samples
             epoch_scores.append((epoch, training_cost, test_cost))
         predictor.train(training_data[[i % n_training_samples]], training_target[[i % n_training_samples]])
-        # predictor.train(training_data, training_target)
 
     # Plot
     epochs, training_costs, test_costs = zip(*epoch_scores)
@@ -68,23 +84,16 @@ def demo_linear_regression(
     plt.ylabel('cost')
     plt.legend(['Training Cost', 'Test Cost'])
     plt.title("Learning Curve")
+    plt.ion()
     plt.show()
 
-    
-register_experiment(
-    name = 'demo_linear_regression_experiment',
-    description = "Run linear regression.",
-    function = demo_linear_regression,
-    conclusion = "Linear Regression Works"
-    )
+
+demo_linear_regression.add_variant('fast-learn', eta=0.01)
+
+demo_linear_regression.add_variant('large_input_space', n_in=1000)
 
 
 if __name__ == "__main__":
 
-    # First, run the experiment
-    run_experiment('demo_linear_regression_experiment')
-
-    # After this, you can show the saved results.  You can run the file "experiment_record.py" to
-    # browse through all past experiments.
-    # They are stored in <Your project folder>/Data/experiments/
-    get_latest_experiment_record('demo_linear_regression_experiment').show()
+    # Open a menu that allows you to run experiments and view old ones.
+    browse_experiments()

@@ -79,6 +79,24 @@ def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128)
     return output_data
 
 
+def put_list_of_images_in_array(list_of_images, fill_colour = np.array((0, 0, 0))):
+    """
+    Arrange a list of images into a grid.  They do not necessairlily need to have the same size.
+
+    :param list_of_images: A list of images, not necessarily the same size.
+    :param fill_colour: The colour with which to fill the gaps
+    :return: A (n_images, size_y, size_x, 3) array of images.
+    """
+    size_y = max(im.shape[0] for im in list_of_images)
+    size_x = max(im.shape[1] for im in list_of_images)
+    im_array = np.zeros((len(list_of_images), size_y, size_x, 3))+fill_colour
+    for g, im in zip(im_array, list_of_images):
+        top = int((size_y-im.shape[0])/2)
+        left = int((size_x-im.shape[1])/2)
+        g[top:top+im.shape[0], left:left+im.shape[1], :] = im if im.ndim==3 else im[:, :, None]
+    return im_array
+
+
 def scale_data_to_8_bit(data, in_range = None):
     """
     Scale data to range [0, 255] and put in uint8 format.

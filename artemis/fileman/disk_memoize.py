@@ -16,7 +16,7 @@ MEMO_READ_ENABLED = True
 MEMO_DIR = get_local_path('memoize_to_disk')
 
 
-def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True):
+def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle = False):
     """
     Save (memoize) computed results to disk, so that the same function, called with the
     same arguments, does not need to be recomputed.  This is useful if you have a long-running
@@ -45,6 +45,11 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True):
         True.  Generally, leave this as true, unless you are testing memoization itself.
     :return: A wrapper around the function that checks for memos and loads old results if they exist.
     """
+
+    if use_cpickle:
+        import cPickle as pickle
+    else:
+        import pickle
 
     cached_local_results = {}
 
@@ -125,6 +130,10 @@ def memoize_to_disk_and_cache_test(fcn):
 def get_function_hash_filename(fcn, argname_argvalue_list):
     args_code = compute_fixed_hash(argname_argvalue_list)
     return os.path.join(MEMO_DIR, '%s-%s.pkl' % (fcn.__name__, args_code))
+
+
+def memoize_to_disk_with_settings(**kwargs):
+    return partial(memoize_to_disk, **kwargs)
 
 
 def get_all_memos():

@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from artemis.general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image
+from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -35,7 +35,7 @@ class HistoryFreePlot(IPlot):
 
 class ImagePlot(HistoryFreePlot):
 
-    def __init__(self, interpolation = 'nearest', show_axes = False, clims = None, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, aspect = 'auto', cmap = 'gray', is_colour_data = None):
         self._plot = None
         self._interpolation = interpolation
         self._show_axes = show_axes
@@ -43,21 +43,28 @@ class ImagePlot(HistoryFreePlot):
         self._aspect = aspect
         self._cmap = cmap
         self._is_colour_data = is_colour_data
+        self.show_clims = show_clims
 
     def _plot_last_data(self, data):
 
-        if data.ndim == 1:
-            data = data[None]
+        if len(data)==0:
+            plottable_data = np.zeros((16, 16, 3), dtype = np.uint8)
+            clims = (0, 1)
+        else:
+            if isinstance(data, list):
+                data = put_list_of_images_in_array(data)
 
-        clims = ((np.nanmin(data), np.nanmax(data)) if data.size != 0 else (0, 1)) if self._clims is None else self._clims
+            if data.ndim == 1:
+                data = data[None]
 
-        if self._is_colour_data is None:
-            # self._is_colour_data = (data.ndim == 2 or data.ndim >= 3 and data.shape[2] == 3)
-            self._is_colour_data = data.shape[-1]==3
+            clims = ((np.nanmin(data), np.nanmax(data)) if data.size != 0 else (0, 1)) if self._clims is None else self._clims
 
-        plottable_data = put_data_in_grid(data, clims = clims, cmap = self._cmap, is_color_data = self._is_colour_data) \
-            if not (self._is_colour_data and data.ndim==3 or data.ndim==2) else \
-            data_to_image(data, clims = clims, cmap = self._cmap)
+            if self._is_colour_data is None:
+                self._is_colour_data = data.shape[-1]==3
+
+            plottable_data = put_data_in_grid(data, clims = clims, cmap = self._cmap, is_color_data = self._is_colour_data) \
+                if not (self._is_colour_data and data.ndim==3 or data.ndim==2) else \
+                data_to_image(data, clims = clims, cmap = self._cmap)
 
         if self._plot is None:
             self._plot = plt.imshow(plottable_data, interpolation = self._interpolation, aspect = self._aspect, cmap = self._cmap)
@@ -66,7 +73,8 @@ class ImagePlot(HistoryFreePlot):
                 self._plot.axes.get_yaxis().set_visible(False)
         else:
             self._plot.set_array(plottable_data)
-        self._plot.axes.set_xlabel('%.2f - %.2f' % clims)
+        if self.show_clims:
+            self._plot.axes.set_xlabel('%.2f - %.2f' % clims)
 
 
 class MovingImagePlot(ImagePlot):
@@ -219,6 +227,9 @@ def get_live_plot_from_data(data, line_to_image_threshold = 8, cmap = 'gray'):
 
     if isinstance(data, basestring):
         return TextPlot()
+
+    if isinstance(data, list) and all(isinstance(d, np.ndarray) and d.ndim in (2, 3) for d in data):
+        return ImagePlot()
 
     is_scalar = np.isscalar(data) or data.shape == ()
     if is_scalar:
