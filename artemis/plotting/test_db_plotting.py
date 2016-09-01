@@ -70,7 +70,24 @@ def test_same_object():
     clear_dbplot()
 
 
+def test_multiple_figures():
+
+    for _ in xrange(2):
+        dbplot(np.random.randn(20, 20), 'a', fig='1')
+        dbplot(np.random.randn(20, 20), 'b', fig='1')
+        dbplot(np.random.randn(20, 20), 'c', fig='2')
+        dbplot(np.random.randn(20, 20), 'd', fig='2')
+
+
+def test_list_of_images():
+
+    for _ in xrange(2):
+        dbplot([np.random.randn(12, 30), np.random.randn(10, 10), np.random.randn(15, 10)])
+
+
 if __name__ == '__main__':
+    test_list_of_images()
+    test_multiple_figures()
     test_same_object()
     test_history_plot_updating()
     test_particular_plot()

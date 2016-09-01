@@ -1,6 +1,6 @@
 import pickle
 import time
-from artemis.fileman.file_getter import get_temp_file
+from artemis.fileman.file_getter import get_temp_file, get_file_and_cache
 from artemis.fileman.images2gif import readGif
 import os
 from artemis.fileman.experiment_record import get_current_experiment_id
@@ -45,7 +45,7 @@ def smart_save(obj, relative_path, remove_file_after = False):
     return local_path
 
 
-def smart_load(relative_path):
+def smart_load(relative_path, use_cache = False):
     """
     Load a file, with the method based on the extension.  See smart_save doc for the list of extensions.
     :param relative_path: Path, relative to your data directory.  The extension determines the type of object you will load.
@@ -55,16 +55,30 @@ def smart_load(relative_path):
     # TODO... Support for local files, urls, etc...
     its_a_url = is_url(relative_path)
     _, ext = os.path.splitext(relative_path)
-    local_path = get_temp_file(relative_path) if its_a_url else get_local_path(relative_path)
+    if its_a_url:
+        if use_cache:
+            local_path = get_file_and_cache(relative_path)
+        else:
+            local_path = get_temp_file(relative_path)
+    else:
+        local_path = get_local_path(relative_path)
     if ext=='.pkl':
         with open(local_path) as f:
             obj = pickle.load(f)
     elif ext=='.gif':
         obj = np.array(readGif(local_path))
-    elif ext == '.jpg':
+    elif ext in ('.jpg', '.jpeg', '.png'):
         from PIL import Image
         pic = Image.open(local_path)
-        pix = np.array(pic.getdata(), dtype='uint8').reshape(pic.size[1], pic.size[0], 3)
+        pic_arr = np.array(pic.getdata(), dtype='uint8')
+        if pic_arr.size == np.prod(pic.size):  # BW image
+            pix = pic_arr.reshape(pic.size[1], pic.size[0])
+        elif pic_arr.size == np.prod(pic.size)*3:  # RGB image
+            pix = pic_arr.reshape(pic.size[1], pic.size[0], 3)
+        elif pic_arr.size == np.prod(pic.size)*4:  # RGBA image... just take RGB for now!
+            pix = pic_arr.reshape(pic.size[1], pic.size[0], 4)[:, :, :3]
+        else:
+            raise Exception("Pixel count: %s, did not divide evenly into picture size: %s" % (pic_arr.size, pic.size))
         return pix
     else:
         raise Exception("No method exists yet to load '%s' files.  Add it!" % (ext, ))

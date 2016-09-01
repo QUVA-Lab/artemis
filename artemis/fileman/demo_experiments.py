@@ -1,16 +1,16 @@
-from artemis.fileman.experiment_record import experiment_function, browse_experiments
+# from artemis.fileman.experiment_record import experiment_function, browse_experiments
 import numpy as np
 from matplotlib import pyplot as plt
 __author__ = 'peter'
 
 
 """
-This file demonstates Artimis's "Experiments"
+This file demonstates Artemis's "Experiments"
 
 When you run an experiment, all figures and console output, as well as some metadata such as total run time, arguments,
 etc are saved to disk.
 
-This demo illustrates how you can create an experiment, as well as variations on that experiment.
+This demo illustrates how you can create an experiment, create variations on that experiment, and view the results.
 """
 
 
@@ -28,7 +28,7 @@ class OnlineLinearRegressor:
         return x.dot(self.w)
 
 
-@experiment_function
+# @experiment_function
 def demo_linear_regression(
         n_in = 100,
         n_out = 4,
@@ -76,7 +76,6 @@ def demo_linear_regression(
             epoch = float(i) / n_training_samples
             epoch_scores.append((epoch, training_cost, test_cost))
         predictor.train(training_data[[i % n_training_samples]], training_target[[i % n_training_samples]])
-        # predictor.train(training_data, training_target)
 
     # Plot
     epochs, training_costs, test_costs = zip(*epoch_scores)
@@ -85,18 +84,20 @@ def demo_linear_regression(
     plt.ylabel('cost')
     plt.legend(['Training Cost', 'Test Cost'])
     plt.title("Learning Curve")
+    plt.ion()
     plt.show()
 
 
-demo_linear_regression.add_variant('fast-learn', eta=0.01)
-demo_linear_regression.add_variant('large_input_space', n_in=1000)
+# demo_linear_regression.add_variant('fast-learn', eta=0.01)
+# demo_linear_regression.add_variant('large_input_space', n_in=1000)
 
 
 if __name__ == "__main__":
 
     # Open a menu that allows you to run experiments and view old ones.
-    browse_experiments()
+    # browse_experiments()
 
+    demo_linear_regression()
     # You can also run your preferred variant directly as follows:
     # from artemis.fileman.experiment_record import run_experiment
     # run_experiment('demo_linear_regression.fast-learn')
