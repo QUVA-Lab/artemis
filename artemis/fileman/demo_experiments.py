@@ -1,4 +1,4 @@
-# from artemis.fileman.experiment_record import experiment_function, browse_experiments
+from artemis.fileman.experiment_record import experiment_function, browse_experiments
 import numpy as np
 from matplotlib import pyplot as plt
 __author__ = 'peter'
@@ -28,7 +28,7 @@ class OnlineLinearRegressor:
         return x.dot(self.w)
 
 
-# @experiment_function
+@experiment_function
 def demo_linear_regression(
         n_in = 100,
         n_out = 4,
@@ -88,16 +88,12 @@ def demo_linear_regression(
     plt.show()
 
 
-# demo_linear_regression.add_variant('fast-learn', eta=0.01)
-# demo_linear_regression.add_variant('large_input_space', n_in=1000)
+demo_linear_regression.add_variant('fast-learn', eta=0.01)
+
+demo_linear_regression.add_variant('large_input_space', n_in=1000)
 
 
 if __name__ == "__main__":
 
     # Open a menu that allows you to run experiments and view old ones.
-    # browse_experiments()
-
-    demo_linear_regression()
-    # You can also run your preferred variant directly as follows:
-    # from artemis.fileman.experiment_record import run_experiment
-    # run_experiment('demo_linear_regression.fast-learn')
+    browse_experiments()

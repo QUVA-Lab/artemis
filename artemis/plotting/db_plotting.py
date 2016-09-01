@@ -12,18 +12,33 @@ _PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots'])
 
 _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 
-
-# _PLOT_DATA_OBJECTS = OrderedDict()
-# _SUBPLOTS = {}  # A dict<figure_identifier: OrdereDicts<subplot_name:axis_object>>
-
-_DBPLOT_FIGURES = {}  # An dict<figure_name: OrderedDict<subplot_name:_Subplot>>
-# _DBPLOT_CURRENT_FIGURE = None
+_DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
 
 
 def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None, fig = None):
+    """
+    Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
+    :param data: Any data.  Hopefully, we at dbplot will be able to figure out a plot for it.
+    :param name: A name uniquely identifying this plot.
+    :param plot_constructor: A specialized constructor to be used the first time when plotting.  You can also pass
+        certain string to give hints as to what kind of plot you want (can resolve cases where the given data could be
+        plotted in multiple ways):
+        'line': Plots a line plot
+        'img': An image plot
+        'colour': A colour image plot
+        'pic': A picture (no scale bars, axis labels, etc).
+    :param plot_mode: Influences how the data should be used to choose the plot type:
+        'live': Best for 'live' plots that you intend to update as new data arrives
+        'static': Best for 'static' plots, that you do not intend to update
+        'image': Try to represent the plot as an image
+    :param draw_now: Draw the plot now (you may choose false if you're going to add another plot immediately after and
+        don't want have to draw this one again.
+    :param hang: Hang on the plot (wait for it to be closed before continuing)
+    :param title: Title of the plot (will default to name if not included)
+    :param fig: Name of the figure - use this when you want to create multiple figures.
+    """
     if isinstance(fig, plt.Figure):
-        # figure = fig
         assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
         _DBPLOT_FIGURES[None] = fig
         fig = None
@@ -31,20 +46,6 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         _DBPLOT_FIGURES[fig] = _PlotWindow(figure = plt.figure(), subplots=OrderedDict())
         if name is not None:
             _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
-    # elif fig in _DBPLOT_FIGURES:
-    #     pass
-        # figure = _DBPLOT_FIGURES[fig]
-    # else:
-    #     figure = plt.figure()
-    #     _DBPLOT_FIGURES[fig] = figure
-
-    # plt.figure(figure)
-    #     assert _DBPLOT_CURRENT_FIGURE is None, "You can only pass fig as an argument on your first call to dbplot"
-    #     _DBPLOT_CURRENT_FIGURE = fig
-    # elif _DBPLOT_CURRENT_FIGURE is None:
-    #     _DBPLOT_CURRENT_FIGURE = plt.figure()
-
-    # _plot_window =
 
     suplot_dict = _DBPLOT_FIGURES[fig].subplots
 
@@ -64,21 +65,14 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
 
         _extend_subplots(fig=fig, subplot_name=name, plot_object=plot)  # This guarantees that the new plot will exist
 
-        # _PLOT_DATA_OBJECTS[name] = plot
-        # _extend_subplots(_PLOT_DATA_OBJECTS.keys(), fig)
-
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
-    # plot = _PLOT_DATA_OBJECTS[name]
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
     plot.update(data)
-    # plt.subplot(_SUBPLOTS[name])
     if title is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
-        # plt.subplot(_SUBPLOTS[name]).set_title(title)
     plot.plot()
     plt.figure(_DBPLOT_FIGURES[fig].figure.number)
     if draw_now:
-        # plt.draw()  # Note: Could be optimized with blit.
         if hang:
             plt.show()
         else:
@@ -89,15 +83,13 @@ def clear_dbplot(fig = None):
     plt.figure(_DBPLOT_FIGURES[fig].figure.number)
     plt.clf()
     _DBPLOT_FIGURES[fig].subplots.clear()
-    # _SUBPLOTS.clear()
-    # _PLOT_DATA_OBJECTS.clear()
 
 
-# def _extend_subplots(key_names, fig):
 def _extend_subplots(fig, subplot_name, plot_object):
     """
-    :param key_names: New list of names of subplots for figure
     :param fig: Name for figure to extend subplots on
+    :param subplot_name: Name of the new subplot in that figure
+    :param plot_object: The plotting object to display
     :return:
     """
     assert fig in _DBPLOT_FIGURES

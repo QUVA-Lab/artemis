@@ -60,7 +60,6 @@ class ImagePlot(HistoryFreePlot):
             clims = ((np.nanmin(data), np.nanmax(data)) if data.size != 0 else (0, 1)) if self._clims is None else self._clims
 
             if self._is_colour_data is None:
-                # self._is_colour_data = (data.ndim == 2 or data.ndim >= 3 and data.shape[2] == 3)
                 self._is_colour_data = data.shape[-1]==3
 
             plottable_data = put_data_in_grid(data, clims = clims, cmap = self._cmap, is_color_data = self._is_colour_data) \
