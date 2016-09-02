@@ -11,7 +11,7 @@ def get_config_value(config_filename, section, option, default_generator = None,
     the ~/.theanorc file, which may contain:
 
         [global]                    # <-- section
-        floatX = float32            # <-- property (value is 'float32')
+        floatX = float32            # <-- option (value is 'float32')
         device = gpu0
 
         [lib]
@@ -45,10 +45,6 @@ def get_config_value(config_filename, section, option, default_generator = None,
         except (NoSectionError, NoOptionError) as err:
             if default_generator is None:
                 raise
-                # if isinstance(err, NoSectionError):
-                #     raise Exception('No section "%s" exists in config file "%s" and you provided no default' % (section, config_path))
-                # else:
-                #     raise Exception('No option "%s" exists in section %s of config file "%s" and you provided no default' % (option, section, config_path))
             else:
                 value = default_generator()
 
