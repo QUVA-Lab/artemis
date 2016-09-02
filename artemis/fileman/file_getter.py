@@ -5,7 +5,7 @@ from StringIO import StringIO
 import gzip
 import tarfile
 from zipfile import ZipFile
-from artemis.fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_local_path, make_dir, make_file_dir
 from artemis.general.should_be_builtins import bad_value
 import os
 
@@ -93,6 +93,7 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None):
         print '...Done.'
 
         local_zip_path = local_folder_path + archive_type
+        make_file_dir(local_zip_path)
         with open(local_zip_path, 'w') as f:
             f.write(data)
 
