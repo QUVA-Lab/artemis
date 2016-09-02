@@ -5,7 +5,7 @@ import os
 __author__ = 'peter'
 
 
-def get_config_option(config_filename, section, option, default_generator = None, write_default = False):
+def get_config_value(config_filename, section, option, default_generator = None, write_default = False):
     """
     Get a setting from a configuration file.  If none exists, you can optionally create one.  An example config file is
     the ~/.theanorc file, which may contain:
