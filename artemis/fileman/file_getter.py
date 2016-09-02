@@ -40,7 +40,7 @@ def get_file(relative_name, url = None, data_transformation = None):
     return full_filename
 
 
-def get_file_in_zip(relative_path, subpath, url, force_extract = False):
+def get_file_in_archive(relative_path, subpath, url, force_extract = False):
     """
     Download a zip file, unpack it, and get the local address of a file within this zip (so that you can open it, etc).
 

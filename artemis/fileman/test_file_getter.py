@@ -1,5 +1,5 @@
 import shutil
-from artemis.fileman.file_getter import get_file_in_zip
+from artemis.fileman.file_getter import get_file_in_archive
 from artemis.fileman.local_dir import get_local_path
 import os
 __author__ = 'peter'
@@ -14,7 +14,7 @@ def test_unpack_tar_gz():
 
     for _ in xrange(2):  # (Second time to check caching)
 
-        local_file = get_file_in_zip(
+        local_file = get_file_in_archive(
             relative_path= 'tests/test_tar_zip',
             url = 'https://drive.google.com/uc?export=download&id=0B4IfiNtPKeSAbmp6VEVJdjdSSlE',
             subpath = 'testzip/test_file.txt'
@@ -35,7 +35,7 @@ def test_unpack_zip():
 
     for _ in xrange(2):  # (Second time to check caching)
 
-        local_file = get_file_in_zip(
+        local_file = get_file_in_archive(
             relative_path= 'tests/test_zip_zip',
             url = 'https://drive.google.com/uc?export=download&id=0B4IfiNtPKeSATWZXWjEyd1FsRG8',
             subpath = 'testzip/test_file.txt'
