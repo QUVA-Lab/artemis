@@ -35,6 +35,7 @@ _WHAT_TO_DO_ON_SHOW = 'hang'
 def redraw_figure(fig=None):
     plt.draw()
     _ORIGINAL_SHOW_CALLBACK(block=False)
+    plt.pause(0.0001)
 
 
 def show_figure(*args, **kwargs):
@@ -83,10 +84,7 @@ class FigureCallBackManager(object):
         self.callbacks = []
 
 show_callback = FigureCallBackManager([show_figure])
-plt.show=show_callback
-
 draw_callback = FigureCallBackManager([redraw_figure])
-# plt.draw=draw_callback
 redraw_figure = draw_callback
 
 

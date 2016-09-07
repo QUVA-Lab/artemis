@@ -1,6 +1,5 @@
 from collections import OrderedDict, namedtuple
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
-from artemis.plotting.manage_plotting import redraw_figure
 from artemis.plotting.matplotlib_backend import get_plot_from_data
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from matplotlib import gridspec
@@ -76,7 +75,8 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         if hang:
             plt.show()
         else:
-            redraw_figure()  # Ensures that plot actually shows (whereas plt.draw() may not)
+            plt.draw()
+            plt.pause(0.00001)  # Annoyingly required by some matplotlib backends to display
 
 
 def clear_dbplot(fig = None):
