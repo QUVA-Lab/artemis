@@ -8,6 +8,7 @@ from artemis.fileman.experiment_record import start_experiment, run_experiment, 
 import numpy as np
 import matplotlib.pyplot as plt
 import shutil
+import warnings
 
 __author__ = 'peter'
 
@@ -20,18 +21,21 @@ use that if you're looking for an example.
 
 def _run_experiment():
 
-    print 'aaa'
-    plt.figure('sensible defaults')
-    dat = np.random.randn(4, 5)
-    plt.subplot(211)
-    plt.imshow(dat)
-    plt.subplot(212)
-    plt.imshow(dat, interpolation = 'nearest', cmap = 'gray')
-    plt.show()
-    print 'bbb'
-    plt.figure()
-    plt.plot(np.random.randn(10))
-    plt.show()
+    with warnings.catch_warnings():  # This is just to stop that stupid matplotlib warning from screwing up our logs.
+        warnings.simplefilter('ignore')
+
+        print 'aaa'
+        plt.figure('sensible defaults')
+        dat = np.random.randn(4, 5)
+        plt.subplot(211)
+        plt.imshow(dat)
+        plt.subplot(212)
+        plt.imshow(dat, interpolation = 'nearest', cmap = 'gray')
+        plt.show()
+        print 'bbb'
+        plt.figure()
+        plt.plot(np.random.randn(10))
+        plt.show()
 
 
 register_experiment(

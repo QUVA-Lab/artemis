@@ -3,6 +3,7 @@ from artemis.plotting.db_plotting import dbplot
 import numpy as np
 __author__ = 'peter'
 
+
 def demo_dbplot():
 
     for i in xrange(1000):
