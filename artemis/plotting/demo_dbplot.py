@@ -3,6 +3,9 @@ from artemis.plotting.db_plotting import dbplot
 import numpy as np
 __author__ = 'peter'
 
+import matplotlib
+print matplotlib.get_backend()
+
 
 def demo_dbplot():
 
