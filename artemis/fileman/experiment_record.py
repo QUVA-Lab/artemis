@@ -90,7 +90,7 @@ def _warn_with_prompt(message, prompt = 'Press Enter to continue'):
     raw_input('%s\n  (%s) >> ' % (message, prompt))
 
 
-def browse_experiments(catch_errors = True, run_args = {}):
+def browse_experiments(catch_errors = False, close_after_run = False, run_args = {}):
     while True:
         listing = _get_experiment_listing()
         print "==================== Experiments ===================="
@@ -108,6 +108,8 @@ def browse_experiments(catch_errors = True, run_args = {}):
                     name = listing[number]
                 if cmd == 'run':
                     exp = GLOBAL_EXPERIMENT_LIBRARY[name].run(**run_args)
+                    if close_after_run:
+                        break
                 elif cmd == 'show':
                     last_identifier = get_latest_experiment_identifier(name)
                     if last_identifier is None:
@@ -608,7 +610,7 @@ class Experiment(object):
             function=partial(self, *args, **kwargs),
             display_function=self.display_function,
             info=self.info+'Variant: {variant}\n'.format(variant=name))
-        self.variants[name] = name
+        self.variants[name] = ex
         _register_experiment(ex)
         return ex
 
