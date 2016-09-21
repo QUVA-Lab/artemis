@@ -1,4 +1,5 @@
 import time
+from artemis.general.test_mode import set_test_mode
 from artemis.plotting.live_plotting import LiveStream, LivePlot, LiveCanal
 from artemis.plotting.plotting_backend import MovingImagePlot, MovingPointPlot, LinePlot, ImagePlot, HistogramPlot
 from itertools import count
@@ -86,6 +87,7 @@ def test_canaling(duration = 10):
 
 if __name__ == '__main__':
 
+    set_test_mode(True)
     test_dynamic_rebuild()
     test_streaming(10)
     test_canaling(10)
