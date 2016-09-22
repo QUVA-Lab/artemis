@@ -2,8 +2,8 @@ import pickle
 import time
 from artemis.fileman.file_getter import get_temp_file, get_file_and_cache
 from artemis.fileman.images2gif import readGif
+from artemis.general.ezprofile import EZProfiler
 import os
-from artemis.fileman.experiment_record import get_current_experiment_id
 from artemis.fileman.local_dir import get_local_path
 import numpy as np
 import re
@@ -26,6 +26,7 @@ def smart_save(obj, relative_path, remove_file_after = False):
         iso_time = time.now().isoformat().replace(':', '.').replace('-', '.')
         relative_path = relative_path.replace('%T', iso_time)
     if '%R' in relative_path:
+        from artemis.fileman.experiment_record import get_current_experiment_id
         relative_path = relative_path.replace('%R', get_current_experiment_id())
     _, ext = os.path.splitext(relative_path)
     local_path = get_local_path(relative_path, make_local_dir=True)
@@ -55,6 +56,7 @@ def smart_load(relative_path, use_cache = False):
     # TODO... Support for local files, urls, etc...
     its_a_url = is_url(relative_path)
     _, ext = os.path.splitext(relative_path)
+    ext = ext.lower()
     if its_a_url:
         if use_cache:
             local_path = get_file_and_cache(relative_path)
@@ -70,7 +72,7 @@ def smart_load(relative_path, use_cache = False):
     elif ext in ('.jpg', '.jpeg', '.png'):
         from PIL import Image
         pic = Image.open(local_path)
-        pic_arr = np.array(pic.getdata(), dtype='uint8')
+        pic_arr = np.asarray(pic)
         if pic_arr.size == np.prod(pic.size):  # BW image
             pix = pic_arr.reshape(pic.size[1], pic.size[0])
         elif pic_arr.size == np.prod(pic.size)*3:  # RGB image
