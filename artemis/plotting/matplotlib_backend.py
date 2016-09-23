@@ -152,10 +152,21 @@ class MovingPointPlot(LinePlot):
 
 class TextPlot(IPlot):
 
-    def __init__(self, max_history = 8):
+    def __init__(self, max_history = 8, horizontal_alignment = 'left', vertical_alignment = 'bottom', size = 'medium'):
+        """
+        :param horizontal_alignment: {'left', 'center', 'right'}
+        :param vertical_alignment: {'top', 'center', 'bottom', 'baseline'}
+        :param size: [size in points | "xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large" ]
+        :return:
+        """
         self._buffer = RecordBuffer(buffer_len = max_history, initial_value='')
         self._max_history = 10
         self._text_plot = None
+        self.horizontal_alignment = horizontal_alignment
+        self.vertical_alignment = vertical_alignment
+        self.size = size
+        self._x_offset = {'left': 0.05, 'center': 0.5, 'right': 0.95}[self.horizontal_alignment]
+        self._y_offset = {'bottom': 0.05, 'center': 0.5, 'top': 0.95}[self.vertical_alignment]
 
     def update(self, string):
         if not isinstance(string, basestring):
@@ -168,7 +179,10 @@ class TextPlot(IPlot):
             ax = plt.gca()
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-            self._text_plot = ax.text(0.05, 0.05, self._full_text)
+            ax.set_axis_off()
+
+            # self._text_plot = ax.text(0.05, 0.05, self._full_text, horizontalalignment=self.horizontal_alignment, verticalalignment=self.vertical_alignment, size = self.size)
+            self._text_plot = ax.text(self._x_offset, self._y_offset, self._full_text, horizontalalignment=self.horizontal_alignment, verticalalignment=self.vertical_alignment, size = self.size)
         else:
             self._text_plot.set_text(self._full_text)
 

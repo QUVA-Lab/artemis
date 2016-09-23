@@ -1,6 +1,6 @@
 from collections import OrderedDict, namedtuple
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
-from artemis.plotting.matplotlib_backend import get_plot_from_data
+from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
@@ -54,7 +54,8 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
                 'line': LinePlot,
                 'img': ImagePlot,
                 'colour': lambda: ImagePlot(is_colour_data=True),
-                'pic': lambda: ImagePlot(show_clims=False, aspect='equal')
+                'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
+                'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large')
                 }[plot_constructor]()
         elif plot_constructor is None:
             plot = get_plot_from_data(data, mode=plot_mode)
