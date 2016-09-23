@@ -94,6 +94,22 @@ def put_list_of_images_in_array(list_of_images, fill_colour = np.array((0, 0, 0)
     return im_array
 
 
+def put_list_of_lists_of_images_in_array(list_of_lists_of_images, fill_colour = np.array((0, 0, 0))):
+    """
+    Arrange a list of lists of images into a grid.  Each sublist does not necessarily need to have the same length, and
+    images within the lists do not necessairlily need to have the same size.
+
+    :param list_of_lists_of_images: A list of lists of images.
+    :param fill_colour: The colour with which to fill the gaps
+    :return: A (n_rows, n_cols, size_y, size_x, 3) array of images.
+    """
+    image_arrays = [put_list_of_images_in_array(list_of_images) for list_of_images in list_of_lists_of_images]
+    image_grid_tensor = np.zeros((len(image_arrays), max(arr.shape[0] for arr in image_arrays), max(arr.shape[1] for arr in image_arrays), max(arr.shape[2] for arr in image_arrays), 3))+fill_colour  # (n_rows, n_cols, size_y, size_x, 3)
+    for i, arr in enumerate(image_arrays):
+        image_grid_tensor[i, :arr.shape[0], :arr.shape[1], :arr.shape[2], :] = arr
+    return image_grid_tensor
+
+
 def scale_data_to_8_bit(data, in_range = None):
     """
     Scale data to range [0, 255] and put in uint8 format.

@@ -36,6 +36,18 @@ class HistoryFreePlot(IPlot):
 class ImagePlot(HistoryFreePlot):
 
     def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+        """
+        :param interpolation: How to interpolate array to form the image {‘none’, ‘nearest’, ‘bilinear’, ‘bicubic’, ... (see plt.imshow)}
+        :param show_axes: Show axes marks (numbers along the side showing pixel locations)
+        :param show_clims: Print the range of the colour scale at the bottom
+        :param clims: (lower, upper) limit to colour-scale (or None to set it to the range of the data)
+        :param aspect: 'auto' to stretch the image to the shape of the plot, 'equal' to maintain aspect ratio
+        :param cmap: Colourmap {'gray', 'jet', ...}
+        :param is_colour_data: Identify whether the image consists of colour data.  Usually, if you leave this at None,
+            it will figure out the correct thing automatically, but this can, for instance, be used to distinquish a case
+            where the images shape is (24, 34, 3), 
+        :return:
+        """
         self._plot = None
         self._interpolation = interpolation
         self._show_axes = show_axes
