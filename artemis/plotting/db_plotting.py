@@ -54,7 +54,7 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
                 'line': LinePlot,
                 'img': ImagePlot,
                 'colour': lambda: ImagePlot(is_colour_data=True),
-                'pic': lambda: ImagePlot(show_clims=False)
+                'pic': lambda: ImagePlot(show_clims=False, aspect='equal')
                 }[plot_constructor]()
         elif plot_constructor is None:
             plot = get_plot_from_data(data, mode=plot_mode)
