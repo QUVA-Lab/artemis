@@ -103,6 +103,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
         return result
 
     check_memos.wrapped_fcn = fcn
+    check_memos.clear_cache = lambda: clear_memo_files_for_function(check_memos)
 
     return check_memos
 
@@ -169,7 +170,8 @@ def compute_fixed_hash(obj, hasher = None):
     Given an object, return a hash that will always be the same (not just for the lifetime of the
     object, but for all future runs of the program too).
     :param obj: Some nested container of primitives
-    :param hasher: (for internal use)
+    :param hasher: (for internal use - note that this is stateful, so calling this function with this argument changes
+        the hasher object)
     :return:
     """
 
@@ -194,7 +196,10 @@ def compute_fixed_hash(obj, hasher = None):
         for k in keys:
             compute_fixed_hash(k, hasher=hasher)
             compute_fixed_hash(obj[k], hasher=hasher)
+    elif hasattr(obj, 'memo_hashable'):  # A special method returning hashable information about an object
+        compute_fixed_hash(obj.memo_hashable(), hasher=hasher)
     else:
+        # TODO: Consider whether to pickle by default.  Note that pickle strings are not necessairly the same for identical objects.
         raise NotImplementedError("Don't have a method for hashing this %s" % (obj, ))
 
     return hasher.hexdigest()
