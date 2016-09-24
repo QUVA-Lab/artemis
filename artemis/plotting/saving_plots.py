@@ -6,6 +6,7 @@ __author__ = 'peter'
 import logging
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 logging.basicConfig()
+from matplotlib import pyplot as plt
 
 
 def save_figure(fig, path, default_ext = '.pdf'):
@@ -68,7 +69,9 @@ class SaveFiguresOnShow(ShowContext):
         self._locations = []
         ShowContext.__init__(self, self.save_figure, clear_others=not also_show)
 
-    def save_figure(self, fig):
+    def save_figure(self, fig=None):
+        if fig is None:
+            fig = plt.gcf()
         loc = save_figure(fig, self._path, default_ext=self._default_ext)
         self._locations.append(loc)
 

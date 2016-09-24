@@ -7,6 +7,7 @@ __author__ = 'peter'
 def demo_dbplot():
 
     for i in xrange(1000):
+        print i
         dbplot(np.random.randn(20, 20), 'Greyscale Image')
         dbplot(np.random.randn(20, 20, 3), 'Colour Image')
         dbplot(np.random.randn(20, 2), 'Two Lines')

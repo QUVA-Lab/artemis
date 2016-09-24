@@ -76,7 +76,7 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
             plt.show()
         else:
             plt.draw()
-            plt.pause(0.0001)
+            plt.pause(0.00001)  # Annoyingly required by some matplotlib backends to display
 
 
 def clear_dbplot(fig = None):
