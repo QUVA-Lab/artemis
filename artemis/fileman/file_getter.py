@@ -119,17 +119,19 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None, fo
 
 def get_file_and_cache(url, data_transformation = None, enable_cache_write = True, enable_cache_read = True):
 
+    _, ext = os.path.splitext(url)
+
     if enable_cache_read or enable_cache_write:
         hasher = hashlib.md5()
         hasher.update(url)
         code = hasher.hexdigest()
-        local_cache_path = os.path.join(get_local_path('caches'), code)
+        local_cache_path = os.path.join(get_local_path('caches'), code+ext)
 
     if enable_cache_read and os.path.exists(local_cache_path):
         return local_cache_path
     elif enable_cache_write:
         full_path = get_file(
-            relative_name = os.path.join('caches', code),
+            relative_name = os.path.join('caches', code+ext),
             url = url,
             data_transformation=data_transformation
             )
