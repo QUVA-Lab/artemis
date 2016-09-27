@@ -108,43 +108,72 @@ class MovingImagePlot(ImagePlot):
 
 class LinePlot(HistoryFreePlot):
 
-    def __init__(self, yscale = None, y_axis_type = 'lin'):
+    def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None)):
         assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
         self._plots = None
-        self._yscale = yscale
-        self._oldlims = (float('inf'), -float('inf'))
+        self._oldvlims = (float('inf'), -float('inf'))
+        self._oldhlims = (float('inf'), -float('inf'))
+        self.x_bounds = x_bounds
+        self.y_bounds = y_bounds
 
     def _plot_last_data(self, data):
+        """
 
-        lower, upper = (np.nanmin(data), np.nanmax(data)) if self._yscale is None else self._yscale
+        :param data: Can be:
+            A 2-tuple
+        :return:
+        """
+
+        if isinstance(data, tuple) and len(data)==2:
+            x_data, y_data = data
+        else:
+            x_data = np.arange(len(data))
+            y_data = data
+
+        lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data) if self.y_bounds[1] is None else self.y_bounds[1])
+        left, right = (np.nanmin(x_data) if self.x_bounds[0] is None else self.x_bounds[0], np.nanmax(x_data) if self.x_bounds[1] is None else self.x_bounds[1])
+        # left, right = (np.nanmin(x_data), np.nanmax(x_data)) if self._yscale is None else self._yscale
 
         if self._plots is None:
-            self._plots = plt.plot(np.arange(-data.shape[0]+1, 1), data)
-            for p, d in zip(self._plots, data[None] if data.ndim==1 else data.T):
+            self._plots = plt.plot(x_data, y_data)
+            for p, d in zip(self._plots, y_data[None] if y_data.ndim==1 else y_data.T):
                 p.axes.set_xbound(-len(d), 0)
                 if lower != upper:  # This happens in moving point plots when there's only one point.
                     p.axes.set_ybound(lower, upper)
         else:
-            for p, d in zip(self._plots, data[None] if data.ndim==1 else data.T):
+            for p, d in zip(self._plots, y_data[None] if y_data.ndim==1 else y_data.T):
+                p.set_xdata(x_data)
                 p.set_ydata(d)
-                if lower!=self._oldlims[0] or upper!=self._oldlims[1]:
+
+                if (lower, upper) != self._oldvlims:
                     p.axes.set_ybound(lower, upper)
 
-        self._oldlims = lower, upper
+                if (left, right) != self._oldhlims:
+                    p.axes.set_xbound(left, right)
+
+        self._oldvlims = lower, upper
+        self._oldhlims = left, right
 
 
 class MovingPointPlot(LinePlot):
 
-    def __init__(self, buffer_len=100, **kwargs):
+    def __init__(self, buffer_len=100, expanding=True, **kwargs):
         LinePlot.__init__(self, **kwargs)
         self._buffer = RecordBuffer(buffer_len)
+        self.expanding = expanding
+        self.x_data = np.arange(-buffer_len, 1)
 
     def update(self, data):
         if not np.isscalar(data):
             data = data.flatten()
 
         buffer_data = self._buffer(data)
-        LinePlot.update(self, buffer_data)
+        if self.expanding:
+            buffer_data = buffer_data[np.argmax(~np.any(np.isnan(buffer_data.reshape(buffer_data.shape[0], -1)), axis=1)):]
+            x_data = self.x_data[-len(buffer_data):]
+        else:
+            x_data = self.x_data
+        LinePlot.update(self, (x_data, buffer_data))
 
     def plot(self):
         LinePlot.plot(self)

@@ -1,6 +1,6 @@
 from collections import OrderedDict, namedtuple
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
-from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot
+from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
@@ -12,6 +12,23 @@ _PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots'])
 _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 
 _DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
+
+
+_DEFAULT_SIZE = None
+
+
+def set_dbplot_figure_size(width, height):
+    global _DEFAULT_SIZE
+    _DEFAULT_SIZE = (width, height)
+
+
+def _make_dbplot_figure():
+
+    if _DEFAULT_SIZE is None:
+        return plt.figure()
+    else:
+        return plt.figure(figsize=_DEFAULT_SIZE)
+
 
 
 def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None, fig = None):
@@ -42,7 +59,7 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         _DBPLOT_FIGURES[None] = fig
         fig = None
     elif fig not in _DBPLOT_FIGURES:
-        _DBPLOT_FIGURES[fig] = _PlotWindow(figure = plt.figure(), subplots=OrderedDict())
+        _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict())
         if name is not None:
             _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
 
@@ -55,7 +72,8 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
                 'img': ImagePlot,
                 'colour': lambda: ImagePlot(is_colour_data=True),
                 'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
-                'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large')
+                'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
+                'cost': lambda: MovingPointPlot(y_bounds=(0, None))
                 }[plot_constructor]()
         elif plot_constructor is None:
             plot = get_plot_from_data(data, mode=plot_mode)

@@ -30,6 +30,8 @@ def memoize(fcn):
             lookup[hashable_arg_structure]=out
             return out
 
+    memoization_wrapper.wrapped_fcn = fcn
+
     return memoization_wrapper
 
 
