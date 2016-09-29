@@ -137,7 +137,7 @@ class LinePlot(HistoryFreePlot):
         if self._plots is None:
             self._plots = plt.plot(x_data, y_data)
             for p, d in zip(self._plots, y_data[None] if y_data.ndim==1 else y_data.T):
-                p.axes.set_xbound(-len(d), 0)
+                p.axes.set_xbound(left, right)
                 if lower != upper:  # This happens in moving point plots when there's only one point.
                     p.axes.set_ybound(lower, upper)
         else:
