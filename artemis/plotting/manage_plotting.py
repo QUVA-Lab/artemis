@@ -104,7 +104,7 @@ def WhatToDoOnShow(state):
     def new_show(*args, **kwargs):
 
         if state == 'hang':
-            plt.show(*args, **kwargs)
+            _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
         elif state == 'draw':
             plt.draw()
             plt.pause(0.00001)

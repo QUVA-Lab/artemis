@@ -294,10 +294,10 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', info = '', print_to_
     make_dir(experiment_directory)
     make_file_dir(experiment_directory)
     log_file_name = os.path.join(experiment_directory, 'output.txt')
-    blocking_show_context = WhatToDoOnShow(show_figs)
-    blocking_show_context.__enter__()
     log_capture_context = PrintAndStoreLogger(log_file_path = log_file_name, print_to_console = print_to_console)
     log_capture_context.__enter__()
+    blocking_show_context = WhatToDoOnShow(show_figs)
+    blocking_show_context.__enter__()
     if save_figs:
         figure_save_context = SaveFiguresOnShow(path = os.path.join(experiment_directory, 'fig-%T-%L'+saved_figure_ext))
         figure_save_context.__enter__()
