@@ -168,8 +168,8 @@ class ShowContext(object):
         if 'block' in kwargs and kwargs['block'] is False:  # This is treated a special case.  plt.pause() calls plt.show(block=False), which would result in an infinite loop if we didn't do this.
             _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
         else:
-            self.old(*args, **kwargs)
             self.callback(*args, **kwargs)
+            self.old(*args, **kwargs)
 
 
 class DrawContext(object):

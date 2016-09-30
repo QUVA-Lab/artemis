@@ -179,6 +179,31 @@ class MovingPointPlot(LinePlot):
         LinePlot.plot(self)
 
 
+class Moving2DPointPlot(LinePlot):
+
+    def __init__(self, buffer_len=100, **kwargs):
+        LinePlot.__init__(self, **kwargs)
+        self._y_buffer = RecordBuffer(buffer_len)
+        self._x_buffer = RecordBuffer(buffer_len)
+        self.x_data = np.arange(-buffer_len, 1)
+
+    def update(self, (x_data, y_data)):
+
+        x_buffer_data = self._x_buffer(x_data)
+        y_buffer_data = self._y_buffer(y_data)
+
+        valid_sample_start = np.argmax(~np.any(np.isnan(y_buffer_data.reshape(y_buffer_data.shape[0], -1)), axis=1))
+        # if self.expanding:
+        #     y_buffer_data = y_buffer_data[np.argmax(~np.any(np.isnan(y_buffer_data.reshape(y_buffer_data.shape[0], -1)), axis=1)):]
+        #     x_data = self.x_data[-len(y_buffer_data):]
+        # else:
+        #     x_data = self.x_data
+        LinePlot.update(self, (x_buffer_data[valid_sample_start:], y_buffer_data[valid_sample_start:]))
+
+    def plot(self):
+        LinePlot.plot(self)
+
+
 class TextPlot(IPlot):
 
     def __init__(self, max_history = 8, horizontal_alignment = 'left', vertical_alignment = 'bottom', size = 'medium'):

@@ -608,7 +608,7 @@ class Experiment(object):
             function=partial(self, *args, **kwargs),
             display_function=self.display_function,
             info=self.info+'Variant: {variant}\n'.format(variant=name))
-        self.variants[name] = name
+        self.variants[name] = ex
         _register_experiment(ex)
         return ex
 

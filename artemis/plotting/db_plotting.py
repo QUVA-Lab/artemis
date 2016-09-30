@@ -1,6 +1,6 @@
 from collections import OrderedDict, namedtuple
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
-from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot
+from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
@@ -20,6 +20,10 @@ _DEFAULT_SIZE = None
 def set_dbplot_figure_size(width, height):
     global _DEFAULT_SIZE
     _DEFAULT_SIZE = (width, height)
+
+
+def get_dbplot_figure(name=None):
+    return _DBPLOT_FIGURES[name].figure
 
 
 def _make_dbplot_figure():
@@ -73,7 +77,9 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
                 'colour': lambda: ImagePlot(is_colour_data=True),
                 'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
                 'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
-                'cost': lambda: MovingPointPlot(y_bounds=(0, None))
+                'cost': lambda: MovingPointPlot(y_bounds=(0, None)),
+                'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
+                'trajectory': lambda: Moving2DPointPlot()
                 }[plot_constructor]()
         elif plot_constructor is None:
             plot = get_plot_from_data(data, mode=plot_mode)
@@ -96,6 +102,7 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         else:
             plt.draw()
             plt.pause(0.00001)  # Annoyingly required by some matplotlib backends to display
+    return _DBPLOT_FIGURES[fig].subplots[name].axis
 
 
 def clear_dbplot(fig = None):

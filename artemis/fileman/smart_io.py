@@ -89,6 +89,20 @@ def smart_load_image(location, max_resolution = None, force_rgb=False, use_cache
     with smart_file(location, use_cache=use_cache) as local_path:
         return _load_image(local_path, max_resolution = max_resolution, force_rgb=force_rgb)
 
+
+def _save_movie(movie_array):
+    import matplotlib.animation as animation
+
+
+
+    ani = animation.FuncAnimation(fig,update_img,300,interval=30)
+    writer = animation.writers['ffmpeg'](fps=30)
+
+    ani.save('demo.mp4',writer=writer,dpi=dpi)
+
+
+
+
 # def smart_get_file(location, use_cache = False):
 #     """
 #     :param location: Specifies where the file is.
