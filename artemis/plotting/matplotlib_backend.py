@@ -137,7 +137,7 @@ class LinePlot(HistoryFreePlot):
         if self._plots is None:
             self._plots = plt.plot(x_data, y_data)
             for p, d in zip(self._plots, y_data[None] if y_data.ndim==1 else y_data.T):
-                p.axes.set_xbound(-len(d), 0)
+                p.axes.set_xbound(left, right)
                 if lower != upper:  # This happens in moving point plots when there's only one point.
                     p.axes.set_ybound(lower, upper)
         else:
@@ -174,6 +174,31 @@ class MovingPointPlot(LinePlot):
         else:
             x_data = self.x_data
         LinePlot.update(self, (x_data, buffer_data))
+
+    def plot(self):
+        LinePlot.plot(self)
+
+
+class Moving2DPointPlot(LinePlot):
+
+    def __init__(self, buffer_len=100, **kwargs):
+        LinePlot.__init__(self, **kwargs)
+        self._y_buffer = RecordBuffer(buffer_len)
+        self._x_buffer = RecordBuffer(buffer_len)
+        self.x_data = np.arange(-buffer_len, 1)
+
+    def update(self, (x_data, y_data)):
+
+        x_buffer_data = self._x_buffer(x_data)
+        y_buffer_data = self._y_buffer(y_data)
+
+        valid_sample_start = np.argmax(~np.any(np.isnan(y_buffer_data.reshape(y_buffer_data.shape[0], -1)), axis=1))
+        # if self.expanding:
+        #     y_buffer_data = y_buffer_data[np.argmax(~np.any(np.isnan(y_buffer_data.reshape(y_buffer_data.shape[0], -1)), axis=1)):]
+        #     x_data = self.x_data[-len(y_buffer_data):]
+        # else:
+        #     x_data = self.x_data
+        LinePlot.update(self, (x_buffer_data[valid_sample_start:], y_buffer_data[valid_sample_start:]))
 
     def plot(self):
         LinePlot.plot(self)

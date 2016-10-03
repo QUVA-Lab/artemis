@@ -24,8 +24,11 @@ def vector_length_to_tile_dims(vector_length):
     return grid_shape
 
 
-def put_vector_in_grid(vec):
-    n_rows, n_cols = vector_length_to_tile_dims(len(vec))
+def put_vector_in_grid(vec, shape = None):
+    if shape is None:
+        n_rows, n_cols = vector_length_to_tile_dims(len(vec))
+    else:
+        n_rows, n_cols = shape
     grid = np.zeros(n_rows*n_cols, dtype = vec.dtype)
     grid[:len(vec)]=vec
     grid=grid.reshape(n_rows, n_cols)

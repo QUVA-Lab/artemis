@@ -1,5 +1,4 @@
 import pickle
-import time
 from artemis.fileman.file_getter import get_temp_file, get_file_and_cache
 from artemis.fileman.images2gif import readGif
 from decorator import contextmanager
@@ -7,6 +6,7 @@ import os
 from artemis.fileman.local_dir import get_local_path
 import numpy as np
 import re
+from datetime import datetime
 
 
 def smart_save(obj, relative_path, remove_file_after = False):
@@ -23,7 +23,7 @@ def smart_save(obj, relative_path, remove_file_after = False):
         actually want to leave a file behind.  If that's the case, set this argument to True.
     """
     if '%T' in relative_path:
-        iso_time = time.now().isoformat().replace(':', '.').replace('-', '.')
+        iso_time = datetime.now().isoformat().replace(':', '.').replace('-', '.')
         relative_path = relative_path.replace('%T', iso_time)
     if '%R' in relative_path:
         from artemis.fileman.experiment_record import get_current_experiment_id
@@ -88,6 +88,20 @@ def smart_load_image(location, max_resolution = None, force_rgb=False, use_cache
     """
     with smart_file(location, use_cache=use_cache) as local_path:
         return _load_image(local_path, max_resolution = max_resolution, force_rgb=force_rgb)
+
+
+def _save_movie(movie_array):
+    import matplotlib.animation as animation
+
+
+
+    ani = animation.FuncAnimation(fig,update_img,300,interval=30)
+    writer = animation.writers['ffmpeg'](fps=30)
+
+    ani.save('demo.mp4',writer=writer,dpi=dpi)
+
+
+
 
 # def smart_get_file(location, use_cache = False):
 #     """
