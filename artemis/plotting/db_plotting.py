@@ -75,6 +75,7 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
                 'line': LinePlot,
                 'img': ImagePlot,
                 'colour': lambda: ImagePlot(is_colour_data=True),
+                'equal_aspect': lambda: ImagePlot(aspect='equal'),
                 'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
                 'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
                 'cost': lambda: MovingPointPlot(y_bounds=(0, None)),

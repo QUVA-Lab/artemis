@@ -8,6 +8,10 @@ from functools import partial
 import numpy as np
 import pickle
 import os
+logging.basicConfig()
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
+
 
 __author__ = 'peter'
 
@@ -75,13 +79,15 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
             if local_cache:
                 # local_cache_signature = get_local_cache_signature(args, kwargs)
                 if filepath in cached_local_results:
+                    LOGGER.info('Reading disk-memo from local cache for function %s' % (fcn.__name__, ))
                     return cached_local_results[filepath]
             if os.path.exists(filepath):
                 with open(filepath) as f:
                     try:
+                        LOGGER.info('Reading memo for function %s' % (fcn.__name__, ))
                         result = pickle.load(f)
                     except ValueError as err:
-                        logging.warn('Memo-file "%s" was corrupt.  (%s: %s).  Recomputing.' % (filepath, err.__class__.__name__, err.message))
+                        LOGGER.warn('Memo-file "%s" was corrupt.  (%s: %s).  Recomputing.' % (filepath, err.__class__.__name__, err.message))
                         result_computed = True
                         result = fcn(*args, **kwargs)
             else:
@@ -98,6 +104,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
                 filepath = get_function_hash_filename(fcn, full_args)
                 make_file_dir(filepath)
                 with open(filepath, 'w') as f:
+                    LOGGER.info('Writing disk-memo for function %s' % (fcn.__name__, ))
                     pickle.dump(result, f, protocol=2)
 
         return result
@@ -130,6 +137,7 @@ def memoize_to_disk_and_cache_test(fcn):
 
 def get_function_hash_filename(fcn, argname_argvalue_list):
     args_code = compute_fixed_hash(argname_argvalue_list)
+    # TODO: Include function path in hash?  Or module path, which would allow memos to be shareable.
     return os.path.join(MEMO_DIR, '%s-%s.pkl' % (fcn.__name__, args_code))
 
 
