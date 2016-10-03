@@ -98,7 +98,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
                 filepath = get_function_hash_filename(fcn, full_args)
                 make_file_dir(filepath)
                 with open(filepath, 'w') as f:
-                    pickle.dump(result, f)
+                    pickle.dump(result, f, protocol=2)
 
         return result
 
@@ -181,11 +181,11 @@ def compute_fixed_hash(obj, hasher = None):
     hasher.update(obj.__class__.__name__)
 
     if isinstance(obj, np.ndarray):
-        hasher.update(pickle.dumps(obj.dtype))
-        hasher.update(pickle.dumps(obj.shape))
+        hasher.update(pickle.dumps(obj.dtype, protocol=2))
+        hasher.update(pickle.dumps(obj.shape, protocol=2))
         hasher.update(obj.tostring())
     elif isinstance(obj, (int, str, float, bool)) or (obj is None) or (obj in (int, str, float, bool)):
-        hasher.update(pickle.dumps(obj))
+        hasher.update(pickle.dumps(obj, protocol=2))
     elif isinstance(obj, (list, tuple)):
         hasher.update(str(len(obj)))  # Necessary to distinguish ([a, b], c) from ([a, b, c])
         for el in obj:
