@@ -35,7 +35,7 @@ class HistoryFreePlot(IPlot):
 
 class ImagePlot(HistoryFreePlot):
 
-    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = True, aspect = 'auto', cmap = 'gray', is_colour_data = None):
         """
         :param interpolation: How to interpolate array to form the image {'none', 'nearest', ''bilinear', 'bicubic', ... (see plt.imshow)}
         :param show_axes: Show axes marks (numbers along the side showing pixel locations)
@@ -56,6 +56,9 @@ class ImagePlot(HistoryFreePlot):
         self._cmap = cmap
         self._is_colour_data = is_colour_data
         self.show_clims = show_clims
+        self.only_grow_clims = only_grow_clims
+        if only_grow_clims:
+            self._old_clims = (float('inf'), -float('inf'))
 
     def _plot_last_data(self, data):
 
@@ -70,6 +73,10 @@ class ImagePlot(HistoryFreePlot):
                 data = data[None]
 
             clims = ((np.nanmin(data), np.nanmax(data)) if data.size != 0 else (0, 1)) if self._clims is None else self._clims
+
+            if self.only_grow_clims:
+                clims = min(self._old_clims[0], clims[0]), max(self._old_clims[1], clims[1])
+                self._old_clims = clims
 
             if self._is_colour_data is None:
                 self._is_colour_data = data.shape[-1]==3
@@ -239,6 +246,12 @@ class TextPlot(IPlot):
             self._text_plot = ax.text(self._x_offset, self._y_offset, self._full_text, horizontalalignment=self.horizontal_alignment, verticalalignment=self.vertical_alignment, size = self.size)
         else:
             self._text_plot.set_text(self._full_text)
+
+
+# class BarPlot(HistoryFreePlot):
+#
+#     def _plot_last_data(self, data):
+#         pass
 
 
 class HistogramPlot(IPlot):
