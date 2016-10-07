@@ -79,8 +79,6 @@ from contextlib import contextmanager
 import os
 import re
 from artemis.general.test_mode import is_test_mode, set_test_mode
-from artemis.plotting.manage_plotting import WhatToDoOnShow
-from artemis.plotting.saving_plots import SaveFiguresOnShow, show_saved_figure
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_print import PrintAndStoreLogger
 import logging
@@ -289,6 +287,7 @@ class ExperimentRecord(object):
         self._experiment_directory = experiment_directory
 
     def show_figures(self):
+        from artemis.plotting.saving_plots import show_saved_figure
         for loc in self.get_figure_locs():
             show_saved_figure(loc)
 
@@ -380,9 +379,11 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', info = '', print_to_
     log_file_name = os.path.join(experiment_directory, 'output.txt')
     log_capture_context = PrintAndStoreLogger(log_file_path = log_file_name, print_to_console = print_to_console)
     log_capture_context.__enter__()
+    from artemis.plotting.manage_plotting import WhatToDoOnShow
     blocking_show_context = WhatToDoOnShow(show_figs)
     blocking_show_context.__enter__()
     if save_figs:
+        from artemis.plotting.saving_plots import SaveFiguresOnShow
         figure_save_context = SaveFiguresOnShow(path = os.path.join(experiment_directory, 'fig-%T-%L'+saved_figure_ext))
         figure_save_context.__enter__()
 

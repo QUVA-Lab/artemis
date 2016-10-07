@@ -1,6 +1,5 @@
-import sys
 import datetime
-from artemis.fileman.config_files import get_config_path, get_config_value
+from artemis.fileman.config_files import get_config_value
 import os
 
 __author__ = 'peter'

@@ -2,7 +2,6 @@ import numpy as np
 from artemis.plotting.db_plotting import dbplot, clear_dbplot
 from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPointPlot
 import pytest
-
 __author__ = 'peter'
 
 

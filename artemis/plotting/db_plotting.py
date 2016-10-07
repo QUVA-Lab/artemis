@@ -1,5 +1,6 @@
 from collections import OrderedDict, namedtuple
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
+from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
@@ -116,6 +117,7 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
             plt.show()
         else:
 
+            redraw_figure(_DBPLOT_FIGURES[fig].figure)
             # Slow way:  ~6.6 FPS in demo_dbplot
             # plt.draw()
             # plt.pause(0.00001)
@@ -126,14 +128,14 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
             #
             # Superfast way ~22.3 FPS
             # global _has_drawn
-            if fig in _has_drawn:
-                # See https://www.google.nl/search?q=speeding+up+matplotlib&gws_rd=cr&ei=DsD0V9-eGs6ba_jAtaAF
-                # for how we could do more of this
-                _DBPLOT_FIGURES[fig].figure.canvas.draw()
-                _has_drawn.add(fig)
-            else:
-                _DBPLOT_FIGURES[fig].figure.canvas.flush_events()
-            plt.show(block=False)
+            # if fig in _has_drawn:
+            #     # See https://www.google.nl/search?q=speeding+up+matplotlib&gws_rd=cr&ei=DsD0V9-eGs6ba_jAtaAF
+            #     # for how we could do more of this
+            #     _DBPLOT_FIGURES[fig].figure.canvas.draw()
+            #     _has_drawn.add(fig)
+            # else:
+            #     _DBPLOT_FIGURES[fig].figure.canvas.flush_events()
+            # plt.show(block=False)
     return _DBPLOT_FIGURES[fig].subplots[name].axis
 
 _has_drawn = set()  # Todo: record per-figure

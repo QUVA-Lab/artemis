@@ -271,6 +271,9 @@ class HistogramPlot(IPlot):
 
     def update(self, data):
 
+        if isinstance(data, (list, tuple)):
+            data = np.array(data)
+
         # Update data
         new_n_points = self._n_points + data.size
         this_hist, _ = np.histogram(data, self._edges)
