@@ -159,17 +159,20 @@ class ShowContext(object):
 
     def __enter__(self):
         self.old = plt.show
-        plt.show = self.callback if self.clear_others else self._show_with_others
+        plt.show = self._show
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         plt.show = self.old
 
-    def _show_with_others(self, *args, **kwargs):
-        if 'block' in kwargs and kwargs['block'] is False:  # This is treated a special case.  plt.pause() calls plt.show(block=False), which would result in an infinite loop if we didn't do this.
+    def _show(self, *args, **kwargs):
+        if 'block' in kwargs and kwargs['block'] is False:
+            # This is treated a special case.  We treat plt.show(block=False) as a separate function.
+            # It gets called by plt.pause() so we could get an infinite loop if we didn't do this.
             _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
         else:
             self.callback(*args, **kwargs)
-            self.old(*args, **kwargs)
+            if not self.clear_others:
+                self.old(*args, **kwargs)
 
 
 class DrawContext(object):
