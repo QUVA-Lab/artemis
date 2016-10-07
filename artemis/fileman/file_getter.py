@@ -7,6 +7,7 @@ import tarfile
 from zipfile import ZipFile
 from artemis.fileman.local_dir import get_local_path, make_dir, make_file_dir
 from artemis.general.should_be_builtins import bad_value
+import shutil
 import os
 
 __author__ = 'peter'
@@ -56,7 +57,7 @@ def get_file_in_archive(relative_path, subpath, url, force_extract = False):
     return local_file_path
 
 
-def get_archive(relative_path, url, force_extract=False, archive_type = None):
+def get_archive(relative_path, url, force_extract=False, archive_type = None, force_download = False):
     """
     Download a compressed archive and extract it into a folder.
 
@@ -70,7 +71,11 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None):
 
     assert archive_type in ('.tar.gz', '.zip', None)
 
-    if not os.path.exists(local_folder_path):  # If the folder does not exist, download zip and extract
+    if force_download:
+        shutil.rmtree(local_folder_path)
+
+    if not os.path.exists(local_folder_path) or force_download:  # If the folder does not exist, download zip and extract.
+        # (We also check force download here to avoid a race condition)
         response = urllib2.urlopen(url)
 
         # Need to infer
@@ -114,17 +119,19 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None):
 
 def get_file_and_cache(url, data_transformation = None, enable_cache_write = True, enable_cache_read = True):
 
+    _, ext = os.path.splitext(url)
+
     if enable_cache_read or enable_cache_write:
         hasher = hashlib.md5()
         hasher.update(url)
         code = hasher.hexdigest()
-        local_cache_path = os.path.join(get_local_path('caches'), code)
+        local_cache_path = os.path.join(get_local_path('caches'), code+ext)
 
     if enable_cache_read and os.path.exists(local_cache_path):
         return local_cache_path
     elif enable_cache_write:
         full_path = get_file(
-            relative_name = os.path.join('caches', code),
+            relative_name = os.path.join('caches', code+ext),
             url = url,
             data_transformation=data_transformation
             )

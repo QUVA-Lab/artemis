@@ -1,7 +1,8 @@
 from collections import OrderedDict, namedtuple
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
-from artemis.plotting.manage_plotting import redraw_figure
-from artemis.plotting.matplotlib_backend import get_plot_from_data
+from artemis.plotting.drawing_plots import redraw_figure
+from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
+    MovingImagePlot, HistogramPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
@@ -15,7 +16,34 @@ _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 _DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
 
 
-def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None, fig = None):
+_DEFAULT_SIZE = None
+
+
+def set_dbplot_figure_size(width, height):
+    global _DEFAULT_SIZE
+    _DEFAULT_SIZE = (width, height)
+
+
+def get_dbplot_figure(name=None):
+    return _DBPLOT_FIGURES[name].figure
+
+
+def get_dbplot_subplot(name, fig_name=None):
+    return _DBPLOT_FIGURES[fig_name].subplots[name].axis
+
+
+def _make_dbplot_figure():
+
+    if _DEFAULT_SIZE is None:
+        fig= plt.figure()
+    else:
+        fig= plt.figure(figsize=_DEFAULT_SIZE)
+    return fig
+
+
+
+def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None,
+           fig = None, xlabel = None, ylabel = None):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
@@ -43,7 +71,7 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         _DBPLOT_FIGURES[None] = fig
         fig = None
     elif fig not in _DBPLOT_FIGURES:
-        _DBPLOT_FIGURES[fig] = _PlotWindow(figure = plt.figure(), subplots=OrderedDict())
+        _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict())
         if name is not None:
             _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
 
@@ -53,9 +81,18 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         if isinstance(plot_constructor, str):
             plot = {
                 'line': LinePlot,
+                'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+                # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
                 'img': ImagePlot,
                 'colour': lambda: ImagePlot(is_colour_data=True),
-                'pic': lambda: ImagePlot(show_clims=False)
+                'equal_aspect': lambda: ImagePlot(aspect='equal'),
+                'image_history': lambda: MovingImagePlot(),
+                'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
+                'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
+                'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+                'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
+                'trajectory': lambda: Moving2DPointPlot(),
+                'histogram': lambda: HistogramPlot()
                 }[plot_constructor]()
         elif plot_constructor is None:
             plot = get_plot_from_data(data, mode=plot_mode)
@@ -64,19 +101,27 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
             plot = plot_constructor()
 
         _extend_subplots(fig=fig, subplot_name=name, plot_object=plot)  # This guarantees that the new plot will exist
+        if xlabel is not None:
+            _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
+        if ylabel is not None:
+            _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
 
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
     plot.update(data)
+    plot.plot()
     if title is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
-    plot.plot()
-    plt.figure(_DBPLOT_FIGURES[fig].figure.number)
+
     if draw_now:
         if hang:
+            plt.figure(_DBPLOT_FIGURES[fig].figure.number)
             plt.show()
         else:
-            redraw_figure()  # Ensures that plot actually shows (whereas plt.draw() may not)
+            redraw_figure(_DBPLOT_FIGURES[fig].figure)
+    return _DBPLOT_FIGURES[fig].subplots[name].axis
+
+_has_drawn = set()  # Todo: record per-figure
 
 
 def clear_dbplot(fig = None):

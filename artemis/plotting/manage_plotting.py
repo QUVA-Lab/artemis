@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from artemis.general.test_mode import is_test_mode
 from matplotlib import pyplot as plt
 __author__ = 'peter'
 
@@ -29,24 +28,6 @@ You can also do the same for drawing figures (showing without hanging on the fig
 _ORIGINAL_SHOW_CALLBACK = plt.show
 _ORIGINAL_PLT_DRAW = plt.draw
 
-_WHAT_TO_DO_ON_SHOW = 'hang'
-
-
-def redraw_figure(fig=None):
-    plt.draw()
-    _ORIGINAL_SHOW_CALLBACK(block=False)
-
-
-def show_figure(*args, **kwargs):
-
-    if is_test_mode():
-        redraw_figure()  # Designed to
-    elif _WHAT_TO_DO_ON_SHOW=='hang':
-        _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
-    elif _WHAT_TO_DO_ON_SHOW=='draw':
-        redraw_figure()
-    elif _WHAT_TO_DO_ON_SHOW is False:
-        pass
 
 class FigureCallBackManager(object):
 
@@ -82,13 +63,6 @@ class FigureCallBackManager(object):
     def clear_callbacks(self):
         self.callbacks = []
 
-show_callback = FigureCallBackManager([show_figure])
-plt.show=show_callback
-
-draw_callback = FigureCallBackManager([redraw_figure])
-# plt.draw=draw_callback
-redraw_figure = draw_callback
-
 
 @contextmanager
 def WhatToDoOnShow(state):
@@ -102,11 +76,19 @@ def WhatToDoOnShow(state):
     :return:
     """
     assert state in ('hang', 'draw', False)
-    global _WHAT_TO_DO_ON_SHOW
-    old_block_val = _WHAT_TO_DO_ON_SHOW
-    _WHAT_TO_DO_ON_SHOW = state
-    yield
-    _WHAT_TO_DO_ON_SHOW = old_block_val
+
+    def new_show(*args, **kwargs):
+
+        if state == 'hang':
+            _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
+        elif state == 'draw':
+            plt.draw()
+            plt.pause(0.00001)
+        elif state == False:
+            pass
+
+    with ShowContext(new_show, clear_others=True):
+        yield
 
 
 class ShowContext(object):
@@ -116,36 +98,56 @@ class ShowContext(object):
         self.clear_others = clear_others
 
     def __enter__(self):
-        self.old = show_callback.set_callback(self.callback) if self.clear_others else show_callback.insert_callback(self.callback)
+        self.old = plt.show
+        plt.show = self._show
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        show_callback.set_callbacks(self.old)
+        plt.show = self.old
+
+    def _show(self, *args, **kwargs):
+        if 'block' in kwargs and kwargs['block'] is False:
+            # This is treated a special case.  We treat plt.show(block=False) as a separate function.
+            # It gets called by plt.pause() so we could get an infinite loop if we didn't do this.
+            _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
+        else:
+            self.callback(*args, **kwargs)
+            if not self.clear_others:
+                self.old(*args, **kwargs)
 
 
 class DrawContext(object):
+    # TODO: Integrate this with redraw_figure(fig)
+    # It mainly just useful for saving updating plots in experiments.
 
     def __init__(self, callback, clear_others = False):
         self.callback = callback
         self.clear_others = clear_others
 
     def __enter__(self):
-        self.old = draw_callback.set_callback(self.callback) if self.clear_others else draw_callback.insert_callback(self.callback)
+        self.old = plt.draw
+        plt.draw = self.callback if self.clear_others else self._draw_with_others
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        draw_callback.set_callbacks(self.old)
+        plt.draw = self.old
+
+    def _draw_with_others(self, *args, **kwargs):
+        self.old(*args, **kwargs)
+        self.callback(*args, **kwargs)
 
 
 def set_show_callback(callback):
-    return show_callback.set_callback(callback)
+    """
+    Perminantly changes the action of plt.show().  WARNING: This function can lead to some really confusing bugs.  Only
+    use if you really know what you're doing.
+    :param callback:
+    """
+    plt.show = callback
 
 
 def set_draw_callback(callback):
-    return draw_callback.set_callback(callback)
-
-
-def insert_show_callback(callback):
-    return show_callback.insert_callback(callback)
-
-
-def insert_draw_callback(callback):
-    return draw_callback.insert_callback(callback)
+    """
+    Perminantly changes the action of plt.draw().  WARNING: This function can lead to some really confusing bugs.  Only
+    use if you really know what you're doing.
+    :param callback:
+    """
+    plt.draw = callback
