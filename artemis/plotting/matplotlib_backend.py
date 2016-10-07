@@ -110,18 +110,20 @@ class MovingImagePlot(ImagePlot):
         else:
             assert data.ndim == 1
         buffer_data = self._buffer(data)
-        ImagePlot.update(self, buffer_data)
+        ImagePlot.update(self, buffer_data.T)
 
 
 class LinePlot(HistoryFreePlot):
 
-    def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None)):
+    def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05), x_bound_extend = (0, 0)):
         assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
         self._plots = None
         self._oldvlims = (float('inf'), -float('inf'))
         self._oldhlims = (float('inf'), -float('inf'))
         self.x_bounds = x_bounds
         self.y_bounds = y_bounds
+        self.x_bound_extend = x_bound_extend
+        self.y_bound_extend = y_bound_extend
 
     def _plot_last_data(self, data):
         """
@@ -140,6 +142,20 @@ class LinePlot(HistoryFreePlot):
         lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data) if self.y_bounds[1] is None else self.y_bounds[1])
         left, right = (np.nanmin(x_data) if self.x_bounds[0] is None else self.x_bounds[0], np.nanmax(x_data) if self.x_bounds[1] is None else self.x_bounds[1])
         # left, right = (np.nanmin(x_data), np.nanmax(x_data)) if self._yscale is None else self._yscale
+
+        if left==right:
+            right+=1e-9
+
+        # Expand x_bound:
+        delta = right-left if left-right >0 else 1e-9
+        left -= self.x_bound_extend[0]*delta
+        right += self.x_bound_extend[1]*delta
+
+        # Expand y_bound:
+        delta = upper-lower if upper-lower >0 else 1e-9
+        lower -= self.y_bound_extend[0]*delta
+        upper += self.y_bound_extend[1]*delta
+
 
         if self._plots is None:
             self._plots = plt.plot(x_data, y_data)

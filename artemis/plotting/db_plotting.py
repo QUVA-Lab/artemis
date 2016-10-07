@@ -80,13 +80,15 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         if isinstance(plot_constructor, str):
             plot = {
                 'line': LinePlot,
+                'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+                # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
                 'img': ImagePlot,
                 'colour': lambda: ImagePlot(is_colour_data=True),
                 'equal_aspect': lambda: ImagePlot(aspect='equal'),
                 'image_history': lambda: MovingImagePlot(),
                 'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
                 'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
-                'cost': lambda: MovingPointPlot(y_bounds=(0, None)),
+                'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
                 'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
                 'trajectory': lambda: Moving2DPointPlot(),
                 'histogram': lambda: HistogramPlot()
