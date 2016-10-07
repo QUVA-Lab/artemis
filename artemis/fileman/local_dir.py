@@ -1,5 +1,5 @@
-import sys
 import datetime
+from artemis.fileman.config_files import get_config_value
 import os
 
 __author__ = 'peter'
@@ -15,9 +15,11 @@ mnist = pkl.read(open('data/mnist.pkl'))
 Where the path is referenced relative to the data directory on that machine.
 """
 
-LOCAL_DIR = \
-    os.path.join(os.getenv("HOME"), 'Library', 'Application Support', 'Plato') if sys.platform == 'darwin' else \
-    os.path.join(os.getenv("HOME"), '.PlatoData')
+
+def get_default_local_path():
+    return os.path.join(os.getenv("HOME"), '.artemis')
+
+LOCAL_DIR = get_config_value('.artemisrc', 'fileman', 'data_dir', default_generator = get_default_local_path, write_default = True)
 
 
 def get_local_path(relative_path = '', make_local_dir = False):

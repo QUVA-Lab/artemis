@@ -35,7 +35,19 @@ class HistoryFreePlot(IPlot):
 
 class ImagePlot(HistoryFreePlot):
 
-    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = True, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+        """
+        :param interpolation: How to interpolate array to form the image {'none', 'nearest', ''bilinear', 'bicubic', ... (see plt.imshow)}
+        :param show_axes: Show axes marks (numbers along the side showing pixel locations)
+        :param show_clims: Print the range of the colour scale at the bottom
+        :param clims: (lower, upper) limit to colour-scale (or None to set it to the range of the data)
+        :param aspect: 'auto' to stretch the image to the shape of the plot, 'equal' to maintain aspect ratio
+        :param cmap: Colourmap {'gray', 'jet', ...}
+        :param is_colour_data: Identify whether the image consists of colour data.  Usually, if you leave this at None,
+            it will figure out the correct thing automatically, but this can, for instance, be used to distinquish a case
+            where an image of shape shape is (12, 18, 3) should be interpreted as a (12x18) colour image or 12 18x3
+            black and white images.  (Default in this case would be colour image)
+        """
         self._plot = None
         self._interpolation = interpolation
         self._show_axes = show_axes
@@ -44,6 +56,9 @@ class ImagePlot(HistoryFreePlot):
         self._cmap = cmap
         self._is_colour_data = is_colour_data
         self.show_clims = show_clims
+        self.only_grow_clims = only_grow_clims
+        if only_grow_clims:
+            self._old_clims = (float('inf'), -float('inf'))
 
     def _plot_last_data(self, data):
 
@@ -58,6 +73,10 @@ class ImagePlot(HistoryFreePlot):
                 data = data[None]
 
             clims = ((np.nanmin(data), np.nanmax(data)) if data.size != 0 else (0, 1)) if self._clims is None else self._clims
+
+            if self.only_grow_clims:
+                clims = min(self._old_clims[0], clims[0]), max(self._old_clims[1], clims[1])
+                self._old_clims = clims
 
             if self._is_colour_data is None:
                 self._is_colour_data = data.shape[-1]==3
@@ -91,48 +110,111 @@ class MovingImagePlot(ImagePlot):
         else:
             assert data.ndim == 1
         buffer_data = self._buffer(data)
-        ImagePlot.update(self, buffer_data)
+        ImagePlot.update(self, buffer_data.T)
 
 
 class LinePlot(HistoryFreePlot):
 
-    def __init__(self, yscale = None, y_axis_type = 'lin'):
+    def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05), x_bound_extend = (0, 0)):
         assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
         self._plots = None
-        self._yscale = yscale
-        self._oldlims = (float('inf'), -float('inf'))
+        self._oldvlims = (float('inf'), -float('inf'))
+        self._oldhlims = (float('inf'), -float('inf'))
+        self.x_bounds = x_bounds
+        self.y_bounds = y_bounds
+        self.x_bound_extend = x_bound_extend
+        self.y_bound_extend = y_bound_extend
 
     def _plot_last_data(self, data):
+        """
+        :param data: Can be:
+            An array of y_data (x_data is assumed to be np.arange(data.shape[0])
+            A 2-tuple of (x_data, y_data)
+        """
 
-        lower, upper = (np.nanmin(data), np.nanmax(data)) if self._yscale is None else self._yscale
+        if isinstance(data, tuple) and len(data)==2:
+            x_data, y_data = data
+        else:
+            x_data = np.arange(len(data))
+            y_data = data
+
+        lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data)+1e-9 if self.y_bounds[1] is None else self.y_bounds[1])
+        left, right = (np.nanmin(x_data) if self.x_bounds[0] is None else self.x_bounds[0], np.nanmax(x_data)+1e-9 if self.x_bounds[1] is None else self.x_bounds[1])
+
+        if left==right:
+            right+=1e-9
+
+        # Expand x_bound:
+        delta = right-left if left-right >0 else 1e-9
+        left -= self.x_bound_extend[0]*delta
+        right += self.x_bound_extend[1]*delta
+
+        # Expand y_bound:
+        delta = upper-lower if upper-lower >0 else 1e-9
+        lower -= self.y_bound_extend[0]*delta
+        upper += self.y_bound_extend[1]*delta
+
 
         if self._plots is None:
-            self._plots = plt.plot(np.arange(-data.shape[0]+1, 1), data)
-            for p, d in zip(self._plots, data[None] if data.ndim==1 else data.T):
-                p.axes.set_xbound(-len(d), 0)
+            self._plots = plt.plot(x_data, y_data)
+            for p, d in zip(self._plots, y_data[None] if y_data.ndim==1 else y_data.T):
+                p.axes.set_xbound(left, right)
                 if lower != upper:  # This happens in moving point plots when there's only one point.
                     p.axes.set_ybound(lower, upper)
         else:
-            for p, d in zip(self._plots, data[None] if data.ndim==1 else data.T):
+            for p, d in zip(self._plots, y_data[None] if y_data.ndim==1 else y_data.T):
+                p.set_xdata(x_data)
                 p.set_ydata(d)
-                if lower!=self._oldlims[0] or upper!=self._oldlims[1]:
+
+                if (lower, upper) != self._oldvlims:
                     p.axes.set_ybound(lower, upper)
 
-        self._oldlims = lower, upper
+                if (left, right) != self._oldhlims:
+                    p.axes.set_xbound(left, right)
+
+        self._oldvlims = lower, upper
+        self._oldhlims = left, right
 
 
 class MovingPointPlot(LinePlot):
 
-    def __init__(self, buffer_len=100, **kwargs):
+    def __init__(self, buffer_len=100, expanding=True, **kwargs):
         LinePlot.__init__(self, **kwargs)
         self._buffer = RecordBuffer(buffer_len)
+        self.expanding = expanding
+        self.x_data = np.arange(-buffer_len, 1)
 
     def update(self, data):
         if not np.isscalar(data):
             data = data.flatten()
 
         buffer_data = self._buffer(data)
-        LinePlot.update(self, buffer_data)
+        if self.expanding:
+            buffer_data = buffer_data[np.argmax(~np.any(np.isnan(buffer_data.reshape(buffer_data.shape[0], -1)), axis=1)):]
+            x_data = self.x_data[-len(buffer_data):]
+        else:
+            x_data = self.x_data
+        LinePlot.update(self, (x_data, buffer_data))
+
+    def plot(self):
+        LinePlot.plot(self)
+
+
+class Moving2DPointPlot(LinePlot):
+
+    def __init__(self, buffer_len=100, **kwargs):
+        LinePlot.__init__(self, **kwargs)
+        self._y_buffer = RecordBuffer(buffer_len)
+        self._x_buffer = RecordBuffer(buffer_len)
+        self.x_data = np.arange(-buffer_len, 1)
+
+    def update(self, (x_data, y_data)):
+
+        x_buffer_data = self._x_buffer(x_data)
+        y_buffer_data = self._y_buffer(y_data)
+
+        valid_sample_start = np.argmax(~np.any(np.isnan(y_buffer_data.reshape(y_buffer_data.shape[0], -1)), axis=1))
+        LinePlot.update(self, (x_buffer_data[valid_sample_start:], y_buffer_data[valid_sample_start:]))
 
     def plot(self):
         LinePlot.plot(self)
@@ -140,10 +222,21 @@ class MovingPointPlot(LinePlot):
 
 class TextPlot(IPlot):
 
-    def __init__(self, max_history = 8):
+    def __init__(self, max_history = 8, horizontal_alignment = 'left', vertical_alignment = 'bottom', size = 'medium'):
+        """
+        :param horizontal_alignment: {'left', 'center', 'right'}
+        :param vertical_alignment: {'top', 'center', 'bottom', 'baseline'}
+        :param size: [size in points | "xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large" ]
+        :return:
+        """
         self._buffer = RecordBuffer(buffer_len = max_history, initial_value='')
         self._max_history = 10
         self._text_plot = None
+        self.horizontal_alignment = horizontal_alignment
+        self.vertical_alignment = vertical_alignment
+        self.size = size
+        self._x_offset = {'left': 0.05, 'center': 0.5, 'right': 0.95}[self.horizontal_alignment]
+        self._y_offset = {'bottom': 0.05, 'center': 0.5, 'top': 0.95}[self.vertical_alignment]
 
     def update(self, string):
         if not isinstance(string, basestring):
@@ -156,7 +249,8 @@ class TextPlot(IPlot):
             ax = plt.gca()
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-            self._text_plot = ax.text(0.05, 0.05, self._full_text)
+            ax.set_axis_off()
+            self._text_plot = ax.text(self._x_offset, self._y_offset, self._full_text, horizontalalignment=self.horizontal_alignment, verticalalignment=self.vertical_alignment, size = self.size)
         else:
             self._text_plot.set_text(self._full_text)
 
@@ -177,6 +271,9 @@ class HistogramPlot(IPlot):
         self._cumulative = cumulative
 
     def update(self, data):
+
+        if isinstance(data, (list, tuple)):
+            data = np.array(data)
 
         # Update data
         new_n_points = self._n_points + data.size

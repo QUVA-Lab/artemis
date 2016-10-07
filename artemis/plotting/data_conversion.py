@@ -24,8 +24,11 @@ def vector_length_to_tile_dims(vector_length):
     return grid_shape
 
 
-def put_vector_in_grid(vec):
-    n_rows, n_cols = vector_length_to_tile_dims(len(vec))
+def put_vector_in_grid(vec, shape = None):
+    if shape is None:
+        n_rows, n_cols = vector_length_to_tile_dims(len(vec))
+    else:
+        n_rows, n_cols = shape
     grid = np.zeros(n_rows*n_cols, dtype = vec.dtype)
     grid[:len(vec)]=vec
     grid=grid.reshape(n_rows, n_cols)
@@ -67,9 +70,6 @@ def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128)
     :param data: A 4-D array of any data type
     :return: A 3-D uint8 array of shape (n_rows, n_cols, 3)
     """
-
-
-
     output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width, is_colour=is_color_data)
     output_data = np.empty(output_shape+(3, ), dtype='uint8')
     output_data[..., :] = fill_colour  # Maybe more efficient just to set the spaces.
@@ -95,6 +95,22 @@ def put_list_of_images_in_array(list_of_images, fill_colour = np.array((0, 0, 0)
         left = int((size_x-im.shape[1])/2)
         g[top:top+im.shape[0], left:left+im.shape[1], :] = im if im.ndim==3 else im[:, :, None]
     return im_array
+
+
+def put_list_of_lists_of_images_in_array(list_of_lists_of_images, fill_colour = np.array((0, 0, 0))):
+    """
+    Arrange a list of lists of images into a grid.  Each sublist does not necessarily need to have the same length, and
+    images within the lists do not necessairlily need to have the same size.
+
+    :param list_of_lists_of_images: A list of lists of images.
+    :param fill_colour: The colour with which to fill the gaps
+    :return: A (n_rows, n_cols, size_y, size_x, 3) array of images.
+    """
+    image_arrays = [put_list_of_images_in_array(list_of_images) for list_of_images in list_of_lists_of_images]
+    image_grid_tensor = np.zeros((len(image_arrays), max(arr.shape[0] for arr in image_arrays), max(arr.shape[1] for arr in image_arrays), max(arr.shape[2] for arr in image_arrays), 3))+fill_colour  # (n_rows, n_cols, size_y, size_x, 3)
+    for i, arr in enumerate(image_arrays):
+        image_grid_tensor[i, :arr.shape[0], :arr.shape[1], :arr.shape[2], :] = arr
+    return image_grid_tensor
 
 
 def scale_data_to_8_bit(data, in_range = None):

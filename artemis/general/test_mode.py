@@ -38,9 +38,13 @@ class TestMode(object):
             n_epochs = 20
         ...
     """
+
+    def __init__(self, new_test_mode=True):
+        self.new_test_mode = new_test_mode
+
     def __enter__(self):
         self._old_test_mode = _TEST_MODE
-        set_test_mode(True)
+        set_test_mode(self.new_test_mode)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         set_test_mode(self._old_test_mode)

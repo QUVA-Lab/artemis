@@ -26,7 +26,12 @@ class EZProfiler(object):
         """
         assert lap_name not in ('Start', 'Stop'), "Names 'Start' and 'Stop' are reserved."
         assert lap_name not in self._lap_times, "You already have a chekpoint called '%s'" % (lap_name, )
-        self._lap_times[lap_name] = time()
+        t = time()
+        self._lap_times[lap_name] = t
+        return t
+
+    def get_current_time(self):
+        return time() - self._lap_times['Start']
 
     def __enter__(self):
         start_time = time()

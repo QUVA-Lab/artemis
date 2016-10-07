@@ -1,4 +1,5 @@
 __author__ = 'peter'
+from copy import deepcopy
 
 """
 This module is made to help create "PrimativeSpecifiers".  A Primative Specifier is an object that can be turned
@@ -40,6 +41,5 @@ class PrimativeSpecifier(object):
         obj_dict.update(self.__dict__)
         return obj_dict
 
-    @staticmethod
-    def from_saveable(self, saveable):
-        assert '__class__' in saveable, 'Saveable object must have a __class__ attribute'
+    def clone(self):
+        return load_primative(deepcopy(self.to_primative()))
