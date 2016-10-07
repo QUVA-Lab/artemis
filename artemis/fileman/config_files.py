@@ -29,6 +29,7 @@ def get_config_value(config_filename, section, option, default_generator = None,
     :return: The value of the property of interest.
     """
     config_path = get_config_path(config_filename)
+    default_used = False
 
     if write_default:
         assert default_generator is not None, "If you set write_default true, you must provide a function that can generate the default."
@@ -36,6 +37,7 @@ def get_config_value(config_filename, section, option, default_generator = None,
     if not os.path.exists(config_path):
         assert default_generator is not None, 'No config file "%s" exists, and you do not have any default value.' % (config_path, )
         value = default_generator()
+        default_used = True
 
     else:
         config = ConfigParser()
@@ -47,8 +49,9 @@ def get_config_value(config_filename, section, option, default_generator = None,
                 raise
             else:
                 value = default_generator()
+                default_used = True
 
-    if write_default:
+    if default_used and write_default:
         config = ConfigParser()
         config.read(config_path)
         if not config.has_section(section):
