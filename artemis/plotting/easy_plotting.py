@@ -53,7 +53,7 @@ def plot_data_dict(data_dict, plots = None, mode = 'static', hang = True, figure
     return figure, plots
 
 
-def funplot(func, xlims = None, n_points = 100):
+def funplot(func, xlims = None, n_points = 100, **plot_args):
     """
     Plot a function
     :param func:
@@ -65,5 +65,5 @@ def funplot(func, xlims = None, n_points = 100):
         xlims = eplt.gca().get_xbound()
     xs, xe = xlims
     x = np.linspace(xs, xe, n_points)
-    eplt.plot(x, func(x))
+    eplt.plot(x, func(x), **plot_args)
     eplt.gca().set_xbound(*xlims)

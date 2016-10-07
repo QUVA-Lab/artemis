@@ -64,7 +64,11 @@ def smart_load(location, use_cache = False):
             with open(local_path) as f:
                 obj = pickle.load(f)
         elif ext=='.gif':
-            obj = np.array(readGif(local_path))
+            frames = readGif(local_path)
+            if frames[0].shape[2]==3 and all(f.shape[2] for f in frames[1:]):  # Wierd case:
+                obj = np.array([frames[0]]+[f[:, :, :3] for f in frames[1:]])
+            else:
+                obj = np.array(readGif(local_path))
         elif ext in ('.jpg', '.jpeg', '.png'):
             obj = _load_image(local_path)
         else:
