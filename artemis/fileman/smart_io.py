@@ -64,7 +64,11 @@ def smart_load(location, use_cache = False):
             with open(local_path) as f:
                 obj = pickle.load(f)
         elif ext=='.gif':
-            obj = np.array(readGif(local_path))
+            frames = readGif(local_path)
+            if frames[0].shape[2]==3 and all(f.shape[2] for f in frames[1:]):  # Wierd case:
+                obj = np.array([frames[0]]+[f[:, :, :3] for f in frames[1:]])
+            else:
+                obj = np.array(readGif(local_path))
         elif ext in ('.jpg', '.jpeg', '.png'):
             obj = _load_image(local_path)
         else:
@@ -90,40 +94,6 @@ def smart_load_image(location, max_resolution = None, force_rgb=False, use_cache
         return _load_image(local_path, max_resolution = max_resolution, force_rgb=force_rgb)
 
 
-def _save_movie(movie_array):
-    import matplotlib.animation as animation
-
-
-
-    ani = animation.FuncAnimation(fig,update_img,300,interval=30)
-    writer = animation.writers['ffmpeg'](fps=30)
-
-    ani.save('demo.mp4',writer=writer,dpi=dpi)
-
-
-
-
-# def smart_get_file(location, use_cache = False):
-#     """
-#     :param location: Specifies where the file is.
-#         If it's formatted as a url, it's downloaded.
-#         If it begins with a "/", it's assumed to be a local path.
-#         Otherwise, it is assumed to be referenced relative to the data directory.
-#     :param use_cache: If True, and the location is a url, make a local cache of the file for future use (note: if the
-#         file at this url changes, the cached file will not).
-#     :return: The local path to the file.
-#     """
-#     its_a_url = is_url(location)
-#     if its_a_url:
-#         if use_cache:
-#             local_path = get_file_and_cache(location)
-#         else:
-#             local_path = get_temp_file(location)
-#     else:
-#         local_path = get_local_path(location)
-#     return local_path
-
-
 def _load_image(local_path, max_resolution = None, force_rgb = False):
     """
     :param local_path: Local path to the file
@@ -134,6 +104,7 @@ def _load_image(local_path, max_resolution = None, force_rgb = False):
         (size_y, size_x) For a greyscale image
         (size_y, size_x, 4) For an image with transperancy (Note: Disabled for now)
     """
+    # TODO: Consider replacing PIL with scipy
     ext = os.path.splitext(local_path)[1].lower()
     assert ext in ('.jpg', '.jpeg', '.png', '.gif')
     from PIL import Image
@@ -152,16 +123,6 @@ def _load_image(local_path, max_resolution = None, force_rgb = False):
             pic_arr = pic_arr[:, :, :3]
         else:
             assert pic_arr.shape[2]==3
-
-
-    # if pic_arr.size == np.prod(pic.size):  # BW image
-    #     pix = pic_arr.reshape(pic.size[1], pic.size[0])
-    # elif pic_arr.size == np.prod(pic.size)*3:  # RGB image
-    #     pix = pic_arr.reshape(pic.size[1], pic.size[0], 3)
-    # elif pic_arr.size == np.prod(pic.size)*4:  # RGBA image... just take RGB for now!
-    #     pix = pic_arr.reshape(pic.size[1], pic.size[0], 4)[:, :, :3]
-    # else:
-    #     raise Exception("Pixel count: %s, did not divide evenly into picture size: %s" % (pic_arr.size, pic.size))
     return pic_arr
 
 

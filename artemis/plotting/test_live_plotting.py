@@ -78,7 +78,7 @@ def test_canaling(duration = 10):
         'image-overexposed': LivePlot(ImagePlot(clims = (0, 0.2)), cb_image_data()),
         'image-jet': LivePlot(ImagePlot(cmap='jet'), cb_image_data()),
         'trace-default': cb_sinusoid_data(),
-        'trace-prescaled': LivePlot(MovingPointPlot(yscale=(-1, 1)), cb_sinusoid_data()),
+        'trace-prescaled': LivePlot(MovingPointPlot(y_bounds=(-1, 1)), cb_sinusoid_data()),
         })
 
     for i in xrange(duration):
@@ -87,7 +87,7 @@ def test_canaling(duration = 10):
 
 if __name__ == '__main__':
 
-    set_test_mode(True)
-    test_dynamic_rebuild()
-    test_streaming(10)
-    test_canaling(10)
+    # set_test_mode(True)
+    # test_dynamic_rebuild()
+    # test_streaming(100)
+    test_canaling(100)

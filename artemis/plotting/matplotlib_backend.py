@@ -127,10 +127,9 @@ class LinePlot(HistoryFreePlot):
 
     def _plot_last_data(self, data):
         """
-
         :param data: Can be:
-            A 2-tuple
-        :return:
+            An array of y_data (x_data is assumed to be np.arange(data.shape[0])
+            A 2-tuple of (x_data, y_data)
         """
 
         if isinstance(data, tuple) and len(data)==2:
@@ -139,9 +138,8 @@ class LinePlot(HistoryFreePlot):
             x_data = np.arange(len(data))
             y_data = data
 
-        lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data) if self.y_bounds[1] is None else self.y_bounds[1])
-        left, right = (np.nanmin(x_data) if self.x_bounds[0] is None else self.x_bounds[0], np.nanmax(x_data) if self.x_bounds[1] is None else self.x_bounds[1])
-        # left, right = (np.nanmin(x_data), np.nanmax(x_data)) if self._yscale is None else self._yscale
+        lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data)+1e-9 if self.y_bounds[1] is None else self.y_bounds[1])
+        left, right = (np.nanmin(x_data) if self.x_bounds[0] is None else self.x_bounds[0], np.nanmax(x_data)+1e-9 if self.x_bounds[1] is None else self.x_bounds[1])
 
         if left==right:
             right+=1e-9
@@ -216,11 +214,6 @@ class Moving2DPointPlot(LinePlot):
         y_buffer_data = self._y_buffer(y_data)
 
         valid_sample_start = np.argmax(~np.any(np.isnan(y_buffer_data.reshape(y_buffer_data.shape[0], -1)), axis=1))
-        # if self.expanding:
-        #     y_buffer_data = y_buffer_data[np.argmax(~np.any(np.isnan(y_buffer_data.reshape(y_buffer_data.shape[0], -1)), axis=1)):]
-        #     x_data = self.x_data[-len(y_buffer_data):]
-        # else:
-        #     x_data = self.x_data
         LinePlot.update(self, (x_buffer_data[valid_sample_start:], y_buffer_data[valid_sample_start:]))
 
     def plot(self):
@@ -257,17 +250,9 @@ class TextPlot(IPlot):
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
             ax.set_axis_off()
-
-            # self._text_plot = ax.text(0.05, 0.05, self._full_text, horizontalalignment=self.horizontal_alignment, verticalalignment=self.vertical_alignment, size = self.size)
             self._text_plot = ax.text(self._x_offset, self._y_offset, self._full_text, horizontalalignment=self.horizontal_alignment, verticalalignment=self.vertical_alignment, size = self.size)
         else:
             self._text_plot.set_text(self._full_text)
-
-
-# class BarPlot(HistoryFreePlot):
-#
-#     def _plot_last_data(self, data):
-#         pass
 
 
 class HistogramPlot(IPlot):
@@ -286,6 +271,9 @@ class HistogramPlot(IPlot):
         self._cumulative = cumulative
 
     def update(self, data):
+
+        if isinstance(data, (list, tuple)):
+            data = np.array(data)
 
         # Update data
         new_n_points = self._n_points + data.size

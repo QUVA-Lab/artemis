@@ -1,3 +1,71 @@
+"""
+Using this module, you can turn your main function into an "Experiment", which, when run, stores all console output, plots,
+and computed results to disk (in ~/.artemis/experiments)
+
+For a simple demo, see artemis/fileman/demo_experiments.py
+
+Any function that can be called alone with no arguments can be turned into an experiment using the @experiment_function
+decorator:
+
+    @experiment_function
+    def my_experiment(a=1, b=2, c=3):
+        ...
+
+This turns the function into an Experiment object, which has the following methods:
+
+    result = my_experiment.run()
+        Run the function, and save all text outputs and plots to disk.
+        Console output, plots, and result are stored in: ~/.artemis/experiments
+
+    ex=my_experiment.add_variant(name, **kwargs)
+        Add a variant to the experiment, with new arguments that override any existing ones.
+        The variant is itself an experiment, and can have variants of its own.
+
+    ex=my_experiment.get_variant(name, *sub_names)
+        Get a variant of an experiment (or one of its sub-variants).
+
+To open up a menu where you can see and run all experiments (and their variants) that have been created run:
+
+    browse_experiments()
+
+To browse through records of experiments that have been run, either run this file, or call the function:
+
+    browse_experiment_records()
+
+You may not want an experiment to be runnable (and show up in browse_experiments) - you may just want it
+to serve as a basis on which to make variants.  In this case, you can decorate with
+
+    @experiment_root_function
+    def my_experiment_root(a=1, b=2, c=3):
+        ...
+
+If you want even the variants of this experiment to be roots for other experiments, you can use method
+
+    ex=my_experiment.add_root_variant(name, **kwargs)
+
+To run your experiment (if not a root) and all non-root variants (and sub variants, and so on) of an experiment, run:
+
+    my_experiment.run_all()
+
+If your experiment takes a long time to run, you may not want to run it every time you want to see the plots of
+results (this is especially so if you are refining your plotting function, and don't want to run from scratch just to
+check your visualization methods).  in this case, you can do the following:
+
+    def my_display_function(data_to_display):
+        ...  # Plot data
+
+    @ExperimentFunction(display_function = my_display_function)
+    def my_experiment(a=1, b=2, c=3):
+        ...
+        return data_to_display
+
+Now, you can use the method:
+
+    my_experiment.display_last()
+        Load the last results for this experiment (if any) and plot them again.
+
+"""
+
 import atexit
 from collections import OrderedDict
 from datetime import datetime
@@ -11,8 +79,6 @@ from contextlib import contextmanager
 import os
 import re
 from artemis.general.test_mode import is_test_mode, set_test_mode
-from artemis.plotting.manage_plotting import WhatToDoOnShow
-from artemis.plotting.saving_plots import SaveFiguresOnShow, show_saved_figure
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_print import PrintAndStoreLogger
 import logging
@@ -23,8 +89,6 @@ ARTEMIS_LOGGER.setLevel(logging.INFO)
 
 
 __author__ = 'peter'
-
-
 
 def experiment_function(f):
     """
@@ -49,12 +113,30 @@ def experiment_function(f):
     return ExperimentFunction()(f)
 
 
-class ExperimentFunction():
+def experiment_root(f):
+    """
+    Use this decorator on a function that you want to build variants off of:
+
+        @experiment_root
+        def demo_my_experiment(a, b=2, c=3):
+            ...
+
+        demo_my_experiment.add_variant('a1', a=1)
+        demo_my_experiment.add_variant('a2', a=2)
+
+    The root experiment is not runnable by itself, and will not appear in the list when you
+    browse experiments.
+    """
+    return ExperimentFunction(is_root=True)(f)
+
+
+class ExperimentFunction(object):
     """ Decorator for an experiment
     """
-    def __init__(self, display_function = None, info=None):
+    def __init__(self, display_function = None, info=None, is_root = False):
         self.display_function = display_function
         self.info = info
+        self.is_root = is_root
 
     def __call__(self, f):
         f.is_base_experiment = True
@@ -62,9 +144,9 @@ class ExperimentFunction():
             name = f.__name__,
             function = f,
             display_function=self.display_function,
-            info='Root Experiment: {name}\nDefined in: {file}\n'.format(name=f.__name__, file=inspect.getmodule(f).__file__ )
+            info='Root Experiment: {name}\nDefined in: {file}\n'.format(name=f.__name__, file=inspect.getmodule(f).__file__ ),
+            is_root = self.is_root
             )
-        _register_experiment(ex)
         return ex
 
 
@@ -205,6 +287,7 @@ class ExperimentRecord(object):
         self._experiment_directory = experiment_directory
 
     def show_figures(self):
+        from artemis.plotting.saving_plots import show_saved_figure
         for loc in self.get_figure_locs():
             show_saved_figure(loc)
 
@@ -248,7 +331,7 @@ class ExperimentRecord(object):
         file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
         make_file_dir(file_path)
         with open(file_path, 'w') as f:
-            pickle.dump(result, f)
+            pickle.dump(result, f, protocol=2)
             print 'Saving Result for Experiment "%s"' % (self.get_identifier(), )
 
     def get_identifier(self):
@@ -296,9 +379,11 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', info = '', print_to_
     log_file_name = os.path.join(experiment_directory, 'output.txt')
     log_capture_context = PrintAndStoreLogger(log_file_path = log_file_name, print_to_console = print_to_console)
     log_capture_context.__enter__()
+    from artemis.plotting.manage_plotting import WhatToDoOnShow
     blocking_show_context = WhatToDoOnShow(show_figs)
     blocking_show_context.__enter__()
     if save_figs:
+        from artemis.plotting.saving_plots import SaveFiguresOnShow
         figure_save_context = SaveFiguresOnShow(path = os.path.join(experiment_directory, 'fig-%T-%L'+saved_figure_ext))
         figure_save_context.__enter__()
 
@@ -517,16 +602,27 @@ def get_experiment(name):
     return GLOBAL_EXPERIMENT_LIBRARY[name]
 
 
-
 class Experiment(object):
 
-    def __init__(self, function=None, display_function = None, info='', conclusion = '', name = None):
+    def __init__(self, function=None, display_function = None, info='', conclusion = '', name = None, is_root = False):
+        """
+        :param function: The function defining the experiment
+        :param display_function: A function that can be called to display the results returned by function.
+            This can be useful if you just want to re-run the display for already-computed and saved results.
+            To do this, go experiment.save_last()
+        :parsam info: Info to be added to the experiment
+        :param conclusion: <Deprecated> will be removed in future
+        :param name: Nmae of this experiment.
+        """
         self.name = name
         self.function = function
         self.info = info
         self.display_function = display_function
         self.variants = OrderedDict()
         self._notes = []
+        self.is_root = is_root
+        if not is_root:
+            _register_experiment(self)
 
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything. """
@@ -602,15 +698,35 @@ class Experiment(object):
         set_test_mode(old_test_mode)
         return exp_rec
 
-    def add_variant(self, name, *args, **kwargs):
+    def _create_experiment_variant(self, name, (args, kwargs), is_root):
         ex = Experiment(
             name='.'.join((self.name, name)),
             function=partial(self, *args, **kwargs),
             display_function=self.display_function,
-            info=self.info+'Variant: {variant}\n'.format(variant=name))
+            info=self.info+'Variant: {variant}\n'.format(variant=name),
+            is_root = is_root
+            )
         self.variants[name] = ex
-        _register_experiment(ex)
         return ex
+
+    def add_variant(self, name, *args, **kwargs):
+        """
+        Add a variant to this experiment, and register it on the list of experiments.
+        :param name: The name of the root variant.
+        :param args, kwargs: Ordered/named arguments for this experiment variant
+        :return: The experiment.
+        """
+        return self._create_experiment_variant(name, (args, kwargs), is_root = False)
+
+    def add_root_variant(self, name, *args, **kwargs):
+        """
+        Add a variant to this experiment, but do NOT register it on the list of experiments.
+        (A root variant is indended to have variants added on top of it).
+        :param name: The name of the variant
+        :param args, kwargs: Ordered/named arguments for this experiment variant
+        :return: The experiment.
+        """
+        return self._create_experiment_variant(name, (args, kwargs), is_root=True)
 
     def add_note(self, note):
         """
@@ -620,8 +736,14 @@ class Experiment(object):
         self._notes.append(str(note))
         return self
 
-    def get_variant(self, name):
-        return self.variants[name]
+    def get_variant(self, name, *path):
+        """
+        Get a variant on this experiment.
+        :param name: A the name of the variant
+        :param path: Optionally, a list of names of subvariants (to call up a nested experiment)
+        :return:
+        """
+        return self.variants[name].get_variant(*path) if len(path)>0 else self.variants[name]
 
     def display_last(self):
         assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )
@@ -629,20 +751,14 @@ class Experiment(object):
         assert result is not None, "No result was computed for the last run of '%s'" % (self.name, )
         self.display_function(result)
 
-    def run_all(self, including_self = None, **kwargs):
+    def run_all(self, **kwargs):
         """
-        Run all variants.
-        :param including_self: Can be:
-            True: Runs the raw experiment and any variants (and their subvariants)
-            False: Only runs the variants
-            None: Runs the raw if there are no variants, otherwise only the variants
+        Run this experiment (if not a root-experiment) and all variants (if not roots).
         """
-        if including_self is None:
-            including_self is len(self.variants)==0
-        if including_self:
+        if self.is_root:
             self.run()
         for v in self.variants:
-            v.run_all(including_self=None if including_self is False else True, **kwargs)
+            v.run_all(**kwargs)
 
     def test(self, **kwargs):
         self.run(test_mode=True, **kwargs)

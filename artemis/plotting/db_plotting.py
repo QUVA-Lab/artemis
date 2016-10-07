@@ -1,5 +1,6 @@
 from collections import OrderedDict, namedtuple
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
+from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
@@ -26,6 +27,7 @@ def set_dbplot_figure_size(width, height):
 def get_dbplot_figure(name=None):
     return _DBPLOT_FIGURES[name].figure
 
+
 def get_dbplot_subplot(name, fig_name=None):
     return _DBPLOT_FIGURES[fig_name].subplots[name].axis
 
@@ -36,7 +38,6 @@ def _make_dbplot_figure():
         fig= plt.figure()
     else:
         fig= plt.figure(figsize=_DEFAULT_SIZE)
-    # fig.canvas.start_event_loop(0.1)
     return fig
 
 
@@ -108,34 +109,16 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
     plot.update(data)
+    plot.plot()
     if title is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
 
-    plot.plot()
-    plt.figure(_DBPLOT_FIGURES[fig].figure.number)
     if draw_now:
         if hang:
+            plt.figure(_DBPLOT_FIGURES[fig].figure.number)
             plt.show()
         else:
-
-            # Slow way:  ~6.6 FPS in demo_dbplot
-            # plt.draw()
-            # plt.pause(0.00001)
-
-            # Faster way:  ~ 10.5 FPS
-            # _DBPLOT_FIGURES[fig].figure.canvas.draw()
-            # plt.show(block=False)
-            #
-            # Superfast way ~22.3 FPS
-            # global _has_drawn
-            if fig in _has_drawn:
-                # See https://www.google.nl/search?q=speeding+up+matplotlib&gws_rd=cr&ei=DsD0V9-eGs6ba_jAtaAF
-                # for how we could do more of this
-                _DBPLOT_FIGURES[fig].figure.canvas.draw()
-                _has_drawn.add(fig)
-            else:
-                _DBPLOT_FIGURES[fig].figure.canvas.flush_events()
-            plt.show(block=False)
+            redraw_figure(_DBPLOT_FIGURES[fig].figure)
     return _DBPLOT_FIGURES[fig].subplots[name].axis
 
 _has_drawn = set()  # Todo: record per-figure

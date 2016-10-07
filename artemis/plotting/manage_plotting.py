@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from artemis.general.test_mode import is_test_mode
 from matplotlib import pyplot as plt
 __author__ = 'peter'
 
@@ -29,25 +28,6 @@ You can also do the same for drawing figures (showing without hanging on the fig
 _ORIGINAL_SHOW_CALLBACK = plt.show
 _ORIGINAL_PLT_DRAW = plt.draw
 
-# _WHAT_TO_DO_ON_SHOW = 'hang'
-
-
-# def redraw_figure(fig=None):
-#     plt.draw()
-#     _ORIGINAL_SHOW_CALLBACK(block=False)
-#     plt.pause(0.0001)
-
-
-# def show_figure(*args, **kwargs):
-#
-#     if is_test_mode():
-#         redraw_figure()  # Designed to
-#     elif _WHAT_TO_DO_ON_SHOW=='hang':
-#         _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
-#     elif _WHAT_TO_DO_ON_SHOW=='draw':
-#         redraw_figure()
-#     elif _WHAT_TO_DO_ON_SHOW is False:
-#         pass
 
 class FigureCallBackManager(object):
 
@@ -83,10 +63,6 @@ class FigureCallBackManager(object):
     def clear_callbacks(self):
         self.callbacks = []
 
-# show_callback = FigureCallBackManager([show_figure])
-# draw_callback = FigureCallBackManager([redraw_figure])
-# redraw_figure = draw_callback
-
 
 @contextmanager
 def WhatToDoOnShow(state):
@@ -113,42 +89,6 @@ def WhatToDoOnShow(state):
 
     with ShowContext(new_show, clear_others=True):
         yield
-    #
-    #
-    # global _WHAT_TO_DO_ON_SHOW
-    # old_block_val = _WHAT_TO_DO_ON_SHOW
-    # _WHAT_TO_DO_ON_SHOW = state
-    # yield
-    # _WHAT_TO_DO_ON_SHOW = old_block_val
-#
-# @contextmanager
-# def ShowContext(callback, clear_others = False):
-#
-#     old_show_fcn = plt.show
-#     if clear_others:
-#         plt.show = callback
-#     else:
-#         def show_and_others(*args, **kwargs):
-#             old_show_fcn(*args, **kwargs)
-#             callback(*args, **kwargs)
-#         plt.show = show_and_others
-#     yield
-#     plt.show = old_show_fcn
-#
-#
-# @contextmanager
-# def DrawContext(callback, clear_others = False):
-#
-#     old_draw_fcn = plt.draw
-#     if clear_others:
-#         plt.draw = callback
-#     else:
-#         def draw_and_others():
-#             old_draw_fcn()
-#             callback()
-#         plt.draw = draw_and_others
-#     yield
-#     plt.draw = old_draw_fcn
 
 
 class ShowContext(object):
@@ -159,20 +99,25 @@ class ShowContext(object):
 
     def __enter__(self):
         self.old = plt.show
-        plt.show = self.callback if self.clear_others else self._show_with_others
+        plt.show = self._show
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         plt.show = self.old
 
-    def _show_with_others(self, *args, **kwargs):
-        if 'block' in kwargs and kwargs['block'] is False:  # This is treated a special case.  plt.pause() calls plt.show(block=False), which would result in an infinite loop if we didn't do this.
+    def _show(self, *args, **kwargs):
+        if 'block' in kwargs and kwargs['block'] is False:
+            # This is treated a special case.  We treat plt.show(block=False) as a separate function.
+            # It gets called by plt.pause() so we could get an infinite loop if we didn't do this.
             _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
         else:
             self.callback(*args, **kwargs)
-            self.old(*args, **kwargs)
+            if not self.clear_others:
+                self.old(*args, **kwargs)
 
 
 class DrawContext(object):
+    # TODO: Integrate this with redraw_figure(fig)
+    # It mainly just useful for saving updating plots in experiments.
 
     def __init__(self, callback, clear_others = False):
         self.callback = callback
