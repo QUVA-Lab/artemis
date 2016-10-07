@@ -221,3 +221,40 @@ def is_parallel(a, b, angular_tolerance = 1e-7):
     assert 0 <= angular_tolerance <= 2*np.pi, "It doesn't make sense to specity an angular tolerance outside of [0, 2*pi].  Why are you doing this?"
     angle = angle_between(a, b)
     return angle < angular_tolerance
+
+
+def align_curves(xs, ys, n_bins='median', xrange = ('min', 'max'), spacing = 'lin'):
+    """
+    Given multiple curves with different x-coordinates, interpolate so that each has the same x points.
+
+    :param xs: A length-N list of sorted vectors containing the x-coordinates of each curve
+    :param ys: A length-N list of vectors containing the corresponding y-coordinates
+    :param n_bins: Number of points to make along new x-axis.  'median' to use the median number of points in the curves.
+    :param xrange: 2-tuple indicating range of x-axis to span.  'min' indicates "minimum across curves", As with 'max'.
+    :param spacing: Either 'lin' or 'log', depenting on whether you want your interpolation points spaced linearly or
+        logarithmically.
+    :return: (new_xs, new_ys).
+        new_xs is a (n_bins, ) curve indicating the new x-locations.
+        new_ys is a (N, n_bins)
+    """
+    assert spacing in ('lin', 'log')
+    assert len(xs)==len(ys)
+    assert all(len(x)==len(y) for x, y in zip(xs, ys))
+
+    start, stop = xrange
+    if start == 'min':
+        start = np.min([x[0] for x in xs if len(x)>0])
+    if stop == 'max':
+        stop = np.max([x[-1] for x in xs if len(x)>0])
+    if n_bins == 'median':
+        n_bins = int(np.round(np.median([len(x) for x in xs])))
+
+    new_x = np.linspace(start, stop, n_bins) if spacing=='lin' else np.logspace(np.log10(start), np.log10(stop), n_bins)
+
+    new_ys = np.zeros((len(xs), n_bins)) + np.nan
+
+    for x, y, ny in zip(xs, ys, new_ys):
+        if len(x)>=2:
+            ny[:] = np.interp(x=new_x, xp=x, fp=y, left=np.nan, right=np.nan)
+
+    return new_x, new_ys

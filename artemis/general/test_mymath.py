@@ -1,4 +1,5 @@
-from artemis.general.mymath import softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel
+from artemis.general.mymath import softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel, \
+    align_curves
 import numpy as np
 __author__ = 'peter'
 
@@ -146,8 +147,26 @@ def test_is_parallel():
     assert not is_parallel([1, 2], [-2, -4])
 
 
+def test_align_curves():
+
+    n_curves = 30
+
+    n_points = [np.random.randint(20) for _ in xrange(n_curves)]
+
+    xs = [np.sort(np.random.rand(n)) for n in n_points]
+    ys = [np.random.randn(n) for n in n_points]
+
+    new_xs, new_ys = align_curves(xs=xs, ys=ys, n_bins=25, spacing='lin')
+    assert new_xs.shape == (25, )
+    assert new_ys.shape == (n_curves, 25)
+
+    new_xs, new_ys = align_curves(xs=xs, ys=ys, n_bins=25, spacing='log')
+    assert new_xs.shape == (25, )
+    assert new_ys.shape == (n_curves, 25)
+
 if __name__ == '__main__':
 
+    test_align_curves()
     test_is_parallel()
     test_normalize()
     test_cummode_weighted()

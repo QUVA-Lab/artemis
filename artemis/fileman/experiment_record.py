@@ -172,7 +172,7 @@ def _warn_with_prompt(message, prompt = 'Press Enter to continue'):
     raw_input('%s\n  (%s) >> ' % (message, prompt))
 
 
-def browse_experiments(catch_errors = True, run_args = {}):
+def browse_experiments(catch_errors = False, close_after_run = False, run_args = {}):
     while True:
         listing = _get_experiment_listing()
         print "==================== Experiments ===================="
@@ -190,6 +190,8 @@ def browse_experiments(catch_errors = True, run_args = {}):
                     name = listing[number]
                 if cmd == 'run':
                     exp = GLOBAL_EXPERIMENT_LIBRARY[name].run(**run_args)
+                    if close_after_run:
+                        break
                 elif cmd == 'show':
                     last_identifier = get_latest_experiment_identifier(name)
                     if last_identifier is None:
@@ -360,6 +362,8 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', info = '', print_to_
         'draw': Show but keep on going
         False: Don't show figures
     """
+    # Note: matplotlib imports are internal in order to avoid trouble for people who may import this module without having
+    # a working matplotlib (which can occasionally be tricky to install).
 
     identifier = format_filename(file_string = identifier, base_name=name, current_time = datetime.now())
 
@@ -769,7 +773,7 @@ class Experiment(object):
 
 # ALTERNATE INTERFACES.
 # We keep these for backwards compatibility and to show how else we could organize the experiment API.
-# These are out of use, as we at Artemis prefer the @experiment_function decorator.
+# These are out of use, as we at Artemis inc. prefer the @experiment_function decorator.
 
 
 # Register interface:
