@@ -5,11 +5,14 @@ from matplotlib import pyplot as plt
 _has_drawn = set()
 
 
-def redraw_figure(fig):
+def redraw_figure(fig = None):
     """
     Redraw a matplotlib figure.
     :param fig: A matplotlib figure.
     """
+
+    if fig is None:
+        fig = plt.gcf()
 
     # Matplotlib is not made for speed by default, but it seems that minor hacks
     # can speed up the rendering a LOT:
@@ -21,13 +24,13 @@ def redraw_figure(fig):
     # plt.pause(0.00001)
 
     # Faster way:  ~ 10.5 FPS
-    # fig.canvas.draw()
-    # plt.show(block=False)
-
-    #  Superfast way ~22.3 FPS
-    if fig in _has_drawn:
-        fig.canvas.draw()
-        _has_drawn.add(fig)
-    else:
-        fig.canvas.flush_events()
+    fig.canvas.draw()
     plt.show(block=False)
+
+    #  Superfast way ~22.3 FPS  # But crashes when using camera with opencv!s
+    # if fig in _has_drawn:
+    #     plt.draw()
+    #    _has_drawn.add(fig)
+    # else:
+    #     fig.canvas.flush_events()
+    # plt.show(block=False)
