@@ -43,7 +43,7 @@ def _make_dbplot_figure():
 
 
 def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None,
-           fig = None, xlabel = None, ylabel = None):
+           fig = None, xlabel = None, ylabel = None, draw_every = None):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
@@ -105,6 +105,8 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
             _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
         if ylabel is not None:
             _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
+        if draw_every is not None:
+            _draw_counters[fig, name] = -1
 
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
@@ -114,6 +116,10 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
 
     if draw_now:
+        if draw_every is not None:
+            _draw_counters[fig, name]+=1
+            if _draw_counters[fig, name] % draw_every != 0:
+                return _DBPLOT_FIGURES[fig].subplots[name].axis
         if hang:
             plt.figure(_DBPLOT_FIGURES[fig].figure.number)
             plt.show()
@@ -122,6 +128,9 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
     return _DBPLOT_FIGURES[fig].subplots[name].axis
 
 _has_drawn = set()  # Todo: record per-figure
+
+
+_draw_counters = {}
 
 
 def clear_dbplot(fig = None):

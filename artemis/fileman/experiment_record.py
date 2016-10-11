@@ -83,6 +83,7 @@ from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_
 from artemis.fileman.persistent_print import PrintAndStoreLogger
 import logging
 import time
+import multiprocessing
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 ARTEMIS_LOGGER.setLevel(logging.INFO)
@@ -755,20 +756,34 @@ class Experiment(object):
         assert result is not None, "No result was computed for the last run of '%s'" % (self.name, )
         self.display_function(result)
 
-    def run_all(self, **kwargs):
+    def get_all_variants(self, include_roots = False):
+        variants = []
+        if not self.is_root or include_roots:
+            variants.append(self)
+        for name, v in self.variants.iteritems():
+            variants += v.get_all_variants()
+        return variants
+
+    def run_all(self):
         """
         Run this experiment (if not a root-experiment) and all variants (if not roots).
         """
-        if self.is_root:
-            self.run()
-        for v in self.variants:
-            v.run_all(**kwargs)
+        experiments = self.get_all_variants()
+        for ex in experiments:
+            ex.run()
+
+    def run_all_multiprocess(self):
+        experiments = self.get_all_variants()
+        p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
+        p.map(run_experiment, [ex.name for ex in experiments])
+        p.join()
 
     def test(self, **kwargs):
         self.run(test_mode=True, **kwargs)
 
     def test_all(self, **kwargs):
         self.run_all(test_mode=True, **kwargs)
+
 
 
 # ALTERNATE INTERFACES.
