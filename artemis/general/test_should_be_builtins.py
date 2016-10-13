@@ -17,7 +17,3 @@ def test_itermap():
 if __name__ == '__main__':
     test_reducemap()
     test_itermap()
-
-
-
-
