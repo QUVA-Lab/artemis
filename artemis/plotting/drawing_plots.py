@@ -24,13 +24,13 @@ def redraw_figure(fig = None):
     # plt.pause(0.00001)
 
     # Faster way:  ~ 10.5 FPS
-    fig.canvas.draw()
-    plt.show(block=False)
+    # fig.canvas.draw()
+    # plt.show(block=False)
 
     #  Superfast way ~22.3 FPS  # But crashes when using camera with opencv!s
-    # if fig in _has_drawn:
-    #     plt.draw()
-    #    _has_drawn.add(fig)
-    # else:
-    #     fig.canvas.flush_events()
-    # plt.show(block=False)
+    if fig in _has_drawn:
+        plt.draw()
+        _has_drawn.add(fig)
+    else:
+        fig.canvas.flush_events()
+    plt.show(block=False)

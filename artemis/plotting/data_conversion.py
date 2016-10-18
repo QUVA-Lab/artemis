@@ -221,18 +221,19 @@ class RecordBuffer(object):
 
 
 class UnlimitedRecordBuffer(object):
-    def __init__(self):
+
+    def __init__(self, expansion_factor = 2, initial_size=64):
         self._buffer = []
-        self._counter = 0
-        self._shape = ()
-        pass
+        self._index = 0
+        self.initial_size = initial_size
+        self.expansion_factor = expansion_factor
 
     def __call__(self, data):
-        if self._counter == 0:
-            self._shape = () if np.isscalar(data) else data.shape
-        self._counter += 1
-        self._buffer.append(data)
-        return np.reshape(self._buffer, newshape=((self._counter,) + self._shape))
-
-
+        if self._index==len(self._buffer):
+            new_buffer = np.empty((int(len(self._buffer)*self.expansion_factor) if len(self._buffer)>0 else self.initial_size, )+data.shape)
+            new_buffer[:self._index] = self._buffer
+            self._buffer = new_buffer
+        self._buffer[self._index] = data
+        self._index += 1
+        return self._buffer[:self._index]
 

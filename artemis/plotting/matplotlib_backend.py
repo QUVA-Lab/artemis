@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from artemis.general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array
+from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array, \
+    UnlimitedRecordBuffer
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -115,7 +116,8 @@ class MovingImagePlot(ImagePlot):
 
 class LinePlot(HistoryFreePlot):
 
-    def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05), x_bound_extend = (0, 0)):
+    def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
+                 x_bound_extend = (0, 0), make_legend = True):
         assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
         self._plots = None
         self._oldvlims = (float('inf'), -float('inf'))
@@ -124,6 +126,7 @@ class LinePlot(HistoryFreePlot):
         self.y_bounds = y_bounds
         self.x_bound_extend = x_bound_extend
         self.y_bound_extend = y_bound_extend
+        self.make_legend=make_legend
 
     def _plot_last_data(self, data):
         """
@@ -132,11 +135,18 @@ class LinePlot(HistoryFreePlot):
             A 2-tuple of (x_data, y_data)
         """
 
+        # Format all data as (list<x_data>, list<y_data>)
         if isinstance(data, tuple) and len(data)==2:
             x_data, y_data = data
         else:
-            x_data = np.arange(len(data))
+            x_data = None
             y_data = data
+        if isinstance(y_data, np.ndarray):
+            n_lines = 1 if y_data.ndim==1 else y_data.shape[1]
+            x_data = [y_data.shape[0]] * n_lines if x_data is None else [x_data] * n_lines if x_data.ndim==1 else x_data
+            y_data = y_data.T if y_data.ndim==2 else y_data[None] if y_data.ndim==1 else bad_value(y_data.ndim)
+        else:  # List of arrays
+            x_data = [np.arange(len(d)) for d in y_data] if x_data is None else x_data
 
         lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data)+1e-9 if self.y_bounds[1] is None else self.y_bounds[1])
         left, right = (np.nanmin(x_data) if self.x_bounds[0] is None else self.x_bounds[0], np.nanmax(x_data)+1e-9 if self.x_bounds[1] is None else self.x_bounds[1])
@@ -154,21 +164,22 @@ class LinePlot(HistoryFreePlot):
         lower -= self.y_bound_extend[0]*delta
         upper += self.y_bound_extend[1]*delta
 
-
         if self._plots is None:
-            self._plots = plt.plot(x_data, y_data)
-            for p, d in zip(self._plots, y_data[None] if y_data.ndim==1 else y_data.T):
+            self._plots = []
+            for xd, yd in zip(x_data, y_data):
+                p, =plt.plot(xd, yd)
+                self._plots.append(p)
                 p.axes.set_xbound(left, right)
                 if lower != upper:  # This happens in moving point plots when there's only one point.
                     p.axes.set_ybound(lower, upper)
+            if len(y_data)>1:
+                plt.legend([str(i) for i in xrange(len(y_data))], loc='best')
         else:
-            for p, d in zip(self._plots, y_data[None] if y_data.ndim==1 else y_data.T):
-                p.set_xdata(x_data)
-                p.set_ydata(d)
-
+            for p, xd, yd in zip(self._plots, x_data, y_data):
+                p.set_xdata(xd)
+                p.set_ydata(yd)
                 if (lower, upper) != self._oldvlims:
                     p.axes.set_ybound(lower, upper)
-
                 if (left, right) != self._oldhlims:
                     p.axes.set_xbound(left, right)
 
@@ -178,22 +189,21 @@ class LinePlot(HistoryFreePlot):
 
 class MovingPointPlot(LinePlot):
 
-    def __init__(self, buffer_len=100, expanding=True, **kwargs):
+    def __init__(self, buffer_len=None, **kwargs):
+        """
+        :param buffer_len: An integar to keep a fixed-length window, or None to keep an expanding buffer
+        :param kwargs:
+        :return:
+        """
         LinePlot.__init__(self, **kwargs)
-        self._buffer = RecordBuffer(buffer_len)
-        self.expanding = expanding
-        self.x_data = np.arange(-buffer_len, 1)
+        self._buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
+        self.x_data = np.arange(-buffer_len, 1) if buffer_len is not None else None
 
     def update(self, data):
         if not np.isscalar(data):
             data = data.flatten()
-
         buffer_data = self._buffer(data)
-        if self.expanding:
-            buffer_data = buffer_data[np.argmax(~np.any(np.isnan(buffer_data.reshape(buffer_data.shape[0], -1)), axis=1)):]
-            x_data = self.x_data[-len(buffer_data):]
-        else:
-            x_data = self.x_data
+        x_data = np.arange(-len(buffer_data)+1, 1) if self.x_data is None else self.x_data
         LinePlot.update(self, (x_data, buffer_data))
 
     def plot(self):
@@ -325,8 +335,13 @@ def get_live_plot_from_data(data, line_to_image_threshold = 8, cmap = 'gray'):
     if isinstance(data, basestring):
         return TextPlot()
 
-    if isinstance(data, list) and all(isinstance(d, np.ndarray) and d.ndim in (2, 3) for d in data):
-        return ImagePlot()
+    if isinstance(data, list) and all(isinstance(d, np.ndarray) for d in data):
+        if all(d.ndim in (2, 3) for d in data):
+            return ImagePlot()
+        elif all(d.ndim==1 for d in data):
+            return LinePlot()
+        else:
+            raise Exception("Don't know how to deal with a list of arrays with shapes: %s" % ([d.shape for d in data], ))
 
     is_scalar = np.isscalar(data) or data.shape == ()
     if is_scalar:
