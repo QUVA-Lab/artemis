@@ -203,7 +203,7 @@ class MovingPointPlot(LinePlot):
         if not np.isscalar(data):
             data = data.flatten()
         buffer_data = self._buffer(data)
-        x_data = np.arange(-len(buffer_data)+1, 1) if self.x_data is None else self.x_data
+        x_data = np.arange(len(buffer_data)) if self.x_data is None else self.x_data
         LinePlot.update(self, (x_data, buffer_data))
 
     def plot(self):
