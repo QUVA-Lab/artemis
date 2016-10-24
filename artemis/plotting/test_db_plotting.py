@@ -56,6 +56,13 @@ def test_history_plot_updating():
     clear_dbplot()
 
 
+def test_moving_point_multiple_points():
+
+    for i in xrange(5):
+        dbplot(np.sin([i/10., i/15.]), 'unlim buffer', plot_type = MovingPointPlot)
+        dbplot(np.sin([i/10., i/15.]), 'lim buffer', plot_type = lambda: MovingPointPlot(buffer_len=20))
+
+
 def test_same_object():
     """
     There was a bug where when you plotted two of the same array, you got "already seen object".  This tests makes
@@ -85,9 +92,10 @@ def test_list_of_images():
 
 
 if __name__ == '__main__':
-    test_list_of_images()
-    test_multiple_figures()
-    test_same_object()
-    test_history_plot_updating()
-    test_particular_plot()
-    test_dbplot()
+    test_moving_point_multiple_points()
+    # test_list_of_images()
+    # test_multiple_figures()
+    # test_same_object()
+    # test_history_plot_updating()
+    # test_particular_plot()
+    # test_dbplot()

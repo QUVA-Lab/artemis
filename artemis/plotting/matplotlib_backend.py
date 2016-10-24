@@ -202,11 +202,9 @@ class MovingPointPlot(LinePlot):
         """
         LinePlot.__init__(self, **kwargs)
         self._buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
-        self.x_data = np.arange(-buffer_len, 1) if buffer_len is not None else None
+        self.x_data = np.arange(-buffer_len+1, 1) if buffer_len is not None else None
 
     def update(self, data):
-        # if not np.isscalar(data):
-        #     data = data.flatten()
         if not np.isscalar(data) or isinstance(data, np.ndarray):
             data = np.array(data)
         buffer_data = self._buffer(data)
