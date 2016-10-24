@@ -2,7 +2,7 @@ __author__ = 'peter'
 from matplotlib import pyplot as plt
 
 
-_has_drawn = set()
+# _has_drawn = set()
 
 
 def redraw_figure(fig = None):
@@ -28,9 +28,11 @@ def redraw_figure(fig = None):
     # plt.show(block=False)
 
     #  Superfast way ~22.3 FPS  # But crashes when using camera with opencv!s
-    if fig in _has_drawn:
-        plt.draw()
-        _has_drawn.add(fig)
-    else:
-        fig.canvas.flush_events()
+    # if fig not in _has_drawn:
+    #     plt.draw()
+    #     _has_drawn.add(fig)
+    # else:
+    fig.canvas.flush_events()
+    # for i in xrange(2):
+    plt.show(block=False)
     plt.show(block=False)

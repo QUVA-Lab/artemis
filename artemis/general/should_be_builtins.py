@@ -96,3 +96,20 @@ def itermap(func, initial, n_steps=None, stop_func = None, include_zeroth = Fals
         if stop_func is not None and stop_func(val):
             break
     return results
+
+
+def izip_equal(*iterables):
+    """
+    Zip and raise exception if lengths are not equal.
+
+    Taken from solution by Martijn Pieters, here:
+    http://stackoverflow.com/questions/32954486/zip-iterators-asserting-for-equal-length-in-python
+
+    :param iterables:
+    :return:
+    """
+    sentinel = object()
+    for combo in itertools.izip_longest(*iterables, fillvalue=sentinel):
+        if any(sentinel is c for c in combo):
+            raise ValueError('Iterables have different lengths')
+        yield combo

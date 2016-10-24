@@ -4,6 +4,7 @@ from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
+from decorator import contextmanager
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
 __author__ = 'peter'
@@ -43,7 +44,7 @@ def _make_dbplot_figure():
 
 
 def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None,
-           fig = None, xlabel = None, ylabel = None, draw_every = None):
+           fig = None, xlabel = None, ylabel = None, draw_every = None, legend=None):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
@@ -108,14 +109,17 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
         if draw_every is not None:
             _draw_counters[fig, name] = -1
 
+
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
     plot.update(data)
     plot.plot()
     if title is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
+    if legend is not None:
+        _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend)
 
-    if draw_now:
+    if draw_now and not _hold_plots:
         if draw_every is not None:
             _draw_counters[fig, name]+=1
             if _draw_counters[fig, name] % draw_every != 0:
@@ -131,6 +135,32 @@ _has_drawn = set()  # Todo: record per-figure
 
 
 _draw_counters = {}
+
+_hold_plots = False
+
+_hold_plot_counter = 0
+
+@contextmanager
+def hold_dbplots(fig = None, plot_every = None):
+    """
+    Use this in a "with" statement to prevent plotting until the end.
+    :param fig:
+    :return:
+    """
+    global _hold_plots
+    _hold_plots = True
+    yield
+    _hold_plots = False
+
+    if plot_every is not None:
+        global _hold_plot_counter
+        plot_now = _hold_plot_counter % plot_every == 0
+        _hold_plot_counter+=1
+    else:
+        plot_now = True
+
+    if plot_now:
+        redraw_figure(_DBPLOT_FIGURES[fig].figure)
 
 
 def clear_dbplot(fig = None):
@@ -159,3 +189,7 @@ def _extend_subplots(fig, subplot_name, plot_object):
     ax=_DBPLOT_FIGURES[fig].figure.add_subplot(gs[len(old_key_names)])
     ax.set_title(subplot_name)
     _DBPLOT_FIGURES[fig].subplots[subplot_name] = _Subplot(axis=ax, plot_object=plot_object)
+
+
+def dbplot_hang():
+    plt.show()

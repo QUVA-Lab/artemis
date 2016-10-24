@@ -302,3 +302,5 @@ def truncated_normal_moments(mu, sigma_sq):
     return truncated_mean, None
 
 
+def fixed_diff(x, axis=None):
+    return np.diff(np.insert(x, 0, 0, axis=axis), axis=axis)

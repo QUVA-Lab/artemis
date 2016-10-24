@@ -64,7 +64,8 @@ def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_wi
     return output_shape, index_pairs
 
 
-def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128), dtype = 'uint8'), cmap = 'gray', boundary_width = 1, clims = None, is_color_data=None):
+def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128), dtype = 'uint8'), cmap = 'gray',
+        boundary_width = 1, clims = None, is_color_data=None, nan_colour=None):
     """
     Given a 3-d or 4-D array, put it in a 2-d grid.
     :param data: A 4-D array of any data type
@@ -73,7 +74,7 @@ def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128)
     output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width, is_colour=is_color_data)
     output_data = np.empty(output_shape+(3, ), dtype='uint8')
     output_data[..., :] = fill_colour  # Maybe more efficient just to set the spaces.
-    scaled_data = data_to_image(data, clims = clims, cmap = cmap, is_color_data=is_color_data)
+    scaled_data = data_to_image(data, clims = clims, cmap = cmap, is_color_data=is_color_data, nan_colour=nan_colour)
     for pull_slice, push_slice in slice_pairs:
         output_data[push_slice] = scaled_data[pull_slice]
     return output_data
@@ -157,7 +158,7 @@ def scale_data_to_range(data, in_range = None, out_range = (0, 1), clip_to_range
 mappables = {}
 
 
-def data_to_image(data, is_color_data = None, clims = None, cmap = 'gray'):
+def data_to_image(data, is_color_data = None, clims = None, cmap = 'gray', nan_colour=None):
     import matplotlib.cm as cm
     from matplotlib.colors import Normalize
     """
@@ -196,6 +197,9 @@ def data_to_image(data, is_color_data = None, clims = None, cmap = 'gray'):
     else:
         scaled_data = scale_data_to_8_bit(data, in_range=clims).astype(np.uint8)
 
+    if nan_colour is not None:
+        scaled_data = np.where(np.any(np.isnan(data if is_color_data else data[..., None]), axis=-1)[..., None], nan_colour, scaled_data)
+
     return scaled_data
 
 
@@ -230,9 +234,12 @@ class UnlimitedRecordBuffer(object):
 
     def __call__(self, data):
         if self._index==len(self._buffer):
-            new_buffer = np.empty((int(len(self._buffer)*self.expansion_factor) if len(self._buffer)>0 else self.initial_size, )+data.shape)
-            new_buffer[:self._index] = self._buffer
-            self._buffer = new_buffer
+            if len(self._buffer)==0:
+                self._buffer = np.empty((self.initial_size, )+data.shape)
+            else:
+                new_buffer = np.empty((int(len(self._buffer)*self.expansion_factor), )+data.shape)
+                new_buffer[:self._index] = self._buffer
+                self._buffer = new_buffer
         self._buffer[self._index] = data
         self._index += 1
         return self._buffer[:self._index]
