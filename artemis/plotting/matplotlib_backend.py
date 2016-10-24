@@ -152,6 +152,7 @@ class LinePlot(HistoryFreePlot):
                 y_data = np.array(data)[None, :]
             else:  # List of arrays becomes a list of lines
                 x_data = [np.arange(len(d)) for d in y_data] if x_data is None else x_data
+        assert len(x_data)==len(y_data), "The number of lines in your x-data (%s) does not match the number in your y-data (%s)" % (len(x_data), len(y_data))
 
         lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data)+1e-9 if self.y_bounds[1] is None else self.y_bounds[1])
         left, right = (np.nanmin(x_data) if self.x_bounds[0] is None else self.x_bounds[0], np.nanmax(x_data)+1e-9 if self.x_bounds[1] is None else self.x_bounds[1])
