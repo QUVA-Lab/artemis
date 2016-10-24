@@ -355,6 +355,8 @@ def get_plot_from_data(data, mode, **plot_preference_kwargs):
 
 def get_live_plot_from_data(data, line_to_image_threshold = 8, cmap = 'gray'):
 
+    # TODO: Maybe refactor that so that plot objects contain their own "data validation" code, and we can
+    # simply ask plots in sequence whether they can handle the data.
     if isinstance(data, basestring):
         return TextPlot()
 
