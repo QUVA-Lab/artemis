@@ -207,7 +207,7 @@ class MovingPointPlot(LinePlot):
     def update(self, data):
         # if not np.isscalar(data):
         #     data = data.flatten()
-        if not np.isscalar(data) or np.isinstance(data, np.ndarray):
+        if not np.isscalar(data) or isinstance(data, np.ndarray):
             data = np.array(data)
         buffer_data = self._buffer(data)
         x_data = np.arange(len(buffer_data)) if self.x_data is None else self.x_data

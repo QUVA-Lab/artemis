@@ -1,7 +1,6 @@
 from artemis.general.mymath import softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel, \
-    align_curves, truncated_normal_moments
+    align_curves
 import numpy as np
-from scipy.stats import norm
 __author__ = 'peter'
 
 
@@ -165,56 +164,15 @@ def test_align_curves():
     assert new_xs.shape == (25, )
     assert new_ys.shape == (n_curves, 25)
 
-
-def test_univariate_truncated_normal_eqn():
-
-    rng = np.random.RandomState(1234)
-
-    mu = 0.3
-    sigma = 0.7
-    samples = rng.randn(1000)*sigma+mu
-
-    samples=samples[samples>0]
-
-    alpha = (0-mu)/sigma
-    trunc_mean = mu + sigma*norm.pdf(alpha, loc=0, scale =1)/(1-norm.cdf(alpha))
-    assert 0.66 < samples.mean() < trunc_mean < 0.685  # It gets closer with more samples
-
-    # print samples.mean(), trunc_mean
-
-
-def test_truncated_normal_moments():
-
-    rng = np.random.RandomState(1234)
-
-    mu = np.array([1, 1])
-    sigma_sq = np.array([[1, .9], [.9, 1]])
-    samples = rng.multivariate_normal(mu, sigma_sq, size=100000)
-    truncated_samples = samples[np.all(samples>0, axis=1)]
-    mean, cov = truncated_normal_moments(mu, sigma_sq)
-
-    import matplotlib.pyplot as plt
-    plt.plot(samples[:, 0], samples[:, 1], '.')
-    plt.plot(truncated_samples[:, 0], truncated_samples[:, 1], '.')
-    plt.show()
-    sample_mean = truncated_samples.mean(axis=0)
-    sample_cov = truncated_samples.T
-
-    samples = samples
-
-
-
 if __name__ == '__main__':
-    # test_univariate_truncated_normal_eqn()
-    #
-    test_truncated_normal_moments()
-    # test_align_curves()
-    # test_is_parallel()
-    # test_normalize()
-    # test_cummode_weighted()
-    # test_cummode()
-    # test_mode()
-    # test_exp_sig_of_norm()
-    # test_cumvar()
-    # test_cummean()
-    # test_softmax()
+
+    test_align_curves()
+    test_is_parallel()
+    test_normalize()
+    test_cummode_weighted()
+    test_cummode()
+    test_mode()
+    test_exp_sig_of_norm()
+    test_cumvar()
+    test_cummean()
+    test_softmax()

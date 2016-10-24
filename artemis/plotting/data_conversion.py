@@ -234,10 +234,11 @@ class UnlimitedRecordBuffer(object):
 
     def __call__(self, data):
         if self._index==len(self._buffer):
+            data_shape = data.shape if isinstance(data, np.ndarray) else ()
             if len(self._buffer)==0:
-                self._buffer = np.empty((self.initial_size, )+data.shape)
+                self._buffer = np.empty((self.initial_size, )+data_shape)
             else:
-                new_buffer = np.empty((int(len(self._buffer)*self.expansion_factor), )+data.shape)
+                new_buffer = np.empty((int(len(self._buffer)*self.expansion_factor), )+data_shape)
                 new_buffer[:self._index] = self._buffer
                 self._buffer = new_buffer
         self._buffer[self._index] = data
