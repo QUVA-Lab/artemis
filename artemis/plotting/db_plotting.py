@@ -2,11 +2,12 @@ from collections import OrderedDict, namedtuple
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
-    MovingImagePlot, HistogramPlot
+    MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from contextlib import contextmanager
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
+import numpy as np
 __author__ = 'peter'
 
 
@@ -99,7 +100,8 @@ def dbplot(data, name = None, plot_type = None, plot_mode = 'live', draw_now = T
                 'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
                 'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
                 'trajectory': lambda: Moving2DPointPlot(),
-                'histogram': lambda: HistogramPlot()
+                'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
+                'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
                 }[plot_type]()
         elif plot_type is None:
             plot = get_plot_from_data(data, mode=plot_mode)
