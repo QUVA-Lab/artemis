@@ -17,8 +17,8 @@ def tet_dbplot(n_steps = 3):
         barr2 = np.array([[x**9 for x in np.arange(0,5)], [x**8 for x in np.arange(0,5)]])
         barr2 = barr2.T
         kw = {"y_axis_type":"log"}
-        dbplot(barr, 'barr', plot_constructor=lambda: LinePlot(**kw))
-        dbplot(barr2, 'barr2', plot_constructor=lambda: LinePlot(**kw))
+        dbplot(barr, 'barr', plot_type=lambda: LinePlot(**kw))
+        dbplot(barr2, 'barr2', plot_type=lambda: LinePlot(**kw))
 
 
 def moving_point_plot(n_steps = 20):
@@ -26,7 +26,7 @@ def moving_point_plot(n_steps = 20):
         data = np.array([i,i**2])
         if i == 4:
             data = np.array([float('nan'), i**2])
-        dbplot(data, "history", plot_constructor=lambda: MovingPointPlot())
+        dbplot(data, "history", plot_type=lambda: MovingPointPlot())
         time.sleep(0.5)
 
 if __name__ == '__main__':

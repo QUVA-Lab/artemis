@@ -14,7 +14,7 @@ def test_dbplot(n_steps = 3):
         dbplot(arr, 'arr')
         for j in xrange(3):
             barr = np.random.randn(10, 2)
-            dbplot(barr, 'barr', plot_constructor=lambda: LinePlot())
+            dbplot(barr, 'barr', plot_type=lambda: LinePlot())
     clear_dbplot()
 
 
@@ -30,7 +30,7 @@ def test_dbplot_logscale(n_steps = 3):
         for j in xrange(3):
             barr = np.random.randn(10, 2)
             kw = {"y_axis_type":"log"}
-            dbplot(barr, 'barr', plot_constructor=lambda: LinePlot(y_axis_type='log'))
+            dbplot(barr, 'barr', plot_type=lambda: LinePlot(y_axis_type='log'))
     clear_dbplot()
 
 
@@ -38,7 +38,7 @@ def test_particular_plot(n_steps = 3):
 
     for i in xrange(n_steps):
         r = np.random.randn(1)
-        dbplot(r, plot_constructor=lambda: HistogramPlot(edges=np.linspace(-5, 5, 20)))
+        dbplot(r, plot_type=lambda: HistogramPlot(edges=np.linspace(-5, 5, 20)))
     clear_dbplot()
 
 
@@ -52,7 +52,7 @@ def test_history_plot_updating():
     for i in xrange(10):
         dbplot(np.random.randn(20, 20), 'a')
         dbplot(np.random.randn(20, 20), 'b')
-        dbplot(np.random.randn(), 'c', plot_constructor=lambda: MovingPointPlot())
+        dbplot(np.random.randn(), 'c', plot_type=lambda: MovingPointPlot())
     clear_dbplot()
 
 

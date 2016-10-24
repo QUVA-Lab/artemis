@@ -4,6 +4,7 @@ from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
+from decorator import contextmanager
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
 __author__ = 'peter'
@@ -41,15 +42,14 @@ def _make_dbplot_figure():
     return fig
 
 
-
-def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_now = True, hang = False, title=None,
-           fig = None, xlabel = None, ylabel = None):
+def dbplot(data, name = None, plot_type = None, plot_mode = 'live', draw_now = True, hang = False, title=None,
+           fig = None, xlabel = None, ylabel = None, draw_every = None, legend=None, plot_constructor=None):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
     :param data: Any data.  Hopefully, we at dbplot will be able to figure out a plot for it.
     :param name: A name uniquely identifying this plot.
-    :param plot_constructor: A specialized constructor to be used the first time when plotting.  You can also pass
+    :param plot_type: A specialized constructor to be used the first time when plotting.  You can also pass
         certain string to give hints as to what kind of plot you want (can resolve cases where the given data could be
         plotted in multiple ways):
         'line': Plots a line plot
@@ -66,6 +66,7 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
     :param title: Title of the plot (will default to name if not included)
     :param fig: Name of the figure - use this when you want to create multiple figures.
     """
+
     if isinstance(fig, plt.Figure):
         assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
         _DBPLOT_FIGURES[None] = fig
@@ -78,7 +79,13 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
     suplot_dict = _DBPLOT_FIGURES[fig].subplots
 
     if name not in suplot_dict:
-        if isinstance(plot_constructor, str):
+
+        if plot_constructor is not None:
+            print "Warning: The 'plot_constructor' argument to dbplot is deprecated.  Use plot_type instead"
+            assert plot_type is None
+            plot_type = plot_constructor
+
+        if isinstance(plot_type, str):
             plot = {
                 'line': LinePlot,
                 'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
@@ -93,18 +100,21 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
                 'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
                 'trajectory': lambda: Moving2DPointPlot(),
                 'histogram': lambda: HistogramPlot()
-                }[plot_constructor]()
-        elif plot_constructor is None:
+                }[plot_type]()
+        elif plot_type is None:
             plot = get_plot_from_data(data, mode=plot_mode)
         else:
-            assert hasattr(plot_constructor, "__call__")
-            plot = plot_constructor()
+            assert hasattr(plot_type, "__call__")
+            plot = plot_type()
 
         _extend_subplots(fig=fig, subplot_name=name, plot_object=plot)  # This guarantees that the new plot will exist
         if xlabel is not None:
             _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
         if ylabel is not None:
             _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
+        if draw_every is not None:
+            _draw_counters[fig, name] = -1
+
 
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
@@ -112,8 +122,14 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
     plot.plot()
     if title is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
+    if legend is not None:
+        _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend)
 
-    if draw_now:
+    if draw_now and not _hold_plots:
+        if draw_every is not None:
+            _draw_counters[fig, name]+=1
+            if _draw_counters[fig, name] % draw_every != 0:
+                return _DBPLOT_FIGURES[fig].subplots[name].axis
         if hang:
             plt.figure(_DBPLOT_FIGURES[fig].figure.number)
             plt.show()
@@ -122,6 +138,35 @@ def dbplot(data, name = None, plot_constructor = None, plot_mode = 'live', draw_
     return _DBPLOT_FIGURES[fig].subplots[name].axis
 
 _has_drawn = set()  # Todo: record per-figure
+
+
+_draw_counters = {}
+
+_hold_plots = False
+
+_hold_plot_counter = 0
+
+@contextmanager
+def hold_dbplots(fig = None, plot_every = None):
+    """
+    Use this in a "with" statement to prevent plotting until the end.
+    :param fig:
+    :return:
+    """
+    global _hold_plots
+    _hold_plots = True
+    yield
+    _hold_plots = False
+
+    if plot_every is not None:
+        global _hold_plot_counter
+        plot_now = _hold_plot_counter % plot_every == 0
+        _hold_plot_counter+=1
+    else:
+        plot_now = True
+
+    if plot_now:
+        redraw_figure(_DBPLOT_FIGURES[fig].figure)
 
 
 def clear_dbplot(fig = None):
@@ -150,3 +195,7 @@ def _extend_subplots(fig, subplot_name, plot_object):
     ax=_DBPLOT_FIGURES[fig].figure.add_subplot(gs[len(old_key_names)])
     ax.set_title(subplot_name)
     _DBPLOT_FIGURES[fig].subplots[subplot_name] = _Subplot(axis=ax, plot_object=plot_object)
+
+
+def dbplot_hang():
+    plt.show()
