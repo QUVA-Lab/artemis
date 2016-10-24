@@ -57,4 +57,4 @@ def demo_debug_dbplot():
 
 if __name__ == '__main__':
     demo_dbplot()
-    # demo_debug_dbplot()
+    demo_debug_dbplot()
