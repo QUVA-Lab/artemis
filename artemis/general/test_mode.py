@@ -24,7 +24,7 @@ def set_test_mode(state):
     _TEST_MODE = state
 
 
-class TestMode(object):
+class UseTestContext(object):
     """
     Execute a block of code in test mode.  That is, any call to "is_test_mode" within that
     block will return True.  Usage:
