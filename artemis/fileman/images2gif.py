@@ -392,7 +392,7 @@ class GifWriter:
                 if dither:
                     im = im.convert("RGB").quantize(palette=nqInstance.paletteImage())
                 else:
-                    im = nqInstance.quantize(im)  # Use to sequential_quantize the image itself
+                    im = nqInstance.quantize(im)  # Use to quantize the image itself
                 images2.append(im)
         else:
             # Adaptive PIL algorithm
@@ -1104,7 +1104,7 @@ class NeuQuant:
 
     def paletteImage(self):
         """ PIL weird interface for making a paletted image: create an image which
-            already has the palette, and use that in Image.sequential_quantize. This function
+            already has the palette, and use that in Image.quantize. This function
             returns this palette image. """
         if self.pimage is None:
             palette = []
