@@ -4,7 +4,7 @@ from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
-from decorator import contextmanager
+from contextlib import contextmanager
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
 __author__ = 'peter'
