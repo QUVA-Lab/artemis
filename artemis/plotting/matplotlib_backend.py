@@ -220,11 +220,9 @@ class MovingPointPlot(LinePlot):
 class Moving2DPointPlot(LinePlot):
 
     def __init__(self, buffer_len=None, **kwargs):
-        # LinePlot.__init__(self, plot_kwargs = dict(markevery=[0, -1], markersize=20, marker='.'), **kwargs)
         LinePlot.__init__(self, **kwargs)
         self._y_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
         self._x_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
-        # self.x_data = np.arange(-buffer_len, 1)
         self._first_update = True
         self._first_plot = True
         self._last_data = None
