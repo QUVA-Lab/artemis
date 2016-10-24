@@ -93,9 +93,9 @@ def test_list_of_images():
 
 if __name__ == '__main__':
     test_moving_point_multiple_points()
-    # test_list_of_images()
-    # test_multiple_figures()
-    # test_same_object()
-    # test_history_plot_updating()
-    # test_particular_plot()
-    # test_dbplot()
+    test_list_of_images()
+    test_multiple_figures()
+    test_same_object()
+    test_history_plot_updating()
+    test_particular_plot()
+    test_dbplot()
