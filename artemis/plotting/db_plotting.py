@@ -11,7 +11,7 @@ import numpy as np
 __author__ = 'peter'
 
 
-_PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots'])
+_PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots', 'axes'])
 
 _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 
@@ -43,7 +43,7 @@ def _make_dbplot_figure():
     return fig
 
 
-def dbplot(data, name = None, plot_type = None, plot_mode = 'live', draw_now = True, hang = False, title=None,
+def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
            fig = None, xlabel = None, ylabel = None, draw_every = None, legend=None, plot_constructor=None):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
@@ -73,11 +73,14 @@ def dbplot(data, name = None, plot_type = None, plot_mode = 'live', draw_now = T
         _DBPLOT_FIGURES[None] = fig
         fig = None
     elif fig not in _DBPLOT_FIGURES:
-        _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict())
+        _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
         if name is not None:
             _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
 
     suplot_dict = _DBPLOT_FIGURES[fig].subplots
+
+    if axis is None:
+        axis=name
 
     if name not in suplot_dict:
 
@@ -99,7 +102,7 @@ def dbplot(data, name = None, plot_type = None, plot_mode = 'live', draw_now = T
                 'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
                 'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
                 'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
-                'trajectory': lambda: Moving2DPointPlot(),
+                'trajectory': lambda: Moving2DPointPlot(axes_update_mode='expand'),
                 'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
                 'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
                 }[plot_type]()
@@ -109,14 +112,17 @@ def dbplot(data, name = None, plot_type = None, plot_mode = 'live', draw_now = T
             assert hasattr(plot_type, "__call__")
             plot = plot_type()
 
-        _extend_subplots(fig=fig, subplot_name=name, plot_object=plot)  # This guarantees that the new plot will exist
-        if xlabel is not None:
-            _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
-        if ylabel is not None:
-            _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
-        if draw_every is not None:
-            _draw_counters[fig, name] = -1
-
+        if axis in _DBPLOT_FIGURES[fig].axes:
+            _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[axis], plot_object=plot)
+            plt.sca(_DBPLOT_FIGURES[fig].subplots[axis].axis)
+        else:  # Make a new axis
+            _extend_subplots(fig=fig, subplot_name=name, plot_object=plot)  # This guarantees that the new plot will exist
+            if xlabel is not None:
+                _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
+            if ylabel is not None:
+                _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
+            if draw_every is not None:
+                _draw_counters[fig, name] = -1
 
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
@@ -148,6 +154,15 @@ _hold_plots = False
 
 _hold_plot_counter = 0
 
+
+def freeze_dbplot(name, fig = None):
+    del _DBPLOT_FIGURES[fig].subplots[name]
+
+
+def freeze_all_dbplots(fig = None):
+    for name in _DBPLOT_FIGURES[fig].subplots.keys():
+        freeze_dbplot(name, fig=fig)
+
 @contextmanager
 def hold_dbplots(fig = None, plot_every = None):
     """
@@ -175,6 +190,7 @@ def clear_dbplot(fig = None):
     plt.figure(_DBPLOT_FIGURES[fig].figure.number)
     plt.clf()
     _DBPLOT_FIGURES[fig].subplots.clear()
+    _DBPLOT_FIGURES[fig].axes.clear()
 
 
 def _extend_subplots(fig, subplot_name, plot_object):
@@ -196,7 +212,9 @@ def _extend_subplots(fig, subplot_name, plot_object):
     # Add the new plot
     ax=_DBPLOT_FIGURES[fig].figure.add_subplot(gs[len(old_key_names)])
     ax.set_title(subplot_name)
+
     _DBPLOT_FIGURES[fig].subplots[subplot_name] = _Subplot(axis=ax, plot_object=plot_object)
+    _DBPLOT_FIGURES[fig].axes[subplot_name] = ax
 
 
 def dbplot_hang():

@@ -116,17 +116,16 @@ class MovingImagePlot(ImagePlot):
 class LinePlot(HistoryFreePlot):
 
     def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
-                 x_bound_extend = (0, 0), make_legend = True, plot_kwargs = {}):
+                 x_bound_extend = (0, 0), make_legend = True, axes_update_mode = 'fit', plot_kwargs = {}):
         assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
         self._plots = None
-        self._oldvlims = (float('inf'), -float('inf'))
-        self._oldhlims = (float('inf'), -float('inf'))
         self.x_bounds = x_bounds
         self.y_bounds = y_bounds
         self.x_bound_extend = x_bound_extend
         self.y_bound_extend = y_bound_extend
         self.make_legend=make_legend
         self.plot_kwargs = plot_kwargs
+        self.axes_update_mode = axes_update_mode
 
     def _plot_last_data(self, data):
         """
@@ -172,25 +171,35 @@ class LinePlot(HistoryFreePlot):
 
         if self._plots is None:
             self._plots = []
+            plt.gca().autoscale(enable=False)
             for xd, yd in zip(x_data, y_data):
                 p, =plt.plot(xd, yd, **self.plot_kwargs)
                 self._plots.append(p)
-                p.axes.set_xbound(left, right)
-                if lower != upper:  # This happens in moving point plots when there's only one point.
-                    p.axes.set_ybound(lower, upper)
+                self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
             if len(y_data)>1:
                 plt.legend([str(i) for i in xrange(len(y_data))], loc='best', prop={'size':6})
         else:
             for p, xd, yd in zip(self._plots, x_data, y_data):
                 p.set_xdata(xd)
                 p.set_ydata(yd)
-                if (lower, upper) != self._oldvlims:
-                    p.axes.set_ybound(lower, upper)
-                if (left, right) != self._oldhlims:
-                    p.axes.set_xbound(left, right)
+                self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
 
-        self._oldvlims = lower, upper
-        self._oldhlims = left, right
+    @staticmethod
+    def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
+        if mode=='fit':
+            ax.set_xbound(left, right)
+            ax.set_ybound(lower, upper)
+        elif mode=='expand':
+            old_left, old_right = ax.get_xbound()
+            old_lower, old_upper = ax.get_ybound()
+            if (old_left, old_right, old_lower, old_upper) == (0, 1, 0, 1):  # Virgin axes (probably)... overwrite them
+                ax.set_xbound(left, right)
+                ax.set_ybound(lower, upper)
+            else:
+                ax.set_xbound(min(old_left, left), max(old_right, right))
+                ax.set_ybound(min(old_lower, lower), max(old_upper, upper))
+        else:
+            raise Exception('No axis update mode: "%s"' % (mode, ))
 
 
 class MovingPointPlot(LinePlot):

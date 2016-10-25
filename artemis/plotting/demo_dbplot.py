@@ -7,7 +7,7 @@ from artemis.plotting.matplotlib_backend import MovingPointPlot
 __author__ = 'peter'
 
 
-def demo_dbplot():
+def demo_dbplot(n_frames = 1000):
     """
     Demonstrates the various types of plots.
 
@@ -19,7 +19,7 @@ def demo_dbplot():
 
     set_dbplot_figure_size(15, 10)
     with EZProfiler('plot time') as prof:
-        for i in xrange(1000):
+        for i in xrange(n_frames):
             with hold_dbplots():  # Sets it so that all plots update at once (rather than redrawing on each call, which is slower)
                 dbplot(np.random.randn(20, 20), 'Greyscale Image')
                 dbplot(np.random.randn(20, 20, 3), 'Colour Image')
@@ -52,7 +52,6 @@ def demo_debug_dbplot():
         dbplot(np.random.randn(10, 10), 'b')
         print 'bbb'
         pdb.set_trace()
-
 
 
 if __name__ == '__main__':
