@@ -86,27 +86,43 @@ def test_multiple_figures():
         dbplot(np.random.randn(20, 20), 'd', fig='2')
     clear_dbplot()
 
+
 def test_list_of_images():
 
     for _ in xrange(2):
         dbplot([np.random.randn(12, 30), np.random.randn(10, 10), np.random.randn(15, 10)])
     clear_dbplot()
 
-def test_two_plots_in_the_same_axis():
 
+def test_two_plots_in_the_same_axis_version_1():
+
+    # Option 1: Name the 'axis' argument to the second plot after the name of the first
     for i in xrange(5):
         data = np.random.randn(200)
         x = np.linspace(-5, 5, 100)
         with hold_dbplots():
-            dbplot(data, 'hist', plot_type='histogram')
+            dbplot(data, 'histogram', plot_type='histogram')
+            dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='histogram', plot_type='line')
+    clear_dbplot()
+
+
+def test_two_plots_in_the_same_axis_version_2():
+
+    # Option 2: Give both plots the same 'axis' argument
+    for i in xrange(5):
+        data = np.random.randn(200)
+        x = np.linspace(-5, 5, 100)
+        with hold_dbplots():
+            dbplot(data, 'histogram', plot_type='histogram', axis='hist')
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='hist', plot_type='line')
     clear_dbplot()
+
 
 def test_freeze_dbplot():
 
     def random_walk():
         data = 0
-        for i in xrange(100):
+        for i in xrange(10):
             data += np.random.randn()
             dbplot(data, 'walk')#, plot_type=lambda: MovingPointPlot(axes_update_mode='expand'))
 
@@ -116,6 +132,12 @@ def test_freeze_dbplot():
     clear_dbplot()
 
 
+def test_trajectory_plot():
+
+    for i in xrange(5):
+        dbplot((np.cos(i/10.), np.sin(i/11.)), 'path', plot_type='trajectory')
+
+
 def test_demo_dbplot():
 
     demo_dbplot(n_frames=3)
@@ -123,13 +145,15 @@ def test_demo_dbplot():
 
 
 if __name__ == '__main__':
-    # test_demo_dbplot()
+    test_trajectory_plot()
+    test_demo_dbplot()
     test_freeze_dbplot()
-    # test_two_plots_in_the_same_axis()
-    # test_moving_point_multiple_points()
-    # test_list_of_images()
-    # test_multiple_figures()
-    # test_same_object()
-    # test_history_plot_updating()
-    # test_particular_plot()
-    # test_dbplot()
+    test_two_plots_in_the_same_axis_version_1()
+    test_two_plots_in_the_same_axis_version_2()
+    test_moving_point_multiple_points()
+    test_list_of_images()
+    test_multiple_figures()
+    test_same_object()
+    test_history_plot_updating()
+    test_particular_plot()
+    test_dbplot()

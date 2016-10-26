@@ -116,7 +116,7 @@ class MovingImagePlot(ImagePlot):
 class LinePlot(HistoryFreePlot):
 
     def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
-                 x_bound_extend = (0, 0), make_legend = True, axes_update_mode = 'fit', plot_kwargs = {}):
+                 x_bound_extend = (0, 0), make_legend = True, axes_update_mode = 'fit', add_end_markers = False, plot_kwargs = {}):
         assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
         self._plots = None
         self.x_bounds = x_bounds
@@ -126,6 +126,8 @@ class LinePlot(HistoryFreePlot):
         self.make_legend=make_legend
         self.plot_kwargs = plot_kwargs
         self.axes_update_mode = axes_update_mode
+        self.add_end_markers = add_end_markers
+        self._end_markers = []
 
     def _plot_last_data(self, data):
         """
@@ -172,17 +174,26 @@ class LinePlot(HistoryFreePlot):
         if self._plots is None:
             self._plots = []
             plt.gca().autoscale(enable=False)
-            for xd, yd in zip(x_data, y_data):
+            for i, (xd, yd) in enumerate(zip(x_data, y_data)):
                 p, =plt.plot(xd, yd, **self.plot_kwargs)
                 self._plots.append(p)
                 self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
+                if self.add_end_markers:
+                    colour = p.get_color()
+                    self._end_markers.append((plt.plot(xd[[0]], yd[[0]], marker='.', markersize=20, color=colour)[0], plt.plot(xd[0], yd[0], marker='x', markersize=10, mew=4, color=colour)[0]))
+
             if len(y_data)>1:
                 plt.legend([str(i) for i in xrange(len(y_data))], loc='best', prop={'size':6})
         else:
-            for p, xd, yd in zip(self._plots, x_data, y_data):
+            for i, (p, xd, yd) in enumerate(zip(self._plots, x_data, y_data)):
                 p.set_xdata(xd)
                 p.set_ydata(yd)
                 self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
+                if self.add_end_markers:
+                    self._end_markers[i][0].set_xdata(xd[[0]])
+                    self._end_markers[i][0].set_ydata(yd[[0]])
+                    self._end_markers[i][1].set_xdata(xd[[-1]])
+                    self._end_markers[i][1].set_ydata(yd[[-1]])
 
     @staticmethod
     def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
@@ -228,17 +239,11 @@ class MovingPointPlot(LinePlot):
 class Moving2DPointPlot(LinePlot):
 
     def __init__(self, buffer_len=None, **kwargs):
-        LinePlot.__init__(self, **kwargs)
+        LinePlot.__init__(self, add_end_markers=True, **kwargs)
         self._y_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
         self._x_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
-        self._first_update = True
-        self._first_plot = True
-        self._last_data = None
-        self._ends = None
 
     def update(self, (x_data, y_data)):
-
-        self._last_data = x_data, y_data
 
         x_buffer_data = self._x_buffer(x_data)
         y_buffer_data = self._y_buffer(y_data)
@@ -248,15 +253,6 @@ class Moving2DPointPlot(LinePlot):
 
     def plot(self):
         LinePlot.plot(self)
-        if self._first_plot:
-            plt.plot(self._last_data[0], self._last_data[1], marker='.', markersize=20, color='g', linestyle=' ')
-            self._ends = plt.plot(self._last_data[0], self._last_data[1], marker='.', markersize=20, color='r', linestyle=' ')
-            self._first_plot = False
-
-        for i, e in enumerate(self._ends):
-            x_end, y_end = self._last_data
-            e.set_xdata(x_end)
-            e.set_ydata(y_end)
 
 
 class TextPlot(IPlot):

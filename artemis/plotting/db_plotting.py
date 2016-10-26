@@ -114,9 +114,9 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
         if axis in _DBPLOT_FIGURES[fig].axes:
             _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[axis], plot_object=plot)
-            plt.sca(_DBPLOT_FIGURES[fig].subplots[axis].axis)
+            plt.sca(_DBPLOT_FIGURES[fig].axes[axis])
         else:  # Make a new axis
-            _extend_subplots(fig=fig, subplot_name=name, plot_object=plot)  # This guarantees that the new plot will exist
+            _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
             if xlabel is not None:
                 _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
             if ylabel is not None:
@@ -193,7 +193,7 @@ def clear_dbplot(fig = None):
     _DBPLOT_FIGURES[fig].axes.clear()
 
 
-def _extend_subplots(fig, subplot_name, plot_object):
+def _extend_subplots(fig, subplot_name, axis_name, plot_object):
     """
     :param fig: Name for figure to extend subplots on
     :param subplot_name: Name of the new subplot in that figure
@@ -214,7 +214,7 @@ def _extend_subplots(fig, subplot_name, plot_object):
     ax.set_title(subplot_name)
 
     _DBPLOT_FIGURES[fig].subplots[subplot_name] = _Subplot(axis=ax, plot_object=plot_object)
-    _DBPLOT_FIGURES[fig].axes[subplot_name] = ax
+    _DBPLOT_FIGURES[fig].axes[axis_name] = ax
 
 
 def dbplot_hang():
