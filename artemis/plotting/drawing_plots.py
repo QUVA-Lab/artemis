@@ -20,8 +20,8 @@ def redraw_figure(fig = None):
     # There is still potential for more speedup.
 
     # Slow way:  ~6.6 FPS in demo_dbplot (as measured on linux box)
-    # plt.draw()
-    # plt.pause(0.00001)
+    plt.draw()
+    plt.pause(0.00001)
 
     # Faster way:  ~ 10.5 FPS
     # fig.canvas.draw()
@@ -29,10 +29,10 @@ def redraw_figure(fig = None):
 
     #  Superfast way ~22.3 FPS  # But crashes when using camera with opencv!s
     # ~ 11FPS on Mac with TkAgg backend
-    if fig not in _has_drawn:
-        plt.draw()
-        _has_drawn.add(fig)
-    else:
-        fig.canvas.flush_events()
-        plt.show(block=False)
+    # if fig not in _has_drawn:
+    #     plt.draw()
+    #     _has_drawn.add(fig)
+    # else:
+    #     fig.canvas.flush_events()
+    #     plt.show(block=False)
     # plt.show(block=False)

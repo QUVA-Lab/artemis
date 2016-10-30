@@ -1,46 +1,42 @@
 from collections import OrderedDict, namedtuple
-from artemis.plotting.data_conversion import vector_length_to_tile_dims
 from artemis.plotting.drawing_plots import redraw_figure
+from artemis.plotting.expanding_subplots import set_named_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from contextlib import contextmanager
-from matplotlib import gridspec
 from matplotlib import pyplot as plt
 import numpy as np
 __author__ = 'peter'
 
+"""
+Are you tired of setting up subplots, looking through overly complicated matplotlib documentation, and having to restructure
+your code just so you can SEE YOUR DAMN VARIABLES?
 
-_PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots', 'axes'])
+Well now your troubles are over.
 
-_Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
+Presenting: dbplot!
 
-_DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
+dbplot just takes your data, and plots it.  Simple as 1, 2, plot!
 
+No more thinking about what kind plot to use, or how to make updating plots of changing variables.  Just dbplot it!
 
-_DEFAULT_SIZE = None
+    dbplot(data, 'my-data')
 
+dbplot will look at your data, and figure out which type of plot is appropriate.  If you don't like it, you can fully
+customize it, using the plot_type argument.
 
-def set_dbplot_figure_size(width, height):
-    global _DEFAULT_SIZE
-    _DEFAULT_SIZE = (width, height)
+dbplot makes online plotting easy.  You want to plot updates to your variable?  Just dbplot it!
 
+    dbplot(var, 'my-var')
+    dbplot(updated_var, 'my-var')
 
-def get_dbplot_figure(name=None):
-    return _DBPLOT_FIGURES[name].figure
+For just float('inf') easy payments of $0, you can make dbplot yours for use around the office, home, or garden.
 
+Check out demo_dbplot.py for some exciting demos of what dbplot can do.
 
-def get_dbplot_subplot(name, fig_name=None):
-    return _DBPLOT_FIGURES[fig_name].subplots[name].axis
-
-
-def _make_dbplot_figure():
-
-    if _DEFAULT_SIZE is None:
-        fig= plt.figure()
-    else:
-        fig= plt.figure(figsize=_DEFAULT_SIZE)
-    return fig
+Remember:  If you can't see your data, you are a fraud and your research career will fail.  So try dbplot today!
+"""
 
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
@@ -57,6 +53,8 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         'img': An image plot
         'colour': A colour image plot
         'pic': A picture (no scale bars, axis labels, etc).
+    :param axis: A string identifying which axis to plot on.  By default, it is the same as "name".  Only use this
+        argument if you indend to make multiple dbplots share the same axis.
     :param plot_mode: Influences how the data should be used to choose the plot type:
         'live': Best for 'live' plots that you intend to update as new data arrives
         'static': Best for 'static' plots, that you do not intend to update
@@ -116,7 +114,15 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[axis], plot_object=plot)
             plt.sca(_DBPLOT_FIGURES[fig].axes[axis])
         else:  # Make a new axis
-            _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
+            # _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
+            
+            ax = set_named_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout='grid')
+            
+            ax.set_title(axis)
+
+            _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=ax, plot_object=plot)
+            _DBPLOT_FIGURES[fig].axes[axis] = ax
+            
             if xlabel is not None:
                 _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
             if ylabel is not None:
@@ -145,7 +151,37 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             redraw_figure(_DBPLOT_FIGURES[fig].figure)
     return _DBPLOT_FIGURES[fig].subplots[name].axis
 
-_has_drawn = set()  # Todo: record per-figure
+
+_PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots', 'axes'])
+
+_Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
+
+_DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
+
+
+_DEFAULT_SIZE = None
+
+
+def set_dbplot_figure_size(width, height):
+    global _DEFAULT_SIZE
+    _DEFAULT_SIZE = (width, height)
+
+
+def get_dbplot_figure(name=None):
+    return _DBPLOT_FIGURES[name].figure
+
+
+def get_dbplot_subplot(name, fig_name=None):
+    return _DBPLOT_FIGURES[fig_name].subplots[name].axis
+
+
+def _make_dbplot_figure():
+
+    if _DEFAULT_SIZE is None:
+        fig= plt.figure()
+    else:
+        fig= plt.figure(figsize=_DEFAULT_SIZE)
+    return fig
 
 
 _draw_counters = {}
@@ -193,28 +229,28 @@ def clear_dbplot(fig = None):
     _DBPLOT_FIGURES[fig].axes.clear()
 
 
-def _extend_subplots(fig, subplot_name, axis_name, plot_object):
-    """
-    :param fig: Name for figure to extend subplots on
-    :param subplot_name: Name of the new subplot in that figure
-    :param plot_object: The plotting object to display
-    :return:
-    """
-    assert fig in _DBPLOT_FIGURES
-    old_key_names = _DBPLOT_FIGURES[fig].subplots.keys()
-    plt.figure(_DBPLOT_FIGURES[fig].figure.number)
-    n_rows, n_cols = vector_length_to_tile_dims(len(old_key_names)+1)
-    gs = gridspec.GridSpec(n_rows, n_cols)
-    for g, k in zip(gs, old_key_names):  # (gs can be longer but zip will just go to old_key_names)
-        ax = _DBPLOT_FIGURES[fig].subplots[k].axis
-        ax.set_position(g.get_position(_DBPLOT_FIGURES[fig].figure))
-
-    # Add the new plot
-    ax=_DBPLOT_FIGURES[fig].figure.add_subplot(gs[len(old_key_names)])
-    ax.set_title(subplot_name)
-
-    _DBPLOT_FIGURES[fig].subplots[subplot_name] = _Subplot(axis=ax, plot_object=plot_object)
-    _DBPLOT_FIGURES[fig].axes[axis_name] = ax
+# def _extend_subplots(fig, subplot_name, axis_name, plot_object):
+#     """
+#     :param fig: Name for figure to extend subplots on
+#     :param subplot_name: Name of the new subplot in that figure
+#     :param plot_object: The plotting object to display
+#     :return:
+#     """
+#     assert fig in _DBPLOT_FIGURES
+#     old_key_names = _DBPLOT_FIGURES[fig].subplots.keys()
+#     plt.figure(_DBPLOT_FIGURES[fig].figure.number)
+#     n_rows, n_cols = vector_length_to_tile_dims(len(old_key_names)+1)
+#     gs = gridspec.GridSpec(n_rows, n_cols)
+#     for g, k in zip(gs, old_key_names):  # (gs can be longer but zip will just go to old_key_names)
+#         ax = _DBPLOT_FIGURES[fig].subplots[k].axis
+#         ax.set_position(g.get_position(_DBPLOT_FIGURES[fig].figure))
+# 
+#     # Add the new plot
+#     ax=_DBPLOT_FIGURES[fig].figure.add_subplot(gs[len(old_key_names)])
+#     ax.set_title(subplot_name)
+# 
+#     _DBPLOT_FIGURES[fig].subplots[subplot_name] = _Subplot(axis=ax, plot_object=plot_object)
+#     _DBPLOT_FIGURES[fig].axes[axis_name] = ax
 
 
 def dbplot_hang():

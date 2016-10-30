@@ -704,6 +704,7 @@ class Experiment(object):
         return exp_rec
 
     def _create_experiment_variant(self, name, (args, kwargs), is_root):
+        assert name not in self.variants, 'Variant "%s" already exists.' % (name, )
         ex = Experiment(
             name='.'.join((self.name, name)),
             function=partial(self, *args, **kwargs),

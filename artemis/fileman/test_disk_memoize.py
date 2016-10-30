@@ -3,6 +3,7 @@ from artemis.fileman.disk_memoize import memoize_to_disk, clear_memo_files_for_f
     memoize_to_disk_test, memoize_to_disk_and_cache_test
 from artemis.general.test_mode import set_test_mode
 import numpy as np
+from pytest import raises
 
 __author__ = 'peter'
 
@@ -100,8 +101,61 @@ def test_memoize_to_disk_and_cache():
     assert t5 == t3
 
 
+def test_clear_error_for_missing_arg():
+
+    clear_memo_files_for_function(compute_slow_thing)
+
+    with raises(TypeError):
+        compute_slow_thing(1)
+
+
+def test_clear_arror_for_wrong_arg():
+
+    clear_memo_files_for_function(compute_slow_thing)
+
+    with raises(TypeError):
+        compute_slow_thing(a=1, b=2, c=3, d=4)
+
+
+@memoize_to_disk_test
+def compute_slow_thing_with_kwargs(a, **kwargs):
+    call_time = time.time()
+    time.sleep(0.01)
+    return (a+kwargs['b'])/float(kwargs['c']), call_time
+
+
+def test_unnoticed_wrong_arg_bug_is_dead():
+
+    clear_memo_files_for_function(compute_slow_thing)
+    compute_slow_thing(a=1, b=2, c=3)  # Creates a memo
+    with raises(TypeError):
+        compute_slow_thing(a=1, b=2, see=3)  # Previously, this was not caught, leading you not to notice your typo
+
+
+def test_catch_kwarg_error():
+
+    clear_memo_files_for_function(compute_slow_thing_with_kwargs)
+
+    t = time.time()
+    num, t1 = compute_slow_thing_with_kwargs(1, b=2, c=4)
+    assert num == (1+2)/4.
+    assert t1 > t
+
+    num, t2 = compute_slow_thing_with_kwargs(1, b=2, c=6)
+    assert num == (1+2)/6.
+    assert t2>t1
+
+    num, t3 = compute_slow_thing_with_kwargs(1, b=2, c=4)
+    assert num == (1+2)/4.
+    assert t3 == t1
+
+
 if __name__ == '__main__':
     set_test_mode(True)
+    test_unnoticed_wrong_arg_bug_is_dead()
+    test_catch_kwarg_error()
+    test_clear_arror_for_wrong_arg()
+    test_clear_error_for_missing_arg()
     test_memoize_to_disk_and_cache()
     test_memoize_to_disk()
     test_complex_args()

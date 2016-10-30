@@ -182,8 +182,8 @@ class LinePlot(HistoryFreePlot):
                     colour = p.get_color()
                     self._end_markers.append((plt.plot(xd[[0]], yd[[0]], marker='.', markersize=20, color=colour)[0], plt.plot(xd[0], yd[0], marker='x', markersize=10, mew=4, color=colour)[0]))
 
-            if len(y_data)>1:
-                plt.legend([str(i) for i in xrange(len(y_data))], loc='best', prop={'size':6})
+            if self.make_legend and len(y_data)>1:
+                plt.legend(self._plots, [str(i) for i in xrange(len(y_data))], loc='best', prop={'size':6})
         else:
             for i, (p, xd, yd) in enumerate(zip(self._plots, x_data, y_data)):
                 p.set_xdata(xd)

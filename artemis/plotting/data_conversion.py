@@ -198,7 +198,7 @@ def data_to_image(data, is_color_data = None, clims = None, cmap = 'gray', nan_c
         scaled_data = scale_data_to_8_bit(data, in_range=clims).astype(np.uint8)
 
     if nan_colour is not None:
-        scaled_data = np.where(np.any(np.isnan(data if is_color_data else data[..., None]), axis=-1)[..., None], nan_colour, scaled_data)
+        scaled_data = np.where(np.any(np.isnan(data if is_color_data else data[..., None]), axis=-1)[..., None], np.array(nan_colour, dtype=np.uint8), scaled_data)
 
     return scaled_data
 
