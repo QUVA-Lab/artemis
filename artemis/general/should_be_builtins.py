@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import itertools
 
 __author__ = 'peter'
 
@@ -49,3 +50,76 @@ def arg_signature(arg):
         return ('memoizationidentifier_dict ',) + tuple((arg_signature(k), arg_signature(arg[k])) for k in sorted(arg.keys()))
     else:
         return arg
+
+
+def reducemap(func, sequence, initial=None, include_zeroth = False):
+    """
+    A version of reduce that also returns the intermediate values.
+    :param func: A function of the form x_i_plus_1 = f(x_i, params_i)
+        Where:
+            x_i is the value passed through the reduce.
+            params_i is the i'th element of sequence
+            x_i_plus_i is the value that will be passed to the next step
+    :param sequence: A list of parameters to feed at each step of the reduce.
+    :param initial: Optionally, an initial value (else the first element of the sequence will be taken as the initial)
+    :param include_zeroth: Include the initial value in the returned list.
+    :return: A list of length: len(sequence), (or len(sequence)+1 if include_zeroth is True) containing the computed result of each iteration.
+    """
+    if initial is None:
+        val = sequence[0]
+        sequence = sequence[1:]
+    else:
+        val = initial
+    results = [val] if include_zeroth else []
+    for s in sequence:
+        val = func(val, s)
+        results.append(val)
+    return results
+
+
+def itermap(func, initial, n_steps=None, stop_func = None, include_zeroth = False):
+    """
+    Iterively call a function with the output of the previous call.
+    :param func: A function of the form x_i_plus_1 = f(x_i)
+    :param n_steps: The number of times to iterate
+    :param initial: An initial value
+    :param stop_func: Optionally, a function returning a boolean that, if true, causes the iteration to terminate (after the value has been added)
+    :param include_zeroth: Include the initial value in the returned list.
+    :return:  A list of length: n_steps, (or n_steps+1 if include_zeroth is True) containing the computed result of each iteration.
+    """
+    assert (n_steps is not None) or (stop_func is not None), 'You must either specify a number of steps or a stopping function.'
+    val = initial
+    results = [val] if include_zeroth else []
+    for _ in (xrange(n_steps) if n_steps is not None else itertools.count(start=0, step=1)):
+        val = func(val)
+        results.append(val)
+        if stop_func is not None and stop_func(val):
+            break
+    return results
+
+
+def izip_equal(*iterables):
+    """
+    Zip and raise exception if lengths are not equal.
+
+    Taken from solution by Martijn Pieters, here:
+    http://stackoverflow.com/questions/32954486/zip-iterators-asserting-for-equal-length-in-python
+
+    :param iterables:
+    :return:
+    """
+    sentinel = object()
+    for combo in itertools.izip_longest(*iterables, fillvalue=sentinel):
+        if any(sentinel is c for c in combo):
+            raise ValueError('Iterables have different lengths')
+        yield combo
+
+
+def remove_duplicates(sequence):
+    """
+    Remove duplicates while maintaining order.
+    Credit goes to Markus Jarderot from http://stackoverflow.com/a/480227/851699
+    """
+    seen = set()
+    seen_add = seen.add
+    return [x for x in sequence if not (x in seen or seen_add(x))]

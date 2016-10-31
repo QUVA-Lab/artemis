@@ -68,7 +68,16 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
             return fcn(*args, **kwargs)
 
         result_computed = False
-        full_args = tuple(zip(all_arg_names, args) + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]])
+
+        if any(name not in kwargs and name not in default_args for name in all_arg_names[len(args):]):
+            raise TypeError('Function %s required arguments: %s, but did not receive them.' % (fcn, [name for name in all_arg_names[len(args):] if name not in default_args]))
+
+        full_args = tuple(
+            zip(all_arg_names, args)  # Handle unnamed args f(1, 2)
+            + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]]  # Handle named keyworkd args f(a=1, b=2)
+            + [(name, kwargs[name]) for name in kwargs if name not in all_arg_names]  # Need to handle case if f takes **kwargs
+            )
+        assert len(set(name for name, _ in full_args)) == len(full_args), 'Somehow, there was an error and you ended up with repeated arguments.'
 
         filepath = get_function_hash_filename(fcn, full_args)
         # The filepath is used as the unique identifier, for both the local path and the disk-path
