@@ -230,6 +230,13 @@ def clear_dbplot(fig = None):
     _DBPLOT_FIGURES[fig].axes.clear()
 
 
+def get_dbplot_axis(axis_name, fig=None):
+    """
+    Get the named axis of a dbplot.
+    """
+    return _DBPLOT_FIGURES[fig].axes[axis_name]
+
+
 # def _extend_subplots(fig, subplot_name, axis_name, plot_object):
 #     """
 #     :param fig: Name for figure to extend subplots on
