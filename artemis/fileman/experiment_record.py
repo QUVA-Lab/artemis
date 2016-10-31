@@ -776,7 +776,6 @@ class Experiment(object):
         experiments = self.get_all_variants()
         p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
         p.map(run_experiment, [ex.name for ex in experiments])
-        p.join()
 
     def test(self, **kwargs):
         self.run(test_mode=True, **kwargs)
