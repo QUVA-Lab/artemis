@@ -54,3 +54,20 @@ def equalize_image_dims(list_of_images, x_dim = None, y_dim = None):
         y_dim
     new_list_of_images = [resize_while_preserving_aspect_ratio(im, x_dim=x_dim, y_dim=y_dim) for im in list_of_images]
     return new_list_of_images
+
+
+def resize_and_crop(im, width, height):
+    im_aspect = float(im.shape[0])/im.shape[1]
+    new_aspect = float(height)/width
+    if im_aspect > new_aspect:  # Need to chop the top and bottom
+        new_height = int(width*im_aspect)
+        resized_im = imresize(im, (new_height, width))
+        start = (new_height-height)/2
+        output_im = resized_im[start:start+height, :]
+    else:  # Need to chop the left and right.
+        new_width = int(height/im_aspect)
+        resized_im = imresize(im, (height, new_width))
+        start = (new_width-width)/2
+        output_im = resized_im[:, start:start+width]
+    assert output_im.shape[:2] == (height, width)
+    return output_im

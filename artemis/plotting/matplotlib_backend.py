@@ -116,7 +116,8 @@ class MovingImagePlot(ImagePlot):
 class LinePlot(HistoryFreePlot):
 
     def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
-                 x_bound_extend = (0, 0), make_legend = True, axes_update_mode = 'fit', add_end_markers = False, plot_kwargs = {}):
+                 x_bound_extend = (0, 0), make_legend = None, axes_update_mode = 'fit', add_end_markers = False, legend_entries = None,
+                 legend_entry_size = 8, plot_kwargs = {}):
         assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
         self._plots = None
         self.x_bounds = x_bounds
@@ -128,6 +129,8 @@ class LinePlot(HistoryFreePlot):
         self.axes_update_mode = axes_update_mode
         self.add_end_markers = add_end_markers
         self._end_markers = []
+        self.legend_entries = [legend_entries] if isinstance(legend_entries, basestring) else legend_entries
+        self.legend_entry_size = legend_entry_size
 
     def _plot_last_data(self, data):
         """
@@ -174,16 +177,24 @@ class LinePlot(HistoryFreePlot):
         if self._plots is None:
             self._plots = []
             plt.gca().autoscale(enable=False)
-            for i, (xd, yd) in enumerate(zip(x_data, y_data)):
-                p, =plt.plot(xd, yd, **self.plot_kwargs)
+            for i, (xd, yd, legend_entry) in enumerate(zip(x_data, y_data, self.legend_entries if self.legend_entries is not None else [None]*len(x_data))):
+                p, =plt.plot(xd, yd, label = legend_entry, **self.plot_kwargs)
                 self._plots.append(p)
                 self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
                 if self.add_end_markers:
                     colour = p.get_color()
                     self._end_markers.append((plt.plot(xd[[0]], yd[[0]], marker='.', markersize=20, color=colour)[0], plt.plot(xd[0], yd[0], marker='x', markersize=10, mew=4, color=colour)[0]))
 
-            if self.make_legend and len(y_data)>1:
-                plt.legend(self._plots, [str(i) for i in xrange(len(y_data))], loc='best', prop={'size':6})
+            if (self.make_legend is True) or (self.make_legend is None and (self.legend_entries is not None or len(y_data)>1)):
+                plt.legend(loc='best', prop={'size':self.legend_entry_size})
+                # entries = [str(i) for i in xrange(len(y_data))] if self.legend_entries is None else self.legend_entries
+                # assert len(self._plots) == len(self.legend_entries), 'You have %s plots but you specified %s entries for the legend: %s' % (len(self._plots), len(entries), entries)
+                # handles, labels = plt.gca().get_legend_handles_labels()
+                # if len(handles)==0:
+                #     plt.legend(handles + self._plots, labels+entries, loc='best', prop={'size':8})
+                # else:
+                #     plt.gca().set_legend_handles_labels(handles + self._plots, labels+entries)
+
         else:
             for i, (p, xd, yd) in enumerate(zip(self._plots, x_data, y_data)):
                 p.set_xdata(xd)

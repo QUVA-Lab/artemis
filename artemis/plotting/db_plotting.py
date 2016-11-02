@@ -40,7 +40,7 @@ Remember:  If you can't see your data, you are a fraud and your research career 
 
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
-           fig = None, xlabel = None, ylabel = None, draw_every = None, legend=None, plot_constructor=None):
+           fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, plot_constructor=None):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
@@ -82,6 +82,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     if name not in suplot_dict:
 
+
         if plot_constructor is not None:
             print "Warning: The 'plot_constructor' argument to dbplot is deprecated.  Use plot_type instead"
             assert plot_type is None
@@ -116,8 +117,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             plt.sca(_DBPLOT_FIGURES[fig].axes[axis])
         else:  # Make a new axis
             # _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
-            
-            ax = set_named_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout='grid')
+            ax = set_named_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
             
             ax.set_title(axis)
 
@@ -166,6 +166,11 @@ _DEFAULT_SIZE = None
 def set_dbplot_figure_size(width, height):
     global _DEFAULT_SIZE
     _DEFAULT_SIZE = (width, height)
+
+_default_layout = 'grid'
+def set_dbplot_default_layout(layout):
+    global _default_layout
+    _default_layout = layout
 
 
 def get_dbplot_figure(name=None):

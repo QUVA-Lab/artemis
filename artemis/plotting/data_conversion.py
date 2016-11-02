@@ -7,7 +7,7 @@ import numpy as np
 __author__ = 'peter'
 
 
-def vector_length_to_tile_dims(vector_length):
+def vector_length_to_tile_dims(vector_length, ):
     """
     You have vector_length tiles to put in a 2-D grid.  Find the size
     of the grid that best matches the desired aspect ratio.
@@ -15,7 +15,6 @@ def vector_length_to_tile_dims(vector_length):
     TODO: Actually do this with aspect ratio
 
     :param vector_length:
-    :param desired_aspect_ratio:
     :return: n_rows, n_cols
     """
     n_cols = np.ceil(np.sqrt(vector_length))
