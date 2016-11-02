@@ -123,3 +123,17 @@ def remove_duplicates(sequence):
     seen = set()
     seen_add = seen.add
     return [x for x in sequence if not (x in seen or seen_add(x))]
+
+
+def try_key(dictionary, key, default):
+    """
+    Try to get the value at dict[key]
+    :param dictionary: A Python dict
+    :param key: A key
+    :param default: The value to return if the key doesn't exist
+    :return: Either dictionary[key] or default if it doesn't exist.
+    """
+    try:
+        return dictionary[key]
+    except KeyError:
+        return default
