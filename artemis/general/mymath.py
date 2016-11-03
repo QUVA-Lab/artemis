@@ -173,7 +173,7 @@ def cummode(x, weights = None, axis = 1):
     return mode_values
 
 
-def angle_between(a, b, in_degrees = False):
+def angle_between(a, b, axis=None, in_degrees = False):
     """
     Return the angle between two vectors a and b, in radians.  Raise an exception if one is a zero vector
     :param a: A vector
@@ -182,12 +182,24 @@ def angle_between(a, b, in_degrees = False):
 
     Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
+
     a = np.array(a) if not isinstance(a, np.ndarray) else a
     b = np.array(b) if not isinstance(b, np.ndarray) else b
-    assert a.ndim == 1 and a.shape==b.shape
-    arccos_input = np.dot(a, b)/np.linalg.norm(a)/np.linalg.norm(b)
-    arccos_input = 1.0 if arccos_input > 1.0 else arccos_input
-    arccos_input = -1.0 if arccos_input < -1.0 else arccos_input
+    if axis is None:
+        a = a.ravel()
+        b = b.ravel()
+        axis = 0
+    assert a.shape[-1]==b.shape[-1]
+
+    arccos_input = (a*b).sum(axis=axis)/np.sqrt((a**2).sum(axis=axis) * (b**2).sum(axis=axis))
+
+    # For numerical resons, we might get values outside [-1, 1] here, so we truncate:
+    arccos_input = np.minimum(arccos_input, 1)
+    arccos_input = np.maximum(arccos_input, -1)
+
+    # arccos_input = np.dot(a, b)/np.linalg.norm(a)/np.linalg.norm(b)
+    # arccos_input = 1.0 if arccos_input > 1.0 else arccos_input
+    # arccos_input = -1.0 if arccos_input < -1.0 else arccos_input
     angle = np.arccos(arccos_input)
     if in_degrees:
         angle = angle * 180/np.pi

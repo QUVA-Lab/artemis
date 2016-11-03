@@ -1,6 +1,5 @@
-from artemis.general.ezprofile import EZProfiler
 from artemis.general.mymath import softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel, \
-    align_curves, is_pareto_efficient, is_pareto_efficient_dumb, is_pareto_efficient_less_dumb
+    align_curves, angle_between
 import numpy as np
 __author__ = 'peter'
 
@@ -166,15 +165,24 @@ def test_align_curves():
     assert new_ys.shape == (n_curves, 25)
 
 
+def test_angle_between():
+
+    a = np.array([[0, 1], [1, 1], [1, 0]])
+    b = np.array([[1, 0], [1, 0], [1, 0]])
+    angles = angle_between(a, b, in_degrees=True, axis=-1)
+    assert np.allclose(angles, [90, 45, 0])
+    assert np.allclose(angle_between([2, 1], [1, 0], in_degrees=True), np.arctan(1/2.)*180/np.pi)
+
 
 if __name__ == '__main__':
-    # test_align_curves()
-    # test_is_parallel()
-    # test_normalize()
-    # test_cummode_weighted()
-    # test_cummode()
-    # test_mode()
-    # test_exp_sig_of_norm()
-    # test_cumvar()
-    # test_cummean()
-    # test_softmax()
+    test_angle_between()
+    test_align_curves()
+    test_is_parallel()
+    test_normalize()
+    test_cummode_weighted()
+    test_cummode()
+    test_mode()
+    test_exp_sig_of_norm()
+    test_cumvar()
+    test_cummean()
+    test_softmax()

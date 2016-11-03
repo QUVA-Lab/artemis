@@ -35,4 +35,5 @@ def redraw_figure(fig = None):
     # else:
     #     fig.canvas.flush_events()
     #     plt.show(block=False)
+    # fig.canvas.flush_events()
     # plt.show(block=False)
