@@ -81,8 +81,6 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         axis=name
 
     if name not in suplot_dict:
-
-
         if plot_constructor is not None:
             print "Warning: The 'plot_constructor' argument to dbplot is deprecated.  Use plot_type instead"
             assert plot_type is None
@@ -91,6 +89,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         if isinstance(plot_type, str):
             plot = {
                 'line': LinePlot,
+                'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
                 'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
                 # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
                 'img': ImagePlot,
@@ -138,7 +137,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     if title is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
     if legend is not None:
-        _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend)
+        _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend, framealpha=0.5)
 
     if draw_now and not _hold_plots:
         if draw_every is not None:

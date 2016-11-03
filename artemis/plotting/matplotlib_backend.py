@@ -177,8 +177,13 @@ class LinePlot(HistoryFreePlot):
         if self._plots is None:
             self._plots = []
             plt.gca().autoscale(enable=False)
+            if isinstance(self.plot_kwargs, dict):
+                plot_kwargs = [self.plot_kwargs]*len(x_data)
+            elif isinstance(self.plot_kwargs, (list, tuple)):
+                assert len(self.plot_kwargs)==len(x_data), "You provided a list of {0} plot kwargs, but {1} lines".format(len(self.plot_kwargs), len(x_data))
+                plot_kwargs = self.plot_kwargs
             for i, (xd, yd, legend_entry) in enumerate(zip(x_data, y_data, self.legend_entries if self.legend_entries is not None else [None]*len(x_data))):
-                p, =plt.plot(xd, yd, label = legend_entry, **self.plot_kwargs)
+                p, =plt.plot(xd, yd, label = legend_entry, **plot_kwargs[i])
                 self._plots.append(p)
                 self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
                 if self.add_end_markers:
@@ -186,7 +191,7 @@ class LinePlot(HistoryFreePlot):
                     self._end_markers.append((plt.plot(xd[[0]], yd[[0]], marker='.', markersize=20, color=colour)[0], plt.plot(xd[0], yd[0], marker='x', markersize=10, mew=4, color=colour)[0]))
 
             if (self.make_legend is True) or (self.make_legend is None and (self.legend_entries is not None or len(y_data)>1)):
-                plt.legend(loc='best', prop={'size':self.legend_entry_size})
+                plt.legend(loc='best', framealpha=0.5, prop={'size':self.legend_entry_size})
                 # entries = [str(i) for i in xrange(len(y_data))] if self.legend_entries is None else self.legend_entries
                 # assert len(self._plots) == len(self.legend_entries), 'You have %s plots but you specified %s entries for the legend: %s' % (len(self._plots), len(entries), entries)
                 # handles, labels = plt.gca().get_legend_handles_labels()

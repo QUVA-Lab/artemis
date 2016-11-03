@@ -502,6 +502,11 @@ class OnlineGifWriter(object):
 
     def write(self, im):
 
+        if im.__class__.__name__ == 'Figure':  # Hack
+            fig=im
+            data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+            im = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+
         im = self.check_im(im)
 
         if isinstance(im, np.ndarray):
