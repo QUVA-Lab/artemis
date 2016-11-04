@@ -28,7 +28,7 @@ def add_subplot(fig = None, layout = 'grid'):
 _subplots = {}
 
 
-def set_named_subplot(name, fig=None, layout='grid'):
+def select_subplot(name, fig=None, layout='grid'):
     """
     Set the current axes.  If "name" has been defined, just return that axes, otherwise make a new one.
 

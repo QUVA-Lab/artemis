@@ -1,6 +1,6 @@
 from collections import OrderedDict, namedtuple
 from artemis.plotting.drawing_plots import redraw_figure
-from artemis.plotting.expanding_subplots import set_named_subplot
+from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
@@ -116,7 +116,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             plt.sca(_DBPLOT_FIGURES[fig].axes[axis])
         else:  # Make a new axis
             # _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
-            ax = set_named_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
+            ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
             
             ax.set_title(axis)
 
