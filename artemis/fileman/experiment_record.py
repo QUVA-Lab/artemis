@@ -330,7 +330,7 @@ class ExperimentRecord(object):
         else:
             return None
 
-    def set_result(self, result):
+    def save_result(self, result):
         file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
         make_file_dir(file_path)
         with open(file_path, 'w') as f:
@@ -696,7 +696,7 @@ class Experiment(object):
         ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
         with record_experiment(name = self.name, info=self.info, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
             results = self()
-            exp_rec.set_result(results)
+        exp_rec.save_result(results)
         if self.display_function is not None:
             self.display_function(results)
         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
@@ -774,7 +774,6 @@ class Experiment(object):
             else:
                 self.run()
 
-
     def get_all_variants(self, include_roots = False):
         variants = []
         if not self.is_root or include_roots:
@@ -801,7 +800,6 @@ class Experiment(object):
 
     def test_all(self, **kwargs):
         self.run_all(test_mode=True, **kwargs)
-
 
 
 # ALTERNATE INTERFACES.

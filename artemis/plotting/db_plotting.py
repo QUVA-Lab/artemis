@@ -158,15 +158,27 @@ _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 
 _DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
 
-
 _DEFAULT_SIZE = None
+
+_draw_counters = {}
+
+_hold_plots = False
+
+_hold_plot_counter = 0
+
+_default_layout = 'grid'
+
+def reset_dbplot():
+    for fig_name, plot_window in _DBPLOT_FIGURES.items():
+        plt.close(plot_window.figure)
+        del _DBPLOT_FIGURES[fig_name]
 
 
 def set_dbplot_figure_size(width, height):
     global _DEFAULT_SIZE
     _DEFAULT_SIZE = (width, height)
 
-_default_layout = 'grid'
+
 def set_dbplot_default_layout(layout):
     global _default_layout
     _default_layout = layout
@@ -188,12 +200,6 @@ def _make_dbplot_figure():
         fig= plt.figure(figsize=_DEFAULT_SIZE)
     return fig
 
-
-_draw_counters = {}
-
-_hold_plots = False
-
-_hold_plot_counter = 0
 
 
 def freeze_dbplot(name, fig = None):
@@ -232,6 +238,7 @@ def clear_dbplot(fig = None):
     plt.clf()
     _DBPLOT_FIGURES[fig].subplots.clear()
     _DBPLOT_FIGURES[fig].axes.clear()
+
 
 
 def get_dbplot_axis(axis_name, fig=None):

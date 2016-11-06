@@ -1,19 +1,20 @@
-from sklearn.svm import SVC
-import numpy as np
 
-from utils.benchmarks.predictor_comparison import compare_predictors, assess_online_predictor
-from artemis.ml.predictors import plot_learning_curves
+import numpy as np
+import pytest
+from artemis.ml.predictors.plot_learning_curves import plot_learning_curves
 from artemis.ml.datasets.synthetic_clusters import get_synthetic_clusters_dataset
 from artemis.ml.predictors.i_predictor import IPredictor
-from utils.predictors.perceptron import Perceptron
 from artemis.general.mymath import sqrtspace
+from artemis.ml.predictors.perceptron import Perceptron
+from artemis.ml.predictors.predictor_comparison import compare_predictors, assess_online_predictor
 
 
 __author__ = 'peter'
 
 
+@pytest.mark.skip(True, reason = 'Test uses sklearn, which should not be a requirement for artemis.  It does work though.')
 def test_compare_predictors(hang_plot = False):
-
+    from sklearn.svm import SVC
     dataset = get_synthetic_clusters_dataset()
 
     w_constructor = lambda rng = np.random.RandomState(45): .1*rng.randn(dataset.input_shape[0], dataset.n_categories)

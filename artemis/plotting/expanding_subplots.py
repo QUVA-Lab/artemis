@@ -37,7 +37,11 @@ def select_subplot(name, fig=None, layout='grid'):
     :param layout: 'h' for horizontal layout, 'v' for vertical layout, 'g' for approximately-square grid
     :return: An axes object
     """
-    if name in _subplots and plt.fignum_exists(_subplots[name].get_figure().number):
+
+    if fig is None:
+        fig = plt.gcf()
+
+    if name in _subplots and fig is _subplots[name].get_figure():
         # (subplot has been created) and (figure containing it has not been closed)
         plt.subplot(_subplots[name])
     else:
