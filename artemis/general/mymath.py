@@ -270,3 +270,10 @@ def align_curves(xs, ys, n_bins='median', xrange = ('min', 'max'), spacing = 'li
             ny[:] = np.interp(x=new_x, xp=x, fp=y, left=np.nan, right=np.nan)
 
     return new_x, new_ys
+
+
+def sqrtspace(a, b, n_points):
+    """
+    :return: Distribute n_points quadratically from point a to point b, inclusive
+    """
+    return np.linspace(0, 1, n_points)**2*(b-a)+a
