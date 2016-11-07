@@ -1,10 +1,12 @@
 import numpy as np
 
 from artemis.ml.datasets.datasets import DataSet, DataCollection
-from utils.tools.mymath import sigm
 
 
 __author__ = 'peter'
+
+
+sigm = lambda x: 1./(1+np.exp(-x))
 
 
 def get_logistic_regression_dataset(**kwargs):

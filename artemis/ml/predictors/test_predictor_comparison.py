@@ -1,7 +1,7 @@
 
 import numpy as np
 import pytest
-from artemis.ml.predictors.plot_learning_curves import plot_learning_curves
+from artemis.ml.predictors.learning_curve_plots import plot_learning_curves
 from artemis.ml.datasets.synthetic_clusters import get_synthetic_clusters_dataset
 from artemis.ml.predictors.i_predictor import IPredictor
 from artemis.general.mymath import sqrtspace

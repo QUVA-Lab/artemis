@@ -1,8 +1,8 @@
 import numpy as np
 
-from utils.benchmarks.predictor_comparison import assess_online_predictor
+from artemis.ml.predictors.predictor_comparison import assess_online_predictor
 from artemis.ml.predictors.train_and_test import percent_argmax_correct
-from utils.bureaucracy import multichannel
+from plato.tools.common.bureaucracy import multichannel
 from artemis.ml.datasets.synthetic_clusters import get_synthetic_clusters_dataset
 from artemis.ml.tools.processors import OneHotEncoding
 
