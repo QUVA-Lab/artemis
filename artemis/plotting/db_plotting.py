@@ -137,7 +137,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     if title is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
     if legend is not None:
-        _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend, framealpha=0.5)
+        _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend, loc='best', framealpha=0.5)
 
     if draw_now and not _hold_plots:
         if draw_every is not None:

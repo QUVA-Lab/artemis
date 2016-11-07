@@ -582,8 +582,6 @@ def _register_experiment(experiment):
     GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
-
-
 def clear_experiments():
     # Credit: http://stackoverflow.com/questions/185936/delete-folder-contents-in-python
     folder = get_local_path('experiments')
