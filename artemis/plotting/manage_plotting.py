@@ -117,7 +117,7 @@ class ShowContext(object):
 
 class DrawContext(object):
     # TODO: Integrate this with redraw_figure(fig)
-    # It mainly just useful for saving updating plots in experiments.
+    # It mainly just useful for saving updating plots in mlp.
 
     def __init__(self, callback, clear_others = False):
         self.callback = callback

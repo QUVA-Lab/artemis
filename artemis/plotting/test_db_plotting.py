@@ -1,12 +1,14 @@
 import numpy as np
 from artemis.plotting.demo_dbplot import demo_dbplot
-from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots
+from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot
 from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPointPlot
 import pytest
 __author__ = 'peter'
 
 
 def test_dbplot(n_steps = 3):
+
+    reset_dbplot()
 
     arr = np.random.rand(10, 10)
     for i in xrange(n_steps):
@@ -16,11 +18,11 @@ def test_dbplot(n_steps = 3):
         for j in xrange(3):
             barr = np.random.randn(10, 2)
             dbplot(barr, 'barr', plot_type=lambda: LinePlot())
-    clear_dbplot()
 
 
 @pytest.mark.skipif('True', reason = 'Need to make matplotlib backend work with scales.')
 def test_dbplot_logscale(n_steps = 3):
+    reset_dbplot()
 
     arr = np.random.rand(10, 10)
 
@@ -32,15 +34,14 @@ def test_dbplot_logscale(n_steps = 3):
             barr = np.random.randn(10, 2)
             kw = {"y_axis_type":"log"}
             dbplot(barr, 'barr', plot_type=lambda: LinePlot(y_axis_type='log'))
-    clear_dbplot()
 
 
 def test_particular_plot(n_steps = 3):
+    reset_dbplot()
 
     for i in xrange(n_steps):
         r = np.random.randn(1)
         dbplot(r, plot_type=lambda: HistogramPlot(edges=np.linspace(-5, 5, 20)))
-    clear_dbplot()
 
 
 def test_history_plot_updating():
@@ -50,20 +51,18 @@ def test_history_plot_updating():
     all get updated with the most recent data.  You'll see this in plot 'c' - with the bug, it moves in steps, with 3
     of the same sample in a row.  If it works it should be spikey.
     """
+    reset_dbplot()
     for i in xrange(10):
         dbplot(np.random.randn(20, 20), 'a')
         dbplot(np.random.randn(20, 20), 'b')
         dbplot(np.random.randn(), 'c', plot_type=lambda: MovingPointPlot())
-    clear_dbplot()
 
 
 def test_moving_point_multiple_points():
-
+    reset_dbplot()
     for i in xrange(5):
         dbplot(np.sin([i/10., i/15.]), 'unlim buffer', plot_type = MovingPointPlot)
         dbplot(np.sin([i/10., i/15.]), 'lim buffer', plot_type = lambda: MovingPointPlot(buffer_len=20))
-    clear_dbplot()
-
 
 def test_same_object():
     """
@@ -71,31 +70,30 @@ def test_same_object():
     sure it's gotten rid of.  If it's gone, both matrices should plot.  Otherwise you'll get "Already seen object" showing
     up on one of the plots.
     """
+    reset_dbplot()
     a = np.random.randn(20, 20)
     for _ in xrange(5):
         dbplot(a, 'a')
         dbplot(a, 'b')
-    clear_dbplot()
+
 
 def test_multiple_figures():
-
+    reset_dbplot()
     for _ in xrange(2):
         dbplot(np.random.randn(20, 20), 'a', fig='1')
         dbplot(np.random.randn(20, 20), 'b', fig='1')
         dbplot(np.random.randn(20, 20), 'c', fig='2')
         dbplot(np.random.randn(20, 20), 'd', fig='2')
-    clear_dbplot()
 
 
 def test_list_of_images():
-
+    reset_dbplot()
     for _ in xrange(2):
         dbplot([np.random.randn(12, 30), np.random.randn(10, 10), np.random.randn(15, 10)])
-    clear_dbplot()
 
 
 def test_two_plots_in_the_same_axis_version_1():
-
+    reset_dbplot()
     # Option 1: Name the 'axis' argument to the second plot after the name of the first
     for i in xrange(5):
         data = np.random.randn(200)
@@ -103,11 +101,10 @@ def test_two_plots_in_the_same_axis_version_1():
         with hold_dbplots():
             dbplot(data, 'histogram', plot_type='histogram')
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='histogram', plot_type='line')
-    clear_dbplot()
 
 
 def test_two_plots_in_the_same_axis_version_2():
-
+    reset_dbplot()
     # Option 2: Give both plots the same 'axis' argument
     for i in xrange(5):
         data = np.random.randn(200)
@@ -115,11 +112,10 @@ def test_two_plots_in_the_same_axis_version_2():
         with hold_dbplots():
             dbplot(data, 'histogram', plot_type='histogram', axis='hist')
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='hist', plot_type='line')
-    clear_dbplot()
 
 
 def test_freeze_dbplot():
-
+    reset_dbplot()
     def random_walk():
         data = 0
         for i in xrange(10):
@@ -129,7 +125,6 @@ def test_freeze_dbplot():
     random_walk()
     freeze_all_dbplots()
     random_walk()
-    clear_dbplot()
 
 
 def test_trajectory_plot():

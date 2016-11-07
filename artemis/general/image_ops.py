@@ -1,5 +1,5 @@
 from scipy.misc.pilutil import imresize
-
+import numpy as np
 __author__ = 'peter'
 
 
@@ -71,3 +71,37 @@ def resize_and_crop(im, width, height):
         output_im = resized_im[:, start:start+width]
     assert output_im.shape[:2] == (height, width)
     return output_im
+
+
+def resize_image(im, width=None, height=None, mode='squeeze'):
+    assert isinstance(im, np.ndarray) and im.ndim in (2, 3)
+    if mode == 'squeeze':
+        im = imresize(im, size=(height, width))
+    elif mode == 'preserve_aspect':
+        im = resize_while_preserving_aspect_ratio(im, x_dim=width, y_dim=height)
+    elif mode == 'crop':
+        current_height, current_width = im.shape[:2]
+        assert height>=height and width>=width, "Crop size must be smaller than image size"
+        row_start = (current_height-height)/2
+        col_start = (current_width-width)/2
+        im = im[..., row_start:row_start+224, col_start:col_start+224, :]
+    elif mode == 'scale_crop':
+        assert height is not None and width is not None, "You need to specify both height and width. for 'scale_crop' mode"
+        return resize_and_crop(im, width=width, height=height)
+    else:
+        raise Exception("Unknown resize mode: '{}'".format(mode))
+    return im
+
+
+def get_dark_edge_slice(im, cut_edges_thresh=0):
+    vnonzero = np.flatnonzero(im.mean(axis=2).mean(axis=1)>cut_edges_thresh)
+    hnonzero = np.flatnonzero(im.mean(axis=2).mean(axis=0)>cut_edges_thresh)
+    edge_crops = slice(vnonzero[0], vnonzero[-1]+1), slice(hnonzero[0], hnonzero[-1]+1)
+    return edge_crops
+
+
+def cut_dark_edges(im, slices = None, cut_edges_thresh=0):
+    if slices is None:
+        slices = get_dark_edge_slice(im, cut_edges_thresh=cut_edges_thresh)
+    y_slice, x_slice = slices
+    return im[y_slice, x_slice]

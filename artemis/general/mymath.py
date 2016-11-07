@@ -190,16 +190,10 @@ def angle_between(a, b, axis=None, in_degrees = False):
         b = b.ravel()
         axis = 0
     assert a.shape[-1]==b.shape[-1]
-
     arccos_input = (a*b).sum(axis=axis)/np.sqrt((a**2).sum(axis=axis) * (b**2).sum(axis=axis))
-
     # For numerical resons, we might get values outside [-1, 1] here, so we truncate:
     arccos_input = np.minimum(arccos_input, 1)
     arccos_input = np.maximum(arccos_input, -1)
-
-    # arccos_input = np.dot(a, b)/np.linalg.norm(a)/np.linalg.norm(b)
-    # arccos_input = 1.0 if arccos_input > 1.0 else arccos_input
-    # arccos_input = -1.0 if arccos_input < -1.0 else arccos_input
     angle = np.arccos(arccos_input)
     if in_degrees:
         angle = angle * 180/np.pi
@@ -270,3 +264,10 @@ def align_curves(xs, ys, n_bins='median', xrange = ('min', 'max'), spacing = 'li
             ny[:] = np.interp(x=new_x, xp=x, fp=y, left=np.nan, right=np.nan)
 
     return new_x, new_ys
+
+
+def sqrtspace(a, b, n_points):
+    """
+    :return: Distribute n_points quadratically from point a to point b, inclusive
+    """
+    return np.linspace(0, 1, n_points)**2*(b-a)+a

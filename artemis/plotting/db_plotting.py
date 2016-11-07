@@ -1,6 +1,6 @@
 from collections import OrderedDict, namedtuple
 from artemis.plotting.drawing_plots import redraw_figure
-from artemis.plotting.expanding_subplots import set_named_subplot
+from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
@@ -116,7 +116,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             plt.sca(_DBPLOT_FIGURES[fig].axes[axis])
         else:  # Make a new axis
             # _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
-            ax = set_named_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
+            ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
             
             ax.set_title(axis)
 
@@ -158,15 +158,27 @@ _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 
 _DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
 
-
 _DEFAULT_SIZE = None
+
+_draw_counters = {}
+
+_hold_plots = False
+
+_hold_plot_counter = 0
+
+_default_layout = 'grid'
+
+def reset_dbplot():
+    for fig_name, plot_window in _DBPLOT_FIGURES.items():
+        plt.close(plot_window.figure)
+        del _DBPLOT_FIGURES[fig_name]
 
 
 def set_dbplot_figure_size(width, height):
     global _DEFAULT_SIZE
     _DEFAULT_SIZE = (width, height)
 
-_default_layout = 'grid'
+
 def set_dbplot_default_layout(layout):
     global _default_layout
     _default_layout = layout
@@ -188,12 +200,6 @@ def _make_dbplot_figure():
         fig= plt.figure(figsize=_DEFAULT_SIZE)
     return fig
 
-
-_draw_counters = {}
-
-_hold_plots = False
-
-_hold_plot_counter = 0
 
 
 def freeze_dbplot(name, fig = None):
@@ -232,6 +238,7 @@ def clear_dbplot(fig = None):
     plt.clf()
     _DBPLOT_FIGURES[fig].subplots.clear()
     _DBPLOT_FIGURES[fig].axes.clear()
+
 
 
 def get_dbplot_axis(axis_name, fig=None):

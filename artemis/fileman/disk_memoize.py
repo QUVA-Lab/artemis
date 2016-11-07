@@ -95,8 +95,11 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
                     try:
                         LOGGER.info('Reading memo for function %s' % (fcn.__name__, ))
                         result = pickle.load(f)
-                    except ValueError as err:
-                        LOGGER.warn('Memo-file "%s" was corrupt.  (%s: %s).  Recomputing.' % (filepath, err.__class__.__name__, err.message))
+                    except (ValueError, ImportError) as err:
+                        if isinstance(err, ValueError):
+                            LOGGER.warn('Memo-file "%s" was corrupt.  (%s: %s).  Recomputing.' % (filepath, err.__class__.__name__, str(err)))
+                        elif isinstance(err, ImportError):
+                            LOGGER.warn('Memo-file "{}" was tried to reference an old class and got ImportError: {}.  Recomputing.'.format(filepath, str(err)))
                         result_computed = True
                         result = fcn(*args, **kwargs)
             else:

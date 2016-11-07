@@ -47,4 +47,3 @@ def profile_pareto_efficient():
 
 if __name__ == '__main__':
     test_is_pareto_efficient()
-    # profile_pareto_efficient()
