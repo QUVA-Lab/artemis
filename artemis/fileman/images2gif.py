@@ -770,7 +770,7 @@ class NeuQuant:
     Ported to python by Marius van Voorden in 2010
 
     NEUQUANT Neural-Net quantization algorithm by Anthony Dekker, 1994.
-    See "Kohonen neural convnets for optimal colour quantization"
+    See "Kohonen neural networks for optimal colour quantization"
     in "network: Computation in Neural Systems" Vol. 5 (1994) pp 351-367.
     for a discussion of the algorithm.
     See also  http://members.ozemail.com.au/~dekker/NEUQUANT.HTML

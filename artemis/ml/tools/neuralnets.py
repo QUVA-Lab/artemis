@@ -7,7 +7,7 @@ __author__ = 'peter'
 
 
 """
-Some helper functions for working with neural convnets.
+Some helper functions for working with neural networks.
 
 For a more complete library including trainable neural nets, convnets, etc, see Plato.
 https://github.com/petered/plato
