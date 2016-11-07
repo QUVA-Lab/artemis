@@ -1,7 +1,7 @@
 import pickle
 from artemis.fileman.file_getter import get_temp_file, get_file_and_cache
 from artemis.fileman.images2gif import readGif
-from decorator import contextmanager
+from contextlib import contextmanager
 import os
 from artemis.fileman.local_dir import get_local_path
 import numpy as np
