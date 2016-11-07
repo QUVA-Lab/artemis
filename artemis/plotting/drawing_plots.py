@@ -1,39 +1,23 @@
-__author__ = 'peter'
+from artemis.fileman.config_files import get_config_value
 from matplotlib import pyplot as plt
+__author__ = 'peter'
 
+_plotting_mode = get_config_value('.artemisrc', section='plotting', option='mode', default_generator=lambda: 'safe', write_default=True)
 
-_has_drawn = set()
+if _plotting_mode == 'safe':
 
+    def redraw_figure(fig=None):
+        plt.draw()
+        plt.pause(0.00001)
 
-def redraw_figure(fig = None):
-    """
-    Redraw a matplotlib figure.
-    :param fig: A matplotlib figure.
-    """
+elif _plotting_mode == 'fast':
 
-    if fig is None:
-        fig = plt.gcf()
+    def redraw_figure(fig=None):
+        if fig is None:
+            fig = plt.gcf()
+        fig.canvas.flush_events()
+        plt.show(block=False)
+        plt.show(block=False)
 
-    # Matplotlib is not made for speed by default, but it seems that minor hacks
-    # can speed up the rendering a LOT:
-    # See https://www.google.nl/search?q=speeding+up+matplotlib&gws_rd=cr&ei=DsD0V9-eGs6ba_jAtaAF
-    # There is still potential for more speedup.
-
-    # Slow way:  ~6.6 FPS in demo_dbplot (as measured on linux box)
-    plt.draw()
-    plt.pause(0.00001)
-
-    # Faster way:  ~ 10.5 FPS
-    # fig.canvas.draw()
-    # plt.show(block=False)
-
-    #  Superfast way ~22.3 FPS  # But crashes when using camera with opencv!s
-    # ~ 11FPS on Mac with TkAgg backend
-    # if fig not in _has_drawn:
-    #     plt.draw()
-    #     _has_drawn.add(fig)
-    # else:
-    #     fig.canvas.flush_events()
-    #     plt.show(block=False)
-    # fig.canvas.flush_events()
-    # plt.show(block=False)
+else:
+    raise Exception("Unknown plotting mode: {}".format(_plotting_mode))
