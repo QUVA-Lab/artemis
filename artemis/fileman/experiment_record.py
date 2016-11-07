@@ -330,7 +330,7 @@ class ExperimentRecord(object):
         else:
             return None
 
-    def set_result(self, result):
+    def save_result(self, result):
         file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
         make_file_dir(file_path)
         with open(file_path, 'w') as f:
@@ -696,14 +696,15 @@ class Experiment(object):
         ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
         with record_experiment(name = self.name, info=self.info, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
             results = self()
-            if self.display_function is not None:
-                self.display_function(results)
-        exp_rec.set_result(results)
+        exp_rec.save_result(results)
+        if self.display_function is not None:
+            self.display_function(results)
         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
         set_test_mode(old_test_mode)
         return exp_rec
 
     def _create_experiment_variant(self, name, (args, kwargs), is_root):
+        assert name not in self.variants, 'Variant "%s" already exists.' % (name, )
         ex = Experiment(
             name='.'.join((self.name, name)),
             function=partial(self, *args, **kwargs),
@@ -756,6 +757,23 @@ class Experiment(object):
         assert result is not None, "No result was computed for the last run of '%s'" % (self.name, )
         self.display_function(result)
 
+    def display_or_run(self):
+        """
+        Display the last results, or, if the experiment has not been run yet, run it and then display the results.
+        A word of caution: This function does NOT check that the parameters of the last experiment are the same as the
+        current parameters.
+
+        :return:
+        """
+        if get_latest_experiment_identifier(self.name) is None:
+            self.run()
+        else:
+            result = get_lastest_result(self.name)
+            if result is not None and self.display_function is not None:
+                self.display_last()
+            else:
+                self.run()
+
     def get_all_variants(self, include_roots = False):
         variants = []
         if not self.is_root or include_roots:
@@ -776,14 +794,12 @@ class Experiment(object):
         experiments = self.get_all_variants()
         p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
         p.map(run_experiment, [ex.name for ex in experiments])
-        p.join()
 
     def test(self, **kwargs):
         self.run(test_mode=True, **kwargs)
 
     def test_all(self, **kwargs):
         self.run_all(test_mode=True, **kwargs)
-
 
 
 # ALTERNATE INTERFACES.

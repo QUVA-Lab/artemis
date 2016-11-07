@@ -7,6 +7,7 @@ from artemis.fileman.local_dir import get_local_path
 import numpy as np
 import re
 from datetime import datetime
+from artemis.general.image_ops import get_dark_edge_slice, resize_image
 
 
 def smart_save(obj, relative_path, remove_file_after = False):
@@ -71,6 +72,8 @@ def smart_load(location, use_cache = False):
                 obj = np.array(readGif(local_path))
         elif ext in ('.jpg', '.jpeg', '.png'):
             obj = _load_image(local_path)
+        elif ext in ('.mpg', '.mp4', '.mpeg'):
+            obj = _load_video(local_path)
         else:
             raise Exception("No method exists yet to load '%s' files.  Add it!" % (ext, ))
     return obj
@@ -161,3 +164,51 @@ def is_url(path):
         r'(?::\d+)?' # optional port
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
     return True if re.match(regex, path) else False
+
+
+def smart_load_video(location, use_cache = False, resize_mode='resize_and_crop', cut_edges=False, size = None, cut_edges_thresh=0):
+    """
+    :param location:
+    :param size: A 2-tuple of width-height, indicating the desired size of the ouput
+    :param resize_mode: The mode with which to get the video to the desired size.  Can be:
+        'squeeze', 'preserve_aspect', 'crop', 'scale_crop'.  See resize_image in image_ops.py for more info.
+    :param cut_edges: True if you want to cut the dark edges from the video
+    :param cut_edges_thresh: If cut_edges, this is the threshold at which you'd like to cut them.
+    :return: A (n_frames, height, width, 3) numpy array
+    """
+
+    with smart_file(location, use_cache=use_cache) as local_path:
+        return _load_video(local_path, resize_mode=resize_mode, cut_edges=cut_edges, size=size, cut_edges_thresh=cut_edges_thresh)
+
+
+def _load_video(full_path, size = None, resize_mode = 'resize_and_crop', cut_edges=False, cut_edges_thresh=0):
+    """
+    Lead a video into a numpy array
+
+    :param full_path: Full path to the video
+    :param size: A 2-tuple of width-height, indicating the desired size of the ouput
+    :param resize_mode: The mode with which to get the video to the desired size.  Can be:
+        'squeeze', 'preserve_aspect', 'crop', 'scale_crop'.  See resize_image in image_ops.py for more info.
+    :param cut_edges: True if you want to cut the dark edges from the video
+    :param cut_edges_thresh: If cut_edges, this is the threshold at which you'd like to cut them.
+    :return: A (n_frames, height, width, 3) numpy array
+    """
+    try:
+        from moviepy.video.io.VideoFileClip import VideoFileClip
+    except ImportError:
+        raise ImportError("You need to install moviepy to read videos.  In the virtualenv, go `pip install moviepy`")
+    assert os.path.exists(full_path)
+    video = VideoFileClip(full_path)
+    images = []
+    edge_crops = None
+    for frame in video.iter_frames():
+        if cut_edges:
+            if edge_crops is None:
+                edge_crops = get_dark_edge_slice(frame, cut_edges_thresh=cut_edges_thresh)
+            else:
+                frame = frame[edge_crops[0], edge_crops[1]]
+        if size is not None:
+            width, height = size
+            frame = resize_image(frame, width=width, height=height, mode=resize_mode)
+        images.append(frame)
+    return images

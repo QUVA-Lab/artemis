@@ -7,7 +7,7 @@ from artemis.plotting.matplotlib_backend import MovingPointPlot
 __author__ = 'peter'
 
 
-def demo_dbplot():
+def demo_dbplot(n_frames = 1000):
     """
     Demonstrates the various types of plots.
 
@@ -19,7 +19,7 @@ def demo_dbplot():
 
     set_dbplot_figure_size(15, 10)
     with EZProfiler('plot time') as prof:
-        for i in xrange(1000):
+        for i in xrange(n_frames):
             with hold_dbplots():  # Sets it so that all plots update at once (rather than redrawing on each call, which is slower)
                 dbplot(np.random.randn(20, 20), 'Greyscale Image')
                 dbplot(np.random.randn(20, 20, 3), 'Colour Image')
@@ -30,8 +30,8 @@ def demo_dbplot():
                 dbplot((np.linspace(-5, 5, 100)+np.sin(np.linspace(-5, 5, 100)*2), np.linspace(-5, 5, 100)), '(X,Y) Lines')
                 dbplot([np.sin(i/20.), np.sin(i/15.)], 'Moving Point History')
                 dbplot([np.sin(i/20.), np.sin(i/15.)], 'Bounded memory history', plot_type=lambda: MovingPointPlot(buffer_len=10))
-                dbplot((np.sin(i/5.)*(i+100.), np.cos(i/5.)*(i+100.)), '(X,Y) Moving Point History')
-                dbplot((np.sin(np.array([i, i*1.5, i*2])/5.)*(i+10.), np.cos(np.array([i, i*1.5, i*2])/5.)*(i+10.)), 'multi (X,Y) Moving Point History', plot_type='trajectory')
+                dbplot((np.cos(i/10.), np.sin(i/11.)), '(X,Y) Moving Point History')
+                dbplot((np.cos(i/np.array([10., 15., 20.])), np.sin(i/np.array([11., 16., 21.])))+np.array([0, 1, 2]), 'multi (X,Y) Moving Point History', plot_type='trajectory')
                 dbplot(np.random.randn(20), 'Vector History')
                 dbplot(np.random.randn(50), 'Histogram', plot_type = 'histogram')
                 dbplot(np.random.randn(50), 'Cumulative Histogram', plot_type = 'cumhist')
@@ -52,7 +52,6 @@ def demo_debug_dbplot():
         dbplot(np.random.randn(10, 10), 'b')
         print 'bbb'
         pdb.set_trace()
-
 
 
 if __name__ == '__main__':

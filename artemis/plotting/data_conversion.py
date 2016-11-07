@@ -7,7 +7,7 @@ import numpy as np
 __author__ = 'peter'
 
 
-def vector_length_to_tile_dims(vector_length):
+def vector_length_to_tile_dims(vector_length, ):
     """
     You have vector_length tiles to put in a 2-D grid.  Find the size
     of the grid that best matches the desired aspect ratio.
@@ -15,7 +15,6 @@ def vector_length_to_tile_dims(vector_length):
     TODO: Actually do this with aspect ratio
 
     :param vector_length:
-    :param desired_aspect_ratio:
     :return: n_rows, n_cols
     """
     n_cols = np.ceil(np.sqrt(vector_length))
@@ -198,7 +197,7 @@ def data_to_image(data, is_color_data = None, clims = None, cmap = 'gray', nan_c
         scaled_data = scale_data_to_8_bit(data, in_range=clims).astype(np.uint8)
 
     if nan_colour is not None:
-        scaled_data = np.where(np.any(np.isnan(data if is_color_data else data[..., None]), axis=-1)[..., None], nan_colour, scaled_data)
+        scaled_data = np.where(np.any(np.isnan(data if is_color_data else data[..., None]), axis=-1)[..., None], np.array(nan_colour, dtype=np.uint8), scaled_data)
 
     return scaled_data
 

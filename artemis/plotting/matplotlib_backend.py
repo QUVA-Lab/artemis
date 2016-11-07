@@ -116,17 +116,21 @@ class MovingImagePlot(ImagePlot):
 class LinePlot(HistoryFreePlot):
 
     def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
-                 x_bound_extend = (0, 0), make_legend = True, plot_kwargs = {}):
+                 x_bound_extend = (0, 0), make_legend = None, axes_update_mode = 'fit', add_end_markers = False, legend_entries = None,
+                 legend_entry_size = 8, plot_kwargs = {}):
         assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
         self._plots = None
-        self._oldvlims = (float('inf'), -float('inf'))
-        self._oldhlims = (float('inf'), -float('inf'))
         self.x_bounds = x_bounds
         self.y_bounds = y_bounds
         self.x_bound_extend = x_bound_extend
         self.y_bound_extend = y_bound_extend
         self.make_legend=make_legend
         self.plot_kwargs = plot_kwargs
+        self.axes_update_mode = axes_update_mode
+        self.add_end_markers = add_end_markers
+        self._end_markers = []
+        self.legend_entries = [legend_entries] if isinstance(legend_entries, basestring) else legend_entries
+        self.legend_entry_size = legend_entry_size
 
     def _plot_last_data(self, data):
         """
@@ -172,25 +176,57 @@ class LinePlot(HistoryFreePlot):
 
         if self._plots is None:
             self._plots = []
-            for xd, yd in zip(x_data, y_data):
-                p, =plt.plot(xd, yd, **self.plot_kwargs)
+            plt.gca().autoscale(enable=False)
+            if isinstance(self.plot_kwargs, dict):
+                plot_kwargs = [self.plot_kwargs]*len(x_data)
+            elif isinstance(self.plot_kwargs, (list, tuple)):
+                assert len(self.plot_kwargs)==len(x_data), "You provided a list of {0} plot kwargs, but {1} lines".format(len(self.plot_kwargs), len(x_data))
+                plot_kwargs = self.plot_kwargs
+            for i, (xd, yd, legend_entry) in enumerate(zip(x_data, y_data, self.legend_entries if self.legend_entries is not None else [None]*len(x_data))):
+                p, =plt.plot(xd, yd, label = legend_entry, **plot_kwargs[i])
                 self._plots.append(p)
-                p.axes.set_xbound(left, right)
-                if lower != upper:  # This happens in moving point plots when there's only one point.
-                    p.axes.set_ybound(lower, upper)
-            if len(y_data)>1:
-                plt.legend([str(i) for i in xrange(len(y_data))], loc='best', prop={'size':6})
+                self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
+                if self.add_end_markers:
+                    colour = p.get_color()
+                    self._end_markers.append((plt.plot(xd[[0]], yd[[0]], marker='.', markersize=20, color=colour)[0], plt.plot(xd[0], yd[0], marker='x', markersize=10, mew=4, color=colour)[0]))
+
+            if (self.make_legend is True) or (self.make_legend is None and (self.legend_entries is not None or len(y_data)>1)):
+                plt.legend(loc='best', framealpha=0.5, prop={'size':self.legend_entry_size})
+                # entries = [str(i) for i in xrange(len(y_data))] if self.legend_entries is None else self.legend_entries
+                # assert len(self._plots) == len(self.legend_entries), 'You have %s plots but you specified %s entries for the legend: %s' % (len(self._plots), len(entries), entries)
+                # handles, labels = plt.gca().get_legend_handles_labels()
+                # if len(handles)==0:
+                #     plt.legend(handles + self._plots, labels+entries, loc='best', prop={'size':8})
+                # else:
+                #     plt.gca().set_legend_handles_labels(handles + self._plots, labels+entries)
+
         else:
-            for p, xd, yd in zip(self._plots, x_data, y_data):
+            for i, (p, xd, yd) in enumerate(zip(self._plots, x_data, y_data)):
                 p.set_xdata(xd)
                 p.set_ydata(yd)
-                if (lower, upper) != self._oldvlims:
-                    p.axes.set_ybound(lower, upper)
-                if (left, right) != self._oldhlims:
-                    p.axes.set_xbound(left, right)
+                self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
+                if self.add_end_markers:
+                    self._end_markers[i][0].set_xdata(xd[[0]])
+                    self._end_markers[i][0].set_ydata(yd[[0]])
+                    self._end_markers[i][1].set_xdata(xd[[-1]])
+                    self._end_markers[i][1].set_ydata(yd[[-1]])
 
-        self._oldvlims = lower, upper
-        self._oldhlims = left, right
+    @staticmethod
+    def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
+        if mode=='fit':
+            ax.set_xbound(left, right)
+            ax.set_ybound(lower, upper)
+        elif mode=='expand':
+            old_left, old_right = ax.get_xbound()
+            old_lower, old_upper = ax.get_ybound()
+            if (old_left, old_right, old_lower, old_upper) == (0, 1, 0, 1):  # Virgin axes (probably)... overwrite them
+                ax.set_xbound(left, right)
+                ax.set_ybound(lower, upper)
+            else:
+                ax.set_xbound(min(old_left, left), max(old_right, right))
+                ax.set_ybound(min(old_lower, lower), max(old_upper, upper))
+        else:
+            raise Exception('No axis update mode: "%s"' % (mode, ))
 
 
 class MovingPointPlot(LinePlot):
@@ -219,17 +255,11 @@ class MovingPointPlot(LinePlot):
 class Moving2DPointPlot(LinePlot):
 
     def __init__(self, buffer_len=None, **kwargs):
-        LinePlot.__init__(self, **kwargs)
+        LinePlot.__init__(self, add_end_markers=True, **kwargs)
         self._y_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
         self._x_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
-        self._first_update = True
-        self._first_plot = True
-        self._last_data = None
-        self._ends = None
 
     def update(self, (x_data, y_data)):
-
-        self._last_data = x_data, y_data
 
         x_buffer_data = self._x_buffer(x_data)
         y_buffer_data = self._y_buffer(y_data)
@@ -239,15 +269,6 @@ class Moving2DPointPlot(LinePlot):
 
     def plot(self):
         LinePlot.plot(self)
-        if self._first_plot:
-            plt.plot(self._last_data[0], self._last_data[1], marker='.', markersize=20, color='g', linestyle=' ')
-            self._ends = plt.plot(self._last_data[0], self._last_data[1], marker='.', markersize=20, color='r', linestyle=' ')
-            self._first_plot = False
-
-        for i, e in enumerate(self._ends):
-            x_end, y_end = self._last_data
-            e.set_xdata(x_end)
-            e.set_ydata(y_end)
 
 
 class TextPlot(IPlot):

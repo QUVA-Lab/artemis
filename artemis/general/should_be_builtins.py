@@ -113,3 +113,27 @@ def izip_equal(*iterables):
         if any(sentinel is c for c in combo):
             raise ValueError('Iterables have different lengths')
         yield combo
+
+
+def remove_duplicates(sequence):
+    """
+    Remove duplicates while maintaining order.
+    Credit goes to Markus Jarderot from http://stackoverflow.com/a/480227/851699
+    """
+    seen = set()
+    seen_add = seen.add
+    return [x for x in sequence if not (x in seen or seen_add(x))]
+
+
+def try_key(dictionary, key, default):
+    """
+    Try to get the value at dict[key]
+    :param dictionary: A Python dict
+    :param key: A key
+    :param default: The value to return if the key doesn't exist
+    :return: Either dictionary[key] or default if it doesn't exist.
+    """
+    try:
+        return dictionary[key]
+    except KeyError:
+        return default
