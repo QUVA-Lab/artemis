@@ -62,6 +62,7 @@ def make_file_dir(full_file_path):
 
 
 def make_dir(full_dir):
+    #full_dir = format_filename(full_dir)
     try:
         os.makedirs(full_dir)
     except OSError:
