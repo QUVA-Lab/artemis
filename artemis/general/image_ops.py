@@ -88,6 +88,8 @@ def resize_image(im, width=None, height=None, mode='squeeze'):
     elif mode == 'scale_crop':
         assert height is not None and width is not None, "You need to specify both height and width. for 'scale_crop' mode"
         return resize_and_crop(im, width=width, height=height)
+    else:
+        raise Exception("Unknown resize mode: '{}'".format(mode))
     return im
 
 

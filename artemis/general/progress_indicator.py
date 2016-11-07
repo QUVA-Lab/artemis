@@ -3,7 +3,7 @@ import time
 
 class ProgressIndicator(object):
 
-    def __init__(self, expected_iterations, update_every = (2, 'seconds'), post_info_callback = None):
+    def __init__(self, expected_iterations, name=None, update_every = (2, 'seconds'), post_info_callback = None):
 
         self._expected_iterations = expected_iterations
         update_interval, update_unit = update_every
@@ -12,6 +12,7 @@ class ProgressIndicator(object):
         if update_unit == 'percent':
             update_unit = 'iterations'
             update_interval = update_interval(expected_iterations)
+        self.name = name
         self._update_unit = update_unit
         self._update_interval = update_interval
         self._start_time = time.time()
@@ -35,8 +36,8 @@ class ProgressIndicator(object):
             elapsed = time.time() - self._start_time
             remaining = elapsed * (1/frac-1) if frac > 0 else float('NaN')
             self._last_update = self._i if self._update_unit == 'iterations' else self._current_time
-            print 'Progress: %s%%.  %.1fs Elapsed, %.1fs Remaining.%s' \
-                % (int(100*frac), elapsed, remaining, (', %s' % (self._post_info_callback(), )) if self._post_info_callback is not None else '')
+            print 'Progress%s: %s%%.  %.1fs Elapsed, %.1fs Remaining.%s' \
+                % ('' if self.name is None else ' of '+self.name, int(100*frac), elapsed, remaining, (', %s' % (self._post_info_callback(), )) if self._post_info_callback is not None else '')
 
 
     def _should_update_time(self):

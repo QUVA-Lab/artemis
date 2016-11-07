@@ -1,4 +1,3 @@
-from artemis.fileman.disk_memoize import memoize_to_disk
 from artemis.fileman.file_getter import get_file_in_archive, get_archive
 from artemis.fileman.smart_io import smart_load_video
 from artemis.general.should_be_builtins import bad_value
@@ -7,10 +6,14 @@ import os
 __author__ = 'peter'
 
 
-@memoize_to_disk
-def load_ilsvrc_video(identifier, size = None, resize_mode='resize_and_crop', cut_edges=True, cut_edges_thresh=5):
+def load_ilsvrc_video(identifier, size = None, resize_mode='scale_crop', cut_edges=True, cut_edges_thresh=5):
     """
     Load a file from the ILSVRC Dataset.  The first time this is run, it will download an 8GB file, so be patient.
+
+    Note: If you are using the same videos repeatedly, and applying resizing, you may want to call this function as:
+        memoize_to_disk(load_ilsvrc_video)(identifier, size, ...)
+    This will save you time on future runs.
+
     :param identifier: The file-name of the video, not including the extension.  Eg: 'ILSVRC2015_train_00249001'
     :param size:
     :param cut_edges:
@@ -45,10 +48,7 @@ if __name__ == '__main__':
     import itertools
     from artemis.plotting.db_plotting import dbplot, hold_dbplots
 
-    load_ilsvrc_video.clear_cache()
-
     identifiers = ['ILSVRC2015_train_00033009', 'ILSVRC2015_train_00033010', 'ILSVRC2015_train_00763000', 'ILSVRC2015_test_00004002']
-    # identifiers = ['ILSVRC2015_train_00336001']
     videos = [load_ilsvrc_video(identifier, size=(224, 224), cut_edges=True) for identifier in identifiers]
 
     for i in itertools.count(0):
