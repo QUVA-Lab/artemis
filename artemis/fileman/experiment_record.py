@@ -126,7 +126,7 @@ def experiment_root(f):
         demo_my_experiment.add_variant('a2', a=2)
 
     The root experiment is not runnable by itself, and will not appear in the list when you
-    browse mlp.
+    browse experiments.
     """
     return ExperimentFunction(is_root=True)(f)
 
@@ -252,7 +252,7 @@ def browse_experiment_records():
             if cmd == 'q':
                 break
             elif cmd == 'h':
-                _warn_with_prompt('q: Quit\nfilter <text>: filter mlp\nrmfilters: Remove all filters\nshow <number> show experiment with number')
+                _warn_with_prompt('q: Quit\nfilter <text>: filter experiments\nrmfilters: Remove all filters\nshow <number> show experiment with number')
             elif cmd == 'filter':
                 filter_text, = args
                 ids = get_all_experiment_ids(filter_text)
@@ -269,9 +269,9 @@ def browse_experiment_records():
                     clear_experiments()
                     ids = get_all_experiment_ids()
                     assert len(ids)==0, "Failed to delete them?"
-                    print "Deleted all mlp"
+                    print "Deleted all experiments"
                 else:
-                    print "Did not delete mlp"
+                    print "Did not delete experiments"
             else:
                 _warn_with_prompt('Bad Command: %s.' % cmd)
         except Exception as e:
@@ -377,7 +377,7 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', info = '', print_to_
         experiment_directory = tempfile.mkdtemp()
         atexit.register(lambda: shutil.rmtree(experiment_directory))
     else:
-        experiment_directory = get_local_path('mlp/{identifier}'.format(identifier=identifier))
+        experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=identifier))
 
     make_dir(experiment_directory)
     make_file_dir(experiment_directory)
@@ -416,7 +416,7 @@ _CURRENT_EXPERIMENT_NAME = None
 
 def _register_current_experiment(name, identifier):
     """
-    For keeping track of the current running experiment, assuring that no two mlp are running at the same time.
+    For keeping track of the current running experiment, assuring that no two experiments are running at the same time.
     :param name:
     :param identifier:
     :return:
@@ -481,7 +481,7 @@ def clear_experiment_records_with_name(experiment_name=None):
     :return:
     """
     ids = get_all_experiment_ids(_get_matching_template_from_experiment_name(experiment_name))
-    paths = [os.path.join(get_local_path('mlp'), identifier) for identifier in ids]
+    paths = [os.path.join(get_local_path('experiments'), identifier) for identifier in ids]
     for p in paths:
         shutil.rmtree(p)
 
@@ -492,7 +492,7 @@ def delete_experiment_with_id(experiment_identifier):
 
 
 def get_local_experiment_path(identifier):
-    return os.path.join(get_local_path('mlp'), identifier)
+    return os.path.join(get_local_path('experiments'), identifier)
 
 
 def get_experiment_record(identifier):
@@ -517,7 +517,7 @@ def show_experiment(identifier):
 
 def merge_experiment_dicts(*dicts):
     """
-    Merge dictionaries of mlp, checking that names are unique.
+    Merge dictionaries of experiments, checking that names are unique.
     """
     merge_dict = OrderedDict()
     for d in dicts:
@@ -566,12 +566,12 @@ def load_experiment(experiment_identifier):
 
 def get_all_experiment_ids(expr = None):
     """
-    :param expr: A regexp for matching mlp
+    :param expr: A regexp for matching experiments
         None if you just want all of them
     :return: A list of experiment identifiers.
     """
 
-    expdir = get_local_path('mlp')
+    expdir = get_local_path('experiments')
     experiments = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
     if expr is not None:
         experiments = [e for e in experiments if re.match(expr, e)]
@@ -582,11 +582,9 @@ def _register_experiment(experiment):
     GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
-
-
 def clear_experiments():
     # Credit: http://stackoverflow.com/questions/185936/delete-folder-contents-in-python
-    folder = get_local_path('mlp')
+    folder = get_local_path('experiments')
     for the_file in os.listdir(folder):
         file_path = os.path.join(folder, the_file)
         try:
@@ -717,7 +715,7 @@ class Experiment(object):
 
     def add_variant(self, name, *args, **kwargs):
         """
-        Add a variant to this experiment, and register it on the list of mlp.
+        Add a variant to this experiment, and register it on the list of experiments.
         :param name: The name of the root variant.
         :param args, kwargs: Ordered/named arguments for this experiment variant
         :return: The experiment.
@@ -726,7 +724,7 @@ class Experiment(object):
 
     def add_root_variant(self, name, *args, **kwargs):
         """
-        Add a variant to this experiment, but do NOT register it on the list of mlp.
+        Add a variant to this experiment, but do NOT register it on the list of experiments.
         (A root variant is indended to have variants added on top of it).
         :param name: The name of the variant
         :param args, kwargs: Ordered/named arguments for this experiment variant
@@ -811,7 +809,7 @@ class Experiment(object):
 
 def register_experiment(name, function, description = None, conclusion = None, versions = None, current_version = None, **kwargs):
     """
-    This is the old interface to mlp.  We keep it, for now, for the sake of
+    This is the old interface to experiments.  We keep it, for now, for the sake of
     backwards-compatibility.
 
     In the future, use the @experiment_function decorator instead.

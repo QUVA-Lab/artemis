@@ -95,5 +95,5 @@ demo_linear_regression.add_variant('large_input_space', n_in=1000)
 
 if __name__ == "__main__":
 
-    # Open a menu that allows you to run mlp and view old ones.
+    # Open a menu that allows you to run experiment and view old ones.
     browse_experiments()
