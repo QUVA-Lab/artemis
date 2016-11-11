@@ -144,7 +144,7 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None):
         last_epoch = epoch
 
 
-def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs, test_epochs = None):
+def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs=None, test_epochs = None):
     """
     Iterate through minibatches of arrays and yield info about the state of iteration though training.
 
@@ -157,6 +157,9 @@ def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs, test_epochs = N
         arrays is a tuple of minibatches from arrays
         info is an IterationInfo object returning information about the state of iteration.
     """
+    if n_epochs is None:
+        assert isinstance(test_epochs, np.ndarray), "If you don't specify n_epochs, you need to specify an array of test epochs."
+        n_epochs = test_epochs[-1]
     for arrays, info in itertools.izip(
             zip_minibatch_iterate(arrays, minibatch_size=minibatch_size, n_epochs=n_epochs),
             iteration_info(n_samples=arrays[0].shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs)
