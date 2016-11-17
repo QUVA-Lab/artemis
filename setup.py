@@ -14,6 +14,7 @@ setup(name='artemis',
       author_email='poconn4@gmail.com',
       url='https://github.com/quva-lab/artemis',
       long_description='A Library for plotting and managing experiments.',
+      install_requires=['numpy', 'scipy', 'matplotlib', 'pytest', 'pillow'],
       version=0,
       packages=['artemis'],
       scripts=[])
