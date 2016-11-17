@@ -11,15 +11,14 @@ Artemis is a collection of tools that make it easier to run experiments in Pytho
 To use artemis from within your project, use the following to install Artemis and its dependencies: (You probably want to do this in a virtualenv with the latest version of pip - run `virtualenv venv; source venv/bin/activate; pip install --upgrade pip;` to make one).
 ```
 pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis 
-pip install -r venv/src/artemis/requirements.txt
 ```
-To verify that the installation worked, go:
+<!--- To verify that the installation worked, go:
 ```
 cd venv/src/artemis
 py.test
 ```
 All tests should pass.
-
+(pytest for some reason cant find modules when you do this alone)--->
 Note: During installation, the settings file `.artemisrc` is created in your home directory. In it you can specify the plotting backend to use, and other settings.
 
 
