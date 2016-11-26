@@ -19,7 +19,7 @@ class CheckPointCounter(object):
         """
         :param progress: Indicator of the progress - on the same scale of the checkpoints.
         :return: (points_passed, done), where:
-            points_passed is the number of checkpoints passed since the last call to this method
+            points_passed is the number of checkpoints passed since the last call to this method,
             done is a boolean indicating whether the last checkpoint has been passed.
 
         Note that done will only be True of points_passed>0

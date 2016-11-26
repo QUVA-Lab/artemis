@@ -3,7 +3,6 @@ from artemis.plotting.db_plotting import dbplot, hold_dbplots, set_dbplot_figure
 import numpy as np
 from artemis.plotting.matplotlib_backend import MovingPointPlot
 
-
 __author__ = 'peter'
 
 

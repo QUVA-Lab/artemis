@@ -58,27 +58,37 @@ def test_minibatch_iterate_info():
     training_arr = np.random.randn(n_samples, 12)
     test_arr = np.random.randint(10, size=n_samples)
 
-    test_epochs = []
-    iterator = 0
-    for (training_minibatch, test_minibatch), info in zip_minibatch_iterate_info((training_arr, test_arr),
-                n_epochs = 1.5, minibatch_size=minibatch_size, test_epochs=[0, 0.5, 1, 1.5]):
+    for kwargs in [dict(test_epochs=[0, 0.5, 1, 1.5]), dict(test_epochs=('every', 0.5), n_epochs=1.5)]:
+        # Two different ways of parametrixing minibatch loop:
+        # test_epochs=[0, 0.5, 1, 1.5]:  "Test at these epochs.  Done after final test"
+        # test_epochs=('every', 0.5), n_epochs=1.5  : "Test every 0.5 epochs.  Done after test at epcoh 1.5
 
-        ixs = (np.arange(minibatch_size)+iterator*minibatch_size) % n_samples
-        epoch = iterator * minibatch_size / float(n_samples)
+        test_epochs = []
+        iterator = 0
 
-        assert np.allclose(epoch, info.epoch)
-        assert np.array_equal(ixs, np.arange(info.sample, info.sample+minibatch_size) % n_samples)
-        assert np.array_equal(training_minibatch, training_arr[ixs])
-        assert np.array_equal(test_minibatch, test_arr[ixs])
+        for (training_minibatch, test_minibatch), info in zip_minibatch_iterate_info((training_arr, test_arr),
+                    minibatch_size=minibatch_size, **kwargs):
 
-        if info.test_now:
-            test_epochs.append(info.epoch)
+            ixs = (np.arange(minibatch_size)+iterator*minibatch_size) % n_samples
+            epoch = iterator * minibatch_size / float(n_samples)
+            print (epoch, info.epoch)
+            print info.done
+            assert np.allclose(epoch, info.epoch)
+            assert np.array_equal(ixs, np.arange(info.sample, info.sample+minibatch_size) % n_samples)
+            assert np.array_equal(training_minibatch, training_arr[ixs])
+            assert np.array_equal(test_minibatch, test_arr[ixs])
 
-        iterator += 1
-    assert test_epochs == [0, 0.5, 1]  # Note... last test time is not included... difficult to say what should be expected here.
+            if info.test_now:
+                test_epochs.append(info.epoch)
+
+            if not info.done:
+                iterator += 1
+
+        assert iterator == 15
+        assert test_epochs == [0, 0.5, 1, 1.5]  # Note... last test time is not included... difficult to say what should be expected here.
 
 
 if __name__ == '__main__':
     test_minibatch_iterate_info()
-    test_minibatch_index_generator()
-    test_checkpoint_minibatch_generator()
+    # test_minibatch_index_generator()
+    # test_checkpoint_minibatch_generator()

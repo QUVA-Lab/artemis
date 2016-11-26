@@ -1,4 +1,8 @@
+from collections import OrderedDict
+
 import numpy as np
+from artemis.general.should_be_builtins import remove_duplicates
+from artemis.general.tables import build_table
 
 __author__ = 'peter'
 
@@ -118,3 +122,46 @@ def collapse_onehot_if_necessary(output_data):
     else:
         assert output_data.ndim == 1 and output_data.dtype in (int, 'int32', bool)
         return output_data
+
+
+def assess_prediction_functions(test_pairs, functions, costs, print_results=False):
+    """
+
+    :param test_pairs: A list<pair_name, (x, y)>, where x, y are equal-length vectors representing the samples in a dataset.
+        Eg. [('training', (x_train, y_train)), ('test', (x_test, y_test))]
+    :param functions: A list<function_name, function> of functions for computing the forward pass.
+    :param costs: A list<cost_name, cost_function> of cost functions, where cost_function has the form:
+        cost = cost_fcn(guess, y), where cost is a scalar, and guess is the output of the prediction function given one
+            of the inputs (x) in test_pairs.
+    :return: An OrderedDict: (test_pair_name, function_name, cost_name) -> cost
+    """
+    assert isinstance(test_pairs, list)
+    assert all(len(_)==2 for _ in test_pairs)
+    assert all(len(pair)==2 for name, pair in test_pairs)
+    if callable(functions):
+        functions = [(functions.__name__, functions)]
+    else:
+        assert all(callable(f) for name, f in functions)
+    if callable(costs):
+        costs = [(costs.__name__, costs)]
+    else:
+        costs = [(cost, get_evaluation_function(cost)) if isinstance(cost, basestring) else (cost.__name__, cost) if callable(cost) else cost for cost in costs]
+    assert all(callable(cost) for name, cost in costs)
+
+    results = OrderedDict()
+    for test_pair_name, (x, y) in test_pairs:
+        for function_name, function in functions:
+            for cost_name, cost_function in costs:
+                results[test_pair_name, function_name, cost_name] = cost_function(function(x), y)
+
+    if print_results:
+        import tabulate
+        rows = build_table(
+            lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: results[test_pair_name_, function_name_, cost_name_],
+            row_categories = [[test_pair_name for test_pair_name, _ in test_pairs], [function_name for function_name, _ in functions]],
+            column_categories = [cost_name for cost_name, _ in costs],
+            row_header_labels=['Subset', 'Function'],
+            )
+        print tabulate.tabulate(rows)
+
+    return results
