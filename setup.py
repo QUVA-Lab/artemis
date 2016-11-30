@@ -5,10 +5,6 @@ import os
 
 CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.artemisrc')
 
-if not os.path.exists(CONFIG_PATH):
-    with open(CONFIG_PATH, 'w') as f:
-        f.write('[plotting]\nbackend: matplotlib')
-
 setup(name='artemis',
       author='Peter & Matthias',
       author_email='poconn4@gmail.com',
