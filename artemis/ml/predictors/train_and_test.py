@@ -146,7 +146,7 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     assert all(len(_)==2 for _ in test_pairs)
     assert all(len(pair)==2 for name, pair in test_pairs)
     if callable(functions):
-        functions = [(functions.__name__, functions)]
+        functions = [(functions.__name__ if hasattr(functions, '__name__') else None, functions)]
     else:
         assert all(callable(f) for name, f in functions)
     if callable(costs):

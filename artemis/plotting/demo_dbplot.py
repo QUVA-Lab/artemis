@@ -13,8 +13,11 @@ def demo_dbplot(n_frames = 1000):
     The appropriate plot can usually be inferred from the first input data.  In cases where there are multple ways to
     display the input data, you can use the plot_type argument.
     """
-    from matplotlib import pyplot as plt
-    plt.ion()
+    # Approximate frame rates:
+    # Macbook Air, MacOSX backend, mode=safe ~2.2 FPS
+    # Macbook Air, MacOSX backend, mode=fast  FAILS
+    # Macbook Air, TkAgg backend, mode=safe: ~1.3FPS
+    # Macbook Air, TkAgg backend, mode=fast: ~3.85 FPS
 
     set_dbplot_figure_size(15, 10)
     with EZProfiler('plot time') as prof:

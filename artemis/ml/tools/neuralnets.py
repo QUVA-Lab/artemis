@@ -41,7 +41,7 @@ def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal'
     if base_dist == 'normal':
         noise_gen = lambda n_in_, n_out_: rng.randn(n_in_, n_out_)
     elif base_dist == 'uniform':
-        noise_gen = lambda n_in_, n_out_: rng.rand(n_in_, n_out_) * np.sqrt(12)  # For unit variance
+        noise_gen = lambda n_in_, n_out_: (rng.rand(n_in_, n_out_)-0.5) * np.sqrt(12)  # For unit variance
     elif hasattr(base_dist, '__call__'):
         noise_gen = base_dist
     else:
@@ -56,7 +56,7 @@ def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal'
     elif mag=='xavier-relu':
         ws = [noise_gen(n_in, n_out)*np.sqrt(2./n_in) for n_in, n_out in zip(layer_sizes[:-1], layer_sizes[1:])]
     else:
-        raise Exception('No method "%s" yet' % (base_dist, ))
+        raise Exception('No method "%s" yet' % (mag, ))
     if include_biases:
         bs = [np.zeros(n_out) for n_out in layer_sizes[1:]]
         return zip(ws, bs)
@@ -71,6 +71,8 @@ def activation_function(data, function_name):
         return data
     elif function_name=='softmax':
         return softmax(data, axis=-1)
+    elif function_name in ('sigm', 'sigmoid'):
+        return 1./(1+np.exp(-data))
     else:
         raise Exception('Add it.')
 

@@ -72,7 +72,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         fig = None
     elif fig not in _DBPLOT_FIGURES:
         _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
-        if name is not None:
+        if fig is not None:
             _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
 
     suplot_dict = _DBPLOT_FIGURES[fig].subplots

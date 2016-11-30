@@ -156,6 +156,9 @@ class DataCollection(object):
         new_targets = [x[:n_samples] for x in self.targets]
         return DataCollection(new_inputs, new_targets)
 
+    @property
+    def xy(self):
+        return self.input, self.target
 
 def minibatch_iterator(minibatch_size = 1, epochs = 1, final_treatment = 'stop', single_channel = False):
     """
