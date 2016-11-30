@@ -8,7 +8,7 @@ Artemis is a collection of tools that make it easier to run experiments in Pytho
 - A system for downloading/caching files, to a local directory, so the same code can work on different machines.
 
 ## Installation
-To use artemis from within your project, use the following to install Artemis and its dependencies: (You probably want to do this in a virtualenv with the latest version of pip - run `virtualenv venv; source venv/bin/activate; pip install --upgrade pip;` to make one).
+To use artemis from within your project, use the following to install Artemis and its dependencies: (You probably want to do this in a virtualenv with the latest version of pip - run `virtualenv venv; source venv/bin/activate; pip install --upgrade pip;` to make one and enter it).
 
 ### Option 1: Simple install:
 
