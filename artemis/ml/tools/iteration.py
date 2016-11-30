@@ -90,15 +90,15 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
     assert all(a.shape[0] == total_size for a in arrays), 'All arrays must have the same length!  Lengths are: %s' % ([len(arr) for arr in arrays])
     end = total_size*n_epochs
     ixs = np.arange(minibatch_size)
-    while ixs[0] < end:
+    while ixs[0] <= end:
         yield tuple(a[ixs % total_size] for a in arrays)
         ixs+=minibatch_size
 
 
-IterationInfo = namedtuple('IterationInfo', ['iteration', 'epoch', 'sample', 'time', 'test_now'])
+IterationInfo = namedtuple('IterationInfo', ['iteration', 'epoch', 'sample', 'time', 'test_now', 'done'])
 
 
-def iteration_info(n_samples, minibatch_size, test_epochs = None):
+def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = None):
     """
     Create an iterator that keeps track of the state of minibatch iteration, and simplifies the scheduling of tests.
     You can izip this iterator with one that returns your data.
@@ -118,33 +118,39 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None):
         minibatch_size = n_samples
     if isinstance(test_epochs, str):
         assert test_epochs in ('always', 'never', 'every')
+    elif isinstance(test_epochs, tuple):
+        assert len(test_epochs)==2, "If you pass in a tuple for test epochs, it should be in the form ('every', period).  Get {}".format(test_epochs)
+        name, period = test_epochs
+        assert period > 0, 'Period must be a positive number, not {}'.format(period)
+        assert name == 'every'
+    elif n_epochs is None and isinstance(test_epochs, (list, tuple, np.ndarray)):
+        n_epochs = test_epochs[-1]
 
     last_epoch = -float('inf')
     for i in itertools.count(0):
         epoch = i*minibatch_size/n_samples
-        
         test_now = (
                 True if test_epochs=='always' else
                 False if test_epochs=='never' else
-                round(epoch)>round(last_epoch) if test_epochs == 'every' else
+                np.floor(epoch)>np.floor(last_epoch) if test_epochs == 'every' else
                 bad_value(test_epochs)
             ) if isinstance(test_epochs, basestring) else \
+            np.floor(epoch/period) > np.floor(last_epoch/period) if isinstance(test_epochs, tuple) else \
             False if test_epochs is None else \
             np.searchsorted(test_epochs, epoch, side='right') > np.searchsorted(test_epochs, last_epoch, side='right')
-        # if test_now:
-        #     next_text_point = next_text_point+1 if next_text_point < len(test_epochs)-1 else None
         info = IterationInfo(
             iteration = i,
             epoch = epoch,
             sample = i*minibatch_size,
             time = time.time()-start_time,
-            test_now = test_now
+            test_now = test_now,
+            done = epoch >= n_epochs
             )
         yield info
         last_epoch = epoch
 
 
-def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs, test_epochs = None):
+def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs=None, test_epochs = None):
     """
     Iterate through minibatches of arrays and yield info about the state of iteration though training.
 
@@ -157,9 +163,12 @@ def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs, test_epochs = N
         arrays is a tuple of minibatches from arrays
         info is an IterationInfo object returning information about the state of iteration.
     """
+    if n_epochs is None:
+        assert isinstance(test_epochs, (list, tuple, np.ndarray)), "If you don't specify n_epochs, you need to specify an array of test epochs."
+        n_epochs = test_epochs[-1]
     for arrays, info in itertools.izip(
             zip_minibatch_iterate(arrays, minibatch_size=minibatch_size, n_epochs=n_epochs),
-            iteration_info(n_samples=arrays[0].shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs)
+            iteration_info(n_samples=arrays[0].shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs, n_epochs=n_epochs)
             ):
         yield arrays, info
 

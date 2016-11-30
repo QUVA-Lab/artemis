@@ -188,7 +188,6 @@ def assess_online_predictor(predictor, dataset, evaluation_function, test_epochs
         if test_callback is not None:
             record.add(current_epoch, ('callback', test_callback(predictor)))
 
-
     start_time = time.time()
     if minibatch_size == 'stretch':
         test_samples = (np.array(test_epochs) * dataset.training_set.n_samples).astype(int)

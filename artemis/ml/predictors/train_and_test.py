@@ -1,4 +1,9 @@
+from collections import OrderedDict
+
 import numpy as np
+from artemis.general.should_be_builtins import remove_duplicates
+from artemis.general.tables import build_table
+from artemis.ml.datasets.datasets import DataSet
 
 __author__ = 'peter'
 
@@ -77,6 +82,7 @@ def percent_argmax_correct(actual, target):
 def percent_binary_incorrect(actual, target):
     return 100.-percent_binary_correct(actual, target)
 
+
 def percent_binary_correct(actual, target):
     """
     :param actual:  A (n_samples, ) array of floats between 0 and 1
@@ -118,3 +124,60 @@ def collapse_onehot_if_necessary(output_data):
     else:
         assert output_data.ndim == 1 and output_data.dtype in (int, 'int32', bool)
         return output_data
+
+
+def assess_prediction_functions(test_pairs, functions, costs, print_results=False):
+    """
+
+    :param test_pairs: A list<pair_name, (x, y)>, where x, y are equal-length vectors representing the samples in a dataset.
+        Eg. [('training', (x_train, y_train)), ('test', (x_test, y_test))]
+    :param functions: A list<function_name, function> of functions for computing the forward pass.
+    :param costs: A list<cost_name, cost_function> of cost functions, where cost_function has the form:
+        cost = cost_fcn(guess, y), where cost is a scalar, and guess is the output of the prediction function given one
+            of the inputs (x) in test_pairs.
+    :return: An OrderedDict: (test_pair_name, function_name, cost_name) -> cost
+    """
+    if isinstance(test_pairs, DataSet):
+        test_pairs = [
+            ('train', (test_pairs.training_set.input, test_pairs.training_set.target)),
+            ('test', (test_pairs.test_set.input, test_pairs.test_set.target)),
+            ]
+    assert isinstance(test_pairs, list)
+    assert all(len(_)==2 for _ in test_pairs)
+    assert all(len(pair)==2 for name, pair in test_pairs)
+    if callable(functions):
+        functions = [(functions.__name__ if hasattr(functions, '__name__') else None, functions)]
+    else:
+        assert all(callable(f) for name, f in functions)
+    if callable(costs):
+        costs = [(costs.__name__, costs)]
+    else:
+        costs = [(cost, get_evaluation_function(cost)) if isinstance(cost, basestring) else (cost.__name__, cost) if callable(cost) else cost for cost in costs]
+    assert all(callable(cost) for name, cost in costs)
+
+    results = OrderedDict()
+    for test_pair_name, (x, y) in test_pairs:
+        for function_name, function in functions:
+            for cost_name, cost_function in costs:
+                results[test_pair_name, function_name, cost_name] = cost_function(function(x), y)
+
+    if print_results:
+        print_score_results(results)
+
+    return results
+
+
+def print_score_results(results):
+    """
+    :param results: An OrderedDict in the format returned by assess_prediction_functions.
+    :return:
+    """
+    test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*results.keys())]
+    rows = build_table(
+        lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: results[test_pair_name_, function_name_, cost_name_],
+        row_categories = [[test_pair_name for test_pair_name in test_pair_names], [function_name for function_name in function_names]],
+        column_categories = [cost_name for cost_name in cost_names],
+        row_header_labels=['Subset', 'Function'],
+        )
+    import tabulate
+    print tabulate.tabulate(rows)

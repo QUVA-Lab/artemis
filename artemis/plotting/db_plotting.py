@@ -72,7 +72,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         fig = None
     elif fig not in _DBPLOT_FIGURES:
         _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
-        if name is not None:
+        if fig is not None:
             _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
 
     suplot_dict = _DBPLOT_FIGURES[fig].subplots
@@ -240,36 +240,11 @@ def clear_dbplot(fig = None):
     _DBPLOT_FIGURES[fig].axes.clear()
 
 
-
 def get_dbplot_axis(axis_name, fig=None):
     """
     Get the named axis of a dbplot.
     """
     return _DBPLOT_FIGURES[fig].axes[axis_name]
-
-
-# def _extend_subplots(fig, subplot_name, axis_name, plot_object):
-#     """
-#     :param fig: Name for figure to extend subplots on
-#     :param subplot_name: Name of the new subplot in that figure
-#     :param plot_object: The plotting object to display
-#     :return:
-#     """
-#     assert fig in _DBPLOT_FIGURES
-#     old_key_names = _DBPLOT_FIGURES[fig].subplots.keys()
-#     plt.figure(_DBPLOT_FIGURES[fig].figure.number)
-#     n_rows, n_cols = vector_length_to_tile_dims(len(old_key_names)+1)
-#     gs = gridspec.GridSpec(n_rows, n_cols)
-#     for g, k in zip(gs, old_key_names):  # (gs can be longer but zip will just go to old_key_names)
-#         ax = _DBPLOT_FIGURES[fig].subplots[k].axis
-#         ax.set_position(g.get_position(_DBPLOT_FIGURES[fig].figure))
-# 
-#     # Add the new plot
-#     ax=_DBPLOT_FIGURES[fig].figure.add_subplot(gs[len(old_key_names)])
-#     ax.set_title(subplot_name)
-# 
-#     _DBPLOT_FIGURES[fig].subplots[subplot_name] = _Subplot(axis=ax, plot_object=plot_object)
-#     _DBPLOT_FIGURES[fig].axes[axis_name] = ax
 
 
 def dbplot_hang():
