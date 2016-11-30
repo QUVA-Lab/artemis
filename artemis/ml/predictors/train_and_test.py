@@ -163,14 +163,6 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
 
     if print_results:
         print_score_results(results)
-        # import tabulate
-        # rows = build_table(
-        #     lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: results[test_pair_name_, function_name_, cost_name_],
-        #     row_categories = [[test_pair_name for test_pair_name, _ in test_pairs], [function_name for function_name, _ in functions]],
-        #     column_categories = [cost_name for cost_name, _ in costs],
-        #     row_header_labels=['Subset', 'Function'],
-        #     )
-        # print tabulate.tabulate(rows)
 
     return results
 
@@ -181,11 +173,11 @@ def print_score_results(results):
     :return:
     """
     test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*results.keys())]
-    import tabulate
     rows = build_table(
         lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: results[test_pair_name_, function_name_, cost_name_],
         row_categories = [[test_pair_name for test_pair_name in test_pair_names], [function_name for function_name in function_names]],
         column_categories = [cost_name for cost_name in cost_names],
         row_header_labels=['Subset', 'Function'],
         )
+    import tabulate
     print tabulate.tabulate(rows)

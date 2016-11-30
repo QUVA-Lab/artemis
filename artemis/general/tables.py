@@ -68,7 +68,6 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
         rows.append(list(row_header) + data)
     assert all_equal(len(r) for r in rows)
     return rows
-    # print tabulate(rows)
 
 
 def prettify_label(label):
