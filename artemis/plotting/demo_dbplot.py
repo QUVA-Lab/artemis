@@ -17,7 +17,8 @@ def demo_dbplot(n_frames = 1000):
     # Macbook Air, MacOSX backend, mode=fast:  FAILS
     # Macbook Air, TkAgg backend, mode=safe: ~1.48 FPS
     # Macbook Air, TkAgg backend, mode=fast: ~4.4 FPS
-    # Linux box, Qt4Agg backend, mode=fast: ~5.5 FPS
+    # Linux box, Qt4Agg backend, mode=safe: ~2.5 FPS
+    # Linux box, Qt4Agg backend, mode=fast: (plot does not update)
 
     set_dbplot_figure_size(15, 10)
     for i in xrange(n_frames):
