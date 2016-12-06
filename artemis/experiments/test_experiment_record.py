@@ -1,14 +1,15 @@
 import atexit
-import time
-from artemis.general.test_mode import set_test_mode
-from artemis.fileman.experiment_record import start_experiment, run_experiment, show_experiment, \
-    get_latest_experiment_identifier, register_experiment, \
-    get_experiment_info, load_experiment, ExperimentRecord, record_experiment, \
-    end_current_experiment, get_experiment, experiment_exists, get_experiment_record, delete_experiment_with_id
-import numpy as np
-import matplotlib.pyplot as plt
 import shutil
+import time
 import warnings
+
+import matplotlib.pyplot as plt
+import numpy as np
+from artemis.experiments.experiment_record import run_experiment, show_experiment, \
+    get_latest_experiment_identifier, get_experiment_info, load_experiment, ExperimentRecord, record_experiment, \
+    delete_experiment_with_id
+from artemis.experiments.deprecated import register_experiment, start_experiment, end_current_experiment
+from artemis.general.test_mode import set_test_mode
 
 __author__ = 'peter'
 

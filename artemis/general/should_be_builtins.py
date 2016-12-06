@@ -1,5 +1,6 @@
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 import itertools
+import contextlib
 
 __author__ = 'peter'
 
@@ -137,3 +138,43 @@ def try_key(dictionary, key, default):
         return dictionary[key]
     except KeyError:
         return default
+
+
+def separate_common_items(list_of_lists):
+    """
+    :param list_of_lists:
+    :return: common_items, list_of_lists_of_different_items
+    """
+    are_dicts = all(isinstance(el, dict) for el in list_of_lists)
+    if are_dicts:
+        list_of_lists = [el.items() for el in list_of_lists]
+    all_items = [item for list_of_items in list_of_lists for item in list_of_items]
+    all_identical = {k: c==len(list_of_lists) for k, c in Counter(all_items).iteritems()}
+    common_items = remove_duplicates(item for item in all_items if all_identical[item])
+    different_items = [[item for item in list_of_items if item not in common_items] for list_of_items in list_of_lists]
+    if are_dicts:
+        return dict(common_items), [dict(el) for el in different_items]
+    else:
+        return common_items, different_items
+
+
+def get_final_args(args, kwargs, all_arg_names, default_kwargs):
+    """
+    Get the final arguments that python would feed into a function called as f(*args, **kwargs),
+    where the function has arguments named all_arg_names, and defaults in default_kwargs
+
+    :param args: A tuple of ordered arguments
+    :param kwargs: A dict of keyword args
+    :param all_arg_names: A list of all argument names
+    :param default_kwargs: A dict of default kwargs, OR a list giving the values of the last len(default_kwargs) arguments
+    :return: A tuple of 2-tuples of arg_name, arg_value
+    """
+    if isinstance(default_kwargs, (list, tuple)):
+        default_kwargs = {k: v for k, v in zip(all_arg_names[-len(default_kwargs):], default_kwargs)}
+
+    return tuple(
+        zip(all_arg_names, args)  # Handle unnamed args f(1, 2)
+        + [(name, kwargs[name] if name in kwargs else default_kwargs[name]) for name in
+           all_arg_names[len(args):]]  # Handle named keyworkd args f(a=1, b=2)
+        + [(name, kwargs[name]) for name in kwargs if name not in all_arg_names]
+        )

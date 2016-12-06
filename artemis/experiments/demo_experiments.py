@@ -1,6 +1,8 @@
-from artemis.fileman.experiment_record import experiment_function, browse_experiments
 import numpy as np
+from artemis.experiments.experiment_record import experiment_function
+from artemis.experiments.ui import browse_experiments
 from matplotlib import pyplot as plt
+
 __author__ = 'peter'
 
 
@@ -86,6 +88,8 @@ def demo_linear_regression(
     plt.title("Learning Curve")
     plt.ion()
     plt.show()
+
+    return {'training_cost': training_cost, 'test_cost': test_cost}
 
 
 demo_linear_regression.add_variant('fast-learn', eta=0.01)

@@ -1,7 +1,7 @@
 from artemis.fileman.local_dir import get_local_path
 import os
 from artemis.fileman.persistent_print import capture_print, read_print, new_log_file, stop_capturing_print, \
-    PrintAndStoreLogger
+    CaptureStdOut
 
 __author__ = 'peter'
 
@@ -12,7 +12,7 @@ def test_proper_persistent_print_usage():
     :return:
     """
     print 'ddd'
-    with PrintAndStoreLogger() as ps:
+    with CaptureStdOut() as ps:
         print 'fff'
         print 'ggg'
     print 'hhh'
@@ -22,7 +22,7 @@ def test_proper_persistent_print_usage():
 def test_proper_persistent_print_file_logging():
 
     log_file_path = get_local_path('tests/test_log.txt')
-    with PrintAndStoreLogger(log_file_path) as ps:
+    with CaptureStdOut(log_file_path) as ps:
         print 'fff'
         print 'ggg'
     print 'hhh'

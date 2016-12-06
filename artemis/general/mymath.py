@@ -182,6 +182,10 @@ def angle_between(a, b, axis=None, in_degrees = False):
 
     Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
+    if not a.dtype==float:
+        a=a.astype(float)
+    if not b.dtype==float:
+        b=b.astype(float)
 
     a = np.array(a) if not isinstance(a, np.ndarray) else a
     b = np.array(b) if not isinstance(b, np.ndarray) else b
@@ -192,12 +196,17 @@ def angle_between(a, b, axis=None, in_degrees = False):
     assert a.shape[-1]==b.shape[-1]
     arccos_input = (a*b).sum(axis=axis)/np.sqrt((a**2).sum(axis=axis) * (b**2).sum(axis=axis))
     # For numerical resons, we might get values outside [-1, 1] here, so we truncate:
+    print 'arccos input {}'.format(arccos_input)
     arccos_input = np.minimum(arccos_input, 1)
     arccos_input = np.maximum(arccos_input, -1)
     angle = np.arccos(arccos_input)
     if in_degrees:
         angle = angle * 180/np.pi
     return angle
+
+
+def degrees_between(a, b):
+    return angle_between(a, b, in_degrees=True)
 
 
 def magnitude_ratio(a, b):

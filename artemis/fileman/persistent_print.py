@@ -19,12 +19,16 @@ _ORIGINAL_STDOUT = sys.stdout
 _ORIGINAL_STDERR = sys.stderr
 
 
-class PrintAndStoreLogger(object):
+class CaptureStdOut(object):
     """
     An logger that both prints to stdout and writes to file.
     """
 
     def __init__(self, log_file_path = None, print_to_console = True):
+        """
+        :param log_file_path: The path to save the records, or None if you just want to keep it in memory
+        :param print_to_console:
+        """
         self._print_to_console = print_to_console
         if log_file_path is not None:
             # self._log_file_path = os.path.join(base_dir, log_file_path.replace('%T', now))
@@ -81,7 +85,7 @@ def capture_print(log_file_path = 'logs/dump/%T-log.txt', print_to_console=True)
     :return: The absolute path to the log file.
     """
     local_log_file_path = get_local_path(log_file_path)
-    logger = PrintAndStoreLogger(log_file_path=local_log_file_path, print_to_console=print_to_console)
+    logger = CaptureStdOut(log_file_path=local_log_file_path, print_to_console=print_to_console)
     logger.__enter__()
     sys.stdout = logger
     sys.stderr = logger
@@ -108,7 +112,7 @@ def read_print():
 
 
 def reprint():
-    assert isinstance(sys.stdout, PrintAndStoreLogger), "Can't call reprint unless you've turned on capture_print"
+    assert isinstance(sys.stdout, CaptureStdOut), "Can't call reprint unless you've turned on capture_print"
     # Need to avoid exponentially growing prints...
     current_stdout = sys.stdout
     sys.stdout = _ORIGINAL_STDOUT

@@ -178,6 +178,8 @@ def print_score_results(results):
         row_categories = [[test_pair_name for test_pair_name in test_pair_names], [function_name for function_name in function_names]],
         column_categories = [cost_name for cost_name in cost_names],
         row_header_labels=['Subset', 'Function'],
+        clear_repeated_headers = False,
+        remove_unchanging_cols=True
         )
     import tabulate
     print tabulate.tabulate(rows)
