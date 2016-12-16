@@ -48,7 +48,7 @@ Note: During installation, the settings file `.artemisrc` is created in your hom
 
 **Recording Experiment Results**:  [artemis/fileman/demo_experiments.py](/artemis/fileman/demo_experiments.py)  
 
- ![](https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Tizian_015.jpg/800px-Tizian_015.jpg)
+ ![](http://www.mlahanas.de/Greeks/Mythology/Images/Artemis02.jpg)
 
 ## Using Browser-plotting
 After installing, you should have a file ~/.artemis rc.  To use the web backend, edit the `backend` field to `matplotlib-web`.  To try it you can run [/artemis/plotting/demo_dbplot.py](/artemis/plotting/demo_dbplot.py)  
