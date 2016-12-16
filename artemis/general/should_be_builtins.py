@@ -142,8 +142,13 @@ def try_key(dictionary, key, default):
 
 def separate_common_items(list_of_lists):
     """
-    :param list_of_lists:
+    Given a list of lists of items, separate out the items that are common between the sublists
+    into a single lists.
+
+    :param list_of_lists: A list of lists of items
     :return: common_items, list_of_lists_of_different_items
+        common_items: A list of items that are common to all the sublists.
+        different_items: A list of lists of items that are not common between all sublists
     """
     are_dicts = all(isinstance(el, dict) for el in list_of_lists)
     if are_dicts:

@@ -182,13 +182,12 @@ def angle_between(a, b, axis=None, in_degrees = False):
 
     Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
+    a = np.array(a) if not isinstance(a, np.ndarray) else a
+    b = np.array(b) if not isinstance(b, np.ndarray) else b
     if not a.dtype==float:
         a=a.astype(float)
     if not b.dtype==float:
         b=b.astype(float)
-
-    a = np.array(a) if not isinstance(a, np.ndarray) else a
-    b = np.array(b) if not isinstance(b, np.ndarray) else b
     if axis is None:
         a = a.ravel()
         b = b.ravel()
