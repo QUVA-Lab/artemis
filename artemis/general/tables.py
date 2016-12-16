@@ -3,7 +3,7 @@ from artemis.general.should_be_builtins import all_equal
 
 
 def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_headers = True, prettify_labels = True,
-            row_header_labels = None):
+            row_header_labels = None, remove_unchanging_cols = False):
     """
     Build the rows of a table.  You can feed these rows into tabulate to generate pretty things.
 
@@ -54,11 +54,11 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
     column_headers = zip(*itertools.product(*column_categories))
     for i, c in enumerate(column_headers):
         row_header = row_header_labels if row_header_labels is not None and i==len(column_headers)-1 else [' ']*len(row_categories)
-        row = row_header+blank_out_repeats(c) if clear_repeated_headers else list(c)
+        row = row_header+(blank_out_repeats(c) if clear_repeated_headers else list(c))
         rows.append([prettify_label(el) for el in row] if prettify_labels else row)
     last_row_data = [' ']*len(row_categories)
     for row_info in itertools.product(*row_categories):
-        if blank_out_repeats:
+        if clear_repeated_headers:
             row_header, last_row_data = zip(*[(h, h) if lh!=h else (' ', lh) for h, lh in zip(row_info, last_row_data)])
         else:
             row_header = row_info
@@ -66,7 +66,13 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
             row_header = [prettify_label(str(el)) for el in row_header]
         data = [lookup_fcn(row_info[0] if single_row_category else row_info, column_info[0] if single_column_category else column_info) for column_info in itertools.product(*column_categories)]
         rows.append(list(row_header) + data)
-    assert all_equal(len(r) for r in rows)
+    assert all_equal(*(len(r) for r in rows)), "All rows must have equal length.  They now have lengths: {}".format([len(r) for r in rows])
+
+    if remove_unchanging_cols:
+        for col_ix in range(len(rows[0]))[::-1]:
+            if all_equal(*[row[col_ix] for row in rows[len(column_headers):]]):
+                for row in rows:
+                    del row[col_ix]
     return rows
 
 

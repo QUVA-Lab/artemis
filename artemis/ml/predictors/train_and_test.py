@@ -4,6 +4,7 @@ import numpy as np
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
 from artemis.ml.datasets.datasets import DataSet
+from artemis.ml.tools.iteration import zip_minibatch_iterate_info
 
 __author__ = 'peter'
 
@@ -178,6 +179,38 @@ def print_score_results(results):
         row_categories = [[test_pair_name for test_pair_name in test_pair_names], [function_name for function_name in function_names]],
         column_categories = [cost_name for cost_name in cost_names],
         row_header_labels=['Subset', 'Function'],
+        clear_repeated_headers = False,
+        remove_unchanging_cols=True
         )
     import tabulate
     print tabulate.tabulate(rows)
+
+
+def training_iterator(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
+        score_measure='percent_argmax_correct', bigger_is_better=True, enter_on='test'):
+    """
+    Takes care of the common tasks of training.
+    :param dataset: A DataSet object
+    :param train_fcn: A function of the form train_fcn(x, y) which updates the parameters
+    :param predict_fcn: A function of the form y=predict_fcn(x) which makes a prediction giben inputs
+    :param minibatch_size: Minibatch size
+    :param n_epochs: Number of epoch
+    :param test_epochs: Test epcohs
+    :param enter_on:
+    :return: Yields:
+        score: The score for the current iteration
+        best_score: The best score
+    """
+    assert enter_on in ('every', 'test')
+    best_score = None
+    for (x_mini, y_mini), info in zip_minibatch_iterate_info(dataset.training_set.xy, minibatch_size=minibatch_size, n_epochs=n_epochs, test_epochs=test_epochs):
+        if info.test_now:
+            print 'Epoch {}'.format(info.epoch)
+            score = assess_prediction_functions(dataset, functions=predict_fcn, costs=percent_argmax_correct, print_results=True)
+            best_score = score if best_score is None or score['test', None, score_measure] > best_score['test', None, score_measure] else best_score
+        if enter_on=='every' or enter_on=='test' and info.test_now:
+            yield score, best_score
+        if not info.done:
+            train_fcn(x_mini, y_mini)
+    print 'Best Score:'
+    print_score_results(best_score)

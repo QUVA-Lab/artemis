@@ -211,6 +211,8 @@ class LinePlot(HistoryFreePlot):
                     self._end_markers[i][1].set_xdata(xd[[-1]])
                     self._end_markers[i][1].set_ydata(yd[[-1]])
 
+        # plt.legend(loc='best', framealpha=0.5, prop={'size': self.legend_entry_size})
+
     @staticmethod
     def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
         if mode=='fit':

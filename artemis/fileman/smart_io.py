@@ -1,12 +1,13 @@
+import os
 import pickle
+import re
+from contextlib import contextmanager
+from datetime import datetime
+
+import numpy as np
 from artemis.fileman.file_getter import get_temp_file, get_file_and_cache
 from artemis.fileman.images2gif import readGif
-from contextlib import contextmanager
-import os
 from artemis.fileman.local_dir import get_local_path
-import numpy as np
-import re
-from datetime import datetime
 from artemis.general.image_ops import get_dark_edge_slice, resize_image
 
 
@@ -27,7 +28,7 @@ def smart_save(obj, relative_path, remove_file_after = False):
         iso_time = datetime.now().isoformat().replace(':', '.').replace('-', '.')
         relative_path = relative_path.replace('%T', iso_time)
     if '%R' in relative_path:
-        from artemis.fileman.experiment_record import get_current_experiment_id
+        from artemis.experiments.experiment_record import get_current_experiment_id
         relative_path = relative_path.replace('%R', get_current_experiment_id())
     _, ext = os.path.splitext(relative_path)
     local_path = get_local_path(relative_path, make_local_dir=True)

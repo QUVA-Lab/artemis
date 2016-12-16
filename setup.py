@@ -1,20 +1,12 @@
+from setuptools import setup, find_packages
 
-
-from setuptools import setup
-import os
-
-CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.artemisrc')
-
-if not os.path.exists(CONFIG_PATH):
-    with open(CONFIG_PATH, 'w') as f:
-        f.write('[plotting]\nbackend: matplotlib')
-
-setup(name='artemis',
-      author='Peter & Matthias',
-      author_email='poconn4@gmail.com',
-      url='https://github.com/quva-lab/artemis',
-      long_description='A Library for plotting and managing experiments.',
-      install_requires=['numpy', 'scipy', 'matplotlib', 'pytest', 'pillow'],
-      version=0,
-      packages=['artemis'],
-      scripts=[])
+setup(
+    name='artemis-ml',
+    author='Peter & Matthias',
+    author_email='poconn4@gmail.com',
+    url='https://github.com/quva-lab/artemis',
+    long_description='Artemis aims to get rid of all the boring, bureaucratic coding (plotting, file management, etc) involved in machine learning projects, so you can get to the good stuff quickly.',
+    install_requires=['numpy', 'scipy', 'matplotlib', 'pytest', 'pillow', 'tabulate'],
+    version='1.1',
+    packages=find_packages(),
+    scripts=[])
