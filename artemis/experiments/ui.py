@@ -30,17 +30,17 @@ def _warn_with_prompt(message, prompt = 'Press Enter to continue'):
     raw_input('%s\n  (%s) >> ' % (message, prompt))
 
 
-def find_experiment(search_term):
+def find_experiment(*search_terms):
     """
     Find an experiment.  Invoke
     :param search_term: A term that will be used to search for an experiment.
     :return:
     """
-    found_experiments = OrderedDict((name, ex) for name, ex in GLOBAL_EXPERIMENT_LIBRARY.iteritems() if search_term in name)
+    found_experiments = OrderedDict((name, ex) for name, ex in GLOBAL_EXPERIMENT_LIBRARY.iteritems() if all(term in name for term in search_terms))
     if len(found_experiments)==0:
-        raise Exception("None of the {} experiments matched the search: '{}'".format(len(GLOBAL_EXPERIMENT_LIBRARY), search_term))
+        raise Exception("None of the {} experiments matched the search: '{}'".format(len(GLOBAL_EXPERIMENT_LIBRARY), search_terms))
     elif len(found_experiments)>1:
-        raise Exception("More than one experiment matched the search '{}', you need to be more specific.  Found: {}".format(search_term, found_experiments.keys()))
+        raise Exception("More than one experiment matched the search '{}', you need to be more specific.  Found: {}".format(search_terms, found_experiments.keys()))
     else:
         return found_experiments.values()[0]
 
