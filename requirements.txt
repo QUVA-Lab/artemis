@@ -4,6 +4,7 @@ matplotlib
 bokeh
 pytest
 pillow
+tabulate
 # Other things we may want (uncomment to add these to requirements)
 # scikit-learn
 # ipython[notebook]
