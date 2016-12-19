@@ -193,9 +193,13 @@ def test_variants():
         assert add_some_numbers.get_unnamed_variant(a=2, b=4).run().get_result()==6
         assert add_some_numbers.get_unnamed_variant(a=3, b=5).run().get_result()==8
 
+    experiments = add_some_numbers.get_all_variants(include_roots=True)
+    assert len(experiments)==13
+    for e in experiments:
+        e.clear_records()
+
 
 if __name__ == '__main__':
-
     set_test_mode(True)
     test_get_latest_identifier()
     test_get_latest()
