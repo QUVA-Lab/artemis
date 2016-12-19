@@ -262,6 +262,15 @@ class ExperimentRecord(object):
     def delete(self):
         shutil.rmtree(self._experiment_directory)
 
+    @staticmethod
+    def experiment_id_to_name(identifier):
+        """
+        Get the experiment name from the identifier.
+        :param identifier: A string identifying the experiment, eg '2016.12.19T11.04.42.281111-experiment_test_function'
+        :return: The experiment name, eg 'experiment_test_function'
+        """
+        return identifier[27:]
+
 
 _CURRENT_EXPERIMENT_RECORD = None
 
@@ -437,7 +446,7 @@ def get_latest_experiment_identifier(name, version=None, template = '%T-%N'):
     :return: A string identifying the latest matching experiment, or None, if not found.
     """
     expr = _get_matching_template_from_experiment_name(name, version = version, template=template)
-    matching_experiments = get_all_experiment_ids(expr)
+    matching_experiments = get_all_experiment_ids(expr=expr)
     if len(matching_experiments) == 0:
         return None
     else:
@@ -467,17 +476,38 @@ def load_experiment_record(experiment_identifier):
     return ExperimentRecord(full_path)
 
 
-def get_all_experiment_ids(expr = None):
+def filter_experiment_ids(ids, expr=None, names=None):
+
+    if expr is not None:
+        ids = [e for e in ids if re.match(expr, e)]
+    if names is not None:
+        ids = [eid for eid in ids if ExperimentRecord.experiment_id_to_name(eid) in names]
+    return ids
+
+
+def get_all_experiment_ids(names=None, filters = None):
     """
-    :param expr: A regexp for matching experiments
-        None if you just want all of them
+    :param names: A list of experiment names
+    :param filters: A list or regular expressions for matching experiments.
     :return: A list of experiment identifiers.
     """
-
     expdir = get_local_path('experiments')
-    experiments = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
-    if expr is not None:
-        experiments = [e for e in experiments if re.match(expr, e)]
+    ids = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
+    ids = filter_experiment_ids(ids=ids, names=names)
+    if filters is not None:
+        for expr in filters:
+            ids = filter_experiment_ids(ids=ids, expr=expr)
+    return ids
+
+
+def get_experiment_ids_with_names(*names):
+    """
+    Get all experiments with the given names.
+    :param names: The names to use.
+    :return: A list of experiment IDs with names matching that list.
+    """
+    assert len(names)>0, "Must provide at least one name"
+    experiments = [eid for eid in get_all_experiment_ids() if ExperimentRecord.experiment_id_to_name(eid) in names]
     return experiments
 
 
@@ -485,16 +515,24 @@ def _register_experiment(experiment):
     GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
-def clear_experiments():
+def clear_experiments(ids = None):
+    """
+    Delete all experiments with ids in the list, or all experiments if ids is None.
+    :param ids: A list of experiment ids, or None to remove all.
+    """
     # Credit: http://stackoverflow.com/questions/185936/delete-folder-contents-in-python
     folder = get_local_path('experiments')
-    for the_file in os.listdir(folder):
-        file_path = os.path.join(folder, the_file)
+
+    if ids is None:
+        ids = os.listdir(folder)
+
+    for exp_id in ids:
+        exp_path = os.path.join(folder, exp_id)
         try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
+            if os.path.isfile(exp_path):
+                os.unlink(exp_path)
+            elif os.path.isdir(exp_path):
+                shutil.rmtree(exp_path)
         except Exception as e:
             print(e)
 
