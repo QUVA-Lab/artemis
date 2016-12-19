@@ -196,6 +196,7 @@ def browse_experiment_records(names = None, filter_text = None):
 
         if len(parts)==0:
             _warn_with_prompt("You need to specify an experiment record number!")
+            continue
 
         cmd = parts[0]
         args = parts[1:]

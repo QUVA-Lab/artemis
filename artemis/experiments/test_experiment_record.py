@@ -3,11 +3,14 @@ import time
 import warnings
 
 import itertools
+from contextlib import contextmanager
+
 import matplotlib.pyplot as plt
 import numpy as np
 from artemis.experiments.experiment_record import run_experiment, show_experiment, \
     get_latest_experiment_identifier, get_experiment_info, load_experiment_record, ExperimentRecord, record_experiment, \
-    delete_experiment_with_id, get_current_experiment_dir, experiment_function, open_in_experiment_dir
+    delete_experiment_with_id, get_current_experiment_dir, experiment_function, open_in_experiment_dir, \
+    get_all_experiment_ids, clear_experiments, experiment_testing_context
 from artemis.experiments.deprecated import register_experiment, start_experiment, end_current_experiment
 from artemis.general.test_mode import set_test_mode, UseTestContext
 
@@ -61,12 +64,11 @@ def test_experiment_with():
     This syntax uses the record_experiment function directly instead of hiding it.
     """
 
-    delete_experiment_with_id('test_exp')
-
-    with record_experiment(identifier = 'test_exp', print_to_console=True) as exp_rec:
-        experiment_test_function()
-
-    assert_experiment_record_is_correct(exp_rec, show_figures=False)
+    with experiment_testing_context():
+        delete_experiment_with_id('test_exp')
+        with record_experiment(identifier = 'test_exp', print_to_console=True) as exp_rec:
+            experiment_test_function()
+            assert_experiment_record_is_correct(exp_rec, show_figures=False)
 
 
 def test_start_experiment():
@@ -78,11 +80,11 @@ def test_start_experiment():
     experiment.
     """
 
-    record = start_experiment('start_stop_test')
-    experiment_test_function()
-    end_current_experiment()
-    assert_experiment_record_is_correct(record, show_figures=False)
-    record.delete()
+    with experiment_testing_context():
+        record = start_experiment('start_stop_test')
+        experiment_test_function()
+        end_current_experiment()
+        assert_experiment_record_is_correct(record, show_figures=False)
 
 
 def test_run_and_show():
@@ -92,56 +94,56 @@ def test_run_and_show():
     single session - each experiment just has a unique identifier that can be used to show
     its results whenevs.
     """
-    experiment_record = experiment_test_function.run(keep_record=True)
-    assert_experiment_record_is_correct(experiment_record, show_figures=False)
-    show_experiment(experiment_record.get_identifier())
-    # Delay cleanup otherwise the show complains that file does not exist due to race condition.
-    atexit.register(experiment_record.delete)
+    with experiment_testing_context():
+        experiment_record = experiment_test_function.run()
+        assert_experiment_record_is_correct(experiment_record, show_figures=False)
+        show_experiment(experiment_record.get_identifier())
 
 
 def test_get_latest():
-    record_1 = experiment_test_function.run(keep_record=True)
-    time.sleep(0.01)
-    record_2 = experiment_test_function.run(keep_record=True)
-    identifier = get_latest_experiment_identifier('experiment_test_function')
-    assert identifier == record_2.get_identifier()
-    atexit.register(record_1.delete)
-    atexit.register(record_2.delete)
+    with experiment_testing_context():
+        record_1 = experiment_test_function.run()
+        time.sleep(0.01)
+        record_2 = experiment_test_function.run()
+        identifier = get_latest_experiment_identifier('experiment_test_function')
+        assert identifier == record_2.get_identifier()
 
 
 def test_get_latest_identifier():
 
-    exp_rec = experiment_test_function.run(keep_record=True)
-    print get_experiment_info('experiment_test_function')
-    assert_experiment_record_is_correct(exp_rec, show_figures=False)
-    last_experiment_identifier = get_latest_experiment_identifier(name='experiment_test_function')
-    assert last_experiment_identifier is not None, 'Experiment was run, this should not be none'
-    same_exp_rec = load_experiment_record(last_experiment_identifier)
-    assert_experiment_record_is_correct(same_exp_rec, show_figures=False)
-    same_exp_rec.delete()
+    with experiment_testing_context():
+        exp_rec = experiment_test_function.run()
+        print get_experiment_info('experiment_test_function')
+        assert_experiment_record_is_correct(exp_rec)
+        last_experiment_identifier = get_latest_experiment_identifier(name='experiment_test_function')
+        assert last_experiment_identifier is not None, 'Experiment was run, this should not be none'
+        same_exp_rec = load_experiment_record(last_experiment_identifier)
+        assert_experiment_record_is_correct(same_exp_rec)
 
 
 def test_accessing_experiment_dir():
 
-    @experiment_function
-    def access_dir_test():
-        print '123'
-        print 'abc'
-        dir = get_current_experiment_dir()
-        with open_in_experiment_dir('my_test_file.txt', 'w') as f:
-            f.write('Experiment Directory is: {}'.format(dir))
+    with experiment_testing_context():
 
-    record = access_dir_test.run(keep_record=True)
+        @experiment_function
+        def access_dir_test():
+            print '123'
+            print 'abc'
+            dir = get_current_experiment_dir()
+            with open_in_experiment_dir('my_test_file.txt', 'w') as f:
+                f.write('Experiment Directory is: {}'.format(dir))
 
-    filepaths = record.list_files()
+        record = access_dir_test.run()
 
-    assert 'my_test_file.txt' in filepaths
+        filepaths = record.list_files()
 
-    with record.open_file('my_test_file.txt') as f:
-        assert f.read() == 'Experiment Directory is: {}'.format(record.get_dir())
+        assert 'my_test_file.txt' in filepaths
 
-    with record.open_file('output.txt') as f:
-        assert f.read() == '123\nabc\n'
+        with record.open_file('my_test_file.txt') as f:
+            assert f.read() == 'Experiment Directory is: {}'.format(record.get_dir())
+
+        with record.open_file('output.txt') as f:
+            assert f.read() == '123\nabc\n'
 
 
 @experiment_function
@@ -153,9 +155,9 @@ def add_some_numbers_test_experiment(a=1, b=1):
 
 def test_saving_result():
     # Run root experiment
-    rec = add_some_numbers_test_experiment.run()
-    assert rec.get_result() == 2
-    add_some_numbers_test_experiment.clear_records()
+    with experiment_testing_context():
+        rec = add_some_numbers_test_experiment.run()
+        assert rec.get_result() == 2
 
 
 def test_variants():
@@ -166,7 +168,7 @@ def test_variants():
         print c
         return c
 
-    with UseTestContext(False):  # Disable test context for now (as it avoids saving records)
+    with experiment_testing_context():
 
         # Create a named variant
         e1=add_some_numbers.add_variant('b is 3', b=3)
@@ -193,19 +195,20 @@ def test_variants():
         assert add_some_numbers.get_unnamed_variant(a=2, b=4).run().get_result()==6
         assert add_some_numbers.get_unnamed_variant(a=3, b=5).run().get_result()==8
 
+        experiments = add_some_numbers.get_all_variants(include_roots=True)
+        assert len(experiments)==13
+
     experiments = add_some_numbers.get_all_variants(include_roots=True)
-    assert len(experiments)==13
-    for e in experiments:
-        e.clear_records()
+    assert len(experiments) == 0  # (just test that the context cleans up)
 
 
 if __name__ == '__main__':
     set_test_mode(True)
     test_get_latest_identifier()
-    test_get_latest()
-    test_run_and_show()
-    test_experiment_with()
-    test_start_experiment()
-    test_accessing_experiment_dir()
-    test_saving_result()
-    test_variants()
+    # test_get_latest()
+    # test_run_and_show()
+    # test_experiment_with()
+    # test_start_experiment()
+    # test_accessing_experiment_dir()
+    # test_saving_result()
+    # test_variants()

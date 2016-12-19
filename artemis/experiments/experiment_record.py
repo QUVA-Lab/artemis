@@ -80,7 +80,6 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
-import shelve
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.fileman.persistent_print import CaptureStdOut
@@ -378,6 +377,7 @@ def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_reco
 
 
 def _get_matching_template_from_experiment_name(experiment_name, template = '%T-%N'):
+    # Potentially obselete, though will keep around in case it gets useful one day.
     named_template = template.replace('%N', re.escape(experiment_name))
     expr = named_template.replace('%T', '\d\d\d\d\.\d\d\.\d\d\T\d\d\.\d\d\.\d\d\.\d\d\d\d\d\d')
     expr = '^' + expr + '$'
@@ -464,7 +464,7 @@ def load_experiment_record(experiment_identifier):
 def filter_experiment_ids(ids, expr=None, names=None):
 
     if expr is not None:
-        ids = [e for e in ids if re.match(expr, e)]
+        ids = [e for e in ids if expr in e]
     if names is not None:
         ids = [eid for eid in ids if ExperimentRecord.experiment_id_to_name(eid) in names]
     return ids
@@ -522,6 +522,25 @@ def get_experiment(name):
 
 def _kwargs_to_experiment_name(kwargs):
     return ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
+
+
+keep_record_by_default = None
+
+
+@contextmanager
+def experiment_testing_context():
+    """
+    Use this context when testing the experiment/experiment_record infrastructure.
+    Should only really be used in test_experiment_record.py
+    """
+    ids = get_all_experiment_ids()
+    global keep_record_by_default
+    old_val = keep_record_by_default
+    keep_record_by_default = True
+    yield
+    keep_record_by_default = old_val
+    new_ids = set(get_all_experiment_ids()).difference(ids)
+    clear_experiments(list(new_ids))
 
 
 class Experiment(object):
@@ -610,7 +629,7 @@ class Experiment(object):
         if test_mode is None:
             test_mode = is_test_mode()
         if keep_record is None:
-            keep_record = not test_mode
+            keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode()
 
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
