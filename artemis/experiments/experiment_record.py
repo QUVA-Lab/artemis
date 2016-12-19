@@ -296,12 +296,10 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', print_to_console = T
         experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=identifier))
 
     make_dir(experiment_directory)
-    make_file_dir(experiment_directory)
-    log_file_name = os.path.join(experiment_directory, 'output.txt')
     from artemis.plotting.manage_plotting import WhatToDoOnShow
     global _CURRENT_EXPERIMENT_RECORD  # Register
     _CURRENT_EXPERIMENT_RECORD = ExperimentRecord(experiment_directory)
-    capture_context = CaptureStdOut(log_file_path = log_file_name, print_to_console = print_to_console)
+    capture_context = CaptureStdOut(log_file_path = os.path.join(experiment_directory, 'output.txt'), print_to_console = print_to_console)
     show_context = WhatToDoOnShow(show_figs)
     if save_figs:
         from artemis.plotting.saving_plots import SaveFiguresOnShow
@@ -312,38 +310,6 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', print_to_console = T
         with capture_context, show_context:
             yield _CURRENT_EXPERIMENT_RECORD
     _CURRENT_EXPERIMENT_RECORD = None  # Deregister
-
-    # blocking_show_context.__exit__(None, None, None)
-    # log_capture_context.__exit__(None, None, None)
-    # if save_figs:
-    #     figure_save_context.__exit__(None, None, None)
-
-    # _deregister_current_experiment()
-
-#
-# _CURRENT_EXPERIMENT_ID = None
-# _CURRENT_EXPERIMENT_NAME = None
-#
-#
-# def _register_current_experiment(name, identifier, directory):
-#     """
-#     For keeping track of the current running experiment, assuring that no two experiments are running at the same time.
-#     :param name:
-#     :param identifier:
-#     :return:
-#     """
-#     global _CURRENT_EXPERIMENT_ID
-#     global _CURRENT_EXPERIMENT_NAME
-#     assert _CURRENT_EXPERIMENT_ID is None, "You cannot start experiment '%s' until experiment '%s' has been stopped." % (_CURRENT_EXPERIMENT_ID, identifier)
-#     _CURRENT_EXPERIMENT_NAME = name
-#     _CURRENT_EXPERIMENT_ID = identifier
-#
-#
-# def _deregister_current_experiment():
-#     global _CURRENT_EXPERIMENT_ID
-#     global _CURRENT_EXPERIMENT_NAME
-#     _CURRENT_EXPERIMENT_ID = None
-#     _CURRENT_EXPERIMENT_NAME = None
 
 
 def get_current_experiment_record():
@@ -385,6 +351,7 @@ def open_in_experiment_dir(filename, *args, **kwargs):
     :yield: The file object
     """
     return get_current_experiment_record().open_file(filename, *args, **kwargs)
+
 
 def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_record_kwargs):
     """
