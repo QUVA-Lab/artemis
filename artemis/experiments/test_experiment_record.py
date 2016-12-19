@@ -6,7 +6,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 from artemis.experiments.experiment_record import run_experiment, show_experiment, \
-    get_latest_experiment_identifier, get_experiment_info, load_experiment, ExperimentRecord, record_experiment, \
+    get_latest_experiment_identifier, get_experiment_info, load_experiment_record, ExperimentRecord, record_experiment, \
     delete_experiment_with_id
 from artemis.experiments.deprecated import register_experiment, start_experiment, end_current_experiment
 from artemis.general.test_mode import set_test_mode
@@ -15,7 +15,7 @@ __author__ = 'peter'
 
 """
 The experiment interface.  Currently, this can be used in many ways.  We'd like to
-converge on just using the interface demonstrated in test_experiment_interface.  So
+converge on just using the interface demonstrated in test_get_latest_identifier.  So
 use that if you're looking for an example.
 """
 
@@ -116,7 +116,7 @@ def test_experiment_interface():
     exp_rec = run_experiment('my_test_experiment', keep_record = True)
     print get_experiment_info('my_test_experiment')
     assert exp_rec.get_log() == 'aaa\nbbb\n'
-    same_exp_rec = load_experiment(get_latest_experiment_identifier(name = 'my_test_experiment'))
+    same_exp_rec = load_experiment_record(get_latest_experiment_identifier(name ='my_test_experiment'))
     assert same_exp_rec.get_log() == 'aaa\nbbb\n'
     same_exp_rec.delete()
 
