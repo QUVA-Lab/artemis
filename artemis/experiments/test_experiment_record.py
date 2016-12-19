@@ -198,17 +198,14 @@ def test_variants():
         experiments = add_some_numbers.get_all_variants(include_roots=True)
         assert len(experiments)==13
 
-    experiments = add_some_numbers.get_all_variants(include_roots=True)
-    assert len(experiments) == 0  # (just test that the context cleans up)
-
 
 if __name__ == '__main__':
     set_test_mode(True)
     test_get_latest_identifier()
-    # test_get_latest()
-    # test_run_and_show()
-    # test_experiment_with()
-    # test_start_experiment()
-    # test_accessing_experiment_dir()
-    # test_saving_result()
-    # test_variants()
+    test_get_latest()
+    test_run_and_show()
+    test_experiment_with()
+    test_start_experiment()
+    test_accessing_experiment_dir()
+    test_saving_result()
+    test_variants()

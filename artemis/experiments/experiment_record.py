@@ -539,8 +539,11 @@ def experiment_testing_context():
     keep_record_by_default = True
     yield
     keep_record_by_default = old_val
-    new_ids = set(get_all_experiment_ids()).difference(ids)
-    clear_experiments(list(new_ids))
+
+    def clean_on_close():
+        new_ids = set(get_all_experiment_ids()).difference(ids)
+        clear_experiments(list(new_ids))
+    atexit.register(clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally
 
 
 class Experiment(object):
