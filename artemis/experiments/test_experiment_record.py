@@ -1,13 +1,15 @@
 import atexit
 import time
 import warnings
+
+import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 from artemis.experiments.experiment_record import run_experiment, show_experiment, \
     get_latest_experiment_identifier, get_experiment_info, load_experiment_record, ExperimentRecord, record_experiment, \
     delete_experiment_with_id, get_current_experiment_dir, experiment_function, open_in_experiment_dir
 from artemis.experiments.deprecated import register_experiment, start_experiment, end_current_experiment
-from artemis.general.test_mode import set_test_mode
+from artemis.general.test_mode import set_test_mode, UseTestContext
 
 __author__ = 'peter'
 
@@ -142,6 +144,56 @@ def test_accessing_experiment_dir():
         assert f.read() == '123\nabc\n'
 
 
+@experiment_function
+def add_some_numbers_test_experiment(a=1, b=1):
+    c = a + b
+    print c
+    return c
+
+
+def test_saving_result():
+    # Run root experiment
+    rec = add_some_numbers_test_experiment.run()
+    assert rec.get_result() == 2
+    add_some_numbers_test_experiment.clear_records()
+
+
+def test_variants():
+
+    @experiment_function
+    def add_some_numbers(a=1, b=1):
+        c=a+b
+        print c
+        return c
+
+    with UseTestContext(False):  # Disable test context for now (as it avoids saving records)
+
+        # Create a named variant
+        e1=add_some_numbers.add_variant('b is 3', b=3)
+        assert e1.run().get_result()==4
+
+        # Creata a sub-variant
+        e11 = e1.add_variant('a is 2', a=2)
+        assert e11.run().get_result() == 5
+
+        # Create unnamed variant
+        e2=add_some_numbers.add_variant(b=4)
+        assert e2.run().get_result()==5
+        assert e2.get_name() == 'add_some_numbers.b=4'
+
+        # Create array of variants
+        e_list = [add_some_numbers.add_variant(b=i) for i in xrange(5, 8)]
+        assert [e.get_name() for e in e_list] == ['add_some_numbers.b=5', 'add_some_numbers.b=6', 'add_some_numbers.b=7']
+        assert [e.run().get_result()==j for e, j in zip(e_list, range(6, 11))]
+
+        # Create grid of variants
+        e_grid = [add_some_numbers.add_variant(a=a, b=b) for a, b in itertools.product([2, 3], [4, 5, 6])]
+        assert [e.get_name() for e in e_grid] == ['add_some_numbers.a=2,b=4', 'add_some_numbers.a=2,b=5', 'add_some_numbers.a=2,b=6',
+                                                  'add_some_numbers.a=3,b=4', 'add_some_numbers.a=3,b=5', 'add_some_numbers.a=3,b=6']
+        assert add_some_numbers.get_unnamed_variant(a=2, b=4).run().get_result()==6
+        assert add_some_numbers.get_unnamed_variant(a=3, b=5).run().get_result()==8
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
@@ -151,3 +203,5 @@ if __name__ == '__main__':
     test_experiment_with()
     test_start_experiment()
     test_accessing_experiment_dir()
+    test_saving_result()
+    test_variants()
