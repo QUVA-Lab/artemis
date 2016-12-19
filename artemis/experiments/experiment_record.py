@@ -377,9 +377,7 @@ def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_reco
     return experiment.run(**experiment_record_kwargs)
 
 
-def _get_matching_template_from_experiment_name(experiment_name, version = None, template = '%T-%N'):
-    if version is not None:
-        experiment_name = experiment_name + '-' + version
+def _get_matching_template_from_experiment_name(experiment_name, template = '%T-%N'):
     named_template = template.replace('%N', re.escape(experiment_name))
     expr = named_template.replace('%T', '\d\d\d\d\.\d\d\.\d\d\T\d\d\.\d\d\.\d\d\.\d\d\d\d\d\d')
     expr = '^' + expr + '$'
@@ -441,8 +439,8 @@ def get_latest_experiment_identifier(name):
         return latest_experiment_id
 
 
-def get_lastest_result(experiment_name, version = None):
-    return get_latest_experiment_record(experiment_name, version).get_result()
+def get_lastest_result(experiment_name):
+    return get_latest_experiment_record(experiment_name).get_result()
 
 
 def get_latest_experiment_record(experiment_name):
@@ -587,13 +585,12 @@ class Experiment(object):
         return 'Experiment: %s\n  Description: %s' % \
             (self.name, self.info)
 
-    def run(self, print_to_console = True, show_figs = None, version = None, test_mode=None, keep_record=None, **experiment_record_kwargs):
+    def run(self, print_to_console = True, show_figs = None, test_mode=None, keep_record=None, **experiment_record_kwargs):
         """
         Run the experiment, and return the ExperimentRecord that is generated.
 
         :param print_to_console: Print to console (as well as logging to file)
         :param show_figs: Show figures (as well as saving to file)
-        :param version: String identifying which version of the experiment to run (refer to "versions" argument of __init__)
         :param test_mode: Run in "test_mode".  This sets the global "test_mode" flag when running the experiment.  This
             flag can be used to, for example, shorten a training session to verify that the code runs.  Can be:
                 True: Run in test mode
@@ -613,13 +610,13 @@ class Experiment(object):
 
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
-        ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
+        ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
         with record_experiment(name = self.name, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
             results = self()
         exp_rec.save_result(results)
         if self.display_function is not None:
             self.display_function(results)
-        ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name}{version} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name, version=(' - '+version) if version is not None else ''))
+        ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
         set_test_mode(old_test_mode)
         return exp_rec
 
