@@ -80,7 +80,6 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
-import shelve
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.fileman.persistent_print import CaptureStdOut
@@ -378,6 +377,7 @@ def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_reco
 
 
 def _get_matching_template_from_experiment_name(experiment_name, template = '%T-%N'):
+    # Potentially obselete, though will keep around in case it gets useful one day.
     named_template = template.replace('%N', re.escape(experiment_name))
     expr = named_template.replace('%T', '\d\d\d\d\.\d\d\.\d\d\T\d\d\.\d\d\.\d\d\.\d\d\d\d\d\d')
     expr = '^' + expr + '$'
@@ -464,7 +464,7 @@ def load_experiment_record(experiment_identifier):
 def filter_experiment_ids(ids, expr=None, names=None):
 
     if expr is not None:
-        ids = [e for e in ids if re.match(expr, e)]
+        ids = [e for e in ids if expr in e]
     if names is not None:
         ids = [eid for eid in ids if ExperimentRecord.experiment_id_to_name(eid) in names]
     return ids
@@ -518,6 +518,32 @@ def get_experiment_info(name):
 
 def get_experiment(name):
     return GLOBAL_EXPERIMENT_LIBRARY[name]
+
+
+def _kwargs_to_experiment_name(kwargs):
+    return ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
+
+
+keep_record_by_default = None
+
+
+@contextmanager
+def experiment_testing_context():
+    """
+    Use this context when testing the experiment/experiment_record infrastructure.
+    Should only really be used in test_experiment_record.py
+    """
+    ids = get_all_experiment_ids()
+    global keep_record_by_default
+    old_val = keep_record_by_default
+    keep_record_by_default = True
+    yield
+    keep_record_by_default = old_val
+
+    def clean_on_close():
+        new_ids = set(get_all_experiment_ids()).difference(ids)
+        clear_experiments(list(new_ids))
+    atexit.register(clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally
 
 
 class Experiment(object):
@@ -606,7 +632,7 @@ class Experiment(object):
         if test_mode is None:
             test_mode = is_test_mode()
         if keep_record is None:
-            keep_record = not test_mode
+            keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode()
 
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
@@ -620,35 +646,52 @@ class Experiment(object):
         set_test_mode(old_test_mode)
         return exp_rec
 
-    def _create_experiment_variant(self, name, (args, kwargs), is_root):
+    def _create_experiment_variant(self, args, kwargs, is_root):
+        assert len(args) in (0, 1), "You can either provide one unnamed argument, the experiment name, or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
+        name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name, )
         ex = Experiment(
-            name='.'.join((self.name, name)),
-            function=partial(self, *args, **kwargs),
+            name=self.name+'.'+name,
+            function=partial(self, **kwargs),
             display_function=self.display_function,
             is_root = is_root
             )
         self.variants[name] = ex
         return ex
 
-    def add_variant(self, name, *args, **kwargs):
+    def add_variant(self, *args, **kwargs):
         """
         Add a variant to this experiment, and register it on the list of experiments.
-        :param name: The name of the root variant.
-        :param args, kwargs: Ordered/named arguments for this experiment variant
+        There are two ways you can do this:
+
+            # Name the experiment explicitely, then list the named arguments
+            my_experiment_function.add_variant('big_a', a=10000)
+            assert my_experiment_function.get_name()=='my_experiment_function.big_a'
+
+            # Allow the experiment to be named automatically, and just list the named arguments
+            my_experiment_function.add_variant(a=10000)
+            assert my_experiment_function.get_name()=='my_experiment_function.a==10000'
+
         :return: The experiment.
         """
-        return self._create_experiment_variant(name, (args, kwargs), is_root = False)
+        return self._create_experiment_variant(args, kwargs, is_root = False)
 
-    def add_root_variant(self, name, *args, **kwargs):
+    def add_root_variant(self, *args, **kwargs):
         """
         Add a variant to this experiment, but do NOT register it on the list of experiments.
-        (A root variant is indended to have variants added on top of it).
-        :param name: The name of the variant
-        :param args, kwargs: Ordered/named arguments for this experiment variant
+        There are two ways you can do this:
+
+            # Name the experiment explicitely, then list the named arguments
+            my_experiment_function.add_root_variant('big_a', a=10000)
+            assert my_experiment_function.get_name()=='my_experiment_function.big_a'
+
+            # Allow the experiment to be named automatically, and just list the named arguments
+            my_experiment_function.add_root_variant(a=10000)
+            assert my_experiment_function.get_name()=='my_experiment_function.a==10000'
+
         :return: The experiment.
         """
-        return self._create_experiment_variant(name, (args, kwargs), is_root=True)
+        return self._create_experiment_variant(args, kwargs, is_root=True)
 
     def add_note(self, note):
         """
@@ -666,6 +709,9 @@ class Experiment(object):
         :return:
         """
         return self.variants[name].get_variant(*path) if len(path)>0 else self.variants[name]
+
+    def get_unnamed_variant(self, **kwargs):
+        return self.get_variant(_kwargs_to_experiment_name(kwargs))
 
     def display_last(self):
         assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )
@@ -691,6 +737,11 @@ class Experiment(object):
                 self.run()
 
     def get_all_variants(self, include_roots = False):
+        """
+        Return a list of variants of this experiment
+        :param include_roots:
+        :return:
+        """
         variants = []
         if not self.is_root or include_roots:
             variants.append(self)
@@ -716,3 +767,19 @@ class Experiment(object):
 
     def test_all(self, **kwargs):
         self.run_all(test_mode=True, **kwargs)
+
+    def get_all_ids(self):
+        """
+        Get all identifiers of this experiment that have been run.
+        :return:
+        """
+        return get_all_experiment_ids(names = [self.name])
+
+    def clear_records(self):
+        """
+        Delete all records from this experiment
+        """
+        clear_experiments(ids = self.get_all_ids())
+
+    def get_name(self):
+        return self.name
