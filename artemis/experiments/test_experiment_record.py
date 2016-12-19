@@ -3,10 +3,10 @@ import time
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
-from artemis.experiments.experiment_record import show_experiment, \
+from artemis.experiments.experiment_record import run_experiment, show_experiment, \
     get_latest_experiment_identifier, get_experiment_info, load_experiment_record, ExperimentRecord, record_experiment, \
-    delete_experiment_with_id, experiment_function, get_current_experiment_dir, open_in_experiment_dir
-from artemis.experiments.deprecated import start_experiment, end_current_experiment
+    delete_experiment_with_id, get_current_experiment_dir, experiment_function, open_in_experiment_dir
+from artemis.experiments.deprecated import register_experiment, start_experiment, end_current_experiment
 from artemis.general.test_mode import set_test_mode
 
 __author__ = 'peter'
@@ -111,7 +111,6 @@ def test_get_latest_identifier():
 
     exp_rec = experiment_test_function.run(keep_record=True)
     print get_experiment_info('experiment_test_function')
-
     assert_experiment_record_is_correct(exp_rec, show_figures=False)
     last_experiment_identifier = get_latest_experiment_identifier(name='experiment_test_function')
     assert last_experiment_identifier is not None, 'Experiment was run, this should not be none'
