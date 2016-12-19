@@ -214,7 +214,7 @@ class ExperimentRecord(object):
             return locs
 
     def show(self):
-        print '{header} Showing Experiment {header}\n{info}{subborder} Logs {subborder}\n{log}\n{border}'.format(header="="*20, border="="*50, info=self.get_info_text(), subborder='-'*20, log=self.get_log())
+        print '{header} Showing Experiment {header}\n{info}\n{subborder}Logs {subborder}\n{log}\n{border}'.format(header="="*20, border="="*50, info=self.get_info_text(), subborder='-'*20, log=self.get_log())
         self.show_figures()
 
     def _get_info_obj(self):
@@ -386,18 +386,6 @@ def _get_matching_template_from_experiment_name(experiment_name, version = None,
     return expr
 
 
-def clear_experiment_records_with_name(experiment_name=None):
-    """
-    Clear all experiment results.
-    :param matching_expression:
-    :return:
-    """
-    ids = get_all_experiment_ids(_get_matching_template_from_experiment_name(experiment_name))
-    paths = [os.path.join(get_local_path('experiments'), identifier) for identifier in ids]
-    for p in paths:
-        shutil.rmtree(p)
-
-
 def delete_experiment_with_id(experiment_identifier):
     if experiment_exists(experiment_identifier):
         get_experiment_record(experiment_identifier).delete()
@@ -438,15 +426,14 @@ def merge_experiment_dicts(*dicts):
     return merge_dict
 
 
-def get_latest_experiment_identifier(name, version=None, template = '%T-%N'):
+def get_latest_experiment_identifier(name):
     """
     Show results of the latest experiment matching the given template.
     :param name: The experiment name
     :param template: The template which turns a name into an experiment identifier
     :return: A string identifying the latest matching experiment, or None, if not found.
     """
-    expr = _get_matching_template_from_experiment_name(name, version = version, template=template)
-    matching_experiments = get_all_experiment_ids(expr=expr)
+    matching_experiments = get_all_experiment_ids(names = [name])
     if len(matching_experiments) == 0:
         return None
     else:
@@ -458,10 +445,10 @@ def get_lastest_result(experiment_name, version = None):
     return get_latest_experiment_record(experiment_name, version).get_result()
 
 
-def get_latest_experiment_record(experiment_name, version=None):
-    experiment_record_identifier = get_latest_experiment_identifier(experiment_name, version=version)
+def get_latest_experiment_record(experiment_name):
+    experiment_record_identifier = get_latest_experiment_identifier(experiment_name)
     if experiment_record_identifier is None:
-        raise Exception("No saved records for experiment '{name}', version '{version}'".format(name=experiment_name, version=version))
+        raise Exception("No saved records for experiment '{name}'".format(name=experiment_name))
     exp_rec = get_experiment_record(experiment_record_identifier)
     return exp_rec
 
@@ -498,17 +485,6 @@ def get_all_experiment_ids(names=None, filters = None):
         for expr in filters:
             ids = filter_experiment_ids(ids=ids, expr=expr)
     return ids
-
-
-def get_experiment_ids_with_names(*names):
-    """
-    Get all experiments with the given names.
-    :param names: The names to use.
-    :return: A list of experiment IDs with names matching that list.
-    """
-    assert len(names)>0, "Must provide at least one name"
-    experiments = [eid for eid in get_all_experiment_ids() if ExperimentRecord.experiment_id_to_name(eid) in names]
-    return experiments
 
 
 def _register_experiment(experiment):
@@ -575,26 +551,16 @@ class Experiment(object):
 
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything. """
-        # if (_CURRENT_EXPERIMENT_RECORD is not None) and not isinstance(self.function, partial):
-
         if (_CURRENT_EXPERIMENT_RECORD is not None) and hasattr(self.function, 'is_base_experiment'):
             # If we get here it means that we're being called by the run() function of the experiment or one of its variants.
-            #
             r = _CURRENT_EXPERIMENT_RECORD
             start_time = time.time()
             try:
                 arg_spec = inspect.getargspec(self.function)
                 all_arg_names, _, _, defaults = arg_spec
-                # print all_arg_names
-                # print defaults
-                # print args, kwargs
-
                 named_args = get_final_args(args=args, kwargs=kwargs, all_arg_names=all_arg_names, default_kwargs=defaults)
-                # default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-(len(defaults) if defaults is not None else 0):], defaults if defaults is not None else [])}
-                # print default_args
                 r.add_info('Args', named_args)
             except Exception as err:
-                raise
                 ARTEMIS_LOGGER.error('Could not record arguments because %s: %s' % (err.__class__.__name__, err.message))
             r.add_info('Function', self.function.__name__)
             r.add_info('Module', inspect.getmodule(self.function).__file__)
