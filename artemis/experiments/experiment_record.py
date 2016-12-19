@@ -162,6 +162,9 @@ class ExperimentRecord(object):
 
     def __init__(self, experiment_directory):
         self._experiment_directory = experiment_directory
+        self.add_info('Name', self.get_name())
+        self.add_info('Identifier', self.get_identifier())
+        self.add_info('Directory', self.get_dir())
 
     def show_figures(self):
         from artemis.plotting.saving_plots import show_saved_figure
@@ -174,6 +177,34 @@ class ExperimentRecord(object):
         with open(log_file_path) as f:
             text = f.read()
         return text
+
+    def list_files(self, full_path=False):
+        """
+        List files in experiment directory, relative to root.
+        :param full_path: If true, list file with the full local path
+        :return: A list of strings indicating the file paths.
+        """
+        paths = [os.path.join(root, filename) for root, _, files in os.walk(self._experiment_directory) for filename in files]
+        if not full_path:
+            dir_length = len(self._experiment_directory)
+            paths = [f[dir_length+1:] for f in paths]
+        return paths
+
+    def open_file(self, filename, *args, **kwargs):
+        """
+        Open a file within the experiment record folder.
+        Example Usage:
+
+            with record.open_file('filename.txt') as f:
+                txt = f.read()
+
+        :param filename: Path within experiment directory (it can include subdirectories)
+        :param args, kwargs: Forwarded to python's "open" function
+        :return: A file object
+        """
+        full_path = os.path.join(self._experiment_directory, filename)
+        make_file_dir(full_path)  # Make the path if it does not yet exist
+        return open(full_path, *args, **kwargs)
 
     def get_figure_locs(self, include_directory = True):
         locs = [f for f in os.listdir(self._experiment_directory) if f.startswith('fig-')]
@@ -222,6 +253,9 @@ class ExperimentRecord(object):
         root, identifier = os.path.split(self._experiment_directory)
         return identifier
 
+    def get_name(self):
+        return self.get_identifier()[27:]  # NOTE: THIS WILL HAVE TO CHANGE IF WE USE A DIFFERENT DATA FORMAT!
+
     def get_dir(self):
         return self._experiment_directory
 
@@ -264,73 +298,93 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', print_to_console = T
     make_dir(experiment_directory)
     make_file_dir(experiment_directory)
     log_file_name = os.path.join(experiment_directory, 'output.txt')
-    log_capture_context = CaptureStdOut(log_file_path = log_file_name, print_to_console = print_to_console)
-    log_capture_context.__enter__()
     from artemis.plotting.manage_plotting import WhatToDoOnShow
-    blocking_show_context = WhatToDoOnShow(show_figs)
-    blocking_show_context.__enter__()
+    global _CURRENT_EXPERIMENT_RECORD  # Register
+    _CURRENT_EXPERIMENT_RECORD = ExperimentRecord(experiment_directory)
+    capture_context = CaptureStdOut(log_file_path = log_file_name, print_to_console = print_to_console)
+    show_context = WhatToDoOnShow(show_figs)
     if save_figs:
         from artemis.plotting.saving_plots import SaveFiguresOnShow
-        figure_save_context = SaveFiguresOnShow(path = os.path.join(experiment_directory, 'fig-%T-%L'+saved_figure_ext))
-        figure_save_context.__enter__()
+        save_figs_context = SaveFiguresOnShow(path = os.path.join(experiment_directory, 'fig-%T-%L'+saved_figure_ext))
+        with capture_context, show_context, save_figs_context:
+            yield _CURRENT_EXPERIMENT_RECORD
+    else:
+        with capture_context, show_context:
+            yield _CURRENT_EXPERIMENT_RECORD
+    _CURRENT_EXPERIMENT_RECORD = None  # Deregister
 
-    _register_current_experiment(name, identifier)
+    # blocking_show_context.__exit__(None, None, None)
+    # log_capture_context.__exit__(None, None, None)
+    # if save_figs:
+    #     figure_save_context.__exit__(None, None, None)
 
-    global _CURRENT_EXPERIMENT_RECORD
-    _CURRENT_EXPERIMENT_RECORD = ExperimentRecord(experiment_directory)
-    _CURRENT_EXPERIMENT_RECORD.add_info('Name', name, )
-    _CURRENT_EXPERIMENT_RECORD.add_info('Identifier', identifier)
-    _CURRENT_EXPERIMENT_RECORD.add_info('Directory',_CURRENT_EXPERIMENT_RECORD.get_dir())
-    yield _CURRENT_EXPERIMENT_RECORD
-    _CURRENT_EXPERIMENT_RECORD = None
+    # _deregister_current_experiment()
 
-    blocking_show_context.__exit__(None, None, None)
-    log_capture_context.__exit__(None, None, None)
-    if save_figs:
-        figure_save_context.__exit__(None, None, None)
-
-    _deregister_current_experiment()
-
-
-_CURRENT_EXPERIMENT_ID = None
-_CURRENT_EXPERIMENT_NAME = None
-
-
-def _register_current_experiment(name, identifier):
-    """
-    For keeping track of the current running experiment, assuring that no two experiments are running at the same time.
-    :param name:
-    :param identifier:
-    :return:
-    """
-    global _CURRENT_EXPERIMENT_ID
-    global _CURRENT_EXPERIMENT_NAME
-    assert _CURRENT_EXPERIMENT_ID is None, "You cannot start experiment '%s' until experiment '%s' has been stopped." % (_CURRENT_EXPERIMENT_ID, identifier)
-    _CURRENT_EXPERIMENT_NAME = name
-    _CURRENT_EXPERIMENT_ID = identifier
+#
+# _CURRENT_EXPERIMENT_ID = None
+# _CURRENT_EXPERIMENT_NAME = None
+#
+#
+# def _register_current_experiment(name, identifier, directory):
+#     """
+#     For keeping track of the current running experiment, assuring that no two experiments are running at the same time.
+#     :param name:
+#     :param identifier:
+#     :return:
+#     """
+#     global _CURRENT_EXPERIMENT_ID
+#     global _CURRENT_EXPERIMENT_NAME
+#     assert _CURRENT_EXPERIMENT_ID is None, "You cannot start experiment '%s' until experiment '%s' has been stopped." % (_CURRENT_EXPERIMENT_ID, identifier)
+#     _CURRENT_EXPERIMENT_NAME = name
+#     _CURRENT_EXPERIMENT_ID = identifier
+#
+#
+# def _deregister_current_experiment():
+#     global _CURRENT_EXPERIMENT_ID
+#     global _CURRENT_EXPERIMENT_NAME
+#     _CURRENT_EXPERIMENT_ID = None
+#     _CURRENT_EXPERIMENT_NAME = None
 
 
-def _deregister_current_experiment():
-    global _CURRENT_EXPERIMENT_ID
-    global _CURRENT_EXPERIMENT_NAME
-    _CURRENT_EXPERIMENT_ID = None
-    _CURRENT_EXPERIMENT_NAME = None
+def get_current_experiment_record():
+    if _CURRENT_EXPERIMENT_RECORD is None:
+        raise Exception("No experiment is currently running!")
+    return _CURRENT_EXPERIMENT_RECORD
 
 
 def get_current_experiment_id():
     """
     :return: A string identifying the current experiment
     """
-    if _CURRENT_EXPERIMENT_ID is None:
-        raise Exception("No experiment is currently running!")
-    return _CURRENT_EXPERIMENT_ID
+    return get_current_experiment_record().get_identifier()
 
 
 def get_current_experiment_name():
-    if _CURRENT_EXPERIMENT_NAME is None:
-        raise Exception("No experiment is currently running!")
-    return _CURRENT_EXPERIMENT_NAME
+    """
+    :return: A string containing the name of the current experiment
+    """
+    return get_current_experiment_record().get_name()
 
+
+def get_current_experiment_dir():
+    """
+    The directory in which the results of the current experiment are recorded.
+    """
+    return get_current_experiment_record().get_dir()
+
+
+def open_in_experiment_dir(filename, *args, **kwargs):
+    """
+    Open a file in the given experiment directory.  Usage:
+
+    with open_in_experiment_dir('myfile.txt', 'w') as f:
+        f.write('blahblahblah')
+
+    :param filename: The name of the file, relative to your experiment directory,
+    :param args,kwargs: See python built-in "open" function
+    :yield: The file object
+    """
+    return get_current_experiment_record().open_file(filename, *args, **kwargs)
 
 def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_record_kwargs):
     """
@@ -436,7 +490,7 @@ def get_latest_experiment_record(experiment_name, version=None):
     return exp_rec
 
 
-def load_experiment(experiment_identifier):
+def load_experiment_record(experiment_identifier):
     """
     Load an ExperimentRecord based on the identifier
     :param experiment_identifier: A string identifying the experiment
