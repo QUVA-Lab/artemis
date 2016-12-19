@@ -2,8 +2,9 @@ import shlex
 from collections import OrderedDict
 
 from artemis.experiments.experiment_record import GLOBAL_EXPERIMENT_LIBRARY, get_latest_experiment_identifier, \
-    show_experiment, get_all_experiment_ids, clear_experiments, get_experiment_record
-from artemis.general.should_be_builtins import separate_common_items, bad_value
+    show_experiment, get_all_experiment_ids, clear_experiments, get_experiment_record, filter_experiment_ids, \
+    ExperimentRecord
+from artemis.general.should_be_builtins import separate_common_items, bad_value, remove_duplicates
 from artemis.general.tables import build_table
 from tabulate import tabulate
 
@@ -44,7 +45,25 @@ def find_experiment(*search_terms):
     else:
         return found_experiments.values()[0]
 
+
 def browse_experiments(catch_errors = False, close_after_run = False, run_args = {}):
+    """
+    Browse Experiments
+
+    :param catch_errors:
+    :param close_after_run:
+    :param run_args:
+    :return:
+    """
+    help_text = """
+        Enter '4' to run experiment 4
+        Enter 'show 4' to show the output from the last run of experiment 4 (if it has been run already).
+        Enter 'records' to browse through all experiment records.
+        Enter 'display 4' to replot the result of experiment 4 (if it has been run already, (only works if you've defined
+            a display function for the experiment.)
+        Enter 'q' to quit.
+    """
+
     while True:
         listing = _get_experiment_listing()
         print "==================== Experiments ===================="
@@ -80,14 +99,12 @@ def browse_experiments(catch_errors = False, close_after_run = False, run_args =
                     _warn_with_prompt("Unrecognised command '%s'" % (cmd, ))
             elif len(split)==1:
                 if cmd == 'h':
-                    _warn_with_prompt("  Enter '4' to run experiment 4\n  Enter 'show 4' to show the output from the last run of experiment 4 (if it has been run already).\n  "
-                        "Enter 'records' to browse through all experiment records.\n  Enter 'display 4' to replot the result of experiment 4 (if it has been run already, "
-                        "only works if you've defined a display function for the experiment.)\n  Enter 'q' to quit.",
-                        prompt = 'Press Enter to exit help.')
+                    _warn_with_prompt(help_text, prompt = 'Press Enter to exit help.')
                 elif cmd == 'q':
                     break
                 elif cmd == 'records':
-                    browse_experiment_records()
+                    names = remove_duplicates(ExperimentRecord.experiment_id_to_name(eid) for eid in listing.values())
+                    browse_experiment_records(names=listing.values())
                 else:
                     if cmd not in listing:
                         _warn_with_prompt('No experiment with number "%s"' % (cmd, ))
@@ -140,17 +157,45 @@ def compare_experiment_records(record_identifiers):
     print tabulate(rows)
 
 
-def browse_experiment_records():
+def browse_experiment_records(names = None, filter_text = None):
+    """
+    Browse through experiment records.
 
-    ids = get_all_experiment_ids()
+    :param names: Filter by names of experiments
+    :param filter_text: Filter by regular expression
+    :return:
+    """
+
+    help = """
+        q:                  Quit
+        r:                  Refresh
+        filter <text>       filter experiments
+        viewfilters         View all filters on these results
+        showall:            Show all experiments ever
+        allnames:           Remove any name filters
+        show <number>       Show experiment with number
+        compare #1 #2 #3    Compare experiments by their numbers.
+        clearall            Delete all experements from your computer
+    """
+    filters = []
+    refresh = True
     while True:
+
+        if refresh:
+            ids = get_all_experiment_ids(names = names, filters=filters)
+            refresh=False
 
         print "=============== Experiment Records =================="
         print '\n'.join(['%s: %s' % (i, exp_id) for i, exp_id in enumerate(ids)])
         print '-----------------------------------------------------'
 
+        if names is not None or filter_text is not None:
+            print 'Not showing all experiments.  Type "rmfilters" to clear filters, or "viewfilters" to view current filters.'
         user_input = raw_input('Enter Command (show # to show and experiment, or h for help) >>')
         parts = shlex.split(user_input)
+
+        if len(parts)==0:
+            _warn_with_prompt("You need to specify an experiment record number!")
 
         cmd = parts[0]
         args = parts[1:]
@@ -159,12 +204,22 @@ def browse_experiment_records():
             if cmd == 'q':
                 break
             elif cmd == 'h':
-                _warn_with_prompt('q: Quit\nfilter <text>: filter experiments\nrmfilters: Remove all filters\nshow <number> show experiment with number\ncompare #1 #2 #3: Compare experiments by their numbers.')
+                _warn_with_prompt(help)
             elif cmd == 'filter':
                 filter_text, = args
-                ids = get_all_experiment_ids(filter_text)
+                filters.append(filter_text)
+                refresh = True
+            elif cmd == 'showall':
+                names = None
+                filters = []
+                refresh = True
             elif cmd == 'rmfilters':
-                ids = get_all_experiment_ids()
+                filters = []
+                refresh = True
+            elif cmd == 'r':
+                refresh = True
+            elif cmd == 'viewfilters':
+                _warn_with_prompt('Filtering for: \n  Names in {}\n  Expressions: {}'.format(names, filters))
             elif cmd == 'compare':
                 indices = [int(arg) for arg in args]
                 identifiers = [ids[ix] for ix in indices]
@@ -176,10 +231,10 @@ def browse_experiment_records():
                 show_experiment(exp_id)
                 _warn_with_prompt('')
             elif cmd == 'clearall':
-                conf = raw_input("Going to clear all experiment records.  Enter 'y' to confirm: ")
+                conf = raw_input("Going to clear all {} experiment records shown.  Enter 'y' to confirm: ".format(len(ids)))
                 if conf=='y':
-                    clear_experiments()
-                    ids = get_all_experiment_ids()
+                    clear_experiments(ids=ids)
+                    ids = get_all_experiment_ids(names=names, filters=filters)
                     assert len(ids)==0, "Failed to delete them?"
                     print "Deleted all experiments"
                 else:
