@@ -632,7 +632,7 @@ class Experiment(object):
         if test_mode is None:
             test_mode = is_test_mode()
         if keep_record is None:
-            keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode()
+            keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode
 
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
