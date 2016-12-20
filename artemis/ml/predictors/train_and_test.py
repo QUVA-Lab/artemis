@@ -203,11 +203,12 @@ def training_iterator(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=
     """
     assert enter_on in ('every', 'test')
     best_score = None
+    prediction_function_to_probe = predict_fcn[0][0] if isinstance(predict_fcn, list) else None
     for (x_mini, y_mini), info in zip_minibatch_iterate_info(dataset.training_set.xy, minibatch_size=minibatch_size, n_epochs=n_epochs, test_epochs=test_epochs):
         if info.test_now:
             print 'Epoch {}'.format(info.epoch)
             score = assess_prediction_functions(dataset, functions=predict_fcn, costs=percent_argmax_correct, print_results=True)
-            best_score = score if best_score is None or score['test', None, score_measure] > best_score['test', None, score_measure] else best_score
+            best_score = score if best_score is None or score['test', prediction_function_to_probe, score_measure] > best_score['test', prediction_function_to_probe, score_measure] else best_score
         if enter_on=='every' or enter_on=='test' and info.test_now:
             yield score, best_score
         if not info.done:
