@@ -86,6 +86,7 @@ from artemis.fileman.persistent_print import CaptureStdOut
 from artemis.general.should_be_builtins import get_final_args
 from artemis.general.test_mode import is_test_mode, set_test_mode
 
+
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 ARTEMIS_LOGGER.setLevel(logging.INFO)
@@ -546,6 +547,23 @@ def experiment_testing_context():
     atexit.register(clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally
 
 
+def save_figure_in_experiment(name, fig=None, default_ext='.pdf'):
+    '''
+    Saves the given figure in the experiment directory. If no figure is passed, plt.gcf() is saved instead.
+    :param name: The name of the figure to be saved
+    :param fig: The figure to be saved, can be None
+    :param default_ext: See artemis.plotting.saving_plots.save_figure() for information
+    :return: The path to the figure
+    '''
+    import matplotlib.pyplot as plt
+    from artemis.plotting.saving_plots import save_figure
+    if fig is None:
+        fig = plt.gcf()
+    save_path = os.path.join(get_current_experiment_dir(),name)
+    save_figure(fig,path=save_path,default_ext=default_ext)
+    return save_path
+
+
 class Experiment(object):
 
     def __init__(self, function=None, display_function = None, info = None, conclusion = None, name = None, is_root = False):
@@ -632,7 +650,7 @@ class Experiment(object):
         if test_mode is None:
             test_mode = is_test_mode()
         if keep_record is None:
-            keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode()
+            keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode
 
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
@@ -783,3 +801,5 @@ class Experiment(object):
 
     def get_name(self):
         return self.name
+
+

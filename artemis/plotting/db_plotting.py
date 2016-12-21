@@ -234,10 +234,11 @@ def hold_dbplots(fig = None, plot_every = None):
 
 
 def clear_dbplot(fig = None):
-    plt.figure(_DBPLOT_FIGURES[fig].figure.number)
-    plt.clf()
-    _DBPLOT_FIGURES[fig].subplots.clear()
-    _DBPLOT_FIGURES[fig].axes.clear()
+    if fig in _DBPLOT_FIGURES:
+        plt.figure(_DBPLOT_FIGURES[fig].figure.number)
+        plt.clf()
+        _DBPLOT_FIGURES[fig].subplots.clear()
+        _DBPLOT_FIGURES[fig].axes.clear()
 
 
 def get_dbplot_axis(axis_name, fig=None):
