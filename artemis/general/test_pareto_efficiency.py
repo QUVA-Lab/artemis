@@ -8,18 +8,18 @@ __author__ = 'peter'
 
 def test_is_pareto_efficient(plot=False):
 
-    for n_points in (2, 10):
+    for n_costs in (2, 10):
 
         rng = np.random.RandomState(1234)
 
-        costs = rng.rand(1000, n_points)
+        costs = rng.rand(1000, n_costs)
         ixs = is_pareto_efficient_ixs(costs)
 
         assert np.sum(ixs)>0
         for c in costs[ixs]:
             assert np.all(np.any(c<=costs, axis=1))
 
-        if plot and n_points==2:
+        if plot and n_costs==2:
             import matplotlib.pyplot as plt
             plt.plot(costs[:, 0], costs[:, 1], '.')
             plt.plot(costs[ixs, 0], costs[ixs, 1], 'ro')
