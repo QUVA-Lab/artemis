@@ -1,6 +1,6 @@
 # Artemis
 
- ![The deer represents dull, repetitive coding tasks, and Artemis represents Artemis.  As you can see, once Artemis comes along, the future is not bright for dull, repetitive coding tasks.](http://www.mlahanas.de/Greeks/Mythology/Images/Artemis02.jpg)
+ ![The deer represents dull, repetitive coding tasks, and Artemis represents Artemis.  As you can see, once Artemis comes along, the future is not bright for dull, repetitive coding tasks.](https://raw.githubusercontent.com/petered/data/master/images/artemis.jpeg)
 
 Artemis is a collection of tools that make it easier to run experiments in Python.  These include:
 
