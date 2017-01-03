@@ -50,7 +50,7 @@ Note: During installation, the settings file `.artemisrc` is created in your hom
 
 **Live Plotting**: [/artemis/plotting/demo_dbplot.py](/artemis/plotting/demo_dbplot.py)  
 
-**Recording Experiment Results**:  [artemis/fileman/demo_experiments.py](/artemis/fileman/demo_experiments.py)  
+**Recording Experiment Results**:  [artemis/experiments/demo_experiments.py](/artemis/experiments/demo_experiments.py)  
 
 ## Using Browser-plotting
 After installing, you should have a file ~/.artemis rc.  To use the web backend, edit the `backend` field to `matplotlib-web`.  To try it you can run [/artemis/plotting/demo_dbplot.py](/artemis/plotting/demo_dbplot.py)  
