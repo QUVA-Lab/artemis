@@ -52,6 +52,8 @@ Note: During installation, the settings file `.artemisrc` is created in your hom
 
 **Recording Experiment Results**:  [artemis/experiments/demo_experiments.py](/artemis/experiments/demo_experiments.py)  
 
+**A demo repo showing how to use Artemis from your code**: [https://github.com/QUVA-Lab/demo_repo](https://github.com/QUVA-Lab/demo_repo)
+
 ## Using Browser-plotting
 After installing, you should have a file ~/.artemis rc.  To use the web backend, edit the `backend` field to `matplotlib-web`.  To try it you can run [/artemis/plotting/demo_dbplot.py](/artemis/plotting/demo_dbplot.py)  
 
