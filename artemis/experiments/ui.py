@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 from artemis.experiments.experiment_record import GLOBAL_EXPERIMENT_LIBRARY, get_latest_experiment_identifier, \
     show_experiment, get_all_experiment_ids, clear_experiments, get_experiment_record, filter_experiment_ids, \
-    ExperimentRecord
+    ExperimentRecord, get_latest_experiment_record, run_experiment
 from artemis.general.should_be_builtins import separate_common_items, bad_value, remove_duplicates
 from artemis.general.tables import build_table
 from tabulate import tabulate
@@ -14,6 +14,31 @@ def _get_experiment_listing():
     for i, (name, exp) in enumerate(GLOBAL_EXPERIMENT_LIBRARY.iteritems()):
         experiment_listing['%s' % (i, )] = name
     return experiment_listing
+
+
+def _get_experiment_statuses():
+    """
+    :return: headers, statuses where:
+        headers is a row of field headers ['Index', 'Name', 'Last Run', 'Last Run Status']
+        experiment_infos is a row of information for each experiment corresponding to the headers.
+    """
+    headers = ['#', 'Name', 'Last Run', 'Duration', 'Status']
+    experiment_infos = []
+    for i, name in enumerate(GLOBAL_EXPERIMENT_LIBRARY.keys()):
+        record = get_latest_experiment_record(name)
+
+        if record is None:
+            last_run_info = '<No Records>'
+            duration = '-'
+            status = '-'
+        else:
+            last_run_info = ExperimentRecord.experiment_id_to_timestamp(record.get_identifier())
+            info = record.get_info()
+            duration = info['Run Time'] if 'Run Time' in info else '?'
+            status = info['Status'] if 'Status' in info else '?'
+
+        experiment_infos.append([i, name, last_run_info, duration, status])
+    return headers, experiment_infos
 
 
 def select_experiment():
@@ -58,6 +83,7 @@ def browse_experiments(catch_errors = False, close_after_run = False, run_args =
     help_text = """
         Enter '4', or 'run 4' to run experiment 4
         Enter 'call 4' to call experiment 4 (like running, but doesn't save a record)
+        Enter 'results' to view the results for all experiments or 'results 4' to just view results for experiment 4
         Enter 'show 4' to show the output from the last run of experiment 4 (if it has been run already).
         Enter 'records' to browse through all experiment records.
         Enter 'display 4' to replot the result of experiment 4 (if it has been run already, (only works if you've defined
@@ -66,56 +92,79 @@ def browse_experiments(catch_errors = False, close_after_run = False, run_args =
     """
 
     while True:
-        listing = _get_experiment_listing()
+        headers, experiment_info = _get_experiment_statuses()
+
+
+        # listing = _get_experiment_listing()
         print "==================== Experiments ===================="
-        print '\n'.join(['%s : %s' % (identifier, name) for identifier, name in listing.iteritems()])
+
+        print tabulate(experiment_info, headers=headers)
+
+        # print '\n'.join(['%s : %s' % (identifier, name) for identifier, name in listing.iteritems()])
         print '-----------------------------------------------------'
         cmd = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
 
+        def get_experiment_name(number):
+            assert number < len(experiment_info), 'No experiment with number "{}"'.format(number, )
+            _, _name, _, _, _ = experiment_info[number]
+            return _name
+
+        def get_experiment(_number):
+            if isinstance(_number, basestring):
+                _number = int(_number)
+            return GLOBAL_EXPERIMENT_LIBRARY[get_experiment_name(_number)]
+
         try:
             split = cmd.split(' ')
-            if len(split)==2:
-                cmd, number = split
-                if number not in listing:
-                    _warn_with_prompt('No experiment with number "%s"' % (number, ))
+            if len(split)==0:
+                continue
+            cmd = split[0]
+            args = split[1:]
+            if cmd == 'run':
+                number, = args
+                if number == 'all':
+                    import multiprocessing
+                    experiment_names = [get_experiment_name(number) for number in xrange(len(experiment_info))]
+                    p = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+                    p.map(run_experiment, experiment_names)
                 else:
-                    name = listing[number]
-                if cmd == 'run':
-                    exp = GLOBAL_EXPERIMENT_LIBRARY[name].run(**run_args)
-                    if close_after_run:
-                        break
-                elif cmd == 'show':
-                    last_identifier = get_latest_experiment_identifier(name)
-                    if last_identifier is None:
-                        _warn_with_prompt("No record for experiment '%s' exists yet.  Run it to create one." % (name, ))
-                    else:
-                        show_experiment(get_latest_experiment_identifier(name))
-                        _warn_with_prompt('')
-                elif cmd == 'call':
-                    exp = GLOBAL_EXPERIMENT_LIBRARY[name](**run_args)
-                    if close_after_run:
-                        break
-                elif cmd == 'display':
-                    try:
-                        GLOBAL_EXPERIMENT_LIBRARY[name].display_last()
-                    except Exception as err:
-                        _warn_with_prompt("Error: %s: %s" % (err.__class__.__name__, err.message))
-                else:
-                    _warn_with_prompt("Unrecognised command '%s'" % (cmd, ))
-            elif len(split)==1:
-                if cmd == 'h':
-                    _warn_with_prompt(help_text, prompt = 'Press Enter to exit help.')
-                elif cmd == 'q':
+                    get_experiment(number).run(**run_args)
+                if close_after_run:
                     break
-                elif cmd == 'records':
-                    names = remove_duplicates(ExperimentRecord.experiment_id_to_name(eid) for eid in listing.values())
-                    browse_experiment_records(names=listing.values())
+            elif cmd == 'show':
+                number, = args
+                name = get_experiment_name(number)
+                last_identifier = get_latest_experiment_identifier(name)
+                if last_identifier is None:
+                    _warn_with_prompt("No record for experiment '%s' exists yet.  Run it to create one." % (name, ))
                 else:
-                    if cmd not in listing:
-                        _warn_with_prompt('No experiment with number "%s"' % (cmd, ))
-                    else:
-                        name = listing[cmd]
-                        GLOBAL_EXPERIMENT_LIBRARY[name].run(**run_args)
+                    show_experiment(get_latest_experiment_identifier(name))
+                    _warn_with_prompt('')
+            elif cmd == 'call':
+                number, = args
+                get_experiment(number)(**run_args)
+                if close_after_run:
+                    break
+            elif cmd == 'display':
+                number, = args
+                get_experiment(number).display_last()
+            elif cmd == 'h':
+                _warn_with_prompt(help_text, prompt = 'Press Enter to exit help.')
+            elif cmd == 'results':  # Show all results
+                if len(args) == 0:
+                    experiment_identifiers = [get_experiment_name(i) for i in xrange(len(experiment_info))]
+                else:
+                    number, = args
+                    experiment_identifiers = [get_experiment_name(number)]
+                display_results(experiment_identifiers=experiment_identifiers)
+                _warn_with_prompt('Press Enter to continue... > ')
+            elif cmd == 'q':
+                break
+            elif cmd == 'records':
+                experiment_names = [get_experiment_name(number) for number in xrange(len(experiment_info))]
+                browse_experiment_records(experiment_names)
+            elif cmd.isdigit():
+                get_experiment(cmd).run(**run_args)
             else:
                 _warn_with_prompt('You must either enter a number to run the experiment, or "cmd #" to do some operation.  See help.')
         except Exception as e:
@@ -125,6 +174,29 @@ def browse_experiments(catch_errors = False, close_after_run = False, run_args =
                     raise
             else:
                 raise
+
+
+def display_results(experiment_identifiers = None):
+    """
+    :param experiment_identifiers: A list of experiment identifiers. (or none to take all imported experiments)
+    :return:
+    """
+    if experiment_identifiers is None:
+        experiment_identifiers = GLOBAL_EXPERIMENT_LIBRARY.keys()
+
+    for eid in experiment_identifiers:
+        experiment = GLOBAL_EXPERIMENT_LIBRARY[eid]
+        header = '{border} {title} {border}'.format(title=eid, border='='*20)
+        print header
+        latest_record = get_latest_experiment_identifier(eid)
+        if latest_record is None:
+            print '<No Record Found>'
+        else:
+            record = get_latest_experiment_record(eid)
+            result = record.get_result()
+            experiment.display_last(result, err_if_none=False)
+        print '='*len(header)
+        print '\n'
 
 
 def compare_experiment_records(record_identifiers):

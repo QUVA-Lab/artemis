@@ -2,7 +2,7 @@ __author__ = 'peter'
 import numpy as np
 
 
-def desc(obj):
+def deeprint(obj, memo=None):
     """
     Consise - print.
 
