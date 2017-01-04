@@ -80,6 +80,8 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
+from pprint import pprint
+
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.fileman.persistent_print import CaptureStdOut
@@ -271,6 +273,10 @@ class ExperimentRecord(object):
         """
         return identifier[27:]
 
+    @staticmethod
+    def experiment_id_to_timestamp(identifier):
+        return identifier[:26]
+
 
 _CURRENT_EXPERIMENT_RECORD = None
 
@@ -291,7 +297,8 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', print_to_console = T
     # Note: matplotlib imports are internal in order to avoid trouble for people who may import this module without having
     # a working matplotlib (which can occasionally be tricky to install).
 
-    identifier = format_filename(file_string = identifier, base_name=name, current_time = datetime.now())
+    date = datetime.now()
+    identifier = format_filename(file_string = identifier, base_name=name, current_time = date)
 
     if show_figs is None:
         show_figs = 'draw' if is_test_mode() else 'hang'
@@ -447,9 +454,9 @@ def get_lastest_result(experiment_name):
 def get_latest_experiment_record(experiment_name):
     experiment_record_identifier = get_latest_experiment_identifier(experiment_name)
     if experiment_record_identifier is None:
-        raise Exception("No saved records for experiment '{name}'".format(name=experiment_name))
-    exp_rec = get_experiment_record(experiment_record_identifier)
-    return exp_rec
+        return None
+    else:
+        return get_experiment_record(experiment_record_identifier)
 
 
 def load_experiment_record(experiment_identifier):
@@ -566,7 +573,7 @@ def save_figure_in_experiment(name, fig=None, default_ext='.pdf'):
 
 class Experiment(object):
 
-    def __init__(self, function=None, display_function = None, info = None, conclusion = None, name = None, is_root = False):
+    def __init__(self, function=None, display_function = pprint, info = None, conclusion = None, name = None, is_root = False):
         """
         :param function: The function defining the experiment
         :param display_function: A function that can be called to display the results returned by function.
@@ -731,11 +738,19 @@ class Experiment(object):
     def get_unnamed_variant(self, **kwargs):
         return self.get_variant(_kwargs_to_experiment_name(kwargs))
 
-    def display_last(self):
+    def display_last(self, result = '___FINDLATEST', err_if_none = True):
         assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )
-        result = get_lastest_result(self.name)
-        assert result is not None, "No result was computed for the last run of '%s'" % (self.name, )
-        self.display_function(result)
+        if result=='___FINDLATEST':
+            result = get_lastest_result(self.name)
+        if err_if_none:
+            assert result is not None, "No result was computed for the last run of '%s'" % (self.name, )
+        if result is None:
+            if err_if_none:
+                raise Exception("No result was computed for the last run of '%s'" % (self.name, ))
+            else:
+                print "<No result saved from last run>"
+        else:
+            self.display_function(result)
 
     def display_or_run(self):
         """
