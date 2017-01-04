@@ -202,9 +202,9 @@ def training_iterator(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=
         best_score: The best score
     """
     assert enter_on in ('every', 'test')
-    best_score = None
     prediction_function_to_probe = predict_fcn[0][0] if isinstance(predict_fcn, list) else None
     last_time = last_epoch = 0.
+    score_keeper = TrackBest(score_func=lambda score: score['test', prediction_function_to_probe, score_measure])
     for (x_mini, y_mini), info in zip_minibatch_iterate_info(dataset.training_set.xy, minibatch_size=minibatch_size, n_epochs=n_epochs, test_epochs=test_epochs):
         if info.test_now:
             rate = (info.time-last_time)/(info.epoch - last_epoch) if info.epoch>0 else float('nan')
@@ -212,10 +212,27 @@ def training_iterator(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=
             last_epoch = info.epoch
             last_time = info.time
             score = assess_prediction_functions(dataset, functions=predict_fcn, costs=percent_argmax_correct, print_results=True)
-            best_score = score if best_score is None or score['test', prediction_function_to_probe, score_measure] > best_score['test', prediction_function_to_probe, score_measure] else best_score
-        if enter_on=='every' or enter_on=='test' and info.test_now:
-            yield score, best_score
+            best_score = score_keeper(score)
+            if enter_on=='test':
+                yield score, best_score
+        if enter_on=='every':
+            yield
         if not info.done:
             train_fcn(x_mini, y_mini)
     print 'Best Score:'
     print_score_results(best_score)
+
+
+class TrackBest(object):
+
+    def __init__(self, score_func):
+        self.best = None
+        self.score_func = score_func
+
+    def __call__(self, score):
+        if self.best is None or self.score_func(score) > self.score_func(self.best):
+            self.best = score
+        return self.best
+
+    def get_best(self):
+        return self.best
