@@ -81,13 +81,11 @@ from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
 from pprint import pprint
-
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
-from artemis.fileman.persistent_print import CaptureStdOut
-from artemis.general.should_be_builtins import get_final_args
+from artemis.general.display import CaptureStdOut
+from artemis.general.functional import infer_derived_arg_values, get_partial_chain
 from artemis.general.test_mode import is_test_mode, set_test_mode
-
 
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
@@ -572,6 +570,10 @@ def save_figure_in_experiment(name, fig=None, default_ext='.pdf'):
 
 
 class Experiment(object):
+    """
+    An experiment.  In general you should not use this class directly.  Use the experiment_function decorator, and
+    create variants using decorated_function.add_variant()
+    """
 
     def __init__(self, function=None, display_function = pprint, info = None, conclusion = None, name = None, is_root = False):
         """
@@ -599,42 +601,23 @@ class Experiment(object):
             _register_experiment(self)
 
     def __call__(self, *args, **kwargs):
-        """ Run the function as normal, without recording or anything. """
-        if (_CURRENT_EXPERIMENT_RECORD is not None) and hasattr(self.function, 'is_base_experiment'):
-            # If we get here it means that we're being called by the run() function of the experiment or one of its variants.
-            r = _CURRENT_EXPERIMENT_RECORD
-            start_time = time.time()
-            try:
-                arg_spec = inspect.getargspec(self.function)
-                all_arg_names, _, _, defaults = arg_spec
-                named_args = get_final_args(args=args, kwargs=kwargs, all_arg_names=all_arg_names, default_kwargs=defaults)
-                r.add_info('Args', named_args)
-            except Exception as err:
-                ARTEMIS_LOGGER.error('Could not record arguments because %s: %s' % (err.__class__.__name__, err.message))
-            r.add_info('Function', self.function.__name__)
-            r.add_info('Module', inspect.getmodule(self.function).__file__)
-            try:
-                out = self.function(*args, **kwargs)
-                r.add_info('Status', 'Ran Successfully')
-            except Exception as err:
-                r.add_info('Status', 'Had an Error: %s: %s' % (err.__class__.__name__, err.message))
-                raise
-            finally:
-                fig_locs = _CURRENT_EXPERIMENT_RECORD.get_figure_locs(include_directory=False)
-                r.add_info('# Figures Generated', len(fig_locs))
-                r.add_info('Figures Generated', fig_locs)
-                r.add_info('Run Time', time.time() - start_time)
-                for key, val in self.info.iteritems():
-                    r.add_info(key, val)
-                for n in self._notes:
-                    r.add_note(n)
-            return out
-        else:
-            return self.function(*args, **kwargs)
+        """ Run the function as normal, without recording or anything.  You can also modify with arguments. """
+        return self.function(*args, **kwargs)
 
     def __str__(self):
         return 'Experiment: %s\n  Description: %s' % \
             (self.name, self.info)
+
+    def get_args(self):
+        """
+        :param to_root: If True, find all args of this experiment down to the root experiment.
+            If False, just return the args that differentiate this variant from its parent.
+        :return: A dictionary of arguments to the experiment
+        """
+        return infer_derived_arg_values(self.function)
+
+    def get_root_function(self):
+        return get_partial_chain(self.function)[0]
 
     def run(self, print_to_console = True, show_figs = None, test_mode=None, keep_record=None, **experiment_record_kwargs):
         """
@@ -663,8 +646,26 @@ class Experiment(object):
         set_test_mode(test_mode)
         ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
         with record_experiment(name = self.name, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
-            results = self()
+            try:
+                start_time = time.time()
+                exp_rec.add_info('Args', self.get_args().items())
+                root_function =self.get_root_function()
+                exp_rec.add_info('Function', root_function.__name__)
+                exp_rec.add_info('Module', inspect.getmodule(root_function).__file__)
+                results = self.function()
+                exp_rec.add_info('Status', 'Ran Successfully')
+            except Exception as err:
+                exp_rec.add_info('Status', 'Had an Error: %s: %s' % (err.__class__.__name__, err.message))
+                raise
         exp_rec.save_result(results)
+        fig_locs = exp_rec.get_figure_locs(include_directory=False)
+        exp_rec.add_info('# Figures Generated', len(fig_locs))
+        exp_rec.add_info('Figures Generated', fig_locs)
+        exp_rec.add_info('Run Time', time.time() - start_time)
+        for key, val in self.info.iteritems():
+            exp_rec.add_info(key, val)
+        for n in self._notes:
+            exp_rec.add_note(n)
         if self.display_function is not None:
             self.display_function(results)
         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
@@ -677,7 +678,7 @@ class Experiment(object):
         assert name not in self.variants, 'Variant "%s" already exists.' % (name, )
         ex = Experiment(
             name=self.name+'.'+name,
-            function=partial(self, **kwargs),
+            function=partial(self.function, **kwargs),
             display_function=self.display_function,
             is_root = is_root
             )
