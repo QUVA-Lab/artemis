@@ -76,6 +76,7 @@ import re
 import shutil
 import tempfile
 import time
+import traceback
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
@@ -138,7 +139,7 @@ def experiment_root(f):
 class ExperimentFunction(object):
     """ Decorator for an experiment
     """
-    def __init__(self, display_function = None, info=None, is_root = False):
+    def __init__(self, display_function = pprint, info=None, is_root = False):
         self.display_function = display_function
         self.info = info
         self.is_root = is_root
@@ -226,6 +227,8 @@ class ExperimentRecord(object):
     def add_info(self, field, data):
         with self._get_info_obj() as pod:
             pod[field] = data
+        with self.open_file('info.txt', 'w') as f:
+            f.write(pod.get_text())
 
     def add_note(self, note):
         self.add_info('Notes', self.get_info('Notes')+[note])
@@ -380,6 +383,13 @@ def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_reco
     """
     experiment = exp_dict[name]
     return experiment.run(**experiment_record_kwargs)
+
+
+def run_experiment_ignoring_errors(name, **kwargs):
+    try:
+        run_experiment(name, **kwargs)
+    except Exception as err:
+        traceback.print_exc()
 
 
 def _get_matching_template_from_experiment_name(experiment_name, template = '%T-%N'):
@@ -652,10 +662,13 @@ class Experiment(object):
                 root_function =self.get_root_function()
                 exp_rec.add_info('Function', root_function.__name__)
                 exp_rec.add_info('Module', inspect.getmodule(root_function).__file__)
+                exp_rec.add_info('Status', 'Running (or Killed)')
                 results = self.function()
                 exp_rec.add_info('Status', 'Ran Successfully')
             except Exception as err:
-                exp_rec.add_info('Status', 'Had an Error: %s: %s' % (err.__class__.__name__, err.message))
+                exp_rec.add_info('Status', '{}: {}'.format(err.__class__.__name__, err.message))
+                with exp_rec.open_file('errortrace.txt', 'w') as f:
+                    f.write(traceback.format_exc())
                 raise
         exp_rec.save_result(results)
         fig_locs = exp_rec.get_figure_locs(include_directory=False)
@@ -770,17 +783,17 @@ class Experiment(object):
             else:
                 self.run()
 
-    def get_all_variants(self, include_roots = False):
+    def get_all_variants(self, include_roots = False, include_self=False):
         """
         Return a list of variants of this experiment
         :param include_roots:
         :return:
         """
         variants = []
-        if not self.is_root or include_roots:
+        if include_self and (not self.is_root or include_roots):
             variants.append(self)
         for name, v in self.variants.iteritems():
-            variants += v.get_all_variants()
+            variants += v.get_all_variants(include_roots=include_roots, include_self=True)
         return variants
 
     def run_all(self):

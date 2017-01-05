@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 from artemis.experiments.experiment_record import GLOBAL_EXPERIMENT_LIBRARY, get_latest_experiment_identifier, \
     show_experiment, get_all_experiment_ids, clear_experiments, get_experiment_record, filter_experiment_ids, \
-    ExperimentRecord, get_latest_experiment_record, run_experiment
+    ExperimentRecord, get_latest_experiment_record, run_experiment, run_experiment_ignoring_errors
 from artemis.general.display import IndentPrint
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import separate_common_items, bad_value, remove_duplicates
@@ -78,11 +78,11 @@ class _ExperimentInfo(object):
             last_run_args = dict(info['Args']) if 'Args' in info else '?'
             current_args = dict(self.get_experiment().get_args())
             if compute_fixed_hash(last_run_args)!=compute_fixed_hash(current_args):
-                last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.iteritems()] for argdict in (last_run_args, current_args)]
+                last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.iteritems()] if isinstance(argdict, dict) else argdict for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
                 notes = "Warning: args have changed: {} -> {}".format(','.join(old_args), ','.join(new_args))
             else:
-                notes = "Last run config matches current config (that's good)"
+                notes = ""
         return [self.name, last_run_info, duration, status, notes]
 
 
@@ -128,13 +128,16 @@ def browse_experiments(catch_errors = False, close_after_run = False,):
             cmd = split[0]
             args = split[1:]
             if cmd == 'run':
-                number, = args
-                if number == 'all':
+                user_range, = args
+                numbers = interpret_numbers(user_range) if user_range is not 'all' else range(len(experiment_infos))
+                assert numbers is not None, "Could not interpret '{}' as a list of experiment numbers".format(user_range)
+                if len(numbers)>1:
                     import multiprocessing
-                    experiment_names = [get_experiment_name(number) for number in xrange(len(rows))]
+                    experiment_names = [experiment_infos[i].name for i in numbers]
                     p = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-                    p.map(run_experiment, experiment_names)
+                    p.map(run_experiment_ignoring_errors, experiment_names)
                 else:
+                    number, = numbers
                     get_experiment(number).run()
                 if close_after_run:
                     break
@@ -159,16 +162,16 @@ def browse_experiments(catch_errors = False, close_after_run = False,):
                 _warn_with_prompt(help_text, prompt = 'Press Enter to exit help.')
             elif cmd == 'results':  # Show all results
                 if len(args) == 0:
-                    experiment_identifiers = [get_experiment_name(i) for i in xrange(len(experiment_infos))]
+                    experiment_names = [e.name for e in experiment_infos]
                 else:
                     number, = args
-                    experiment_identifiers = [get_experiment_name(number)]
-                display_results(experiment_identifiers=experiment_identifiers)
+                    experiment_names = [get_experiment_name(number)]
+                display_results(experiment_identifiers=experiment_names)
                 _warn_with_prompt()
             elif cmd == 'q':
                 break
             elif cmd == 'records':
-                experiment_names = [get_experiment_name(number) for number in xrange(len(experiment_infos))]
+                experiment_names = [e.name for e in experiment_infos]
                 browse_experiment_records(experiment_names)
             elif cmd.isdigit():
                 get_experiment(cmd).run()
@@ -182,6 +185,18 @@ def browse_experiments(catch_errors = False, close_after_run = False,):
             else:
                 raise
 
+
+def interpret_numbers(user_range):
+    """
+    :param user_range: A string specifying a range of numbers.  Eg.
+        interpret_numbers('4-6')==[4,5,6]
+        interpret_numbers('4,6')==[4,6]
+        interpret_numbers('4,6-9')==[4,6,7,8,9]
+    :return: A list of integers, or None if the input is not numberic
+    """
+    numbers_and_ranges = user_range.split(',')
+    numbers = [n for lst in [int(s) if '-' not in s else range(int(s[:s.index('-')]), int(s[s.index('-')+1:])+1) for s in numbers_and_ranges] for n in lst]
+    return numbers
 
 def display_results(experiment_identifiers = None):
     """
@@ -198,13 +213,13 @@ def display_results(experiment_identifiers = None):
             experiment = GLOBAL_EXPERIMENT_LIBRARY[eid]
             # header = '{border} {title} {border}'.format(title=eid, border='='*20)
             print eid
-            latest_record = get_latest_experiment_identifier(eid)
-            if latest_record is None:
-                print '<No Record Found>'
-            else:
-                record = get_latest_experiment_record(eid)
-                result = record.get_result()
-                with IndentPrint(show_line=True, show_end=True):
+            with IndentPrint(show_line=True, show_end=True):
+                latest_record = get_latest_experiment_identifier(eid)
+                if latest_record is None:
+                    print '<No Record Found>'
+                else:
+                    record = get_latest_experiment_record(eid)
+                    result = record.get_result()
                     experiment.display_last(result, err_if_none=False)
             # print '='*len(header)
             # print '\n'
