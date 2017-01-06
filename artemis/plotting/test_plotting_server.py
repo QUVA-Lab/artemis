@@ -15,11 +15,11 @@ def test_plotting_server():
     if config.get('plotting', 'backend') != 'matplotlib-web':
         setup_web_plotting()
 
-    # for i in xrange(5):
-    while True:
+    for i in xrange(5):
+    # while True:
         dbplot(np.random.randn(10, 10, 3), 'noise')
         dbplot(np.random.randn(20, 2), 'lines')
-        plt.pause(2.)
+        plt.pause(0.1)
 
 
 if __name__ == '__main__':
