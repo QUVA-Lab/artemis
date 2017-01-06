@@ -1,4 +1,6 @@
 import numpy as np
+import time
+
 from artemis.plotting.demo_dbplot import demo_dbplot
 from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot
 from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPointPlot
@@ -138,8 +140,15 @@ def test_demo_dbplot():
     demo_dbplot(n_frames=3)
     clear_dbplot()
 
+# def test_server_dbplot():
+#     for i in xrange(10):
+#         dbplot(np.random.randn(20, 20), 'a',use_server=True)
+#         dbplot(np.random.randn(20, 20), 'b',use_server=True)
+#     time.sleep(2.)
+#
 
 if __name__ == '__main__':
+    test_server_dbplot()
     test_trajectory_plot()
     test_demo_dbplot()
     test_freeze_dbplot()
@@ -152,3 +161,4 @@ if __name__ == '__main__':
     test_history_plot_updating()
     test_particular_plot()
     test_dbplot()
+    # test_server_dbplot()
