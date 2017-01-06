@@ -1,3 +1,4 @@
+from artemis.config import get_artemis_config
 from artemis.general.test_mode import set_test_mode
 from artemis.plotting.db_plotting import dbplot
 from artemis.plotting.plotting_server import setup_web_plotting
@@ -9,12 +10,15 @@ __author__ = 'peter'
 
 
 def test_plotting_server():
-    setup_web_plotting()
+
+    config = get_artemis_config()
+    if config.get('plotting', 'backend') != 'matplotlib-web':
+        setup_web_plotting()
 
     for i in xrange(5):
         dbplot(np.random.randn(10, 10, 3), 'noise')
         dbplot(np.random.randn(20, 2), 'lines')
-        plt.pause(.01)
+        plt.pause(0.1)
 
 
 if __name__ == '__main__':
