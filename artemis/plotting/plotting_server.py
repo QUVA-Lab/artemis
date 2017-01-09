@@ -25,6 +25,7 @@ def _make_plot_html(plot_directory, update_period=1.):
     :return:
     """
 
+    # Todo: This seems very dependent on where/how artemis is installed
     with open(os.path.join(os.path.dirname(__file__), 'artemis_plots.html')) as f:
         html_template = f.read()
 
@@ -53,10 +54,11 @@ def _launch_on_first_available_port(first_port):
             ARTEMIS_LOGGER.warn("Serving Plots at http://localhost:%s" % (port, ))
             httpd.serve_forever()
         except SocketServer.socket.error as exc:
-            if exc.args[0] != 48:
+            if exc.args[0] == 48 or exc.args[0] == 98:
+                ARTEMIS_LOGGER.info('Port', port, 'already in use')
+                port += 1
+            else:
                 raise
-            ARTEMIS_LOGGER.info('Port', port, 'already in use')
-            port += 1
         else:
             break
 
