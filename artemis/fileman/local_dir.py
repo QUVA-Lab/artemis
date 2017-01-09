@@ -49,7 +49,7 @@ def get_local_dir(relative_path = '', create_dir_if_not_exist=True):
     :return: The full path to the directory
     """
     if not relative_path.endswith("/"):
-        relative_path + "/"
+        relative_path += "/"
     return get_local_path(relative_path=relative_path, make_local_dir=create_dir_if_not_exist)
 
 def get_relative_path(local_path, base_path = LOCAL_DIR):
