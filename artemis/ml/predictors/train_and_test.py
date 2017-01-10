@@ -190,38 +190,6 @@ def print_score_results(score, info=None):
     print tabulate.tabulate(rows)
 
 
-def training_iterator(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
-        score_measure='percent_argmax_correct', enter_on='test'):
-    """
-    Takes care of the common tasks of training.
-    :param dataset: A DataSet object
-    :param train_fcn: A function of the form train_fcn(x, y) which updates the parameters
-    :param predict_fcn: A function of the form y=predict_fcn(x) which makes a prediction giben inputs
-    :param minibatch_size: Minibatch size
-    :param n_epochs: Number of epoch
-    :param test_epochs: Test epcohs
-    :param enter_on:
-    :return: Yields:
-        score: The score for the current iteration
-        best_score: The best score
-    """
-    assert enter_on in ('every', 'test')
-    best_score = None
-    prediction_function_to_probe = predict_fcn[0][0] if isinstance(predict_fcn, list) else None
-    last_time = last_epoch = 0.
-    for (x_mini, y_mini), info in zip_minibatch_iterate_info(dataset.training_set.xy, minibatch_size=minibatch_size, n_epochs=n_epochs, test_epochs=test_epochs):
-        if info.test_now:
-            rate = (info.time-last_time)/(info.epoch - last_epoch) if info.epoch>0 else float('nan')
-            print 'Epoch {}.  Rate: {:.3g}s/epoch'.format(info.epoch, rate)
-            last_epoch = info.epoch
-            last_time = info.time
-            score = assess_prediction_functions(dataset, functions=predict_fcn, costs=score_measure, print_results=True)
-        if not info.done:
-            train_fcn(x_mini, y_mini)
-    print 'Best Score:'
-    print_score_results(best_score)
-
-
 def train_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
         score_measure='percent_argmax_correct', test_callback=None, training_callback = None):
     """
@@ -238,7 +206,7 @@ def train_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_ep
     :param test_callback: Function to be called on test.  It has the form: f(info, score)
     :param training_callback: Function to be called after every training iteration.  It takes no arguments.
     :return: A list<info, scores>  where...
-        IterationInfo object (see artemis.ml.tools.iteration.py) with fielts:
+        IterationInfo object (see artemis.ml.tools.iteration.py) with fields:
             'iteration', 'epoch', 'sample', 'time', 'test_now', 'done'
         scores is dict<(subset, prediction_function, cost_function) -> score>  where:
             subset is a string identifying the subset (eg 'train', 'test')
@@ -263,23 +231,6 @@ def train_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_ep
     return info_score_pairs
 
 
-class _TrackBestScore(object):
-
-    def __init__(self, subset, prediction_function, score_measure):
-        self.subset = subset
-        self.prediction_function = prediction_function
-        self.score_measure = score_measure
-        self.best = None
-
-    def update(self, score):
-        """
-        :param score: A dict whose values are referenced by the tuple: [subset, prediction_function, score_measure]
-        :return:
-        """
-        self.best = score if self.best is None or score['test', self.prediction_function_to_probe, self.score_measure] > self.best['test', self.prediction_function_to_probe, self.score_measure] else self.best
-        return self.best
-
-
 def get_best_score(score_info_pairs, subset = 'test', prediction_function = None, score_measure = None, lower_is_better = False):
     """
     Given a list of (info, score) pairs which represet the progress over training, find the best score and return it.
@@ -301,12 +252,13 @@ def get_best_score(score_info_pairs, subset = 'test', prediction_function = None
     if score_measure is None:
         assert len(all_measures)==1, "You did not specify a score_measure... options are: {}".format(all_measures)
         score_measure = all_measures[0]
-    best_of = lambda a, b: a if ((a[subset, prediction_function, score_measure]<b[subset, prediction_function, score_measure]) == lower_is_better) else b
     best_info = None
     best_score = None
     for info, score in score_info_pairs:
-        best_score = score if best_score is None else best_of(score, best_score)
-        if best_score is score:
+        this_is_the_best = best_score is None or \
+            (score[subset, prediction_function, score_measure]<best_score[subset, prediction_function, score_measure]) == lower_is_better
+        if this_is_the_best:
+            best_score = score
             best_info = info
     return best_info, best_score
 

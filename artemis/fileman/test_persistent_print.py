@@ -1,7 +1,7 @@
 from artemis.fileman.local_dir import get_local_path
 import os
-from artemis.fileman.persistent_print import capture_print, read_print, new_log_file, stop_capturing_print, \
-    CaptureStdOut
+from artemis.fileman.persistent_print import capture_print, read_print, new_log_file, stop_capturing_print
+from artemis.general.display import CaptureStdOut
 
 __author__ = 'peter'
 
