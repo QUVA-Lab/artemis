@@ -6,6 +6,7 @@ pytest
 pillow
 tabulate
 netifaces
+paramiko
 # Other things we may want (uncomment to add these to requirements)
 # scikit-learn
 # ipython[notebook]
