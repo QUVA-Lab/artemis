@@ -26,7 +26,7 @@ In the section that belongs to the remote address, you need to specify the usern
 At the moment, you must make sure that artemis is installed in the same version on all the machines, both server(s) and client(s), that you want to use. 
 
 ##Make sure that your keys are set##
-We do try to take privacy seriously (but are not experts in any way, please use at own risk). The way the connection is established is by using the functionality of the excellent [paramiko](http://www.paramiko.org) library. We didn't want to have the user input username and password every time a remote connection is established. Therefore we chose to rely on the private/public keys being correctly set. The one location where your private keys is being used, is in [artemis/remote/child_processes.py](artemis/remote/child_processes.py), in the function get_ssh_connection(). 
+We do try to take privacy seriously (but are not experts in any way, please use at own risk). The way the connection is established is by using the functionality of the excellent [paramiko](http://www.paramiko.org) library. We didn't want to have the user input username and password every time a remote connection is established. Therefore we chose to rely on the private/public keys being correctly set. The one location where your private keys is being used, is in [/artemis/remote/child_processes.py](/artemis/remote/child_processes.py), in the function get_ssh_connection(). 
 
 That's it. You are ready to go.
 
