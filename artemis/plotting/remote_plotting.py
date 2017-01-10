@@ -174,7 +174,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--reuse', action="store_true", help='set if you want to merge plots on this server into one shared memory')
     args = parser.parse_args()
-    if args.reuse:
+    if args.reuse is True:
         send_port_if_running_and_join()
     set_forward_to_server(False)
     run_plotting_server("0.0.0.0",7000)

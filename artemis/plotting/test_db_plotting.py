@@ -1,3 +1,5 @@
+from functools import partial
+
 import numpy as np
 import time
 
@@ -7,7 +9,6 @@ from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPoi
 import pytest
 __author__ = 'peter'
 
-@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_dbplot(n_steps = 3):
 
     reset_dbplot()
@@ -19,11 +20,10 @@ def test_dbplot(n_steps = 3):
         dbplot(arr, 'arr')
         for j in xrange(3):
             barr = np.random.randn(10, 2)
-            dbplot(barr, 'barr', plot_type=lambda: LinePlot())
+            dbplot(barr, 'barr', plot_type=partial(LinePlot))
 
 
 @pytest.mark.skipif('True', reason = 'Need to make matplotlib backend work with scales.')
-@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_dbplot_logscale(n_steps = 3):
     reset_dbplot()
 
@@ -36,17 +36,15 @@ def test_dbplot_logscale(n_steps = 3):
         for j in xrange(3):
             barr = np.random.randn(10, 2)
             kw = {"y_axis_type":"log"}
-            dbplot(barr, 'barr', plot_type=lambda: LinePlot(y_axis_type='log'))
+            dbplot(barr, 'barr', plot_type=partial(LinePlot,y_axis_type='log'))
 
-@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_particular_plot(n_steps = 3):
     reset_dbplot()
 
     for i in xrange(n_steps):
         r = np.random.randn(1)
-        dbplot(r, plot_type=lambda: HistogramPlot(edges=np.linspace(-5, 5, 20)))
+        dbplot(r, plot_type=partial(HistogramPlot,edges=np.linspace(-5, 5, 20)))
 
-@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_history_plot_updating():
     """
     This test checks that we've fixed the bug mentioned in issue 1: https://github.com/QUVA-Lab/artemis/issues/1
@@ -58,14 +56,14 @@ def test_history_plot_updating():
     for i in xrange(10):
         dbplot(np.random.randn(20, 20), 'a')
         dbplot(np.random.randn(20, 20), 'b')
-        dbplot(np.random.randn(), 'c', plot_type=lambda: MovingPointPlot())
+        dbplot(np.random.randn(), 'c', plot_type=partial(MovingPointPlot))
+        # dbplot(np.random.randn(), 'c', plot_type=partial(MovingPointPlot, memory=2))
 
-@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_moving_point_multiple_points():
     reset_dbplot()
     for i in xrange(5):
-        dbplot(np.sin([i/10., i/15.]), 'unlim buffer', plot_type = MovingPointPlot)
-        dbplot(np.sin([i/10., i/15.]), 'lim buffer', plot_type = lambda: MovingPointPlot(buffer_len=20))
+        dbplot(np.sin([i/10., i/15.]), 'unlim buffer', plot_type = partial(MovingPointPlot))
+        dbplot(np.sin([i/10., i/15.]), 'lim buffer', plot_type = partial(MovingPointPlot,buffer_len=20))
 
 def test_same_object():
     """
@@ -153,3 +151,4 @@ if __name__ == '__main__':
     test_history_plot_updating()
     test_particular_plot()
     test_dbplot()
+    # raw_input("Over")

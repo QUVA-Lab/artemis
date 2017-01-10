@@ -6,6 +6,14 @@ __author__ = 'peter'
 
 all_equal = lambda *args: all(a == args[0] for a in args[1:])
 
+def is_lambda(v):
+    '''
+    Source http://stackoverflow.com/a/3655857/2068168
+    :param v:
+    :return:
+    '''
+    LAMBDA = lambda:0
+    return isinstance(v, type(LAMBDA)) and v.__name__ == LAMBDA.__name__
 
 def bad_value(value, explanation = None):
     """

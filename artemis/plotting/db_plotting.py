@@ -8,6 +8,7 @@ from collections import OrderedDict, namedtuple
 import time
 import pickle
 
+from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.plotting_backend import _USE_SERVER, _PLOTTING_SERVER
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
@@ -70,6 +71,7 @@ def set_up_plotting_server(set_up_time_out):
         check_config_file(_PLOTTING_SERVER) # Make sure all things are set
         check_ssh_connection(_PLOTTING_SERVER) # Make sure the SSH-connection works
         command =["export DISPLAY=:0.0;", "python","-u", file_to_execute]
+        # TODO: Setting DISPLAY to :0.0 is a heuristic at the moment. I don't understand yet how these DISPLAY variables are set.
     else:
         command =["python","-u", file_to_execute]
 
@@ -148,7 +150,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     """
     if _USE_SERVER and should_I_forward_to_server():
         arg_locals = locals().copy()
-        assert not callable(plot_type), "function serialization in server mode not allowed at the moment"
+        assert not is_lambda(plot_type), "dbplot in server mode does not accept lambda. Use partial instead"
         blocking = False
         set_up_time_out = 10
         global _to_subprocess_queue
