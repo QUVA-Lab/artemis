@@ -8,14 +8,41 @@ import numpy as np
 import os
 import sys
 
+
+
+# def make_sure_artemis_is_up_to_date(ip_address):
+#     remote_packages = get_remote_installed_packages(ip_address)
+#     artemis_installed = "artemis-ml" in remote_packages.keys()
+#     python_path = get_config_value(".artemisrc",ip_address,"python")
+#     activate_path = os.path.join(os.path.dirname(python_path),"activate")
+#     if not artemis_installed:
+#         activate_command = "source %s"%activate_path
+#         install_command = "pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis"
+#         function = "; ".join([activate_command, install_command])
+#         ssh_conn = get_ssh_connection(ip_address)
+#         stdin , stdout, stderr =ssh_conn.exec_command(function)
+#         out = stdout.read()
+#         if "Successfully installed" in out or "Requirement already up-to-date" in out:
+#             pass
+#         else:
+#             print ("Error in installing artemis on the remote server %s:" % ip_address)
+#             err = stderr.read()
+#             err = "\n".join([s for s in err.strip().split("\n") if "SNIMissingWarning" not in s and "InsecurePlatformWarning" not in s])
+#             print err
+#     own_version = {i.key: i.version  for i in pip.get_installed_distributions() }["artemis-ml"]
+#     remote_version = remote_packages["artemis_ml"]
+#     if own_version != remote_version:
+#         remote_artemis_dir = os.path.join(os.path.dirname(os.path.dirname(python_path)),"src/artemis")
+#
+
 def get_remote_installed_packages(ip_address):
     '''
     This method queries a remote python installation about the installed packages.
-    All necessary information is extracted from ~/.artemisremoterc
+    All necessary information is extracted from ~/.artemisrc
     :param address: Ip address of remote server
     :return:
     '''
-    python_executable = get_config_value(config_filename=".artemisremoterc", section=ip_address, option="python")
+    python_executable = get_config_value(config_filename=".artemisrc", section=ip_address, option="python")
     function = "%s -c 'import pip; import json; print json.dumps({i.key: i.version  for i in pip.get_installed_distributions() })' "%python_executable
 
     ssh_conn = get_ssh_connection(ip_address)
@@ -32,7 +59,7 @@ def get_remote_installed_packages(ip_address):
 
 def install_packages_on_remote_virtualenv(ip_address, packages):
     '''
-    This function installs every package in packages on the remote virtual environment specified by the ip_address in ~/.artemisremoterc.
+    This function installs every package in packages on the remote virtual environment specified by the ip_address in ~/.artemisrc.
     In case the remote pip install -U command returns anything that is not "Successfully installed" or "Requirement already up-to-date" on stdout,
     the user is informed and an error that is not a SNIMissingWarning or InsecurePlatformWarning is printed.
     :param ip_address: ip_address, whose virtualenv is being modified
@@ -42,7 +69,7 @@ def install_packages_on_remote_virtualenv(ip_address, packages):
     if len(packages) == 0:
         return
     print("installing/upgrading remote packages ...")
-    python_path = get_config_value(".artemisremoterc",ip_address,"python")
+    python_path = get_config_value(".artemisrc",ip_address,"python")
     activate_path = os.path.join(os.path.dirname(python_path),"activate") # TODO: Make this work without the user using virtualenv
     activate_command = "source %s"%activate_path
     ssh_conn = get_ssh_connection(ip_address)
@@ -194,20 +221,20 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
 
 def test_check_diff_local_remote_virtualenv():
     ip_address = "146.50.28.6"
-    original_virtual_env_value = get_config_value(".artemisremoterc", ip_address, "python")
+    original_virtual_env_value = get_config_value(".artemisrc", ip_address, "python")
     import ConfigParser
     import os
 
     Config = ConfigParser.ConfigParser()
-    Config.read(os.path.expanduser("~/.artemisremoterc"))
+    Config.read(os.path.expanduser("~/.artemisrc"))
     Config.set(section=ip_address,option="python",value="~/virtualenvs/test_env/bin/python")
-    with open(os.path.expanduser("~/.artemisremoterc"), 'wb') as configfile:
+    with open(os.path.expanduser("~/.artemisrc"), 'wb') as configfile:
         Config.write(configfile)
 
     check_diff_local_remote_virtualenv(ip_address, auto_install=True,ignore_warnings=True)
 
     Config.set(section=ip_address,option="python",value=original_virtual_env_value)
-    with open(os.path.expanduser("~/.artemisremoterc"), 'wb') as configfile:
+    with open(os.path.expanduser("~/.artemisrc"), 'wb') as configfile:
         Config.write(configfile)
 
 
@@ -218,6 +245,6 @@ def test_get_remote_installed_packages():
     print packages
 
 if __name__ == "__main__":
-    # test_get_remote_installed_packages()
+    test_get_remote_installed_packages()
     # check_diff_local_remote_virtualenv("146.50.28.6")
-    test_check_diff_local_remote_virtualenv()
+    # test_check_diff_local_remote_virtualenv()

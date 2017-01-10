@@ -24,28 +24,24 @@ class ParamikoPrintThread(threading.Thread):
             :param source_pipe: The ssh pipe from which to forward communications
             :param target_pipe: Either stdout or stderr. This determines if stderr or stdout is read from the ssh channel.
             :param stopping_criterium: function which takes in a line from source_pipe and evaluates to boolean.:
-            :param prefix: A prefix that is attatched to every printed line.
+            :param prefix: A prefix that is attached to every printed line.
             :return:
             '''
-            self._stopevent = threading.Event()
             self.source_pipe = source_pipe
             self.prefix = prefix
             self.target_pipe = target_pipe
             self.stopping_criterium = stopping_criterium
             super(ParamikoPrintThread, self).__init__()
 
+
         def run(self, ):
             with self.source_pipe:
+                # Terminates when source pipe runs dry.
                 for line in iter(self.source_pipe.readline, b''):
                     self.target_pipe.write("%s%s"%(self.prefix,line))
                     self.target_pipe.flush()
-                    if self._stopevent.isSet():
-                        break
                     if self.stopping_criterium is not None and self.stopping_criterium(line):
                         break
-
-        def join(self):
-            super(ParamikoPrintThread,self).join()
 
 
 class Nanny(object):
@@ -197,7 +193,12 @@ class ChildProcess(object):
         self.id = uuid.uuid4()
         self.channel = None
         self.cp_started = False
-        if take_care_of_deconstruct:
+        self.take_care_of_deconstruct = take_care_of_deconstruct
+        if self.take_care_of_deconstruct:
+            # self.original_sigint_handler = signal.getsignal(signal.SIGINT)
+            # self.original_sigterm_handler = signal.getsignal(signal.SIGTERM)
+            # signal.signal(signal.SIGINT, self.deconstruct)
+            # signal.signal(signal.SIGTERM, self.deconstruct)
             atexit.register(self.deconstruct)
 
     def prepare_command(self,command):
@@ -210,22 +211,23 @@ class ChildProcess(object):
             home_dir = os.path.expanduser("~")
 
         else:
-            _,_,stdout,_ = self._run_command("echo ~")
+            _,_,stdout,_ = self._run_command("echo $$; exec echo ~")
             home_dir = stdout.read().strip()
 
 
-        if type(command) == list and command[0].startswith("python"):
+        if type(command) == list:
             if not self.local_process:
-                command[0] = command[0].replace("python", get_config_value(".artemisremoterc", section=self.get_ip(), option="python"), 1)
-
+                command = [c.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python")), 1) if c.startswith("python") else c for c in command]
+                command = [s.replace("~",home_dir) for s in command]
+                command = " ".join([c for c in command])
             else:
                 command = [c.strip("'") for c in command]
-                command[0] = command[0].replace("python", sys.executable)
-            command = [s.replace("~",home_dir) for s in command]
+                command = [c.replace("python", sys.executable, 1) if c.startswith("python") else c for c in command]
+                command = [s.replace("~",home_dir) for s in command]
 
         elif type(command) == str or type(command) == unicode and command.startswith("python"):
             if not self.local_process:
-                command = command.replace("python", get_config_value(".artemisremoterc", section=self.get_ip(), option="python"), 1)
+                command = command.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python")), 1)
             else:
                 command = command.replace("python", sys.executable)
             command = command.replace("~",home_dir)
@@ -235,12 +237,17 @@ class ChildProcess(object):
 
         return command
 
+    def get_extended_command(self,command):
+        return "echo $$ ; exec %s"%command
+
+
     def deconstruct(self, message=signal.SIGKILL):
         '''
         This completely and safely deconstructs a remote connection. It will also be called at program shutdown.
         kills itself if alive, then closes remote connection if applicable
         :return:
         '''
+        print("Deconstructing {}".format(self.name))
         if not self.cp_started:
             # Nothing has happened yet
             return
@@ -255,16 +262,10 @@ class ChildProcess(object):
         if not self.is_local():
             # print("Closing ssh connection to %s" % self.ip_address)
             self.ssh_conn.close()
-
-
-    def get_extended_command(self,command):
-        if type(command) == list:
-            command = ["echo $$ ; exec", ] + command
-            return " ".join(command)
-        elif type(command) == str or type(command) == unicode:
-            return "echo $$ ; exec %s"%command
-        else:
-            raise NotImplementedError()
+        # if self.take_care_of_deconstruct:
+        #     signal.signal(signal.SIGINT, self.original_sigint_handler)
+        #     signal.signal(signal.SIGTERM, self.original_sigterm_handler)
+        #     os.kill(os.getpid(), message)
 
     def is_local(self):
         return self.local_process
@@ -285,7 +286,12 @@ class ChildProcess(object):
         assert self.cp_started, "This ChildProcess has not been executed yet, no pid available yet. run execute_child_process() first"
         return self.pid
 
-    def execute_child_process(self):
+    def get_ssh_connection(self):
+        assert not self.is_local(), "A local ChildProcess does not have a ssh_connection"
+        assert self.cp_started, "A ssh_connection will only be available after running execute_child_process()"
+        return self.ssh_conn
+
+    def execute_child_process(self, get_pty = False):
         '''
         Executes ChildProcess in a non-blocking manner. This returns immediately.
         This method returns a tuple (stdin, stdout, stderr) of the child process
@@ -294,12 +300,12 @@ class ChildProcess(object):
         if not self.is_local():
             self.ssh_conn = get_ssh_connection(self.ip_address)
         command = self.prepare_command(self.command)
-        pid, stdin, stdout, stderr = self._run_command(command)
+        pid, stdin, stdout, stderr = self._run_command(command, get_pty=False)
         self._assign_pid(pid)
         self.cp_started = True
         return (stdin, stdout, stderr)
 
-    def _run_command(self,command):
+    def _run_command(self,command, get_pty=False):
         '''
         execute the given command
         :param command: string, to execute
@@ -308,10 +314,11 @@ class ChildProcess(object):
         if self.local_process:
             if type(command) == list:
                 # print (" ".join(c for c in command))
-                sub = subprocess.Popen(command ,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                sub = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             elif type(command) == str or type(command) == unicode:
                 shlexed_command = shlex.split(command)
-                sub = subprocess.Popen(shlexed_command ,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                sub = subprocess.Popen(shlexed_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                sub.communicate()
             else:
                 raise NotImplementedError()
             self.sub = sub
@@ -320,7 +327,6 @@ class ChildProcess(object):
             stderr = sub.stderr
             pid = sub.pid
         else:
-            command = self.get_extended_command(command)
             # print (command)
             # print("%s: executing command %s" %(self.get_ip(),command))
             stdin, stdout, stderr = self.ssh_conn.exec_command(command)
@@ -353,7 +359,7 @@ class ChildProcess(object):
         if self.is_local():
             return self.sub.poll() == None
         else:
-            command = "ps -h -p %s"%self.get_pid()
+            command = "echo $$; exec ps -h -p %s"%self.get_pid()
             _,_,stdout,_ = self._run_command(command)
             return self.get_pid() in stdout.read()
 
@@ -362,18 +368,18 @@ def get_ssh_connection(ip_address):
     '''
     This returns a ssh_connection to the given ip_address. Make sure to close the connection afterwards.
     Requires a public/private key to be set up with the remote system. The location of the private key can be
-    specified in .artemisremoterc or, if not specified, will be looked for in ~/.ssh/id_rsa
+    specified in .artemisrc or, if not specified, will be looked for in ~/.ssh/id_rsa
     :param ip_address:
     :return:
     '''
 
     try:
-        path_to_private_key = get_config_value(config_filename=".artemisremoterc", section=ip_address, option="private_key")
+        path_to_private_key = get_config_value(config_filename=".artemisrc", section=ip_address, option="private_key")
     except NoOptionError:
         path_to_private_key = os.path.join(os.path.expanduser("~"),".ssh/id_rsa")
 
     private_key = paramiko.RSAKey.from_private_key_file(os.path.expanduser(path_to_private_key))
-    username = get_config_value(config_filename=".artemisremoterc", section=ip_address, option="username")
+    username = get_config_value(config_filename=".artemisrc", section=ip_address, option="username")
     ssh_conn = paramiko.SSHClient()
     ssh_conn.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh_conn.connect(hostname=ip_address, username=username, pkey=private_key)
@@ -419,7 +425,7 @@ def execute_command(ip_address, command, blocking=True):
 
 def check_ssh_connection(ip_address):
     '''
-    tries to load necessary information from the ~/.artemisremoterc file and execute a test remote function call. This is to verify that ssh connection is available
+    tries to load necessary information from the ~/.artemisrc file and execute a test remote function call. This is to verify that ssh connection is available
     :param connections: A list ["ip-address"] of strings
     :return:
     '''
@@ -460,8 +466,9 @@ def test_check_ssh_connections():
     check_ssh_connection(connections)
 
 def test_check_if_port_is_free():
-    connections = ["146.50.28.6:9005"]
-    check_if_port_is_free(connections)
+    connection = "146.50.28.6:9005"
+    ip, port = connection.split(":")
+    check_if_port_is_free(ip,port)
 
 def communication_test():
     ip_address = "146.50.28.6"#"python -c $'from __future__ import print_function\nimport sys,time\nfor i in range(7): print(i, file=sys.stdout if i%2==0 else sys.stdout);time.sleep(10.0)'"
@@ -524,8 +531,37 @@ def test_nanny_lifetime():
     nanny.execute_all_child_processes()
 
 
+def test_remote_graphics():
+    ip_address = "146.50.28.6"
+    command = 'export DISPLAY=:0.0; python -c "from matplotlib import pyplot as plt;import time; plt.figure();plt.show();time.sleep(10)"'
+    # command = "python %s"%(os.path.expanduser("%s/PycharmProjects/Distributed-VI/distributed_vi/remote/bogus_test_functions.py" % ("/Users/matthias" if ip_address in get_local_ips() else "/home/mreisser/")))
+    cp = ChildProcess(ip_address="146.50.28.6",command=command)
+    i, o, e = cp.execute_child_process()
+    time.sleep(5)
+    cp.deconstruct()
+    print(o.read())
+    print(e.read())
+
+
+def test_is_alive():
+    ip = "146.50.28.6"
+    command ="python -u -c'from __future__ import print_function\nimport sys,time\nfor i in range(20): print(i, file=sys.stderr if i%2==0 else sys.stdout);time.sleep(1.0)'"
+    cp = ChildProcess(ip_address=ip, command=command)
+    i,o,e = cp.execute_child_process()
+    t = ParamikoPrintThread(o,sys.stdout).start()
+    t = ParamikoPrintThread(e,sys.stderr).start()
+    while True:
+        print(cp.is_alive())
+        time.sleep(1)
+
+
+
+
+
 if __name__ == "__main__":
     # test_check_if_port_is_free()
     # communication_test()
     # test_kill_process_gently()
-    test_nanny_lifetime()
+    # test_nanny_lifetime()
+    # test_remote_graphics()
+    test_is_alive()

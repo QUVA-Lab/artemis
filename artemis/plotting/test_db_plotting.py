@@ -3,11 +3,11 @@ import time
 
 from artemis.plotting.demo_dbplot import demo_dbplot
 from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot
-from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPointPlot
+from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPointPlot, _USE_SERVER
 import pytest
 __author__ = 'peter'
 
-
+@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_dbplot(n_steps = 3):
 
     reset_dbplot()
@@ -23,6 +23,7 @@ def test_dbplot(n_steps = 3):
 
 
 @pytest.mark.skipif('True', reason = 'Need to make matplotlib backend work with scales.')
+@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_dbplot_logscale(n_steps = 3):
     reset_dbplot()
 
@@ -37,7 +38,7 @@ def test_dbplot_logscale(n_steps = 3):
             kw = {"y_axis_type":"log"}
             dbplot(barr, 'barr', plot_type=lambda: LinePlot(y_axis_type='log'))
 
-
+@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_particular_plot(n_steps = 3):
     reset_dbplot()
 
@@ -45,7 +46,7 @@ def test_particular_plot(n_steps = 3):
         r = np.random.randn(1)
         dbplot(r, plot_type=lambda: HistogramPlot(edges=np.linspace(-5, 5, 20)))
 
-
+@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_history_plot_updating():
     """
     This test checks that we've fixed the bug mentioned in issue 1: https://github.com/QUVA-Lab/artemis/issues/1
@@ -59,7 +60,7 @@ def test_history_plot_updating():
         dbplot(np.random.randn(20, 20), 'b')
         dbplot(np.random.randn(), 'c', plot_type=lambda: MovingPointPlot())
 
-
+@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not support lambda functions")
 def test_moving_point_multiple_points():
     reset_dbplot()
     for i in xrange(5):
@@ -93,7 +94,7 @@ def test_list_of_images():
     for _ in xrange(2):
         dbplot([np.random.randn(12, 30), np.random.randn(10, 10), np.random.randn(15, 10)])
 
-
+@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not have an interpretation of hold_dplots")
 def test_two_plots_in_the_same_axis_version_1():
     reset_dbplot()
     # Option 1: Name the 'axis' argument to the second plot after the name of the first
@@ -104,7 +105,7 @@ def test_two_plots_in_the_same_axis_version_1():
             dbplot(data, 'histogram', plot_type='histogram')
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='histogram', plot_type='line')
 
-
+@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not have an interpretation of hold_dplots")
 def test_two_plots_in_the_same_axis_version_2():
     reset_dbplot()
     # Option 2: Give both plots the same 'axis' argument
@@ -115,7 +116,7 @@ def test_two_plots_in_the_same_axis_version_2():
             dbplot(data, 'histogram', plot_type='histogram', axis='hist')
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='hist', plot_type='line')
 
-
+@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not have an interpretation of freeze_all_dbplots")
 def test_freeze_dbplot():
     reset_dbplot()
     def random_walk():
@@ -136,19 +137,10 @@ def test_trajectory_plot():
 
 
 def test_demo_dbplot():
-
     demo_dbplot(n_frames=3)
     clear_dbplot()
 
-# def test_server_dbplot():
-#     for i in xrange(10):
-#         dbplot(np.random.randn(20, 20), 'a',use_server=True)
-#         dbplot(np.random.randn(20, 20), 'b',use_server=True)
-#     time.sleep(2.)
-#
-
 if __name__ == '__main__':
-    test_server_dbplot()
     test_trajectory_plot()
     test_demo_dbplot()
     test_freeze_dbplot()
@@ -161,4 +153,3 @@ if __name__ == '__main__':
     test_history_plot_updating()
     test_particular_plot()
     test_dbplot()
-    # test_server_dbplot()
