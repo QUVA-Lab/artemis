@@ -116,14 +116,53 @@ def izip_equal(*iterables):
         yield combo
 
 
-def remove_duplicates(sequence):
+def remove_duplicates(sequence, hashable=True, key=None, keep_last=False):
     """
     Remove duplicates while maintaining order.
-    Credit goes to Markus Jarderot from http://stackoverflow.com/a/480227/851699
+    :param sequence: The sequence you want to remove the duplicates in
+    :param hashable: Set to True if your sequence contains unhashable items.  If your items are not hashable,
+        you can set hashable=False.  The function will be slower, and test for dupicates based on equality rather than
+        hash, which may in some cases give different results.
+    :param key: Optionally, a function that extracts the identity from each element in sequence.  This allows you to be
+        flexible in what you consider to be a "duplicate"
+    :param keep_last: Keep the last element, rather than the first (only makes sense if key is not None)
+    :returns: A list that maintains the order, but with duplicates removed
     """
-    seen = set()
-    seen_add = seen.add
-    return [x for x in sequence if not (x in seen or seen_add(x))]
+    is_dup = detect_duplicates(sequence, hashable=hashable, key=key, keep_last=keep_last)
+    return [x for x, is_duplicate in zip(sequence, is_dup) if not is_duplicate]
+
+
+def detect_duplicates(sequence, hashable=True, key=None, keep_last=False):
+    """
+    Identify whether each element in a sequence is a duplicate of a previously existing element.
+
+    Derived from solution by goes to Markus Jarderot from http://stackoverflow.com/a/480227/851699
+
+    :param sequence: The sequence you want to remove the duplicates in
+    :param hashable: Set to True if your sequence contains unhashable items.  If your items are not hashable,
+        you can set hashable=False.  The function will be slower, and test for dupicates based on equality rather than
+        hash, which may in some cases give different results.
+    :param key: Optionally, a function that extracts the identity from each element in sequence.  This allows you to be
+        flexible in what you consider to be a "duplicate"
+    :param keep_last: Keep the last element, rather than the first.
+    :returns: A list of booleans, which are True if the item is a duplicate and False otherwise.
+    """
+    if keep_last:
+        sequence = sequence[::-1]
+    if key is None:
+        key = lambda x: x
+    if hashable:
+        seen = set()
+        seen_add = seen.add
+    else:
+        seen = list()
+        seen_add = seen.append
+    if key is not None:
+        sequence = [key(x) for x in sequence]
+    is_dup = [(x in seen or seen_add(x) is 'This is such a hack') for x in sequence]
+    if keep_last:
+        is_dup = is_dup[::-1]
+    return is_dup
 
 
 def try_key(dictionary, key, default):
@@ -154,10 +193,26 @@ def separate_common_items(list_of_lists):
     if are_dicts:
         list_of_lists = [el.items() for el in list_of_lists]
     all_items = [item for list_of_items in list_of_lists for item in list_of_items]
-    all_identical = {k: c==len(list_of_lists) for k, c in Counter(all_items).iteritems()}
-    common_items = remove_duplicates(item for item in all_items if all_identical[item])
+    common_items = remove_duplicates([k for k, c in count_unique_items(all_items) if c==len(list_of_lists)], hashable=False)
     different_items = [[item for item in list_of_items if item not in common_items] for list_of_items in list_of_lists]
     if are_dicts:
         return dict(common_items), [dict(el) for el in different_items]
     else:
         return common_items, different_items
+
+
+def count_unique_items(items):
+    """
+    Count the unique items in a list.  Similar to calling collections.Counter(items).items(), but it doesn't require
+    that items be hashable.
+    :return: A list<(item, item_count)>
+    """
+    unique_items = []
+    unique_item_counts = []
+    for item in items:
+        if item in unique_items:
+            unique_item_counts[unique_items.index(item)] +=1
+        else:
+            unique_items.append(item)
+            unique_item_counts.append(1)
+    return zip(unique_items, unique_item_counts)

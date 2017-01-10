@@ -8,9 +8,9 @@ from contextlib import contextmanager
 import matplotlib.pyplot as plt
 import numpy as np
 from artemis.experiments.experiment_record import run_experiment, show_experiment, \
-    get_latest_experiment_identifier, get_experiment_info, load_experiment_record, ExperimentRecord, record_experiment, \
+    experiment_id_to_latest_record_id, get_experiment_info, load_experiment_record, ExperimentRecord, record_experiment, \
     delete_experiment_with_id, get_current_experiment_dir, experiment_function, open_in_experiment_dir, \
-    get_all_experiment_ids, clear_experiments, experiment_testing_context
+    get_all_record_ids, clear_experiment_records, experiment_testing_context
 from artemis.experiments.deprecated import register_experiment, start_experiment, end_current_experiment
 from artemis.general.test_mode import set_test_mode, UseTestContext
 
@@ -105,7 +105,7 @@ def test_get_latest():
         record_1 = experiment_test_function.run()
         time.sleep(0.01)
         record_2 = experiment_test_function.run()
-        identifier = get_latest_experiment_identifier('experiment_test_function')
+        identifier = experiment_id_to_latest_record_id('experiment_test_function')
         assert identifier == record_2.get_identifier()
 
 
@@ -115,7 +115,7 @@ def test_get_latest_identifier():
         exp_rec = experiment_test_function.run()
         print get_experiment_info('experiment_test_function')
         assert_experiment_record_is_correct(exp_rec)
-        last_experiment_identifier = get_latest_experiment_identifier(name='experiment_test_function')
+        last_experiment_identifier = experiment_id_to_latest_record_id(name='experiment_test_function')
         assert last_experiment_identifier is not None, 'Experiment was run, this should not be none'
         same_exp_rec = load_experiment_record(last_experiment_identifier)
         assert_experiment_record_is_correct(same_exp_rec)
@@ -195,7 +195,7 @@ def test_variants():
         assert add_some_numbers.get_unnamed_variant(a=2, b=4).run().get_result()==6
         assert add_some_numbers.get_unnamed_variant(a=3, b=5).run().get_result()==8
 
-        experiments = add_some_numbers.get_all_variants(include_roots=True)
+        experiments = add_some_numbers.get_all_variants(include_roots=True, include_self=True)
         assert len(experiments)==13
 
 

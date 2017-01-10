@@ -1,4 +1,5 @@
-from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items
+from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items, remove_duplicates, \
+    detect_duplicates
 
 __author__ = 'peter'
 
@@ -25,7 +26,22 @@ def test_separate_common_items():
     assert separate == [{'b':2, 'c':3}, {'b':4, 'c':8}, {'b':2, 'c':9}]
 
 
+def test_remove_duplicates():
+    assert remove_duplicates(['a', 'b', 'a', 'c', 'c'])==['a', 'b', 'c']
+    assert remove_duplicates(['a', 'b', 'a', 'c', 'c'], keep_last=True)==['b', 'a', 'c']
+    assert remove_duplicates(['Alfred', 'Bob', 'Cindy', 'Alina', 'Karol', 'Betty'], key=lambda x: x[0])==['Alfred', 'Bob', 'Cindy', 'Karol']
+    assert remove_duplicates(['Alfred', 'Bob', 'Cindy', 'Alina', 'Karol', 'Betty'], key=lambda x: x[0], keep_last=True)==['Cindy', 'Alina', 'Karol', 'Betty']
+    assert remove_duplicates(['Alfred', 'Bob', 'Cindy', 'Alina', 'Karol', 'Betty'], key=lambda x: x[0], keep_last=True, hashable=False)==['Cindy', 'Alina', 'Karol', 'Betty']
+
+
+def test_detect_duplicates():
+    assert detect_duplicates(['a', 'b', 'a', 'c', 'c'])==[False, False, True, False, True]
+    assert detect_duplicates(['a', 'b', 'a', 'c', 'c'], keep_last=True)==[True, False, False, True, False]
+
+
 if __name__ == '__main__':
     test_separate_common_items()
     test_reducemap()
     test_itermap()
+    test_remove_duplicates()
+    test_detect_duplicates()

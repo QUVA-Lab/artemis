@@ -265,18 +265,10 @@ class ExperimentRecord(object):
     def delete(self):
         shutil.rmtree(self._experiment_directory)
 
-    @staticmethod
-    def experiment_id_to_name(identifier):
-        """
-        Get the experiment name from the identifier.
-        :param identifier: A string identifying the experiment, eg '2016.12.19T11.04.42.281111-experiment_test_function'
-        :return: The experiment name, eg 'experiment_test_function'
-        """
-        return identifier[27:]
-
-    @staticmethod
-    def experiment_id_to_timestamp(identifier):
-        return identifier[:26]
+    @classmethod
+    def from_identifier(cls, record_id):
+        path = os.path.join(get_local_path(os.path.join('experiments', record_id)))
+        return ExperimentRecord(path)
 
 
 _CURRENT_EXPERIMENT_RECORD = None
@@ -385,6 +377,14 @@ def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_reco
     return experiment.run(**experiment_record_kwargs)
 
 
+def record_id_to_experiment_id(record_id):
+    return record_id[27:]
+
+
+def record_id_to_timestamp(record_id):
+    return record_id[:26]
+
+
 def run_experiment_ignoring_errors(name, **kwargs):
     try:
         run_experiment(name, **kwargs)
@@ -440,27 +440,55 @@ def merge_experiment_dicts(*dicts):
     return merge_dict
 
 
-def get_latest_experiment_identifier(name):
+def filter_experiment_ids(ids, expr=None, names=None):
+    if expr is not None:
+        ids = [e for e in ids if expr in e]
+    if names is not None:
+        ids = [eid for eid in ids if record_id_to_experiment_id(eid) in names]
+    return ids
+
+
+def get_all_record_ids(experiment_ids=None, filters = None):
+    """
+    :param experiment_ids: A list of experiment names
+    :param filters: A list or regular expressions for matching experiments.
+    :return: A list of experiment identifiers.
+    """
+    expdir = get_local_path('experiments')
+    ids = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
+    ids = filter_experiment_ids(ids=ids, names=experiment_ids)
+    if filters is not None:
+        for expr in filters:
+            ids = filter_experiment_ids(ids=ids, expr=expr)
+    ids = sorted(ids)
+    return ids
+
+
+def experiment_id_to_record_ids(experiment_identifier):
+    """
+    :param experiment_identifier: The name of the experiment
+    :return: A list of records for this experiment, temporal order
+    """
+    matching_experiments = get_all_record_ids(experiment_ids= [experiment_identifier])
+    return sorted(matching_experiments)
+
+
+def experiment_id_to_latest_record_id(experiment_identifier):
     """
     Show results of the latest experiment matching the given template.
     :param name: The experiment name
     :param template: The template which turns a name into an experiment identifier
     :return: A string identifying the latest matching experiment, or None, if not found.
     """
-    matching_experiments = get_all_experiment_ids(names = [name])
-    if len(matching_experiments) == 0:
-        return None
-    else:
-        latest_experiment_id = sorted(matching_experiments)[-1]
-        return latest_experiment_id
+    return experiment_id_to_record_ids(experiment_identifier)[-1]
 
 
-def get_lastest_result(experiment_name):
-    return get_latest_experiment_record(experiment_name).get_result()
+def experiment_id_to_latest_result(experiment_id):
+    return get_latest_experiment_record(experiment_id).get_result()
 
 
 def get_latest_experiment_record(experiment_name):
-    experiment_record_identifier = get_latest_experiment_identifier(experiment_name)
+    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name)
     if experiment_record_identifier is None:
         return None
     else:
@@ -477,35 +505,11 @@ def load_experiment_record(experiment_identifier):
     return ExperimentRecord(full_path)
 
 
-def filter_experiment_ids(ids, expr=None, names=None):
-
-    if expr is not None:
-        ids = [e for e in ids if expr in e]
-    if names is not None:
-        ids = [eid for eid in ids if ExperimentRecord.experiment_id_to_name(eid) in names]
-    return ids
-
-
-def get_all_experiment_ids(names=None, filters = None):
-    """
-    :param names: A list of experiment names
-    :param filters: A list or regular expressions for matching experiments.
-    :return: A list of experiment identifiers.
-    """
-    expdir = get_local_path('experiments')
-    ids = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
-    ids = filter_experiment_ids(ids=ids, names=names)
-    if filters is not None:
-        for expr in filters:
-            ids = filter_experiment_ids(ids=ids, expr=expr)
-    return ids
-
-
 def _register_experiment(experiment):
     GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
-def clear_experiments(ids = None):
+def clear_experiment_records(ids = None):
     """
     Delete all experiments with ids in the list, or all experiments if ids is None.
     :param ids: A list of experiment ids, or None to remove all.
@@ -532,9 +536,11 @@ def get_experiment_info(name):
     return str(experiment)
 
 
-def get_experiment(name):
-    return GLOBAL_EXPERIMENT_LIBRARY[name]
+def load_experiment(experiment_id):
+    return GLOBAL_EXPERIMENT_LIBRARY[experiment_id]
 
+def is_experiment_loadable(experiment_id):
+    return experiment_id in GLOBAL_EXPERIMENT_LIBRARY
 
 def _kwargs_to_experiment_name(kwargs):
     return ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
@@ -549,7 +555,7 @@ def experiment_testing_context():
     Use this context when testing the experiment/experiment_record infrastructure.
     Should only really be used in test_experiment_record.py
     """
-    ids = get_all_experiment_ids()
+    ids = get_all_record_ids()
     global keep_record_by_default
     old_val = keep_record_by_default
     keep_record_by_default = True
@@ -557,8 +563,8 @@ def experiment_testing_context():
     keep_record_by_default = old_val
 
     def clean_on_close():
-        new_ids = set(get_all_experiment_ids()).difference(ids)
-        clear_experiments(list(new_ids))
+        new_ids = set(get_all_record_ids()).difference(ids)
+        clear_experiment_records(list(new_ids))
     atexit.register(clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally
 
 
@@ -661,7 +667,8 @@ class Experiment(object):
                 exp_rec.add_info('Args', self.get_args().items())
                 root_function =self.get_root_function()
                 exp_rec.add_info('Function', root_function.__name__)
-                exp_rec.add_info('Module', inspect.getmodule(root_function).__file__)
+                exp_rec.add_info('Module', inspect.getmodule(root_function).__name__)
+                exp_rec.add_info('File', inspect.getmodule(root_function).__file__)
                 exp_rec.add_info('Status', 'Running (or Killed)')
                 results = self.function()
                 exp_rec.add_info('Status', 'Ran Successfully')
@@ -755,7 +762,7 @@ class Experiment(object):
     def display_last(self, result = '___FINDLATEST', err_if_none = True):
         assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )
         if result=='___FINDLATEST':
-            result = get_lastest_result(self.name)
+            result = experiment_id_to_latest_result(self.name)
         if err_if_none:
             assert result is not None, "No result was computed for the last run of '%s'" % (self.name, )
         if result is None:
@@ -774,10 +781,10 @@ class Experiment(object):
 
         :return:
         """
-        if get_latest_experiment_identifier(self.name) is None:
+        if experiment_id_to_latest_record_id(self.name) is None:
             self.run()
         else:
-            result = get_lastest_result(self.name)
+            result = experiment_id_to_latest_result(self.name)
             if result is not None and self.display_function is not None:
                 self.display_last()
             else:
@@ -820,13 +827,13 @@ class Experiment(object):
         Get all identifiers of this experiment that have been run.
         :return:
         """
-        return get_all_experiment_ids(names = [self.name])
+        return get_all_record_ids(experiment_ids= [self.name])
 
     def clear_records(self):
         """
         Delete all records from this experiment
         """
-        clear_experiments(ids = self.get_all_ids())
+        clear_experiment_records(ids = self.get_all_ids())
 
     def get_name(self):
         return self.name

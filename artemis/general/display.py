@@ -1,4 +1,5 @@
 import sys
+import textwrap
 from StringIO import StringIO
 from contextlib import contextmanager
 
@@ -88,12 +89,15 @@ class IndentPrint(object):
     Indent all print statements
     """
 
-    def __init__(self, spacing = 4, show_line = False, show_end = False):
+    def __init__(self, block_header=None, spacing = 4, show_line = False, show_end = False):
         self.indent = '|'+' '*(spacing-1) if show_line else ' '*spacing
         self.show_end = show_end
+        self.block_header = block_header
 
     def __enter__(self):
         self.old_stdout = sys.stdout
+        if self.block_header is not None:
+            print self.block_header
         sys.stdout = self
 
     def write(self, message):
@@ -111,3 +115,26 @@ class IndentPrint(object):
         sys.stdout = self.old_stdout
         if self.show_end:
             print '```'
+
+
+def side_by_side(multiline_strings, gap=4, max_linewidth=None):
+    """
+    Return a string that displays two multiline strings side-by-side.
+    :param multiline_strings:
+    :param gap:
+    :param max_linewidth:
+    :return:
+    """
+    if max_linewidth is not None:
+        multiline_strings = [textwrap.fill(s, width=max_linewidth, replace_whitespace=False) for s in multiline_strings]
+
+    lineses = [s.split('\n') for s in multiline_strings]
+    longests = [max(len(line) for line in lines) for lines in lineses]
+
+    spacer = ' '*gap
+    new_lines = []
+    for i in xrange(max(len(lines) for lines in lineses)):
+        line = [lines[i] if i<len(lines) else '' for lines in lineses]
+        final_line = [line + ' '*(max_length-len(line)) for line, max_length in zip(line, longests)]
+        new_lines.append(spacer.join(final_line))
+    return '\n'.join(new_lines)
