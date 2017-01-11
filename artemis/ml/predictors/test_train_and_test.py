@@ -3,7 +3,7 @@ from artemis.ml.datasets.synthetic_clusters import get_synthetic_clusters_datase
 from artemis.ml.datasets.synthetic_linear import get_synthethic_linear_dataset
 from artemis.ml.predictors.logistic_regressor import LogisticRegressor
 from artemis.ml.predictors.train_and_test import assess_prediction_functions, mean_squared_error, percent_argmax_correct, \
-    train_online_predictor, get_best_score
+    train_and_test_online_predictor, get_best_score
 import numpy as np
 
 
@@ -28,7 +28,7 @@ def test_train_online_predictor():
     Demonstrates how to train the online predictor.
     """
     predictor = LogisticRegressor.from_init(n_in=20, n_out=4)
-    info_score_pairs = train_online_predictor(
+    info_score_pairs = train_and_test_online_predictor(
         dataset = get_synthetic_clusters_dataset(n_clusters=4, n_dims=20),
         predict_fcn=predictor.predict,
         train_fcn = predictor.train,

@@ -190,8 +190,8 @@ def print_score_results(score, info=None):
     print tabulate.tabulate(rows)
 
 
-def train_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
-        score_measure='percent_argmax_correct', test_callback=None, training_callback = None):
+def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
+                                    score_measure='percent_argmax_correct', test_callback=None, training_callback = None):
     """
     Train an online predictor.  Return a data structure with info about the training.
     :param dataset: A DataSet object
@@ -234,7 +234,7 @@ def train_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_ep
 def get_best_score(score_info_pairs, subset = 'test', prediction_function = None, score_measure = None, lower_is_better = False):
     """
     Given a list of (info, score) pairs which represet the progress over training, find the best score and return it.
-    :param score_info_pairs: A list<(IterationInfo, dict)> of the type returned in train_online_predictor
+    :param score_info_pairs: A list<(IterationInfo, dict)> of the type returned in train_and_test_online_predictor
     :param subset: 'train' or 'test' ... which subset to use to look for the best score
     :param prediction_function: Which prediction function (if there are multiple prediction functions, otherwise leave blank)
     :param score_measure: Which score measure (if there are multiple score measures, otherwise leave blank)

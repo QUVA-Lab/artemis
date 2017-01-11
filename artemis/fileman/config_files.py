@@ -5,7 +5,7 @@ import os
 __author__ = 'peter'
 
 
-def get_config_value(config_filename, section, option, default_generator = None, write_default = False):
+def get_config_value(config_filename, section, option, default_generator = None, write_default = False, read_method=None):
     """
     Get a setting from a configuration file.  If none exists, you can optionally create one.  An example config file is
     the ~/.theanorc file, which may contain:
@@ -26,6 +26,10 @@ def get_config_value(config_filename, section, option, default_generator = None,
     :param option: The option of interest (see above example)
     :param default_generator: A function that generates the property if it is not there.
     :param write_default: Set to true if property was not found and you want to write the default value into the file.
+    :param read_method: The method to read your setting.
+        If left at None (default) it just returns the string.
+        If 'eval' it parses the setting into a python object
+        If it is a function, it passes the value through the function before returning it.
     :return: The value of the property of interest.
     """
     config_path = get_config_path(config_filename)
@@ -60,7 +64,19 @@ def get_config_value(config_filename, section, option, default_generator = None,
         with open(config_path, 'w') as f:
             config.write(f)
 
+    if read_method == 'eval':
+        value = eval(value)
+    elif callable(read_method):
+        value = read_method(value)
     return value
+
+
+def get_artemis_config_value(section, option, default_generator = None, write_default = False, read_method=None):
+    """
+    Get a setting from the artemis configuration.
+    See docstring for get_config_value
+    """
+    return get_config_value('.artemisrc', section=section, option=option, default_generator=default_generator, write_default=write_default, read_method = read_method)
 
 
 def get_config_path(config_filename):

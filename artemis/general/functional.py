@@ -4,6 +4,8 @@ from functools import partial
 
 import collections
 
+from artemis.general.should_be_builtins import separate_common_items
+
 
 def get_partial_chain(f):
     """
@@ -67,8 +69,10 @@ def infer_arg_values(f, *args, **kwargs):
         )
     duplicates = tuple(item for item, count in collections.Counter([a for a, _ in full_args]).iteritems() if count > 1)
     assert len(duplicates)==0, 'Arguments {} have been defined multiple times: {}'.format(duplicates, full_args)
+
+    common_args, (different_args, different_given_args) = separate_common_items([tuple(all_arg_names), tuple(n for n, _ in full_args)])
     if kwargs_name is None:  # There is no **kwargs
-        assert set(all_arg_names)==set(n for n, _ in full_args), "The set of argument names to the function: {} must match the set of arguments given: {}".format(tuple(all_arg_names), tuple(n for n, _ in full_args))
+        assert len(different_args)==0 and len(different_given_args)==0, "The set of argument names to the function: {} must match the set of arguments given: {}".format(different_args, different_given_args)
     else:
-        assert set(all_arg_names).issubset(set(n for n, _ in full_args)), "The set of argument names to the function: {} must be a subset of the set of arguments given: {}".format(tuple(all_arg_names), tuple(n for n, _ in full_args))
+        assert len(different_args)==0, "Arguments {} were required but were given no values.".format(different_args)
     return OrderedDict(full_args)

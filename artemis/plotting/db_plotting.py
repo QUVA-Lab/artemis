@@ -1,4 +1,6 @@
 from collections import OrderedDict, namedtuple
+
+from artemis.fileman.config_files import get_artemis_config_value
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
@@ -158,7 +160,7 @@ _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 
 _DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
 
-_DEFAULT_SIZE = None
+_DEFAULT_SIZE = get_artemis_config_value(section='plotting', option='default_fig_size', default_generator=lambda: (10, 8), write_default=True, read_method='eval')
 
 _draw_counters = {}
 
@@ -167,6 +169,7 @@ _hold_plots = False
 _hold_plot_counter = 0
 
 _default_layout = 'grid'
+
 
 def reset_dbplot():
     for fig_name, plot_window in _DBPLOT_FIGURES.items():
