@@ -1,3 +1,5 @@
+from functools import partial
+
 from artemis.plotting.db_plotting import dbplot, hold_dbplots, set_dbplot_figure_size
 import numpy as np
 from artemis.plotting.matplotlib_backend import MovingPointPlot
@@ -33,7 +35,7 @@ def demo_dbplot(n_frames = 1000):
             dbplot(np.random.randn(20, 2), 'Two Lines')
             dbplot((np.linspace(-5, 5, 100)+np.sin(np.linspace(-5, 5, 100)*2), np.linspace(-5, 5, 100)), '(X,Y) Lines')
             dbplot([np.sin(i/20.), np.sin(i/15.)], 'Moving Point History')
-            dbplot([np.sin(i/20.), np.sin(i/15.)], 'Bounded memory history', plot_type=lambda: MovingPointPlot(buffer_len=10))
+            dbplot([np.sin(i/20.), np.sin(i/15.)], 'Bounded memory history', plot_type=partial(MovingPointPlot, buffer_len=10))
             dbplot((np.cos(i/10.), np.sin(i/11.)), '(X,Y) Moving Point History')
             dbplot((np.cos(i/np.array([10., 15., 20.])), np.sin(i/np.array([11., 16., 21.])))+np.array([0, 1, 2]), 'multi (X,Y) Moving Point History', plot_type='trajectory')
             dbplot(np.random.randn(20), 'Vector History')

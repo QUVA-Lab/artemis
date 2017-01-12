@@ -1,8 +1,7 @@
-from collections import namedtuple
-
+from __future__ import print_function
 from artemis.plotting.plotting_backend import set_server_plotting
 set_server_plotting(False)  # We do this at the very beginning, so that dbplot is configures correctly on import
-from __future__ import print_function
+from collections import namedtuple
 import Queue
 import argparse
 import atexit
@@ -136,7 +135,7 @@ def run_plotting_server(address, port):
                     # plot_data["draw_now"] = False
                     plot_message.dbplot_args['draw_now'] = False
                     dbplot(**plot_message.dbplot_args)
-                    return_values.append((client,plot_id))
+                    return_values.append((client_msg.client_address, plot_message.plot_id))
             for client, plot_id in return_values:
                 return_queue.put([client,plot_id])
         else:

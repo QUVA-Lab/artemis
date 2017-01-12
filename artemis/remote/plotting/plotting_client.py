@@ -35,8 +35,8 @@ def dbplot_remotetly(arg_locals):
 
     # The data is being prepared and sent to the remote plotting server
     unique_plot_id = str(uuid.uuid4())
-    data_to_send = {"plot_id":unique_plot_id, "dbplot_args":arg_locals}
-    # data_to_send = DBPlotMessage(plot_id = unique_plot_id, )
+    # data_to_send = {"plot_id":unique_plot_id, "dbplot_args":arg_locals}
+    data_to_send = DBPlotMessage(plot_id = unique_plot_id, dbplot_args=arg_locals)
     serialized_command = pickle.dumps(data_to_send, protocol=2)
     _to_subprocess_queue.put(serialized_command)
 
