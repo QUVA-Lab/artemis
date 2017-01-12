@@ -1,5 +1,6 @@
+from artemis.plotting.plotting_backend import set_server_plotting
+set_server_plotting(False)  # We do this at the very beginning, so that dbplot is configures correctly on import
 from __future__ import print_function
-
 import Queue
 import argparse
 import atexit
@@ -8,18 +9,16 @@ import os
 import threading
 import time
 import pickle
-
 from datetime import datetime
-
 import signal
 from artemis.fileman.local_dir import get_local_path, format_filename
 from artemis.plotting.db_plotting import dbplot, hold_dbplots
 from artemis.plotting.saving_plots import save_figure
-from artemis.remote.plotting import set_forward_to_server
 from artemis.remote.utils import get_socket, recv_size, send_size
 from matplotlib import pyplot as plt
 
 sys.path.extend([os.path.dirname(os.path.dirname(__file__))])
+
 
 def send_port_if_running_and_join():
     port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
@@ -67,26 +66,27 @@ def save_current_figure():
     print("Current figure saved to {}".format(save_path))
     save_figure(fig,path=save_path)
 
+
 class GracefulKiller:
     kill_now = False
     def __init__(self):
         signal.signal(signal.SIGINT, self.exit_gracefully)
 
-    def exit_gracefully(self,signum, frame):
+    def exit_gracefully(self, signum, frame):
         print("SIGINT caught")
         self.kill_now = True
 
 
 def run_plotting_server(address, port):
-    '''
+    """
     Address and port to listen on.
     :param address:
     :param port:
     :return:
-    '''
+    """
 
     # Get the first available socket starting from portand communicate it with the client who started this server
-    sock, port = get_socket(address=address,port=port)
+    sock, port = get_socket(address=address, port=port)
     write_port_to_file(port)
     max_number_clients = 100
     max_plot_batch_size = 20000
@@ -108,7 +108,7 @@ def run_plotting_server(address, port):
     # If killed, save the current figure
     atexit.register(save_current_figure)
 
-    #Now, we can accept plots in the main thread!
+    # Now, we can accept plots in the main thread!
     while True:
         if killer.kill_now:
             # The server has received a signal.SIGINT (2), so we stop receiving plots and terminate
@@ -134,15 +134,15 @@ def run_plotting_server(address, port):
             time.sleep(0.1)
 
 
-def _queue_get_all_no_wait(q, maxItemsToRetreive):
-    '''
+def _queue_get_all_no_wait(q, max_items_to_retreive):
+    """
     Empties the queue, but takes maximally maxItemsToRetreive from the queue
     :param q:
-    :param maxItemsToRetreive:
+    :param max_items_to_retreive:
     :return:
-    '''
+    """
     items = []
-    for numOfItemsRetrieved in range(0, maxItemsToRetreive):
+    for numOfItemsRetrieved in range(0, max_items_to_retreive):
         try:
             items.append(q.get_nowait())
         except Queue.Empty, e:
@@ -151,19 +151,17 @@ def _queue_get_all_no_wait(q, maxItemsToRetreive):
 
 
 def handle_socket_accepts(sock, main_input_queue, return_queue, max_number):
-    '''
+    """
     This Accepts max_number of incomming communication requests to sock and starts the threads that manages the data-transfer between the server and the clients
     :param sock:
     :param main_input_queue:
     :param return_queue:
     :param max_number:
     :return:
-    '''
+    """
     return_lock = threading.Lock()
     for _ in range(max_number):
         connection, client_address = sock.accept()
-        # return_queue = Queue.Queue()
-        # return_queues[client_address] = return_queue
         t0 = threading.Thread(target=handle_input_connection,args=(connection, client_address, main_input_queue))
         t0.setDaemon(True)
         t0.start()
@@ -173,10 +171,8 @@ def handle_socket_accepts(sock, main_input_queue, return_queue, max_number):
         t1.start()
 
 
-
-
 def handle_return_connection(connection, client_address, return_queue, return_lock):
-    '''
+    """
     For each client, there is a thread that continously checks for the confirmation that a plot from this client has been rendered.
     This thread takes hold of the return queue, dequeues max 10 objects and checks if there is a return message for the client that is goverend by this thread.
     All other return messages are put back into the queue. Then the lock on the queue is released so that other threads might serve their clients their respecitve messages.
@@ -186,7 +182,7 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
     :param return_queue:
     :param return_lock:
     :return:
-    '''
+    """
     while True:
         return_lock.acquire()
         return_objects = _queue_get_all_no_wait(return_queue, 10)
@@ -209,14 +205,14 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
 
 
 def handle_input_connection(connection, client_address, input_queue):
-    '''
+    """
     For each client, there is a thread that waits for incoming plots over the network. If a plot came in, this plot is then put into the main queue from which the server takes
     plots away.
     :param connection:
     :param client_address:
     :param input_queue:
     :return:
-    '''
+    """
     while True:
         recv_message = recv_size(connection)
         input_queue.put({"plot":recv_message,"client":client_address}, block=False)
@@ -231,9 +227,5 @@ if __name__ == "__main__":
         # TODO: has not been tested thoroughly yet. For example if you spawn two processes using the same server at the same time, there might be a conflict about who is the first who
         # actually sets up the server, and who joins the existing server
         send_port_if_running_and_join()
-    set_forward_to_server(False)
+
     run_plotting_server("0.0.0.0",7000) # We listen to the whole internet and start with port 7000
-
-
-
-

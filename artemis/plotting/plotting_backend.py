@@ -20,3 +20,16 @@ if BACKEND in ('matplotlib', 'matplotlib-web'):
     from artemis.plotting.matplotlib_backend import *
 elif BACKEND == 'bokeh':
     from artemis.plotting.bokeh_backend import *
+
+
+def is_server_plotting_on():
+    return _USE_SERVER
+
+
+def set_server_plotting(state):
+    global _USE_SERVER
+    _USE_SERVER = state
+
+
+def get_plotting_server_address():
+    return _PLOTTING_SERVER

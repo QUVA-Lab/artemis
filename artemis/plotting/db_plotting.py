@@ -1,48 +1,34 @@
 from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
-
 import numpy as np
 from matplotlib import pyplot as plt
-
 from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
-from artemis.plotting.plotting_backend import LinePlot, ImagePlot
-from artemis.plotting.plotting_backend import _USE_SERVER
-from artemis.remote.plotting import should_I_forward_to_server
-from artemis.remote.plotting.plotting_client import dbplot_remotetly
+from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
+
 
 __author__ = 'peter'
 
 """
-Are you tired of setting up subplots, looking through overly complicated matplotlib documentation, and having to restructure
-your code just so you can SEE YOUR DAMN VARIABLES?
-
-Well now your troubles are over.
-
-Presenting: dbplot!
-
-dbplot just takes your data, and plots it.  Simple as 1, 2, plot!
-
-No more thinking about what kind plot to use, or how to make updating plots of changing variables.  Just dbplot it!
+dbplot just takes your data, and plots it.  No fuss, no muss.  No more thinking about what kind plot to use, or how to
+make updating plots of changing variables.  Just dbplot it.
 
     dbplot(data, 'my-data')
 
-dbplot will look at your data, and figure out which type of plot is appropriate.  If you don't like it, you can fully
+dbplot will look at your data, and figure out which type of plot is appropriate.  If you don't like it, you can
 customize it, using the plot_type argument.
 
-dbplot makes online plotting easy.  You want to plot updates to your variable?  Just dbplot it!
+dbplot makes online plotting easy.  You want to plot updates to your variable?  Just dbplot it.
 
     dbplot(var, 'my-var')
     dbplot(updated_var, 'my-var')
 
-For just float('inf') easy payments of $0, you can make dbplot yours for use around the office, home, or garden.
+Check out demo_dbplot.py for some demos of what dbplot can do.
 
-Check out demo_dbplot.py for some exciting demos of what dbplot can do.
-
-Remember:  If you can't see your data, you are a fraud and your research career will fail.  So try dbplot today!
+Remember:  If you can't see your data, you are a fraud and your research career will fail.
 """
 
 
@@ -74,95 +60,90 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     :param wait_for_display_sec: In server mode, you can choose to wait maximally wait_for_display_sec seconds before this call returns. In case plotting
     is finished earlier, the call returns earlier. Setting wait_for_display_sec to a negative number will cause the call to block until the plot has been displayed.
     """
-    if _USE_SERVER and should_I_forward_to_server():
-        arg_locals = locals().copy()
-        assert not is_lambda(plot_type), "dbplot in server mode does not accept lambda. Use partial instead"
-        dbplot_remotetly(arg_locals=arg_locals)
-    else:
-        if isinstance(fig, plt.Figure):
-            assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
-            _DBPLOT_FIGURES[None] = fig
-            fig = None
-        elif fig not in _DBPLOT_FIGURES:
-            _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
-            if fig is not None:
-                _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
+    if isinstance(fig, plt.Figure):
+        assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
+        _DBPLOT_FIGURES[None] = fig
+        fig = None
+    elif fig not in _DBPLOT_FIGURES:
+        _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
+        if fig is not None:
+            _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
 
-        suplot_dict = _DBPLOT_FIGURES[fig].subplots
+    suplot_dict = _DBPLOT_FIGURES[fig].subplots
 
-        if axis is None:
-            axis=name
+    if axis is None:
+        axis=name
 
-        if name not in suplot_dict:
-            if plot_constructor is not None:
-                print "Warning: The 'plot_constructor' argument to dbplot is deprecated.  Use plot_type instead"
-                assert plot_type is None
-                plot_type = plot_constructor
+    if name not in suplot_dict:
+        if plot_constructor is not None:
+            print "Warning: The 'plot_constructor' argument to dbplot is deprecated.  Use plot_type instead"
+            assert plot_type is None
+            plot_type = plot_constructor
 
-            if isinstance(plot_type, str):
-                plot = {
-                    'line': LinePlot,
-                    'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
-                    'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-                    # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
-                    'img': ImagePlot,
-                    'colour': lambda: ImagePlot(is_colour_data=True),
-                    'equal_aspect': lambda: ImagePlot(aspect='equal'),
-                    'image_history': lambda: MovingImagePlot(),
-                    'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
-                    'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
-                    'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-                    'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
-                    'trajectory': lambda: Moving2DPointPlot(axes_update_mode='expand'),
-                    'trajectory+': lambda: Moving2DPointPlot(axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
-                    'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
-                    'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
-                    }[plot_type]()
-            elif plot_type is None:
-                plot = get_plot_from_data(data, mode=plot_mode)
-            else:
-                assert hasattr(plot_type, "__call__")
-                plot = plot_type()
+        if isinstance(plot_type, str):
+            plot = {
+                'line': LinePlot,
+                'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
+                'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+                # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
+                'img': ImagePlot,
+                'colour': lambda: ImagePlot(is_colour_data=True),
+                'equal_aspect': lambda: ImagePlot(aspect='equal'),
+                'image_history': lambda: MovingImagePlot(),
+                'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
+                'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
+                'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+                'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
+                'trajectory': lambda: Moving2DPointPlot(axes_update_mode='expand'),
+                'trajectory+': lambda: Moving2DPointPlot(axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
+                'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
+                'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
+                }[plot_type]()
+        elif plot_type is None:
+            plot = get_plot_from_data(data, mode=plot_mode)
+        else:
+            assert hasattr(plot_type, "__call__")
+            plot = plot_type()
 
-            if axis in _DBPLOT_FIGURES[fig].axes:
-                _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[axis], plot_object=plot)
-                plt.sca(_DBPLOT_FIGURES[fig].axes[axis])
-            else:  # Make a new axis
-                # _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
-                ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
+        if axis in _DBPLOT_FIGURES[fig].axes:
+            _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[axis], plot_object=plot)
+            plt.sca(_DBPLOT_FIGURES[fig].axes[axis])
+        else:  # Make a new axis
+            # _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
+            ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
 
-                ax.set_title(axis)
+            ax.set_title(axis)
 
-                _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=ax, plot_object=plot)
-                _DBPLOT_FIGURES[fig].axes[axis] = ax
+            _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=ax, plot_object=plot)
+            _DBPLOT_FIGURES[fig].axes[axis] = ax
 
-                if xlabel is not None:
-                    _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
-                if ylabel is not None:
-                    _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
-                if draw_every is not None:
-                    _draw_counters[fig, name] = -1
-
-        # Update the relevant data and plot it.  TODO: Add option for plotting update interval
-        plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
-        plot.update(data)
-        plot.plot()
-        if title is not None:
-            _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
-        if legend is not None:
-            _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend, loc='best', framealpha=0.5)
-
-        if draw_now and not _hold_plots:
+            if xlabel is not None:
+                _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
+            if ylabel is not None:
+                _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
             if draw_every is not None:
-                _draw_counters[fig, name]+=1
-                if _draw_counters[fig, name] % draw_every != 0:
-                    return _DBPLOT_FIGURES[fig].subplots[name].axis
-            if hang:
-                plt.figure(_DBPLOT_FIGURES[fig].figure.number)
-                plt.show()
-            else:
-                redraw_figure(_DBPLOT_FIGURES[fig].figure)
-        return _DBPLOT_FIGURES[fig].subplots[name].axis
+                _draw_counters[fig, name] = -1
+
+    # Update the relevant data and plot it.  TODO: Add option for plotting update interval
+    plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
+    plot.update(data)
+    plot.plot()
+    if title is not None:
+        _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
+    if legend is not None:
+        _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend, loc='best', framealpha=0.5)
+
+    if draw_now and not _hold_plots:
+        if draw_every is not None:
+            _draw_counters[fig, name]+=1
+            if _draw_counters[fig, name] % draw_every != 0:
+                return _DBPLOT_FIGURES[fig].subplots[name].axis
+        if hang:
+            plt.figure(_DBPLOT_FIGURES[fig].figure.number)
+            plt.show()
+        else:
+            redraw_figure(_DBPLOT_FIGURES[fig].figure)
+    return _DBPLOT_FIGURES[fig].subplots[name].axis
 
 
 _PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots', 'axes'])
@@ -263,3 +244,19 @@ def get_dbplot_axis(axis_name, fig=None):
 
 def dbplot_hang():
     plt.show()
+
+
+if is_server_plotting_on():
+    """
+    The flag gets turned on in a configuration file.  It is turned off when this file is run ON the plotting server,
+    from the first line in plotting_server.py
+
+    This redefines the dbplot function so that it sets up a server (on the first call) and sends all arguments to
+    dbplot to that server over a pipe.  The server then takes care of plotting the data.
+    """
+    _old_dbplot = dbplot
+    from artemis.remote.plotting.plotting_client import dbplot_remotetly
+    def dbplot(**kwargs):
+        arg_locals = kwargs().copy()
+        assert not is_lambda(kwargs['plot_type']), "dbplot in server mode does not accept lambda. Use partial instead"
+        dbplot_remotetly(arg_locals=arg_locals)

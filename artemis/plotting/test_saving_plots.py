@@ -15,6 +15,7 @@ def test_save_and_show_figure():
     save_figure(fig, path = path)
     show_saved_figure(path)
 
+
 def test_save_and_show_figure_2():
 
     fig = plt.figure()
@@ -24,13 +25,14 @@ def test_save_and_show_figure_2():
     path = save_figure(fig, path = path)
     show_saved_figure(path)
 
+
 def test_save_and_show_figure_3():
 
     fig = plt.figure()
     plt.imshow(np.random.randn(10, 10))
     plt.title('Test Figure')
     path = get_local_path('tests/test_fig.with.strangely.formatted.ending')
-    path  = save_figure(fig, path = path)
+    path = save_figure(fig, path = path, ext='pdf')
     show_saved_figure(path)
 
 if __name__ == '__main__':

@@ -5,18 +5,12 @@ import sys
 import threading
 import time
 import uuid
-
 import pickle
-
-from artemis.plotting.plotting_backend import _PLOTTING_SERVER
+from artemis.plotting.plotting_backend import get_plotting_server_address
 from artemis.remote.child_processes import check_ssh_connection, ChildProcess, ParamikoPrintThread
 from artemis.remote.file_system import check_config_file
 from artemis.remote.port_forwarding import forward_tunnel
 from artemis.remote.utils import get_local_ips, send_size, recv_size
-
-
-
-
 _to_subprocess_queue = None
 _id_queue = None
 
@@ -68,16 +62,17 @@ def set_up_plotting_server():
     # First we generate the system call that starts the server
     file_to_execute = os.path.join(os.path.dirname(__file__), 'plotting_server.py')
     file_to_execute = file_to_execute.replace(os.path.expanduser("~"),"~",1)
-    if _PLOTTING_SERVER not in get_local_ips():
-        check_config_file(_PLOTTING_SERVER) # Make sure all things are set
-        check_ssh_connection(_PLOTTING_SERVER) # Make sure the SSH-connection works
+    plotting_server_address = get_plotting_server_address()
+    if plotting_server_address not in get_local_ips():
+        check_config_file(plotting_server_address) # Make sure all things are set
+        check_ssh_connection(plotting_server_address) # Make sure the SSH-connection works
         command =["export DISPLAY=:0.0;", "python","-u", file_to_execute]
         # TODO: Setting DISPLAY to :0.0 is a heuristic at the moment. I don't understand yet how these DISPLAY variables are set.
     else:
         command =["python","-u", file_to_execute]
 
     # With the command set up, we can instantiate a child process and start it. Also we want to forward stdout and stderr from the remote process asynchronously.
-    cp = ChildProcess(ip_address=_PLOTTING_SERVER, command=command, name="Plotting_Server", take_care_of_deconstruct=True)
+    cp = ChildProcess(ip_address=plotting_server_address, command=command, name="Plotting_Server", take_care_of_deconstruct=True)
     stdin, stdout, stderr = cp.execute_child_process()
     t2 = ParamikoPrintThread(source_pipe=stderr, target_pipe=sys.stderr,prefix="Plotting Server: ")
     t2.setDaemon(True)
@@ -98,13 +93,13 @@ def set_up_plotting_server():
 
     # In the remote setting we don't want to rely on the user correctly specifying their firewalls. Therefore we need to set up port forwarding through ssh:
     # Also, we have the ssh session open already, so why not reuse it.
-    if _PLOTTING_SERVER not in get_local_ips():
+    if plotting_server_address not in get_local_ips():
         ssh_conn = cp.get_ssh_connection()
         # Needs to be in a thread since the call blocks forever.
         # Todo: this ssh tunnel is opened system-wide. That means that any subsequent attempts to open the ssh-tunnel (by another dbplot-using process, for example)
         # will perform wiredly. As far as I have tested, nothing happenes and the port forwarfding works just fine in the second process, However when one of the two
         # processes terminates, the ssh-tunnel is closed for the other process as well.
-        t3 = threading.Thread(target = forward_tunnel, kwargs={"local_port":port, "remote_host":_PLOTTING_SERVER, "remote_port":port,"ssh_conn":ssh_conn})
+        t3 = threading.Thread(target = forward_tunnel, kwargs={"local_port":port, "remote_host":plotting_server_address, "remote_port":port,"ssh_conn":ssh_conn})
         t3.setDaemon(True)
         t3.start()
 
@@ -133,7 +128,6 @@ def set_up_plotting_server():
     t2.start()
 
 
-
 def push_to_server(queue, sock):
     while True:
         try:
@@ -145,7 +139,6 @@ def push_to_server(queue, sock):
 
 
 def collect_from_server(queue, sock):
-    # atexit.register(sock.close)
     while True:
         recv_message = recv_size(sock)
         queue.put(recv_message)
