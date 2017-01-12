@@ -2,13 +2,15 @@ from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 import numpy as np
 from matplotlib import pyplot as plt
+
+from artemis.general.functional import infer_arg_values
 from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
-
+from artemis.remote.plotting.plotting_client import dbplot_remotetly
 
 __author__ = 'peter'
 
@@ -204,6 +206,7 @@ def freeze_all_dbplots(fig = None):
     for name in _DBPLOT_FIGURES[fig].subplots.keys():
         freeze_dbplot(name, fig=fig)
 
+
 @contextmanager
 def hold_dbplots(fig = None, plot_every = None):
     """
@@ -211,6 +214,11 @@ def hold_dbplots(fig = None, plot_every = None):
     :param fig:
     :return:
     """
+    if is_server_plotting_on():
+        # For now, this does nothing.  Eventually, it should be made to send a "draw" command through the pipe
+        yield
+        return
+
     global _hold_plots
     _hold_plots = True
     yield
@@ -255,8 +263,9 @@ if is_server_plotting_on():
     dbplot to that server over a pipe.  The server then takes care of plotting the data.
     """
     _old_dbplot = dbplot
-    from artemis.remote.plotting.plotting_client import dbplot_remotetly
-    def dbplot(**kwargs):
-        arg_locals = kwargs().copy()
-        assert not is_lambda(kwargs['plot_type']), "dbplot in server mode does not accept lambda. Use partial instead"
+    def _dbplot(*args, **kwargs):
+        arg_locals = infer_arg_values(_old_dbplot, *args, **kwargs)
+        # arg_locals = kwargs.copy()
+        assert not is_lambda(arg_locals['plot_type']), "dbplot in server mode does not accept lambda. Use partial instead"
         dbplot_remotetly(arg_locals=arg_locals)
+    globals()['dbplot'] = _dbplot  # This just tricks PyCharm

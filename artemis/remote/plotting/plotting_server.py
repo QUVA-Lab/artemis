@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from artemis.plotting.plotting_backend import set_server_plotting
 set_server_plotting(False)  # We do this at the very beginning, so that dbplot is configures correctly on import
 from __future__ import print_function
@@ -114,19 +116,26 @@ def run_plotting_server(address, port):
             # The server has received a signal.SIGINT (2), so we stop receiving plots and terminate
             break
         # Retrieve data points that might have come in in the mean-time:
-        data_items = _queue_get_all_no_wait(main_input_queue,max_plot_batch_size)
-        if len(data_items) > 0:
+        client_messages = _queue_get_all_no_wait(main_input_queue,max_plot_batch_size)
+        # client_messages is a list of ClientMessage objects
+        if len(client_messages) > 0:
             return_values = []
             with hold_dbplots():
-                for data in data_items:
+                for client_msg in client_messages:  # For each ClientMessage object
                     # Take apart the received message, plot, and return the plot_id to the client who sent it
-                    client = data["client"]
-                    serialized_plot_message = data["plot"]
-                    plot_message = pickle.loads(serialized_plot_message)
-                    plot_id = plot_message["plot_id"]
-                    plot_data = plot_message["data"]
-                    plot_data["draw_now"] = False
-                    dbplot(**plot_data)
+
+
+                    # client = data["client"]
+                    # serialized_plot_message = data["plot"]
+                    # plot_message = pickle.loads(serialized_plot_message)
+
+                    # plot_id
+                    plot_message = pickle.loads(client_msg.dbplot_message)  # A DBPlotMessage object (see plotting_client.py)
+                    # plot_id = plot_message["plot_id"]
+                    # plot_data = plot_message["data"]
+                    # plot_data["draw_now"] = False
+                    plot_message.dbplot_args['draw_now'] = False
+                    dbplot(**plot_message.dbplot_args)
                     return_values.append((client,plot_id))
             for client, plot_id in return_values:
                 return_queue.put([client,plot_id])
@@ -204,6 +213,11 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
             time.sleep(0.01)
 
 
+ClientMessage = namedtuple('ClientMessage', ['dbplot_message', 'client_address'])
+# dbplot_args is a DBPlotMessage object
+# client_address: A string IP address
+
+
 def handle_input_connection(connection, client_address, input_queue):
     """
     For each client, there is a thread that waits for incoming plots over the network. If a plot came in, this plot is then put into the main queue from which the server takes
@@ -215,7 +229,8 @@ def handle_input_connection(connection, client_address, input_queue):
     """
     while True:
         recv_message = recv_size(connection)
-        input_queue.put({"plot":recv_message,"client":client_address}, block=False)
+        input_queue.put(ClientMessage(recv_message, client_address))
+        # input_queue.put({"plot":recv_message,"client":client_address}, block=False)
     connection.close()
 
 

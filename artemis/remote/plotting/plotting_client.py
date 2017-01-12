@@ -6,6 +6,9 @@ import threading
 import time
 import uuid
 import pickle
+from collections import namedtuple
+
+from artemis.general.functional import infer_arg_values
 from artemis.plotting.plotting_backend import get_plotting_server_address
 from artemis.remote.child_processes import check_ssh_connection, ChildProcess, ParamikoPrintThread
 from artemis.remote.file_system import check_config_file
@@ -14,13 +17,15 @@ from artemis.remote.utils import get_local_ips, send_size, recv_size
 _to_subprocess_queue = None
 _id_queue = None
 
+DBPlotMessage = namedtuple('DBPlotMessage', ['plot_id', 'dbplot_args'])
+
 
 def dbplot_remotetly(arg_locals):
-    '''
+    """
     This method should be called from dbplot immedeatly, in case we should plot remotely.
     arg_locals con
     :param arg_locals: all the arguments with which dbplot was called.
-    '''
+    """
     global _to_subprocess_queue
     global _id_queue
 
@@ -30,7 +35,8 @@ def dbplot_remotetly(arg_locals):
 
     # The data is being prepared and sent to the remote plotting server
     unique_plot_id = str(uuid.uuid4())
-    data_to_send = {"plot_id":unique_plot_id, "data":arg_locals}
+    data_to_send = {"plot_id":unique_plot_id, "dbplot_args":arg_locals}
+    # data_to_send = DBPlotMessage(plot_id = unique_plot_id, )
     serialized_command = pickle.dumps(data_to_send, protocol=2)
     _to_subprocess_queue.put(serialized_command)
 
@@ -53,9 +59,9 @@ def dbplot_remotetly(arg_locals):
 
 
 def set_up_plotting_server():
-    '''
+    """
     Sets up the plotting server.
-    '''
+    """
 
     print("Setting up Plotting Server")
 
