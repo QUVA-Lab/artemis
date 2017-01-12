@@ -19,7 +19,7 @@ from artemis.remote.utils import get_local_ips
 
 
 class ParamikoPrintThread(threading.Thread):
-        def __init__(self, source_pipe, target_pipe, stopping_criterium=None, prefix=""):
+        def __init__(self, source_pipe, target_pipe, stopping_criterium=None, stop_event=None, prefix=""):
             '''
             :param source_pipe: The ssh pipe from which to forward communications
             :param target_pipe: Either stdout or stderr. This determines if stderr or stdout is read from the ssh channel.
@@ -241,7 +241,7 @@ class ChildProcess(object):
         return "echo $$ ; exec %s"%command
 
 
-    def deconstruct(self, message=signal.SIGKILL):
+    def deconstruct(self, message=signal.SIGINT):
         '''
         This completely and safely deconstructs a remote connection. It will also be called at program shutdown.
         kills itself if alive, then closes remote connection if applicable
@@ -255,7 +255,7 @@ class ChildProcess(object):
         if self.is_alive():
             # print("%s (%s): Still alive, terminating process"%(self.get_ip(),self.name))
             self.kill(signal=message)
-            time.sleep(0.1)
+            time.sleep(2.0)
         if self.is_alive():
             # print("%s (%s): Still alive, force terminating process"%(self.get_ip(),self.name))
             self.kill(signal.SIGTERM)

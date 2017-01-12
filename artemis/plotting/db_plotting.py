@@ -1,31 +1,18 @@
-import Queue
-import SocketServer
-import atexit
-import socket
-import threading
-import uuid
 from collections import OrderedDict, namedtuple
-import time
-import pickle
+from contextlib import contextmanager
+
+import numpy as np
+from matplotlib import pyplot as plt
 
 from artemis.general.should_be_builtins import is_lambda
-from artemis.plotting.plotting_backend import _USE_SERVER, _PLOTTING_SERVER
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
-from contextlib import contextmanager
-from matplotlib import pyplot as plt
-import numpy as np
-
-from artemis.remote import should_I_forward_to_server
-from artemis.remote.child_processes import ChildProcess, check_ssh_connection, ParamikoPrintThread, get_ssh_connection
-from artemis.remote.file_system import check_config_file
-from artemis.remote.port_forwarding import forward_tunnel
-from artemis.remote.utils import get_local_ips, recv_size, send_size
-import os
-import sys
+from artemis.plotting.plotting_backend import _USE_SERVER
+from artemis.remote.plotting import should_I_forward_to_server
+from artemis.remote.plotting.plotting_client import dbplot_remotetly
 
 __author__ = 'peter'
 
@@ -57,67 +44,6 @@ Check out demo_dbplot.py for some exciting demos of what dbplot can do.
 
 Remember:  If you can't see your data, you are a fraud and your research career will fail.  So try dbplot today!
 """
-
-def set_up_plotting_server(set_up_time_out):
-    '''
-    Sets up the plotting server.
-    :return: the socket, with which the connection to the server was established
-    '''
-    print("Setting up Plotting Server")
-
-    file_to_execute = os.path.join(os.path.dirname(__file__), 'remote_plotting.py')
-    file_to_execute = file_to_execute.replace(os.path.expanduser("~"),"~",1)
-    if _PLOTTING_SERVER not in get_local_ips():
-        check_config_file(_PLOTTING_SERVER) # Make sure all things are set
-        check_ssh_connection(_PLOTTING_SERVER) # Make sure the SSH-connection works
-        command =["export DISPLAY=:0.0;", "python","-u", file_to_execute]
-        # TODO: Setting DISPLAY to :0.0 is a heuristic at the moment. I don't understand yet how these DISPLAY variables are set.
-    else:
-        command =["python","-u", file_to_execute]
-
-    cp = ChildProcess(ip_address=_PLOTTING_SERVER, command=command, name="Plotting_Server", take_care_of_deconstruct=True)
-    stdin, stdout, stderr = cp.execute_child_process()
-    t2 = ParamikoPrintThread(source_pipe=stderr, target_pipe=sys.stderr,prefix="Plotting Server: ")
-    t2.setDaemon(True)
-    t2.start()
-    port = int(stdout.readline())
-    t1 = ParamikoPrintThread(source_pipe=stdout, target_pipe=sys.stdout,prefix="Plotting Server: ")
-    t1.setDaemon(True)
-    t1.start()
-
-    if _PLOTTING_SERVER not in get_local_ips():
-        ## In remote setting we need to set up port forwarding through ssh:
-        ssh_conn = cp.get_ssh_connection()
-        t3 = threading.Thread(target = forward_tunnel, kwargs={"local_port":port, "remote_host":_PLOTTING_SERVER, "remote_port":port,"ssh_conn":ssh_conn})
-        t3.setDaemon(True)
-        t3.start()
-
-    server_address = ("localhost", port)
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        sock.connect(tuple(server_address))
-    except:
-        raise
-    return sock
-
-def push_to_server(queue, sock):
-    # atexit.register(sock.close)
-    while True:
-        try:
-            message = queue.get(block=False) # other threads might write ?! Todo
-            send_size(sock, message)
-        except Queue.Empty:
-            time.sleep(0.01)
-    sock.close()
-
-def collect_from_server(queue, sock):
-    # atexit.register(sock.close)
-    while True:
-
-        recv_message = recv_size(sock)
-        queue.put(recv_message)
-    sock.close()
-
 
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
@@ -151,39 +77,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     if _USE_SERVER and should_I_forward_to_server():
         arg_locals = locals().copy()
         assert not is_lambda(plot_type), "dbplot in server mode does not accept lambda. Use partial instead"
-        blocking = False
-        set_up_time_out = 10
-        global _to_subprocess_queue
-        global _id_queue
-        if _to_subprocess_queue is None:
-            sock = set_up_plotting_server(set_up_time_out)
-            _to_subprocess_queue = Queue.Queue()
-            _id_queue = Queue.Queue()
-            t1 = threading.Thread(target=push_to_server,args=(_to_subprocess_queue,sock))
-            t1.setDaemon(True)
-            t1.start()
-            # if blocking:
-            t2 = threading.Thread(target=collect_from_server,args=(_id_queue,sock))
-            t2.setDaemon(True)
-            t2.start()
-
-        unique_plot_id = str(uuid.uuid4())
-        data_to_send = {"plot_id":unique_plot_id, "data":arg_locals}
-        serialized_command = pickle.dumps(data_to_send, protocol=2)
-        _to_subprocess_queue.put(serialized_command)
-
-        if wait_for_display_sec != 0:
-            if wait_for_display_sec <0:
-                wait_for_display_sec = sys.maxint
-            begin = time.time()
-            time_left = wait_for_display_sec
-            try:
-                while _id_queue.get(timeout=time_left) != unique_plot_id:
-                    time_used = time.time() - begin
-                    time_left = wait_for_display_sec - time_used
-            except Queue.Empty:
-                pass
-
+        dbplot_remotetly(arg_locals=arg_locals)
     else:
         if isinstance(fig, plt.Figure):
             assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
@@ -270,8 +164,6 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
                 redraw_figure(_DBPLOT_FIGURES[fig].figure)
         return _DBPLOT_FIGURES[fig].subplots[name].axis
 
-_to_subprocess_queue = None
-_id_queue = None
 
 _PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots', 'axes'])
 

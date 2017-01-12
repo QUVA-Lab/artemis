@@ -1,6 +1,5 @@
 from __future__ import print_function
-# import matplotlib
-# matplotlib.use('AGG')
+
 import Queue
 import argparse
 import atexit
@@ -10,14 +9,17 @@ import threading
 import time
 import pickle
 
-import subprocess
+from datetime import datetime
 
-from artemis.fileman.local_dir import get_relative_path, get_local_path
+import signal
+from artemis.fileman.local_dir import get_local_path, format_filename
 from artemis.plotting.db_plotting import dbplot, hold_dbplots
-from artemis.remote import set_forward_to_server
+from artemis.plotting.saving_plots import save_figure
+from artemis.remote.plotting import set_forward_to_server
 from artemis.remote.utils import get_socket, recv_size, send_size
+from matplotlib import pyplot as plt
 
-sys.path.extend([os.path.expanduser('~/PycharmProjects/artemis')])
+sys.path.extend([os.path.dirname(os.path.dirname(__file__))])
 
 def send_port_if_running_and_join():
     port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
@@ -28,7 +30,7 @@ def send_port_if_running_and_join():
         print("Your dbplot call is attached to an existing plotting server. \nAll stdout and stderr of this existing plotting server "
               "is forwarded to the process that first created this plotting server. \nIn the future we might try to hijack this and provide you "
               "with these data streams")
-        print("Use with care, this functionallity has some issues")
+        print("Use with care, this functionallity might have unexpected side issues")
         try:
             while(True):
                 time.sleep(20)
@@ -38,8 +40,6 @@ def send_port_if_running_and_join():
     else:
         with open(port_file_path,"w") as f:
             pass
-
-
 
 
 def write_port_to_file(port):
@@ -55,8 +55,26 @@ def write_port_to_file(port):
 def remove_port_file():
     print("Removing port file")
     port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
-    os.remove(port_file_path)
+    if os.path.exists(port_file_path):
+        os.remove(port_file_path)
 
+
+def save_current_figure():
+    print("Attempting to save figure")
+    fig = plt.gcf()
+    file_name = format_filename(file_string = '%T', current_time = datetime.now())
+    save_path = get_local_path('output/{file_name}.pdf'.format(file_name=file_name))
+    print("Current figure saved to {}".format(save_path))
+    save_figure(fig,path=save_path)
+
+class GracefulKiller:
+    kill_now = False
+    def __init__(self):
+        signal.signal(signal.SIGINT, self.exit_gracefully)
+
+    def exit_gracefully(self,signum, frame):
+        print("SIGINT caught")
+        self.kill_now = True
 
 
 def run_plotting_server(address, port):
@@ -67,29 +85,41 @@ def run_plotting_server(address, port):
     :return:
     '''
 
+    # Get the first available socket starting from portand communicate it with the client who started this server
     sock, port = get_socket(address=address,port=port)
-    print(port)
     write_port_to_file(port)
     max_number_clients = 100
     max_plot_batch_size = 20000
     sock.listen(max_number_clients)
+    print(port)
     print("Plotting Server is listening")
 
+    # We want to save and rescue the current plot in case the plotting server receives a signal.SIGINT (2)
+    killer = GracefulKiller()
+
+    # The plotting server receives input in a queue and returns the plot_ids as a way of communicating that it has rendered the plot
     main_input_queue = Queue.Queue()
     return_queue = Queue.Queue()
+    # Start accepting clients' communication requests
     t0 = threading.Thread(target=handle_socket_accepts,args=(sock, main_input_queue, return_queue, max_number_clients))
     t0.setDaemon(True)
     t0.start()
 
+    # If killed, save the current figure
+    atexit.register(save_current_figure)
+
     #Now, we can accept plots in the main thread!
     while True:
-        # First retrieve all data_points that might have come in in the mean-time:
-        data_items = _queue_get_all(main_input_queue,max_plot_batch_size, block=False)
+        if killer.kill_now:
+            # The server has received a signal.SIGINT (2), so we stop receiving plots and terminate
+            break
+        # Retrieve data points that might have come in in the mean-time:
+        data_items = _queue_get_all_no_wait(main_input_queue,max_plot_batch_size)
         if len(data_items) > 0:
-            # print("Dequeued {} dbplot commands".format(len(data_items)))
             return_values = []
             with hold_dbplots():
                 for data in data_items:
+                    # Take apart the received message, plot, and return the plot_id to the client who sent it
                     client = data["client"]
                     serialized_plot_message = data["plot"]
                     plot_message = pickle.loads(serialized_plot_message)
@@ -100,21 +130,17 @@ def run_plotting_server(address, port):
                     return_values.append((client,plot_id))
             for client, plot_id in return_values:
                 return_queue.put([client,plot_id])
-                # return_queue.get()
         else:
             time.sleep(0.1)
 
 
-def _queue_get_all(q, maxItemsToRetreive, block=False):
-    items = []
-    for numOfItemsRetrieved in range(0, maxItemsToRetreive):
-        try:
-            items.append(q.get(block=block))
-        except Queue.Empty, e:
-            break
-    return items
-
 def _queue_get_all_no_wait(q, maxItemsToRetreive):
+    '''
+    Empties the queue, but takes maximally maxItemsToRetreive from the queue
+    :param q:
+    :param maxItemsToRetreive:
+    :return:
+    '''
     items = []
     for numOfItemsRetrieved in range(0, maxItemsToRetreive):
         try:
@@ -125,6 +151,14 @@ def _queue_get_all_no_wait(q, maxItemsToRetreive):
 
 
 def handle_socket_accepts(sock, main_input_queue, return_queue, max_number):
+    '''
+    This Accepts max_number of incomming communication requests to sock and starts the threads that manages the data-transfer between the server and the clients
+    :param sock:
+    :param main_input_queue:
+    :param return_queue:
+    :param max_number:
+    :return:
+    '''
     return_lock = threading.Lock()
     for _ in range(max_number):
         connection, client_address = sock.accept()
@@ -142,6 +176,17 @@ def handle_socket_accepts(sock, main_input_queue, return_queue, max_number):
 
 
 def handle_return_connection(connection, client_address, return_queue, return_lock):
+    '''
+    For each client, there is a thread that continously checks for the confirmation that a plot from this client has been rendered.
+    This thread takes hold of the return queue, dequeues max 10 objects and checks if there is a return message for the client that is goverend by this thread.
+    All other return messages are put back into the queue. Then the lock on the queue is released so that other threads might serve their clients their respecitve messages.
+    The return messges belonging to this client are then sent back.
+    :param connection:
+    :param client_address:
+    :param return_queue:
+    :param return_lock:
+    :return:
+    '''
     while True:
         return_lock.acquire()
         return_objects = _queue_get_all_no_wait(return_queue, 10)
@@ -164,6 +209,14 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
 
 
 def handle_input_connection(connection, client_address, input_queue):
+    '''
+    For each client, there is a thread that waits for incoming plots over the network. If a plot came in, this plot is then put into the main queue from which the server takes
+    plots away.
+    :param connection:
+    :param client_address:
+    :param input_queue:
+    :return:
+    '''
     while True:
         recv_message = recv_size(connection)
         input_queue.put({"plot":recv_message,"client":client_address}, block=False)
@@ -175,9 +228,11 @@ if __name__ == "__main__":
     parser.add_argument('--reuse', action="store_true", help='set if you want to merge plots on this server into one shared memory')
     args = parser.parse_args()
     if args.reuse is True:
+        # TODO: has not been tested thoroughly yet. For example if you spawn two processes using the same server at the same time, there might be a conflict about who is the first who
+        # actually sets up the server, and who joins the existing server
         send_port_if_running_and_join()
     set_forward_to_server(False)
-    run_plotting_server("0.0.0.0",7000)
+    run_plotting_server("0.0.0.0",7000) # We listen to the whole internet and start with port 7000
 
 
 

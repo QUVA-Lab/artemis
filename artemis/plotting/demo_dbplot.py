@@ -3,7 +3,6 @@ import numpy as np
 from artemis.plotting.matplotlib_backend import MovingPointPlot
 import time
 from artemis.plotting.plotting_backend import _USE_SERVER
-from artemis.remote import should_I_forward_to_server
 
 __author__ = 'peter'
 
