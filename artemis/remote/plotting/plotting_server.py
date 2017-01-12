@@ -29,7 +29,7 @@ def send_port_if_running_and_join():
         print(port)
         print("Your dbplot call is attached to an existing plotting server. \nAll stdout and stderr of this existing plotting server "
               "is forwarded to the process that first created this plotting server. \nIn the future we might try to hijack this and provide you "
-              "with these data streams")
+              "with these data streams", file=sys.stderr)
         print("Use with care, this functionallity might have unexpected side issues")
         try:
             while(True):
