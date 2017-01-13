@@ -53,14 +53,12 @@ def write_port_to_file(port):
 
 
 def remove_port_file():
-    print("Removing port file")
     port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
     if os.path.exists(port_file_path):
         os.remove(port_file_path)
 
 
 def save_current_figure():
-    print("Attempting to save figure")
     fig = plt.gcf()
     file_name = format_filename(file_string = '%T', current_time = datetime.now())
     save_path = get_local_path('output/{file_name}.pdf'.format(file_name=file_name))
@@ -74,7 +72,6 @@ class GracefulKiller:
         signal.signal(signal.SIGINT, self.exit_gracefully)
 
     def exit_gracefully(self, signum, frame):
-        print("SIGINT caught")
         self.kill_now = True
 
 
