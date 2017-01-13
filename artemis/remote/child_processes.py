@@ -4,17 +4,14 @@ import atexit
 import os
 import shlex
 import signal
-import socket
 import subprocess
 import sys
 import threading
 import time
 import uuid
 from ConfigParser import NoOptionError
-
 import paramiko
 from artemis.fileman.config_files import get_config_value
-
 from artemis.remote.utils import get_local_ips
 
 
@@ -32,7 +29,6 @@ class ParamikoPrintThread(threading.Thread):
             self.target_pipe = target_pipe
             self.stopping_criterium = stopping_criterium
             super(ParamikoPrintThread, self).__init__()
-
 
         def run(self, ):
             with self.source_pipe:
@@ -63,7 +59,6 @@ class Nanny(object):
         :return:
         '''
         self.child_processes[cp.get_id()] = cp
-
 
     def execute_all_child_processes(self, time_out=1, terminate_at_error=False,):
         '''
@@ -108,8 +103,6 @@ class Nanny(object):
 
         # Grace perior for other threads to shutdown
         time.sleep(time_out)
-        # self.deconstruct(signum=signal.SIG_DFL)
-        # Then send kill signal to all processes:
         for id,cp in self.child_processes.iteritems():
             if cp.is_alive():
                 print("Child Process %s at %s did not terminate %s seconds after the first process in cluster terminated. Terminating now." %(cp.get_name(), cp.get_ip(), time_out))
@@ -144,7 +137,6 @@ class Nanny(object):
         signal.signal(signal.SIGTERM, self.original_sigterm_handler)
         os.kill(os.getpid(), signum)
 
-
     def monitor_and_forward_child_communication(self, source_pipe, target_pipe, termination_request_event=None, stopping_criterium=None,  prefix=""):
         '''
         thread to forward communication from source_pipe to target_pipe
@@ -164,9 +156,7 @@ class Nanny(object):
                     target_pipe.flush()
                     break
             if termination_request_event is not None:
-                # print("Termination_request_event set")
                 termination_request_event.set() # The input pipe closed, this thread terminates and we would like everybody to terminate
-
 
 
 class ChildProcess(object):
@@ -195,10 +185,6 @@ class ChildProcess(object):
         self.cp_started = False
         self.take_care_of_deconstruct = take_care_of_deconstruct
         if self.take_care_of_deconstruct:
-            # self.original_sigint_handler = signal.getsignal(signal.SIGINT)
-            # self.original_sigterm_handler = signal.getsignal(signal.SIGTERM)
-            # signal.signal(signal.SIGINT, self.deconstruct)
-            # signal.signal(signal.SIGTERM, self.deconstruct)
             atexit.register(self.deconstruct)
 
     def prepare_command(self,command):
@@ -213,7 +199,6 @@ class ChildProcess(object):
         else:
             _,_,stdout,_ = self._run_command("echo $$; exec echo ~")
             home_dir = stdout.read().strip()
-
 
         if type(command) == list:
             if not self.local_process:
@@ -233,13 +218,10 @@ class ChildProcess(object):
             command = command.replace("~",home_dir)
         else:
             raise NotImplementedError()
-
-
         return command
 
     def get_extended_command(self,command):
         return "echo $$ ; exec %s"%command
-
 
     def deconstruct(self, message=signal.SIGINT):
         '''
@@ -253,19 +235,12 @@ class ChildProcess(object):
             return
 
         if self.is_alive():
-            # print("%s (%s): Still alive, terminating process"%(self.get_ip(),self.name))
             self.kill(signal=message)
             time.sleep(2.0)
         if self.is_alive():
-            # print("%s (%s): Still alive, force terminating process"%(self.get_ip(),self.name))
             self.kill(signal.SIGTERM)
         if not self.is_local():
-            # print("Closing ssh connection to %s" % self.ip_address)
             self.ssh_conn.close()
-        # if self.take_care_of_deconstruct:
-        #     signal.signal(signal.SIGINT, self.original_sigint_handler)
-        #     signal.signal(signal.SIGTERM, self.original_sigterm_handler)
-        #     os.kill(os.getpid(), message)
 
     def is_local(self):
         return self.local_process
@@ -327,8 +302,6 @@ class ChildProcess(object):
             stderr = sub.stderr
             pid = sub.pid
         else:
-            # print (command)
-            # print("%s: executing command %s" %(self.get_ip(),command))
             stdin, stdout, stderr = self.ssh_conn.exec_command(command)
             pid = stdout.readline().strip()
         return (pid, stdin, stdout, stderr)
@@ -385,6 +358,7 @@ def get_ssh_connection(ip_address):
     ssh_conn.connect(hostname=ip_address, username=username, pkey=private_key)
     return ssh_conn
 
+
 def execute_command(ip_address, command, blocking=True):
     '''
     This method spawns a child-process (either locally or remote, depending on the ip_address). Then it executes the given command and handles communication.
@@ -439,6 +413,7 @@ def check_ssh_connection(ip_address):
     assert not err, "The remote server could not execute the test function. It returned the following error: \n %s"%err
     ssh_conn.close()
 
+
 def check_if_port_is_free(ip_address, port):
     '''
     This checks if the remote server is able to accept requests at the given port.
@@ -459,109 +434,3 @@ def check_if_port_is_free(ip_address, port):
     stdin , stdout, stderr = ssh_connect.exec_command(check_port_function)
     err = stderr.read()
     assert not err, "The remote address %s cannot allocate port %i. The following error was raised: \n %s" % (ip_address, port,err.strip().split("\n")[-1])
-
-
-def test_check_ssh_connections():
-    connections = ["146.50.28.6"]
-    check_ssh_connection(connections)
-
-def test_check_if_port_is_free():
-    connection = "146.50.28.6:9005"
-    ip, port = connection.split(":")
-    check_if_port_is_free(ip,port)
-
-def communication_test():
-    ip_address = "146.50.28.6"#"python -c $'from __future__ import print_function\nimport sys,time\nfor i in range(7): print(i, file=sys.stdout if i%2==0 else sys.stdout);time.sleep(10.0)'"
-    ip_address = socket.gethostbyname(socket.gethostname())
-    execute_command(ip_address=ip_address,
-                    blocking=True,
-                    command = "python -c 'from __future__ import print_function\nimport sys,time\nfor i in range(20): print(i, file=sys.stderr if i%2==0 else sys.stdout);sys.stdout.flush();time.sleep(1.0)'")
-
-
-
-def test_kill_process_gently():
-    ip_address = "146.50.28.6"
-    # ip_address = socket.gethostbyname(socket.gethostname())
-
-    command = "python %s"%(os.path.expanduser("%s/PycharmProjects/Distributed-VI/distributed_vi/remote/bogus_test_functions.py" % ("/Users/matthias" if ip_address in get_local_ips() else "/home/mreisser/")))
-
-    cp = ChildProcess(ip_address, command)
-    stdin , stdout, stderr = cp.execute_child_process()
-    # stdin , stdout, stderr = ssh_conn.exec_command(command)
-
-    pid=cp.get_pid()
-    print("Pid: %s"%pid)
-    #stdout
-    t1 = ParamikoPrintThread(source_pipe=stdout, target_pipe=sys.stdout, prefix="stdout: ")
-    t1.start()
-    # stderr
-    t2 = ParamikoPrintThread(source_pipe=stderr, target_pipe=sys.stderr, prefix="stderr: ")
-    t2.start()
-
-    print("Waiting 4 seconds")
-    time.sleep(4)
-
-    print ("Killing Process %s:" %(pid) )
-    cp.kill()
-    print("Waiting 4 seconds")
-    time.sleep(4)
-    if cp.is_alive():
-        print("Process still alive")
-    else:
-        print("Process dead")
-
-
-    print("Terminating")
-
-
-def test_nanny_lifetime():
-    ip1 = "146.50.28.6"
-    ip2 = socket.gethostbyname(socket.gethostname())
-    command1 = "python %s"%(os.path.expanduser("%s/PycharmProjects/Distributed-VI/distributed_vi/remote/bogus_test_functions.py" % ("/Users/matthias" if ip1 in get_local_ips() else "/home/mreisser/")))
-    command2 = "python %s"%(os.path.expanduser("%s/PycharmProjects/Distributed-VI/distributed_vi/remote/bogus_test_functions.py" % ("/Users/matthias" if ip2 in get_local_ips() else "/home/mreisser/")))
-    command2 = "python %s"%(os.path.expanduser("%s/PycharmProjects/Distributed-VI/distributed_vi/distributed/parameter_server.py" % ("/Users/matthias" if ip2 in get_local_ips() else "/home/mreisser/")))
-
-    # cp1 = ChildProcess(ip_address=ip1,command=command1)
-    cp2 = ChildProcess(ip_address=ip2,command=command2)
-
-    nanny = Nanny()
-    # nanny.register_child_process(cp1)
-    nanny.register_child_process(cp2)
-
-    nanny.execute_all_child_processes()
-
-
-def test_remote_graphics():
-    ip_address = "146.50.28.6"
-    command = 'export DISPLAY=:0.0; python -c "from matplotlib import pyplot as plt;import time; plt.figure();plt.show();time.sleep(10)"'
-    # command = "python %s"%(os.path.expanduser("%s/PycharmProjects/Distributed-VI/distributed_vi/remote/bogus_test_functions.py" % ("/Users/matthias" if ip_address in get_local_ips() else "/home/mreisser/")))
-    cp = ChildProcess(ip_address="146.50.28.6",command=command)
-    i, o, e = cp.execute_child_process()
-    time.sleep(5)
-    cp.deconstruct()
-    print(o.read())
-    print(e.read())
-
-
-def test_is_alive():
-    ip = "146.50.28.6"
-    command ="python -u -c'from __future__ import print_function\nimport sys,time\nfor i in range(20): print(i, file=sys.stderr if i%2==0 else sys.stdout);time.sleep(1.0)'"
-    cp = ChildProcess(ip_address=ip, command=command)
-    i,o,e = cp.execute_child_process()
-    t = ParamikoPrintThread(o,sys.stdout).start()
-    t = ParamikoPrintThread(e,sys.stderr).start()
-    while True:
-        print(cp.is_alive())
-        time.sleep(1)
-
-
-
-
-
-if __name__ == "__main__":
-    # test_check_if_port_is_free()
-    # communication_test()
-    # test_kill_process_gently()
-    # test_nanny_lifetime()
-    # test_remote_graphics()
-    test_is_alive()

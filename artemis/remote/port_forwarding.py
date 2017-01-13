@@ -14,7 +14,6 @@ try:
 except ImportError:
     import socketserver as SocketServer
 
-import sys
 
 class ForwardServer (SocketServer.ThreadingTCPServer):
     daemon_threads = True
