@@ -8,6 +8,32 @@ from artemis.fileman.config_files import get_config_value
 from artemis.remote.child_processes import get_ssh_connection
 
 
+# def make_sure_artemis_is_up_to_date(ip_address):
+#     remote_packages = get_remote_installed_packages(ip_address)
+#     artemis_installed = "artemis-ml" in remote_packages.keys()
+#     python_path = get_config_value(".artemisrc",ip_address,"python")
+#     activate_path = os.path.join(os.path.dirname(python_path),"activate")
+#     if not artemis_installed:
+#         activate_command = "source %s"%activate_path
+#         install_command = "pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis"
+#         function = "; ".join([activate_command, install_command])
+#         ssh_conn = get_ssh_connection(ip_address)
+#         stdin , stdout, stderr =ssh_conn.exec_command(function)
+#         out = stdout.read()
+#         if "Successfully installed" in out or "Requirement already up-to-date" in out:
+#             pass
+#         else:
+#             print ("Error in installing artemis on the remote server %s:" % ip_address)
+#             err = stderr.read()
+#             err = "\n".join([s for s in err.strip().split("\n") if "SNIMissingWarning" not in s and "InsecurePlatformWarning" not in s])
+#             print err
+#     own_version = {i.key: i.version  for i in pip.get_installed_distributions() }["artemis-ml"]
+#     remote_version = remote_packages["artemis_ml"]
+#     if own_version != remote_version:
+#         remote_artemis_dir = os.path.join(os.path.dirname(os.path.dirname(python_path)),"src/artemis")
+#
+
+
 def get_remote_installed_packages(ip_address):
     '''
     This method queries a remote python installation about the installed packages.
