@@ -2,9 +2,6 @@ from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 import numpy as np
 from matplotlib import pyplot as plt
-
-from artemis.general.functional import infer_arg_values
-from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
