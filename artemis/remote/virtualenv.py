@@ -31,7 +31,7 @@ from artemis.remote.child_processes import get_ssh_connection
 #     if own_version != remote_version:
 #         remote_artemis_dir = os.path.join(os.path.dirname(os.path.dirname(python_path)),"src/artemis")
 #
-from artemis.remote.test_virtualenv import test_get_remote_installed_packages
+
 
 
 def get_remote_installed_packages(ip_address):
