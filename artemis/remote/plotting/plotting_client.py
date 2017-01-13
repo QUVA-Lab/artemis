@@ -7,12 +7,7 @@ import time
 import uuid
 import pickle
 from collections import namedtuple
-<<<<<<< HEAD
-
-
-=======
 from artemis.general.should_be_builtins import is_lambda
->>>>>>> b704290d9237c16491895a94f778b51336726b84
 from artemis.plotting.plotting_backend import get_plotting_server_address
 from artemis.remote.child_processes import check_ssh_connection, ChildProcess, ParamikoPrintThread
 from artemis.remote.file_system import check_config_file
