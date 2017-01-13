@@ -93,7 +93,7 @@ def set_up_plotting_server():
     try:
         port = int(str_port)
     except ValueError:
-        print("There was an incorrect string on the remote server's stdout. Make sure the server first communicates a port number")
+        print("There was an incorrect string on the remote server's stdout. Make sure the server first communicates a port number. Received:\n {}".format(str_port))
         sys.exit(0)
     # All subsequent communication forwarded asynchronously
     t1 = ParamikoPrintThread(source_pipe=stdout, target_pipe=sys.stdout,prefix="Plotting Server: ")
