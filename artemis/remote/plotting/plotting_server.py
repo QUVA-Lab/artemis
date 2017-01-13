@@ -28,7 +28,7 @@ def send_port_if_running_and_join():
         print(port)
         print("Your dbplot call is attached to an existing plotting server. \nAll stdout and stderr of this existing plotting server "
               "is forwarded to the process that first created this plotting server. \nIn the future we might try to hijack this and provide you "
-              "with these data streams", file=sys.stderr)
+              "with these data streams")
         print("Use with care, this functionallity might have unexpected side issues")
         try:
             while(True):
@@ -46,7 +46,8 @@ def write_port_to_file(port):
     port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
     if os.path.exists(port_file_path):
         print("port.info file already exists. This might either mean that you are running another plotting server in the background and want to start a second one.\nIn this case ignore "
-              "this message. Otherwise a previously run plotting server crashed without cleaning up afterwards. \nIn this case, please manually delete the file at {}".format(port_file_path))
+              "this message. Otherwise a previously run plotting server crashed without cleaning up afterwards. \nIn this case, please manually delete the file at {}".format(port_file_path),
+              file = sys.stderr)
     with open(port_file_path, 'wb') as f:
         pickle.dump(port,f)
 
