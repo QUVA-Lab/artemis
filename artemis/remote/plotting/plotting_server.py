@@ -1,6 +1,5 @@
 from __future__ import print_function
 from artemis.plotting.plotting_backend import set_server_plotting
-set_server_plotting(False)  # We do this at the very beginning, so that dbplot is configures correctly on import
 from collections import namedtuple
 import Queue
 import argparse
@@ -122,17 +121,7 @@ def run_plotting_server(address, port):
             with hold_dbplots():
                 for client_msg in client_messages:  # For each ClientMessage object
                     # Take apart the received message, plot, and return the plot_id to the client who sent it
-
-
-                    # client = data["client"]
-                    # serialized_plot_message = data["plot"]
-                    # plot_message = pickle.loads(serialized_plot_message)
-
-                    # plot_id
                     plot_message = pickle.loads(client_msg.dbplot_message)  # A DBPlotMessage object (see plotting_client.py)
-                    # plot_id = plot_message["plot_id"]
-                    # plot_data = plot_message["data"]
-                    # plot_data["draw_now"] = False
                     plot_message.dbplot_args['draw_now'] = False
                     dbplot(**plot_message.dbplot_args)
                     return_values.append((client_msg.client_address, plot_message.plot_id))
@@ -237,6 +226,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--reuse', action="store_true", help='set if you want to merge plots on this server into one shared memory')
     args = parser.parse_args()
+    set_server_plotting(False)  # This causes dbplot to configure correctly
     if args.reuse is True:
         # TODO: has not been tested thoroughly yet. For example if you spawn two processes using the same server at the same time, there might be a conflict about who is the first who
         # actually sets up the server, and who joins the existing server
