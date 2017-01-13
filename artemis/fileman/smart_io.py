@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 from artemis.fileman.file_getter import get_temp_file, get_file_and_cache
 from artemis.fileman.images2gif import readGif
-from artemis.fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_local_path, make_file_dir
 from artemis.general.image_ops import get_dark_edge_slice, resize_image
 
 
@@ -31,16 +31,18 @@ def smart_save(obj, relative_path, remove_file_after = False):
         from artemis.experiments.experiment_record import get_current_experiment_id
         relative_path = relative_path.replace('%R', get_current_experiment_id())
     _, ext = os.path.splitext(relative_path)
-    local_path = get_local_path(relative_path, make_local_dir=True)
 
-    print 'Saved object <%s at %s> to file: "%s"' % (obj.__class__.__name__, hex(id(object)), local_path)
-    if ext=='.pkl':
-        with open(local_path, 'w') as f:
-            pickle.dump(obj, f)
-    elif ext=='.pdf':
-        obj.savefig(local_path)
-    else:
-        raise Exception("No method exists yet to save '.%s' files.  Add it!" % (ext, ))
+    with smart_file(relative_path, make_dir=True) as local_path:
+        print 'Saved object <%s at %s> to file: "%s"' % (obj.__class__.__name__, hex(id(object)), local_path)
+        if ext=='.pkl':
+            with open(local_path, 'w') as f:
+                pickle.dump(obj, f)
+        if ext in _IMAGE_EXTENSIONS:
+            _save_image(obj, local_path)
+        elif ext=='.pdf':
+            obj.savefig(local_path)
+        else:
+            raise Exception("No method exists yet to save '%s' files.  Add it!" % (ext, ))
 
     if remove_file_after:
         os.remove(local_path)
@@ -71,7 +73,8 @@ def smart_load(location, use_cache = False):
                 obj = np.array([frames[0]]+[f[:, :, :3] for f in frames[1:]])
             else:
                 obj = np.array(readGif(local_path))
-        elif ext in ('.jpg', '.jpeg', '.png'):
+        elif ext in _IMAGE_EXTENSIONS:
+            from PIL import Image
             obj = _load_image(local_path)
         elif ext in ('.mpg', '.mp4', '.mpeg'):
             obj = _load_video(local_path)
@@ -97,6 +100,8 @@ def smart_load_image(location, max_resolution = None, force_rgb=False, use_cache
     with smart_file(location, use_cache=use_cache) as local_path:
         return _load_image(local_path, max_resolution = max_resolution, force_rgb=force_rgb)
 
+_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif')
+
 
 def _load_image(local_path, max_resolution = None, force_rgb = False):
     """
@@ -110,7 +115,7 @@ def _load_image(local_path, max_resolution = None, force_rgb = False):
     """
     # TODO: Consider replacing PIL with scipy
     ext = os.path.splitext(local_path)[1].lower()
-    assert ext in ('.jpg', '.jpeg', '.png', '.gif')
+    assert ext in _IMAGE_EXTENSIONS
     from PIL import Image
     pic = Image.open(local_path)
 
@@ -130,8 +135,16 @@ def _load_image(local_path, max_resolution = None, force_rgb = False):
     return pic_arr
 
 
+def _save_image(image_array, local_path):
+    ext = os.path.splitext(local_path)[1].lower()
+    assert ext in _IMAGE_EXTENSIONS
+    from PIL import Image
+    pic = Image.fromarray(image_array)
+    pic.save(local_path)
+
+
 @contextmanager
-def smart_file(location, use_cache = False):
+def smart_file(location, use_cache = False, make_dir = False):
     """
     :param location: Specifies where the file is.
         If it's formatted as a url, it's downloaded.
@@ -139,16 +152,20 @@ def smart_file(location, use_cache = False):
         Otherwise, it is assumed to be referenced relative to the data directory.
     :param use_cache: If True, and the location is a url, make a local cache of the file for future use (note: if the
         file at this url changes, the cached file will not).
+    :param make_dir: Make the directory for this file, if it does not exist.
     :yield: The local path to the file.
     """
     its_a_url = is_url(location)
     if its_a_url:
+        assert not make_dir, "We cannot 'make the directory' for a URL"
         if use_cache:
             local_path = get_file_and_cache(location)
         else:
             local_path = get_temp_file(location)
     else:
         local_path = get_local_path(location)
+        if make_dir:
+            make_file_dir(local_path)
 
     yield local_path
 

@@ -2,6 +2,7 @@ import numbers
 import numpy as np
 from artemis.general.mymath import softmax
 from artemis.general.numpy_helpers import get_rng
+from artemis.general.should_be_builtins import bad_value
 
 __author__ = 'peter'
 
@@ -38,30 +39,42 @@ def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal'
     For a good explanation of the 'xavier' initialization schemes.
     """
     rng = get_rng(rng)
-    if base_dist == 'normal':
-        noise_gen = lambda n_in_, n_out_: rng.randn(n_in_, n_out_)
-    elif base_dist == 'uniform':
-        noise_gen = lambda n_in_, n_out_: (rng.rand(n_in_, n_out_)-0.5) * np.sqrt(12)  # For unit variance
-    elif hasattr(base_dist, '__call__'):
-        noise_gen = base_dist
-    else:
-        raise Exception("Unknown base distribution: '%s'" % (base_dist, ))
-
-    if isinstance(mag, numbers.Real):
-        ws = [noise_gen(n_in, n_out)*mag for n_in, n_out in zip(layer_sizes[:-1], layer_sizes[1:])]
-    elif mag=='xavier-forward':
-        ws = [noise_gen(n_in, n_out)*np.sqrt(1./n_in) for n_in, n_out in zip(layer_sizes[:-1], layer_sizes[1:])]
-    elif mag=='xavier-both':
-        ws = [2*noise_gen(n_in, n_out)*np.sqrt(1./(n_in+n_out)) for n_in, n_out in zip(layer_sizes[:-1], layer_sizes[1:])]
-    elif mag=='xavier-relu':
-        ws = [noise_gen(n_in, n_out)*np.sqrt(2./n_in) for n_in, n_out in zip(layer_sizes[:-1], layer_sizes[1:])]
-    else:
-        raise Exception('No method "%s" yet' % (mag, ))
+    ws = [initialize_weight_matrix(n_in, n_out, mag=mag, base_dist=base_dist, rng=rng) for n_in, n_out in zip(layer_sizes[:-1], layer_sizes[1:])]
     if include_biases:
         bs = [np.zeros(n_out) for n_out in layer_sizes[1:]]
         return zip(ws, bs)
     else:
         return ws
+
+
+def initialize_weight_matrix(n_in, n_out, mag, base_dist='normal', rng=None):
+    """
+    Initialize a weight matrix
+    :param n_in: Number of input units
+    :param n_out: Number of output units
+    :param mag: The magnitude, or a string identifying how to calculate the magnitude.
+        String options can be:
+            'xavier-forward' - Best for preserving variance of a linear, tanh, or sigmoidal network across layers.
+            'xavier-both': - A compromize between preserving the variance of the forward, backward pass
+            'xavier-relu': - Best for preserving variance on the forward pass in a ReLU net.
+    :param base_dist: 'normal' or 'uniform', or a function taking (n_in, n_out) and returning a (n_in, n_out) array
+    :param rng: Random number generator or seed
+    :return: A shape (n_in, n_out) initial weight matrix.
+    """
+    rng = get_rng(rng)
+
+    w_base = rng.randn(n_in, n_out) if base_dist == 'normal' else \
+        (np.rand(n_in, n_out) - 0.5)*np.sqrt(12) if base_dist=='uniform' else \
+        bad_value(base_dist)
+
+    mag_number = \
+        np.sqrt(2./(n_in+n_out)) if mag in ('xavier', 'xavier-both') else \
+        np.sqrt(1./n_in) if mag=='xavier-forward' else \
+        np.sqrt(2./n_in) if mag=='xavier-relu' else \
+        mag if isinstance(mag, numbers.Real) else \
+        bad_value(mag)
+
+    return w_base * mag_number
 
 
 def activation_function(data, function_name):

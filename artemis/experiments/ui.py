@@ -56,7 +56,8 @@ def browse_experiments(catch_errors = False, close_after_run = False, run_args =
     :return:
     """
     help_text = """
-        Enter '4' to run experiment 4
+        Enter '4', or 'run 4' to run experiment 4
+        Enter 'call 4' to call experiment 4 (like running, but doesn't save a record)
         Enter 'show 4' to show the output from the last run of experiment 4 (if it has been run already).
         Enter 'records' to browse through all experiment records.
         Enter 'display 4' to replot the result of experiment 4 (if it has been run already, (only works if you've defined
@@ -90,6 +91,10 @@ def browse_experiments(catch_errors = False, close_after_run = False, run_args =
                     else:
                         show_experiment(get_latest_experiment_identifier(name))
                         _warn_with_prompt('')
+                elif cmd == 'call':
+                    exp = GLOBAL_EXPERIMENT_LIBRARY[name](**run_args)
+                    if close_after_run:
+                        break
                 elif cmd == 'display':
                     try:
                         GLOBAL_EXPERIMENT_LIBRARY[name].display_last()
