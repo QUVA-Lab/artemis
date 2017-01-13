@@ -1,14 +1,11 @@
-from collections import Counter, OrderedDict
-
-from artemis.fileman.config_files import get_config_value
 import json
-from artemis.remote.child_processes import get_ssh_connection
-import pip
-import numpy as np
 import os
 import sys
-
-
+from collections import OrderedDict
+import numpy as np
+import pip
+from artemis.fileman.config_files import get_config_value
+from artemis.remote.child_processes import get_ssh_connection
 
 # def make_sure_artemis_is_up_to_date(ip_address):
 #     remote_packages = get_remote_installed_packages(ip_address)
@@ -34,6 +31,8 @@ import sys
 #     if own_version != remote_version:
 #         remote_artemis_dir = os.path.join(os.path.dirname(os.path.dirname(python_path)),"src/artemis")
 #
+from artemis.remote.test_virtualenv import test_get_remote_installed_packages
+
 
 def get_remote_installed_packages(ip_address):
     '''
@@ -56,6 +55,7 @@ def get_remote_installed_packages(ip_address):
     installed_packages = json.loads(stdout.read())
     ssh_conn.close()
     return installed_packages
+
 
 def install_packages_on_remote_virtualenv(ip_address, packages):
     '''
@@ -87,6 +87,7 @@ def install_packages_on_remote_virtualenv(ip_address, packages):
             print err
     ssh_conn.close()
     print("... Done")
+
 
 def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgrade=None, ignore_warnings=True):
     '''
@@ -152,7 +153,6 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                             chosen_packages_to_install_and_update[key] = missing_packages[key]
                     valid=True
 
-
     # Upgrade different version packages
     if len(different_versions) > 0:
         if auto_upgrade is not None:
@@ -217,34 +217,3 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                 else:
                     print("Ignoring discrepancies...")
     print("="*10 + " Done remote virtualenv %s "%ip_address + "="*10)
-
-
-def test_check_diff_local_remote_virtualenv():
-    ip_address = "146.50.28.6"
-    original_virtual_env_value = get_config_value(".artemisrc", ip_address, "python")
-    import ConfigParser
-    import os
-
-    Config = ConfigParser.ConfigParser()
-    Config.read(os.path.expanduser("~/.artemisrc"))
-    Config.set(section=ip_address,option="python",value="~/virtualenvs/test_env/bin/python")
-    with open(os.path.expanduser("~/.artemisrc"), 'wb') as configfile:
-        Config.write(configfile)
-
-    check_diff_local_remote_virtualenv(ip_address, auto_install=True,ignore_warnings=True)
-
-    Config.set(section=ip_address,option="python",value=original_virtual_env_value)
-    with open(os.path.expanduser("~/.artemisrc"), 'wb') as configfile:
-        Config.write(configfile)
-
-
-
-def test_get_remote_installed_packages():
-    ip_address = "146.50.28.6"
-    packages = get_remote_installed_packages(ip_address)
-    print packages
-
-if __name__ == "__main__":
-    test_get_remote_installed_packages()
-    # check_diff_local_remote_virtualenv("146.50.28.6")
-    # test_check_diff_local_remote_virtualenv()

@@ -1,4 +1,4 @@
-#Artemis plotting Server Edition#
+#Artemis plotting Server Edition (in beta...)#
 If you want to use the srver edition of artemis' plotting capability, you need to do a few things: 
 
 ##Edit your .artemisrc in the homedirectory:##

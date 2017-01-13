@@ -2,15 +2,12 @@ from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 import numpy as np
 from matplotlib import pyplot as plt
-
-from artemis.general.functional import infer_arg_values
-from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
-from artemis.remote.plotting.plotting_client import dbplot_remotetly
+
 
 __author__ = 'peter'
 
@@ -62,6 +59,14 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     :param wait_for_display_sec: In server mode, you can choose to wait maximally wait_for_display_sec seconds before this call returns. In case plotting
     is finished earlier, the call returns earlier. Setting wait_for_display_sec to a negative number will cause the call to block until the plot has been displayed.
     """
+    if is_server_plotting_on():
+        # Redirect the function call to the plotting server.  The flag gets turned on in a configuration file.  It is
+        # turned off when this file is run ON the plotting server, from the first line in plotting_server.py
+        arg_locals = locals().copy()
+        from artemis.remote.plotting.plotting_client import dbplot_remotetly
+        dbplot_remotetly(arg_locals=arg_locals)
+        return
+
     if isinstance(fig, plt.Figure):
         assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
         _DBPLOT_FIGURES[None] = fig
@@ -164,6 +169,7 @@ _hold_plot_counter = 0
 
 _default_layout = 'grid'
 
+
 def reset_dbplot():
     for fig_name, plot_window in _DBPLOT_FIGURES.items():
         plt.close(plot_window.figure)
@@ -253,19 +259,3 @@ def get_dbplot_axis(axis_name, fig=None):
 def dbplot_hang():
     plt.show()
 
-
-if is_server_plotting_on():
-    """
-    The flag gets turned on in a configuration file.  It is turned off when this file is run ON the plotting server,
-    from the first line in plotting_server.py
-
-    This redefines the dbplot function so that it sets up a server (on the first call) and sends all arguments to
-    dbplot to that server over a pipe.  The server then takes care of plotting the data.
-    """
-    _old_dbplot = dbplot
-    def _dbplot(*args, **kwargs):
-        arg_locals = infer_arg_values(_old_dbplot, *args, **kwargs)
-        # arg_locals = kwargs.copy()
-        assert not is_lambda(arg_locals['plot_type']), "dbplot in server mode does not accept lambda. Use partial instead"
-        dbplot_remotetly(arg_locals=arg_locals)
-    globals()['dbplot'] = _dbplot  # This just tricks PyCharm

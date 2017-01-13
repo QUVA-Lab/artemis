@@ -7,8 +7,12 @@ import time
 import uuid
 import pickle
 from collections import namedtuple
+<<<<<<< HEAD
 
 
+=======
+from artemis.general.should_be_builtins import is_lambda
+>>>>>>> b704290d9237c16491895a94f778b51336726b84
 from artemis.plotting.plotting_backend import get_plotting_server_address
 from artemis.remote.child_processes import check_ssh_connection, ChildProcess, ParamikoPrintThread
 from artemis.remote.file_system import check_config_file
@@ -24,10 +28,12 @@ def dbplot_remotetly(arg_locals):
     """
     This method should be called from dbplot immedeatly, in case we should plot remotely.
     arg_locals con
-    :param arg_locals: all the arguments with which dbplot was called.
+    :param arg_locals: A dict of arguments with which dbplot was called.
     """
     global _to_subprocess_queue
     global _id_queue
+
+    assert not is_lambda(arg_locals['plot_type']), "dbplot in server mode does not accept lambda. Use partial instead"
 
     if _to_subprocess_queue is None:
         # This is the first call to dbplot, we need to set up the server.

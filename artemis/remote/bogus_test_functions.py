@@ -19,4 +19,3 @@ def atexit_function():
 if __name__ == "__main__":
     atexit.register(atexit_function)
     function()
-    # dbplot([1,2,3])

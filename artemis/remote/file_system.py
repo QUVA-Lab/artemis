@@ -1,10 +1,11 @@
 from __future__ import print_function
 
-import paramiko
-from artemis.fileman.config_files import get_config_value
-from ConfigParser import NoSectionError, NoOptionError
 import os
+from ConfigParser import NoSectionError, NoOptionError
 
+import paramiko
+
+from artemis.fileman.config_files import get_config_value
 from artemis.remote.child_processes import get_ssh_connection
 
 
@@ -68,8 +69,6 @@ def check_config_file(ip_address,file_path=".artemisrc"):
                                                          "You provided %s, which resulted in the following error on the remote machine: " %(ip_address, python_path, err)
 
 
-
-
 def simple_rsync(local_path, remote_path, ip_address, verbose=False):
     '''
     This method synchronizes local_path and all subfolders with remote_path at the given address.
@@ -122,29 +121,3 @@ def rsync(options, from_path, to_path):
         raise RuntimeError(msg)
     print("rsync finished")
     return True
-
-
-
-
-
-def test_rsync():
-    options = ["-r"]
-    from_path = os.path.join(os.path.expanduser("~"), "temp/")
-    to_path = "mreisser@146.50.28.6:/home/mreisser/temp/"
-    assert rsync(options, from_path, to_path)
-
-
-def test_simple_rsync():
-    # from_path = "~/PycharmProjects/Distributed-VI/"
-    # to_path = "~/temp/Distributed-VI/"
-    local_path  = "~/PycharmProjects/Distributed-VI/"
-    remote_path = "~/PycharmProjects/Distributed-VI/"
-    address = "146.50.28.6"
-    assert simple_rsync(local_path=local_path, remote_path=remote_path, ip_address=address, verbose=True)
-
-if __name__ == "__main__":
-    # test_simple_rsync()
-    # test_rsync()
-    ip_address = "146.50.28.6"
-    check_config_file(ip_address)
-
