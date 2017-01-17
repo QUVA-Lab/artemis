@@ -4,10 +4,7 @@ This code is taken from https://github.com/paramiko/paramiko/blob/master/demos/f
 
 
 from __future__ import print_function
-import os
-import socket
 import select
-import threading
 
 try:
     import SocketServer
@@ -66,9 +63,6 @@ def forward_tunnel(local_port, remote_host, remote_port, ssh_conn):
         chain_host = remote_host
         chain_port = remote_port
         ssh_transport = ssh_conn.get_transport()
-    # t = threading.Thread(target=ForwardServer(('', local_port), SubHander).serve_forever)
-    # t.setDaemon(True)
-    # t.start()
     try:
         ForwardServer(('', local_port), SubHander).serve_forever()
     except SocketServer.socket.error as exc:

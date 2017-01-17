@@ -67,6 +67,7 @@ def set_up_plotting_server():
     print("Setting up Plotting Server")
 
     # First we generate the system call that starts the server
+    # TODO: This assumes the same installation path relative to the home-dir on the local machine as on the remote machine
     file_to_execute = os.path.join(os.path.dirname(__file__), 'plotting_server.py')
     file_to_execute = file_to_execute.replace(os.path.expanduser("~"),"~",1)
     plotting_server_address = get_plotting_server_address()

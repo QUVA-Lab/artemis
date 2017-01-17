@@ -293,7 +293,7 @@ class ChildProcess(object):
             elif type(command) == str or type(command) == unicode:
                 shlexed_command = shlex.split(command)
                 sub = subprocess.Popen(shlexed_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                sub.communicate()
+                # sub.communicate()
             else:
                 raise NotImplementedError()
             self.sub = sub
@@ -400,7 +400,7 @@ def execute_command(ip_address, command, blocking=True):
 def check_ssh_connection(ip_address):
     '''
     tries to load necessary information from the ~/.artemisrc file and execute a test remote function call. This is to verify that ssh connection is available
-    :param connections: A list ["ip-address"] of strings
+    :param ip_address: the ip_address to call against
     :return:
     '''
 
@@ -428,9 +428,19 @@ def check_if_port_is_free(ip_address, port):
         print ("Please provide a valid port for address %s. Received %s instead" %(ip_address, port))
         raise
 
-    check_ssh_connection(ip_address)
-    ssh_connect = get_ssh_connection(ip_address=ip_address)
-    check_port_function = 'python -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM);s.bind((\'%s\',%i));s.close()"'%(ip_address,port)
-    stdin , stdout, stderr = ssh_connect.exec_command(check_port_function)
-    err = stderr.read()
-    assert not err, "The remote address %s cannot allocate port %i. The following error was raised: \n %s" % (ip_address, port,err.strip().split("\n")[-1])
+    if ip_address in get_local_ips():
+        import socket
+        s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind((ip_address,port))
+        except:
+            raise
+        finally:
+            s.close()
+    else:
+        check_ssh_connection(ip_address)
+        ssh_connect = get_ssh_connection(ip_address=ip_address)
+        check_port_function = 'python -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM);s.bind((\'%s\',%i));s.close()"'%(ip_address,port)
+        stdin , stdout, stderr = ssh_connect.exec_command(check_port_function)
+        err = stderr.read()
+        assert not err, "The remote address %s cannot allocate port %i. The following error was raised: \n %s" % (ip_address, port,err.strip().split("\n")[-1])

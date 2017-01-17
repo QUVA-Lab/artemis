@@ -103,7 +103,9 @@ def rsync(options, from_path, to_path):
     '''
     import subprocess
     print ("Starting: rsync %s %s %s" % (options, from_path, to_path))
-    command = subprocess.Popen(["rsync"] + [options, from_path, to_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
+    if not type(options) is list:
+        options = [options]
+    command = subprocess.Popen(["rsync"] + options + [from_path, to_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
     if "v" in options:
         while True:
             line = command.stdout.readline()

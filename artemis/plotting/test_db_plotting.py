@@ -92,7 +92,7 @@ def test_list_of_images():
     for _ in xrange(2):
         dbplot([np.random.randn(12, 30), np.random.randn(10, 10), np.random.randn(15, 10)])
 
-@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not have an interpretation of hold_dplots")
+
 def test_two_plots_in_the_same_axis_version_1():
     reset_dbplot()
     # Option 1: Name the 'axis' argument to the second plot after the name of the first
@@ -103,7 +103,6 @@ def test_two_plots_in_the_same_axis_version_1():
             dbplot(data, 'histogram', plot_type='histogram')
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='histogram', plot_type='line')
 
-@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not have an interpretation of hold_dplots")
 def test_two_plots_in_the_same_axis_version_2():
     reset_dbplot()
     # Option 2: Give both plots the same 'axis' argument

@@ -7,6 +7,8 @@ import struct
 
 import sys
 
+from artemis.fileman.config_files import get_config_value
+
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
 
@@ -106,3 +108,13 @@ def is_valid_port(port):
     import re
     port_pattern = re.compile("^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$")
     return port_pattern.match(port)
+
+
+def get_remote_artemis_path(remote_ip):
+    return get_config_value(
+        config_filename='~/.artemisrc',
+        section=remote_ip,
+        option='artemis_path',
+        default_generator=lambda: raw_input('Specify Remote Artemis Installation Path: '),
+        write_default=True
+        )

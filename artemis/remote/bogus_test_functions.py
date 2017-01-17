@@ -1,3 +1,9 @@
+'''
+This file is required to perform plotting server related tests. Its purpose is to be executed in a seperate process or on a remote machine, automatically.
+'''
+
+
+
 from __future__ import print_function
 import sys
 import atexit
