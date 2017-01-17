@@ -98,6 +98,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
                 'colour': lambda: ImagePlot(is_colour_data=True),
                 'equal_aspect': lambda: ImagePlot(aspect='equal'),
                 'image_history': lambda: MovingImagePlot(),
+                'fixed_line_history': lambda: MovingPointPlot(buffer_len=100),
                 'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
                 'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
                 'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),

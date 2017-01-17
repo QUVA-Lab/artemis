@@ -4,6 +4,19 @@ from collections import OrderedDict
 import numpy as np
 
 
+def fixed_hash_eq(obj1, obj2):
+    """
+    Return True if the objects have equal fixed-hashes.  You can use this instead of the "==" operator when comparing
+    two objects that don't contain all python primatives.  All objects contained must be either primatives, numpy arrays,
+    or extend the FixedHashObject interface.
+
+    :param obj1: An arbitrary object
+    :param obj2: Another arbitrary project,
+    :return: A boolean, indicating whether their hashes are equal.
+    """
+    return compute_fixed_hash(obj1)==compute_fixed_hash(obj2)
+
+
 def compute_fixed_hash(obj, hasher = None):
     """
     Given an object, return a hash that will always be the same (not just for the lifetime of the
