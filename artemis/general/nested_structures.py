@@ -203,7 +203,7 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
     """
 
     try:
-        if type(meta_object) in _primitive_containers:
+        if isinstance(meta_object, _primitive_containers):
             if isinstance(meta_object, (list, tuple, set)):
                 filled_object = type(meta_object)(_fill_meta_object(x, data_iteratable, assert_fully_used=False, check_types=check_types) for x in meta_object)
             elif isinstance(meta_object, OrderedDict):
