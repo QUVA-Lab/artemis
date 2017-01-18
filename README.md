@@ -18,7 +18,7 @@ To use artemis from within your project, use the following to install Artemis an
 ```
 pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis 
 ```
-This will install it in `(virtual env or system python root)/src/artemis`.  You can edit the code and submit pull requests to our git repo.
+This will install it in `(virtual env or system python root)/src/artemis`.  You can edit the code and submit pull requests to our git repo.  
 
 
 ### Option 2: Simple install:
