@@ -57,5 +57,7 @@ Note: During installation, the settings file `.artemisrc` is created in your hom
 ## Using Browser-plotting
 After installing, you should have a file ~/.artemis rc.  To use the web backend, edit the `backend` field to `matplotlib-web`.  To try it you can run [/artemis/plotting/demo_dbplot.py](/artemis/plotting/demo_dbplot.py)  
 
+## Plug:
+If you like Artemis then you'll love [Plato](https://github.com/petered/plato) a new API that simplifies the use of Theano.
 
 
