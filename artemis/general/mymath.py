@@ -182,8 +182,8 @@ def angle_between(a, b, axis=None, in_degrees = False):
 
     Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
-    cosine_distance = cosine_distance(a, b, axis=axis)
-    angle = np.arccos(cosine_distance)
+    cos_dist = cosine_distance(a, b, axis=axis)
+    angle = np.arccos(cos_dist)
     if in_degrees:
         angle = angle * 180/np.pi
     return angle
@@ -211,7 +211,6 @@ def cosine_distance(a, b, axis=None):
     assert a.shape[-1]==b.shape[-1]
     cosine_distance = (a*b).sum(axis=axis)/np.sqrt((a**2).sum(axis=axis) * (b**2).sum(axis=axis))
     # For numerical resons, we might get values outside [-1, 1] here, so we truncate:
-    print 'arccos input {}'.format(cosine_distance)
     cosine_distance = np.minimum(cosine_distance, 1)
     cosine_distance = np.maximum(cosine_distance, -1)
     return cosine_distance

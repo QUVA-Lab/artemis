@@ -45,7 +45,8 @@ Remember:  If you can't see your data, you are a fraud and your research career 
 
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
-           fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, plot_constructor=None):
+           fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, plot_constructor=None,
+           grid=False):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
@@ -121,7 +122,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             axis = plt.subplot(axis)
         if isinstance(axis, Axes):
             ax = axis
-            ax_name = str(plt.subplot(axis))
+            ax_name = str(axis)
         elif isinstance(axis, basestring) or axis is None:
             ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
             ax_name = axis
@@ -141,6 +142,9 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
         if draw_every is not None:
             _draw_counters[fig, name] = -1
+
+        if grid:
+            plt.grid()
 
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
