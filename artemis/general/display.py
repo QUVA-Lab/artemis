@@ -100,6 +100,9 @@ class IndentPrint(object):
             print self.block_header
         sys.stdout = self
 
+    def flush(self):
+        self.old_stdout.flush()
+
     def write(self, message):
         if message=='\n':
             new_message = '\n'
