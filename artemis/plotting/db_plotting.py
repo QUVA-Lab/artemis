@@ -9,6 +9,9 @@ from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from contextlib import contextmanager
 from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.gridspec import SubplotSpec
+
 __author__ = 'peter'
 
 """
@@ -42,7 +45,8 @@ Remember:  If you can't see your data, you are a fraud and your research career 
 
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
-           fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, plot_constructor=None):
+           fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, plot_constructor=None,
+           grid=False):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
@@ -114,24 +118,33 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             assert hasattr(plot_type, "__call__")
             plot = plot_type()
 
-        if axis in _DBPLOT_FIGURES[fig].axes:
-            _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[axis], plot_object=plot)
-            plt.sca(_DBPLOT_FIGURES[fig].axes[axis])
-        else:  # Make a new axis
-            # _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
+        if isinstance(axis, SubplotSpec):
+            axis = plt.subplot(axis)
+        if isinstance(axis, Axes):
+            ax = axis
+            ax_name = str(axis)
+        elif isinstance(axis, basestring) or axis is None:
             ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
-            
-            ax.set_title(axis)
+            ax_name = axis
+        else:
+            raise Exception("Axis specifier must be a string, an Axis object, or a SubplotSpec object.  Not {}".format(axis))
 
+        if ax_name not in _DBPLOT_FIGURES[fig].axes:
+            ax.set_title(name)
             _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=ax, plot_object=plot)
-            _DBPLOT_FIGURES[fig].axes[axis] = ax
-            
-            if xlabel is not None:
-                _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
-            if ylabel is not None:
-                _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
-            if draw_every is not None:
-                _draw_counters[fig, name] = -1
+            _DBPLOT_FIGURES[fig].axes[ax_name] = ax
+
+        _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[ax_name], plot_object=plot)
+        plt.sca(_DBPLOT_FIGURES[fig].axes[ax_name])
+        if xlabel is not None:
+            _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
+        if ylabel is not None:
+            _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
+        if draw_every is not None:
+            _draw_counters[fig, name] = -1
+
+        if grid:
+            plt.grid()
 
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
@@ -153,6 +166,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         else:
             redraw_figure(_DBPLOT_FIGURES[fig].figure)
     return _DBPLOT_FIGURES[fig].subplots[name].axis
+
 
 
 _PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots', 'axes'])

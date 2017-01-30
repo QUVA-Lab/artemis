@@ -1,8 +1,12 @@
 import numpy as np
 from artemis.plotting.demo_dbplot import demo_dbplot
-from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot
+from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot, \
+    dbplot_hang
 from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPointPlot
 import pytest
+
+from matplotlib import gridspec
+
 __author__ = 'peter'
 
 
@@ -139,16 +143,32 @@ def test_demo_dbplot():
     clear_dbplot()
 
 
+def test_custom_axes_placement(hang=False):
+
+    gs1 = gridspec.GridSpec(3, 1, left=0, right=0.5, hspace=0)
+    dbplot(np.sin(np.linspace(0, 10, 100)), 'a', plot_type='line', axis=gs1[0, 0])
+    dbplot(np.sin(np.linspace(0, 10, 100)+1), 'b', plot_type='line', axis=gs1[1, 0])
+    dbplot(np.sin(np.linspace(0, 10, 100)+2), 'c', plot_type='line', axis=gs1[2, 0])
+
+    gs2 = gridspec.GridSpec(2, 1, left=0.5, right=1, hspace=0.1)
+    dbplot(np.random.randn(20, 20), 'im1', axis=gs2[0, 0])
+    dbplot(np.random.randn(20, 20, 3), 'im2', axis=gs2[1, 0])
+
+    if hang:
+        dbplot_hang()
+
+
 if __name__ == '__main__':
-    test_trajectory_plot()
-    test_demo_dbplot()
-    test_freeze_dbplot()
-    test_two_plots_in_the_same_axis_version_1()
-    test_two_plots_in_the_same_axis_version_2()
-    test_moving_point_multiple_points()
-    test_list_of_images()
-    test_multiple_figures()
-    test_same_object()
-    test_history_plot_updating()
-    test_particular_plot()
-    test_dbplot()
+    # test_trajectory_plot()
+    # test_demo_dbplot()
+    # test_freeze_dbplot()
+    # test_two_plots_in_the_same_axis_version_1()
+    # test_two_plots_in_the_same_axis_version_2()
+    # test_moving_point_multiple_points()
+    # test_list_of_images()
+    # test_multiple_figures()
+    # test_same_object()
+    # test_history_plot_updating()
+    # test_particular_plot()
+    # test_dbplot()
+    test_custom_axes_placement()
