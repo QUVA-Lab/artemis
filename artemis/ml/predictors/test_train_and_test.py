@@ -40,10 +40,8 @@ def test_train_online_predictor():
     infos, scores = zip(*info_score_pairs)
     first_score, last_score = scores[0], scores[-1]
     assert first_score['test', 'predict', 'percent_argmax_correct'] < 40 and last_score['test', 'predict', 'percent_argmax_correct'] > 99
-    best_info, best_score = get_best_score(info_score_pairs)
-    assert best_score['test', 'predict', 'percent_argmax_correct'] > 99
+    info_score_pairs.get_best_value('test', 'predict', 'percent_argmax_correct') > 99
 
 
 if __name__ == '__main__':
-    # test_assess_prediction_functions()
     test_train_online_predictor()

@@ -144,6 +144,15 @@ class ModelTestScore(object):
     def __setitem__(self, (data_subset, prediction_function_name, cost_name), value):
         self.scores[data_subset, prediction_function_name, cost_name] = value
 
+    def keys(self):
+        return self.scores.keys()
+
+    def values(self):
+        return self.scores.values()
+
+    def iteritems(self):
+        return self.scores.iteritems()
+
     def get_score(self, data_subset=None, prediction_function_name=None, cost_name=None):
         if data_subset is None:
             data_subset = self.get_only_data_subset()
@@ -205,6 +214,9 @@ class InfoScorePair(object):
         self.info = info
         self.score = score
 
+    def __iter__(self):
+        return iter([self.info, self.score])
+
     def __str__(self):
         return 'Epoch {} (after {:.3g}s)\n{}'.format(self.info.epoch, self.info.time, self.score)
 
@@ -237,6 +249,10 @@ class InfoScorePairSequence(object):
         best_pair = self.get_best(subset, prediction_function, score_measure, lower_is_better=lower_is_better)
         return 'Best: Epoch {} of {}, {}: {}'.format(best_pair.info.epoch, self._pairs[-1].info.epoch, score_measure, best_pair.score[subset, prediction_function, score_measure])
 
+    def get_best_value(self, subset = 'test', prediction_function = None, score_measure = None, lower_is_better = False):
+        best_pair = self.get_best(subset, prediction_function, score_measure, lower_is_better=lower_is_better)
+        return best_pair.score[subset, prediction_function, score_measure]
+
     def get_best(self, subset = 'test', prediction_function = None, score_measure = None, lower_is_better = False):
         """
         Given a list of (info, score) pairs which represet the progress over training, find the best score and return it.
@@ -263,6 +279,24 @@ class InfoScorePairSequence(object):
         if score_measure is None:
             score_measure = first_score.get_only_cost()
         return subset, prediction_function, score_measure
+
+    def __str__(self):
+        from tabulate import tabulate
+        rep = repr(self) + '\n'
+        if len(self)==0:
+            rep += '<Empty>'
+        else:
+            iterfields = IterationInfo._fields
+            subset_names, prediction_funcs, cost_funcs = zip(*self[0].score.keys())
+            rows = [
+                (' ', )*len(iterfields) + subset_names,
+                (' ', )*len(iterfields) + prediction_funcs,
+                iterfields + cost_funcs
+                ]
+            for iter_info, score in self:
+                rows.append([v for v in iter_info] + score.values())
+        tab = repr(self)+'\n  '+tabulate(rows).replace('\n', '\n  ')
+        return tab
 
 
 def assess_prediction_functions(test_pairs, functions, costs, print_results=False):
@@ -303,7 +337,7 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
                 results[test_pair_name, function_name, cost_name] = cost_function(function(x), y)
 
     if print_results:
-        print_score_results(results)
+        print results
 
     return results
 

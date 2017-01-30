@@ -97,7 +97,7 @@ def test_run_and_show():
     with experiment_testing_context():
         experiment_record = experiment_test_function.run()
         assert_experiment_record_is_correct(experiment_record, show_figures=False)
-        show_experiment(experiment_record.get_identifier())
+        experiment_record.show()
 
 
 def test_get_latest():
