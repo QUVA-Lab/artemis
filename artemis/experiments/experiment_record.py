@@ -401,7 +401,7 @@ class ExperimentRecord(object):
                     ['{}:{}'.format(k, v) for k, v in argdict]
                     for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
-                notes = "Warning: args have changed: {} -> {}".format(','.join(old_args), ','.join(new_args))
+                notes = "Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
             else:
                 notes = "Yes"
         else:
@@ -841,7 +841,7 @@ class Experiment(object):
         ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border='=' * 10,
                                                                                  mode="Testing" if test_mode else "Running",
                                                                                  name=self.name))
-        FS = ExpInfoFields
+        EIF = ExpInfoFields
         date = datetime.now()
         with record_experiment(name=self.name, print_to_console=print_to_console, show_figs=show_figs,
                                use_temp_dir=not keep_record, date=date, **experiment_record_kwargs) as exp_rec:
@@ -850,33 +850,33 @@ class Experiment(object):
                 exp_rec.info.set_field(ExpInfoFields.NAME, self.name)
                 exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_identifier())
                 exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
-                exp_rec.info.set_field(FS.ARGS, self.get_args().items())
+                exp_rec.info.set_field(EIF.ARGS, self.get_args().items())
                 root_function = self.get_root_function()
-                exp_rec.info.set_field(FS.FUNCTION, root_function.__name__)
-                exp_rec.info.set_field(FS.TIMESTAMP, str(date))
-                exp_rec.info.set_field(FS.MODULE, inspect.getmodule(root_function).__name__)
-                exp_rec.info.set_field(FS.FILE, inspect.getmodule(root_function).__file__)
-                exp_rec.info.set_field(FS.STATUS, ExpStatusOptions.STARTED)
+                exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
+                exp_rec.info.set_field(EIF.TIMESTAMP, str(date))
+                exp_rec.info.set_field(EIF.MODULE, inspect.getmodule(root_function).__name__)
+                exp_rec.info.set_field(EIF.FILE, inspect.getmodule(root_function).__file__)
+                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STARTED)
                 results = self.function()
-                exp_rec.info.set_field(FS.STATUS, ExpStatusOptions.FINISHED)
-            except KeyboardInterrupt as err:
-                exp_rec.info.set_field(FS.STATUS, ExpStatusOptions.STOPPED)
-                exp_rec.info.set_field(FS.RUNTIME, time.time() - start_time)
+                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.FINISHED)
+            except KeyboardInterrupt:
+                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STOPPED)
                 exp_rec.write_error_trace(print_too=False)
                 raise
-            except Exception as err:
-                exp_rec.info.set_field(FS.STATUS, ExpStatusOptions.ERROR)
-                exp_rec.info.set_field(FS.RUNTIME, time.time() - start_time)
+            except Exception:
+                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.ERROR)
                 exp_rec.write_error_trace(print_too=not raise_exceptions)
                 if raise_exceptions:
                     raise
                 else:
                     return exp_rec
+            finally:
+                exp_rec.info.set_field(EIF.RUNTIME, time.time() - start_time)
+                fig_locs = exp_rec.get_figure_locs(include_directory=False)
+                exp_rec.info.set_field(EIF.N_FIGS, len(fig_locs))
+                exp_rec.info.set_field(EIF.FIGS, fig_locs)
 
         exp_rec.save_result(results)
-        fig_locs = exp_rec.get_figure_locs(include_directory=False)
-        exp_rec.info.set_field(FS.N_FIGS, len(fig_locs))
-        exp_rec.info.set_field(FS.FIGS, fig_locs)
 
         # for key, val in self.info.iteritems():
         #     exp_rec.add_info(key, val)
@@ -892,7 +892,7 @@ class Experiment(object):
 
     def _create_experiment_variant(self, args, kwargs, is_root):
         assert len(args) in (0,
-                             1), "You can either provide one unnamed argument, the experiment name, or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
+                             1), "When creating an experiment variant, you can either provide one unnamed argument, the experiment name, or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
         ex = Experiment(
@@ -977,7 +977,7 @@ class Experiment(object):
             self.display_function(result)
 
     def get_one_liner(self, results):
-        return self.one_liner_results(results) if self.one_liner_results is not None else None
+        return self.one_liner_results(results) if self.one_liner_results is not None else str(results).replace('\n', ';')
 
     def display_or_run(self):
         """

@@ -1,4 +1,5 @@
 import numpy as np
+from artemis.general.mymath import softmax, sigm
 
 from artemis.ml.datasets.datasets import DataSet, DataCollection
 
@@ -33,7 +34,14 @@ def get_synthethic_linear_dataset(noise_level = 0.1, n_input_dims = 20, n_output
     w = rng.randn(n_input_dims, n_output_dims)
     input_data = rng.randn(n_training_samples+n_test_samples, n_input_dims)
     target_data = np.dot(input_data, w) + offset_mag * rng.randn(n_output_dims) + noise_level*rng.randn(n_training_samples+n_test_samples, n_output_dims)
-    if nonlinearity is not None:
+    if nonlinearity=='softmax':
+        target_data = softmax(target_data, axis=1),
+    elif nonlinearity=='sigmoid':
+        target_data = sigm(target_data)
+    elif nonlinearity=='argmax':
+        target_data==np.argmax(target_data, axis=1)
+    else:
+        assert callable(nonlinearity), 'Unknown nonlinearity: {}'.format(nonlinearity)
         target_data = nonlinearity(target_data)
 
     if input_singleton:

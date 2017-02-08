@@ -72,7 +72,11 @@ def infer_arg_values(f, *args, **kwargs):
 
     common_args, (different_args, different_given_args) = separate_common_items([tuple(all_arg_names), tuple(n for n, _ in full_args)])
     if kwargs_name is None:  # There is no **kwargs
-        assert len(different_args)==0 and len(different_given_args)==0, "The set of argument names to the function: {} must match the set of arguments given: {}".format(different_args, different_given_args)
-    else:
-        assert len(different_args)==0, "Arguments {} were required but were given no values.".format(different_args)
+        # assert len(different_args)==0, "Function {} needs values for args {} but didn't get them".format(f, different_args)
+        assert len(different_given_args)==0, "Function {} was given args {} but didn't ask for them".format(f, different_given_args)
+
+
+    # else:
+    assert len(different_args)==0, "Function {} needs values for args {} but didn't get them".format(f, different_args)
+        # assert len(different_args)==0, "Arguments {} were required but were given no values.".format(different_args)
     return OrderedDict(full_args)

@@ -1,6 +1,8 @@
+# coding=utf-8
 from collections import OrderedDict
 
 import numpy as np
+from artemis.general.mymath import softmax
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
 from artemis.ml.datasets.datasets import DataSet
@@ -42,6 +44,7 @@ def evaluate_predictor(predictor, test_set, evaluation_function):
     return score
 
 
+
 def get_evaluation_function(name):
     return {
         'mse': mean_squared_error,
@@ -50,6 +53,7 @@ def get_evaluation_function(name):
         'percent_argmax_correct': percent_argmax_correct,
         'percent_argmax_incorrect': percent_argmax_incorrect,
         'percent_correct': percent_correct,
+        'softmax_categorical_xe': softmax_categorical_xe
         }[name]
 
 
@@ -59,6 +63,23 @@ def mean_l1_error(actual, target):
 
 def mean_squared_error(actual, target):
     return np.mean(np.sum((actual-target)**2, axis = -1), axis = -1)
+
+
+def softmax_categorical_xe(actual, target):
+    """
+    :param actual: An (n_samples, n_dims) array identifying pre-logistic output
+    :param target: An (n_samples, ) integer array identifying labels
+    :return:
+    """
+    if target.ndim==1:
+        assert target.dtype==int and np.max(target) < actual.shape[1]
+    elif target.ndim==2:
+        assert np.all(target.sum(axis=1)==1) and np.all(np.max(target, axis=1)==1)
+        target = np.argmax(target, axis=1)
+    else:
+        raise Exception("Don't know how to interpret a {}-D target".format(target))
+
+    return np.mean(softmax(actual, axis=1)[np.arange(actual.shape[0]), target], axis=0)
 
 
 def fraction_correct(actual, target):
@@ -153,14 +174,14 @@ class ModelTestScore(object):
     def iteritems(self):
         return self.scores.iteritems()
 
-    def get_score(self, data_subset=None, prediction_function_name=None, cost_name=None):
-        if data_subset is None:
-            data_subset = self.get_only_data_subset()
-        if prediction_function_name is None:
-            prediction_function_name = self.get_only_prediction_function()
+    def get_score(self, subset=None, prediction_function=None, cost_name=None):
+        if subset is None:
+            subset = self.get_only_data_subset()
+        if prediction_function is None:
+            prediction_function = self.get_only_prediction_function()
         if cost_name is None:
             cost_name = self.get_only_cost()
-        return self[data_subset, prediction_function_name, cost_name]
+        return self[subset, prediction_function, cost_name]
 
     def get_data_subsets(self):
         return remove_duplicates([s for s, _, _ in self.scores.keys()])
@@ -189,6 +210,16 @@ class ModelTestScore(object):
             raise Exception("You need to specify the {}.  Options are: {}".format(category_name, elements))
 
     def __str__(self):
+        sections = [u'({}{}{})={}'.format(
+            subset,
+            '' if pred_fcn is None else ','+str(pred_fcn),
+            ','+str(cost_fcn),
+            self.get_score(subset, pred_fcn, cost_fcn))
+            for subset, pred_fcn, cost_fcn in self.keys()
+            ]
+        return '{}:{}'.format(self.__class__.__name__, ','.join(sections))
+
+    def get_table(self):
         # test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*self.scores.keys())]
         rows = build_table(
             lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: self[test_pair_name_, function_name_, cost_name_],
@@ -220,6 +251,43 @@ class InfoScorePair(object):
     def __str__(self):
         return 'Epoch {} (after {:.3g}s)\n{}'.format(self.info.epoch, self.info.time, self.score)
 
+    def get_table_headers(self):
+        iterfields = IterationInfo._fields
+        subset_names, prediction_funcs, cost_funcs = zip(*self.score.keys())
+        return [
+            (' ', )*len(iterfields) + subset_names,
+            (' ', )*len(iterfields) + prediction_funcs,
+            iterfields + cost_funcs
+            ]
+
+    def get_table_row(self):
+        return [v for v in self.info] + self.score.values()
+
+    def get_table(self, remove_headers = False):
+        from tabulate import tabulate
+        iterfields = IterationInfo._fields
+        subset_names, prediction_funcs, cost_funcs = zip(*self.score.keys())
+        headers = [
+            (' ', )*len(iterfields) + subset_names,
+            (' ', )*len(iterfields) + prediction_funcs,
+            iterfields + cost_funcs
+            ]
+        data = [v for v in self.info] + self.score.values()
+        table = tabulate(headers+[data], tablefmt='plain')
+        if remove_headers:
+            table = table[table.rfind('\n'):]
+
+        return table
+
+        # iterfields = IterationInfo._fields
+        # subset_names, prediction_funcs, cost_funcs = zip(*self.score.keys())
+        # return [
+        #     (' ', )*len(iterfields) + subset_names,
+        #     (' ', )*len(iterfields) + prediction_funcs,
+        #     iterfields + cost_funcs
+        #     ]
+
+
 
 class InfoScorePairSequence(object):
     """
@@ -248,6 +316,9 @@ class InfoScorePairSequence(object):
         subset, prediction_function, score_measure = self._fill_fields(subset, prediction_function, score_measure)
         best_pair = self.get_best(subset, prediction_function, score_measure, lower_is_better=lower_is_better)
         return 'Best: Epoch {} of {}, {}: {}'.format(best_pair.info.epoch, self._pairs[-1].info.epoch, score_measure, best_pair.score[subset, prediction_function, score_measure])
+
+    def get_values(self, subset = 'test', prediction_function = None, score_measure = None):
+        return [score.get_score(subset, prediction_function, score_measure) for _, score in self]
 
     def get_best_value(self, subset = 'test', prediction_function = None, score_measure = None, lower_is_better = False):
         best_pair = self.get_best(subset, prediction_function, score_measure, lower_is_better=lower_is_better)
@@ -281,22 +352,21 @@ class InfoScorePairSequence(object):
         return subset, prediction_function, score_measure
 
     def __str__(self):
+        desc = 'InfoScorePairSequence<{} epochs over {}s. '.format(self[-1].info.epoch, self[-1].info.time)
+        keys = self[0].score.keys()
+        for subset, pred_fcn, cost_fcn in keys:
+            values = self.get_values(subset, pred_fcn, cost_fcn)
+            desc+=',({}{}{}) in [{} to {}]'.format(subset, '' if pred_fcn is None else ','+str(pred_fcn), ','+str(cost_fcn), min(values), max(values))
+        desc += '>'
+        return desc
+
+    def get_table(self):
         from tabulate import tabulate
-        rep = repr(self) + '\n'
         if len(self)==0:
-            rep += '<Empty>'
+            return repr(self) + '\n' + '<Empty>'
         else:
-            iterfields = IterationInfo._fields
-            subset_names, prediction_funcs, cost_funcs = zip(*self[0].score.keys())
-            rows = [
-                (' ', )*len(iterfields) + subset_names,
-                (' ', )*len(iterfields) + prediction_funcs,
-                iterfields + cost_funcs
-                ]
-            for iter_info, score in self:
-                rows.append([v for v in iter_info] + score.values())
-        tab = repr(self)+'\n  '+tabulate(rows).replace('\n', '\n  ')
-        return tab
+            rows = self[0].get_table_header() + [pair.get_table_row() for pair in self]
+            return repr(self)+'\n  '+tabulate(rows).replace('\n', '\n  ')
 
 
 def assess_prediction_functions(test_pairs, functions, costs, print_results=False):
@@ -337,7 +407,7 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
                 results[test_pair_name, function_name, cost_name] = cost_function(function(x), y)
 
     if print_results:
-        print results
+        print results.get_table()
 
     return results
 
@@ -395,7 +465,9 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
             last_epoch = info.epoch
             last_time = info.time
             score = assess_prediction_functions(dataset, functions=predict_fcn, costs=score_measure, print_results=True)
-            info_score_pairs.append(InfoScorePair(info, score))
+            p = InfoScorePair(info, score)
+            info_score_pairs.append(p)
+            # print p.get_table(remove_headers=len(info_score_pairs)>1)
             if test_callback is not None:
                 test_callback(info, score)
         if not info.done:

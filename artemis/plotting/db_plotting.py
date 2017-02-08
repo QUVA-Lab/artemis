@@ -4,7 +4,7 @@ from artemis.fileman.config_files import get_artemis_config_value
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
-    MovingImagePlot, HistogramPlot, CumulativeLineHistogram
+    MovingImagePlot, HistogramPlot, CumulativeLineHistogram, BarPlot
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot
 from contextlib import contextmanager
 from matplotlib import pyplot as plt
@@ -98,6 +98,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
                 'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
                 'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
                 # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
+                'bar': BarPlot,
                 'img': ImagePlot,
                 'colour': lambda: ImagePlot(is_colour_data=True),
                 'equal_aspect': lambda: ImagePlot(aspect='equal'),
