@@ -1,6 +1,8 @@
 import ConfigParser
 import os
 
+from artemis.fileman.config_files import get_config_path
+
 __author__ = 'peter'
 
 
@@ -14,7 +16,7 @@ def get_artemis_config():
     """
     global _CONFIG
     if _CONFIG is None:
-        config_path = os.path.join(os.path.expanduser('~'), '.artemisrc')
+        config_path = get_config_path('.artemisrc')
         if not os.path.exists(config_path):
             with open(config_path, 'w') as f:
                 f.write('[plotting]\nbackend: matplotlib')

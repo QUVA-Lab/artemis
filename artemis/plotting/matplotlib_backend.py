@@ -191,9 +191,15 @@ class LinePlot(HistoryFreePlot):
         right += self.x_bound_extend[1]*delta
 
         # Expand y_bound:
-        delta = upper-lower if upper-lower >0 else 1e-9
-        lower -= self.y_bound_extend[0]*delta
-        upper += self.y_bound_extend[1]*delta
+        if self.y_axis_type=='lin':
+            delta = upper-lower if upper-lower >0 else 1e-9
+            lower -= self.y_bound_extend[0]*delta
+            upper += self.y_bound_extend[1]*delta
+        elif self.y_axis_type=='log':
+            lower *= (1-self.y_bound_extend[0])
+            upper *= (1+self.y_bound_extend[1])
+        else:
+            raise Exception(self.y_axis_type)
 
         if self._plots is None:
             self._plots = []

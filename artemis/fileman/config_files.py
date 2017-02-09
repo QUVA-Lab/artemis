@@ -1,6 +1,6 @@
 from ConfigParser import NoSectionError, NoOptionError, ConfigParser
 import os
-
+import sys
 
 __author__ = 'peter'
 
@@ -79,7 +79,28 @@ def get_artemis_config_value(section, option, default_generator = None, write_de
     return get_config_value('.artemisrc', section=section, option=option, default_generator=default_generator, write_default=write_default, read_method = read_method)
 
 
+def get_home_dir():
+    # This function exists because of some weirdness when running remotely.
+    home_dir = os.path.expanduser('~')
+    if os.path.exists(home_dir):
+        return home_dir
+    elif sys.platform=='linux2':
+        home_dir = os.path.join('/home', os.getlogin())
+    elif sys.platform=='darwin':
+        home_dir==os.path.join('/Users', os.getlogin())
+    assert os.path.exists(home_dir), 'The home directory "{}" seems not to exist.  This is odd, to say the least.'.format(home_dir)
+    return home_dir
+
+
 def get_config_path(config_filename):
+    print 'asfadsfdsaf'
     assert config_filename.startswith('.'), "We enforce the convention that configuration files must start with '.'"
-    config_path = os.path.join(os.path.expanduser('~'), config_filename)
+    config_path = os.path.join(get_home_dir(), config_filename)
     return config_path
+
+
+if __name__ == '__main__':
+    config_path = get_config_path('.artemisrc')
+    print 'Contents of {}:\n-------------\n'.format(config_path)
+    with open(config_path) as f:
+        print f.read()
