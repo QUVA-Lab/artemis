@@ -93,7 +93,6 @@ def get_home_dir():
 
 
 def get_config_path(config_filename):
-    print 'asfadsfdsaf'
     assert config_filename.startswith('.'), "We enforce the convention that configuration files must start with '.'"
     config_path = os.path.join(get_home_dir(), config_filename)
     return config_path

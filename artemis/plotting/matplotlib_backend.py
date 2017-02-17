@@ -98,7 +98,7 @@ class ImagePlot(HistoryFreePlot):
         else:
             self._plot.set_array(plottable_data)
         if self.show_clims:
-            self._plot.axes.set_xlabel('%.2f - %.2f' % clims)
+            self._plot.axes.set_xlabel('{:.3g} <> {:.3g}'.format(*clims))
 
 
 class MovingImagePlot(ImagePlot):
@@ -120,7 +120,7 @@ class MovingImagePlot(ImagePlot):
 
 class LinePlot(HistoryFreePlot):
 
-    def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
+    def __init__(self, x_axis_type = 'lin', y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
                  x_bound_extend = (0, 0), make_legend = None, axes_update_mode = 'fit', add_end_markers = False, legend_entries = None,
                  legend_entry_size = 8, plot_kwargs = {}, allow_axis_offset = False):
         """
@@ -138,6 +138,7 @@ class LinePlot(HistoryFreePlot):
         :param plot_kwargs:
         """
         # assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
+        self.x_axis_type = x_axis_type
         self.y_axis_type = y_axis_type
         self._plots = None
         self.x_bounds = x_bounds
@@ -168,15 +169,15 @@ class LinePlot(HistoryFreePlot):
             y_data = data
         if isinstance(y_data, np.ndarray):
             n_lines = 1 if y_data.ndim==1 else y_data.shape[1]
-            x_data = [np.arange(y_data.shape[0])] * n_lines if x_data is None else [x_data] * n_lines if x_data.ndim==1 else x_data.T
+            x_data = [np.arange(1, y_data.shape[0]+1) if self.x_axis_type=='log' else np.arange(y_data.shape[0])] * n_lines if x_data is None else [x_data] * n_lines if x_data.ndim==1 else x_data.T
             # x_data = y_data.T if y_data.ndim==2 else y_data[None] if y_data.ndim==1 else bad_value(y_data.ndim)
             y_data = y_data.T if y_data.ndim==2 else y_data[None] if y_data.ndim==1 else bad_value(y_data.ndim, "Line plot data must be 1D or 2D, not {}D".format(y_data.ndim))
         else:  # List of arrays
             if all(d.ndim==0 for d in data):  # Turn it into one line
-                x_data = np.arange(len(data))[None, :]
+                x_data = np.arange(1, y_data.shape[0]+1) if self.x_axis_type=='log' else np.arange(y_data.shape[0])[None, :]
                 y_data = np.array(data)[None, :]
             else:  # List of arrays becomes a list of lines
-                x_data = [np.arange(len(d)) for d in y_data] if x_data is None else x_data
+                x_data = [np.arange(1, y_data.shape[0]+1) if self.x_axis_type=='log' else np.arange(y_data.shape[0]) for d in y_data] if x_data is None else x_data
         assert len(x_data)==len(y_data), "The number of lines in your x-data (%s) does not match the number in your y-data (%s)" % (len(x_data), len(y_data))
 
         lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data)+1e-9 if self.y_bounds[1] is None else self.y_bounds[1])
@@ -206,6 +207,8 @@ class LinePlot(HistoryFreePlot):
             plt.gca().autoscale(enable=False)
             plt.gca().get_yaxis().get_major_formatter().set_useOffset(self.allow_axis_offset)
             plt.gca().get_xaxis().get_major_formatter().set_useOffset(self.allow_axis_offset)
+            if self.x_axis_type!='lin':
+                plt.gca().set_xscale(self.x_axis_type)
             if self.y_axis_type!='lin':
                 plt.gca().set_yscale(self.y_axis_type)
 
