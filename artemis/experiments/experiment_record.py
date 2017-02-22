@@ -321,7 +321,7 @@ class ExperimentRecord(object):
         self.show_figures()
 
     def get_info_text(self):
-        return self._get_info_obj().get_text()
+        return self.info.get_text()
 
     def has_result(self):
         return os.path.exists(os.path.join(self._experiment_directory, 'result.pkl'))
@@ -635,14 +635,16 @@ def experiment_id_to_latest_record_id(experiment_identifier):
     :param template: The template which turns a name into an experiment identifier
     :return: A string identifying the latest matching experiment, or None, if not found.
     """
-    return experiment_id_to_record_ids(experiment_identifier)[-1]
+    all_records = experiment_id_to_record_ids(experiment_identifier)
+    assert len(all_records)>0, "No record found for experiment: '{}'".format(experiment_identifier)
+    return all_records[-1]
 
 
 def experiment_id_to_latest_result(experiment_id):
-    return get_latest_experiment_record(experiment_id).get_result()
+    return load_latest_experiment_record(experiment_id).get_result()
 
 
-def get_latest_experiment_record(experiment_name):
+def load_latest_experiment_record(experiment_name):
     experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name)
     if experiment_record_identifier is None:
         return None
@@ -1043,3 +1045,34 @@ class Experiment(object):
 
     def get_name(self):
         return self.name
+
+
+def make_record_comparison_table(record_ids, args_to_show=None, results_extractor = None):
+    """
+    Make a table comparing the results of different experiment records.
+
+    :param experiment_records:
+    :param args_to_show:
+    :param results_extractor:
+    :return:
+    """
+
+    records = [load_experiment_record(rid) for eid in record_ids]
+    args = [rec.info.get_field(ExpInfoFields.ARGS) for rec in records]
+    common, separate = separate_common_items(args)
+
+    if args_to_show is None:
+        args_to_show = [k for k, v in separate[0]]
+
+    headers = args_to_show + ['Train', 'Test']
+
+    rows = []
+    for record, separate_args in izip_equal(records, separate):
+
+        d_separgs = dict(separate_args)
+        args_vals = [d_separgs[k] for k in args_to_show]
+        results = record.get_result()
+        best_test_pair = results.get_best('test')
+        rows.append(args_vals+[best_test_pair.score.get_score(subset='train'), best_test_pair.score.get_score(subset='test')])
+
+    return headers, rows

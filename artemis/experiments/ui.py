@@ -103,13 +103,14 @@ records.  You can specify records in the following ways:
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
 """
 
-    def __init__(self, catch_errors = False, close_after_run = True, just_last_record = False, raise_display_errors=False):
+    def __init__(self, catch_errors = False, close_after_run = True, just_last_record = False, view_mode = 'full', raise_display_errors=False):
 
         self.close_after_run = close_after_run
         self.just_last_record = just_last_record
         self.catch_errors = catch_errors
         self.exp_record_dict = self.reload_record_dict()
         self.raise_display_errors = raise_display_errors
+        self.view_mode = view_mode
 
     def reload_record_dict(self):
         d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in GLOBAL_EXPERIMENT_LIBRARY.keys())
@@ -127,6 +128,7 @@ records.  You can specify records in the following ways:
             'call': self.call,
             'select': self.select,
             'allruns': self.allruns,
+            'viewmode': self.viewmode,
             'h': self.help,
             'results': self.results,
             'sidebyside': self.side_by_side,
@@ -141,7 +143,7 @@ records.  You can specify records in the following ways:
             self.exp_record_dict = self.reload_record_dict()
 
             print "==================== Experiments ===================="
-            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, raise_display_errors=self.raise_display_errors)
+            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors)
             print '-----------------------------------------------------'
             user_input = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
             with IndentPrint():
@@ -176,8 +178,13 @@ records.  You can specify records in the following ways:
                         raise
 
     @staticmethod
-    def get_experiment_list_str(exp_record_dict, just_last_record, raise_display_errors=False):
-        headers = ['E#', 'R#', 'Name', 'Last Run' if just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result']
+    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False):
+
+        headers = {
+            'full': ['E#', 'R#', 'Name', 'Last Run' if just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result'],
+            'results': ['E#', 'R#', 'Name', 'Result']
+            }[view_mode]
+
         rows = []
 
         def get_field(header):
@@ -314,6 +321,9 @@ records.  You can specify records in the following ways:
 
     def allruns(self, ):
         self.just_last_record = not self.just_last_record
+
+    def viewmode(self, mode):
+        self.view_mode = mode
 
     def quit(self):
         return self.QUIT
