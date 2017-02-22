@@ -128,9 +128,10 @@ records.  You can specify records in the following ways:
             'call': self.call,
             'select': self.select,
             'allruns': self.allruns,
-            'viewmode': self.viewmode,
+            'view': self.view,
             'h': self.help,
             'results': self.results,
+            'explist': self.explist,
             'sidebyside': self.side_by_side,
             'compare': self.compare,
             'delete': self.delete,
@@ -322,8 +323,12 @@ records.  You can specify records in the following ways:
     def allruns(self, ):
         self.just_last_record = not self.just_last_record
 
-    def viewmode(self, mode):
+    def view(self, mode):
         self.view_mode = mode
+
+    def explist(self, surround = ""):
+        print "\n".join([surround+k+surround for k in self.exp_record_dict.keys()])
+        _warn_with_prompt()
 
     def quit(self):
         return self.QUIT

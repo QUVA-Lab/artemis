@@ -87,7 +87,7 @@ from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
 from artemis.general.functional import infer_derived_arg_values, get_partial_chain
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.should_be_builtins import separate_common_items
+from artemis.general.should_be_builtins import separate_common_items, izip_equal
 from artemis.general.test_mode import is_test_mode, set_test_mode
 from enum import Enum
 
@@ -1047,32 +1047,61 @@ class Experiment(object):
         return self.name
 
 
-def make_record_comparison_table(record_ids, args_to_show=None, results_extractor = None):
+def make_record_comparison_table(record_ids, args_to_show=None, results_extractor = None, print_table = False):
     """
-    Make a table comparing the results of different experiment records.
+    Make a table comparing the arguments and results of different experiment records.  You can use the output
+    of this function with the tabulate package to make a nice readable table.
 
-    :param experiment_records:
-    :param args_to_show:
-    :param results_extractor:
-    :return:
+    :param record_ids: A list of record ids whose results to compare
+    :param args_to_show: A list of arguments to show.  If none, it will just show all arguments
+        that differ between experiments.
+    :param results_extractor: A dict<str->callable> where the callables take the result of the
+        experiment as an argument and return an entry in the table.  For example:
+    :param print_table: Optionally, import tabulate and print the table here and now.
+    :return: headers, rows
+        headers is a list of of headers for the top of the table
+        rows is a list of lists filling in the information.
+
+    example usage:
+
+        headers, rows = make_record_comparison_table(
+            record_ids = [experiment_id_to_latest_record_id(eid) for eid in [
+                'demo_fast_weight_mlp.multilayer_baseline.1epoch.version=mlp',
+                'demo_fast_weight_mlp.multilayer_baseline.1epoch.full-gd.n_steps=1',
+                'demo_fast_weight_mlp.multilayer_baseline.1epoch.full-gd.n_steps=20',
+                ]],
+            results_extractor={
+                'Test': lambda result: result.get_best('test').score.get_score('test'),
+                'Train': lambda result: result.get_best('test').score.get_score('train'),
+                }
+             )
+        import tabulate
+        print tabulate.tabulate(rows, headers=headers, tablefmt=tablefmt)
     """
 
-    records = [load_experiment_record(rid) for eid in record_ids]
+    records = [load_experiment_record(rid) for rid in record_ids]
     args = [rec.info.get_field(ExpInfoFields.ARGS) for rec in records]
-    common, separate = separate_common_items(args)
-
     if args_to_show is None:
+        common, separate = separate_common_items(args)
         args_to_show = [k for k, v in separate[0]]
 
-    headers = args_to_show + ['Train', 'Test']
+    if results_extractor is None:
+        results_extractor = {'Result': str}
+    else:
+        assert isinstance(results_extractor, dict)
+
+    headers = args_to_show + results_extractor.keys()
 
     rows = []
-    for record, separate_args in izip_equal(records, separate):
-
-        d_separgs = dict(separate_args)
-        args_vals = [d_separgs[k] for k in args_to_show]
+    for record, record_args in izip_equal(records, args):
+        arg_dict = dict(record_args)
+        args_vals = [arg_dict[k] for k in args_to_show]
         results = record.get_result()
-        best_test_pair = results.get_best('test')
-        rows.append(args_vals+[best_test_pair.score.get_score(subset='train'), best_test_pair.score.get_score(subset='test')])
+        rows.append(args_vals+[f(results) for f in results_extractor.values()])
+
+    if print_table:
+        import tabulate
+        print tabulate.tabulate(rows, headers=headers, tablefmt='simple')
+
 
     return headers, rows
