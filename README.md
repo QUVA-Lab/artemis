@@ -1,6 +1,6 @@
 # Artemis
 
- ![The deer represents dull, repetitive coding tasks, and Artemis represents Artemis.  As you can see, once Artemis comes along, the future is not bright for dull, repetitive coding tasks.](http://www.mlahanas.de/Greeks/Mythology/Images/Artemis02.jpg)
+ ![The deer represents dull, repetitive coding tasks, and Artemis represents Artemis.  As you can see, once Artemis comes along, the future is not bright for dull, repetitive coding tasks.](https://raw.githubusercontent.com/petered/data/master/images/artemis.jpeg)
 
 Artemis is a collection of tools that make it easier to run experiments in Python.  These include:
 
@@ -18,7 +18,7 @@ To use artemis from within your project, use the following to install Artemis an
 ```
 pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis 
 ```
-This will install it in `(virtual env or system python root)/src/artemis`.  You can edit the code and submit pull requests to our git repo.
+This will install it in `(virtual env or system python root)/src/artemis`.  You can edit the code and submit pull requests to our git repo.  To install with the optional [remote plotting](https://github.com/QUVA-Lab/artemis/blob/master/artemis/remote/README.md) mode enabled, add the `[remote_plotting]` option, as in: `pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis[remote_plotting]`
 
 
 ### Option 2: Simple install:
@@ -50,10 +50,14 @@ Note: During installation, the settings file `.artemisrc` is created in your hom
 
 **Live Plotting**: [/artemis/plotting/demo_dbplot.py](/artemis/plotting/demo_dbplot.py)  
 
-**Recording Experiment Results**:  [artemis/fileman/demo_experiments.py](/artemis/fileman/demo_experiments.py)  
+**Recording Experiment Results**:  [artemis/experiments/demo_experiments.py](/artemis/experiments/demo_experiments.py)  
+
+**A demo repo showing how to use Artemis from your code**: [https://github.com/QUVA-Lab/demo_repo](https://github.com/QUVA-Lab/demo_repo)
 
 ## Using Browser-plotting
 After installing, you should have a file ~/.artemis rc.  To use the web backend, edit the `backend` field to `matplotlib-web`.  To try it you can run [/artemis/plotting/demo_dbplot.py](/artemis/plotting/demo_dbplot.py)  
 
+## Plug:
+If you like Artemis then you'll love [Plato](https://github.com/petered/plato) - a new API that simplifies the use of Theano.
 
 

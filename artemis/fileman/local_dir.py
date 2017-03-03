@@ -40,6 +40,17 @@ def get_local_path(relative_path = '', make_local_dir = False):
         make_file_dir(file_path)
     return file_path
 
+def get_local_dir(relative_path = '', create_dir_if_not_exist=True):
+    """
+    Get the full path of a directory relative to the Data folder. If the relative path starts with a "/", we consider
+    it to be a local path already.
+    :param relative_path: A path relative to the data directory.  If it starts with "/", we consider it to be already a local path
+    :param create_dir_if_not_exist: True to create the directory that the path points to, if it does not already exist.
+    :return: The full path to the directory
+    """
+    if not relative_path.endswith("/"):
+        relative_path += "/"
+    return get_local_path(relative_path=relative_path, make_local_dir=create_dir_if_not_exist)
 
 def get_relative_path(local_path, base_path = LOCAL_DIR):
     assert local_path.startswith(base_path), '"%s" is not contained within the data directory "%s"' % (local_path, base_path)

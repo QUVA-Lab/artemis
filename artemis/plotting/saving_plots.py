@@ -2,14 +2,15 @@ from artemis.fileman.local_dir import make_file_dir, format_filename, get_local_
 from artemis.plotting.manage_plotting import ShowContext
 import os
 __author__ = 'peter'
-
 import logging
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 logging.basicConfig()
 from matplotlib import pyplot as plt
 
+_supported_filetypes = ('.eps', '.jpeg', '.jpg', '.pdf', '.pgf', '.png', '.ps', '.raw', '.rgba', '.svg', '.svgz', '.tif', '.tiff')
 
-def save_figure(fig, path, default_ext = '.pdf'):
+
+def save_figure(fig, path, ext=None, default_ext = '.pdf'):
     """
     :param fig: The figure to show
     :param path: The absolute path to the figure.
@@ -17,9 +18,15 @@ def save_figure(fig, path, default_ext = '.pdf'):
     :return:
     """
 
-    _, ext = os.path.splitext(path)
-    if ext == '':
-        path += default_ext
+    if ext is None:
+        _, ext = os.path.splitext(path)
+        if ext == '':
+            path += default_ext
+        else:
+            assert ext in _supported_filetypes, "We inferred the extension '{}' from your filename, but it was not in the list of supported extensions: {}" \
+                .format(ext, _supported_filetypes)
+    else:
+        path += ext if ext.startswith('.') else '.'+ext
 
     if '%L' in path:
         path = path.replace('%L', fig.get_label() if fig.get_label() is not '' else 'unnamed')

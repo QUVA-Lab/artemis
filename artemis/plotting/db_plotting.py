@@ -1,5 +1,4 @@
 from collections import OrderedDict, namedtuple
-
 from artemis.fileman.config_files import get_artemis_config_value
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
@@ -11,6 +10,14 @@ from matplotlib import pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.gridspec import SubplotSpec
+from contextlib import contextmanager
+import numpy as np
+from matplotlib import pyplot as plt
+from artemis.plotting.drawing_plots import redraw_figure
+from artemis.plotting.expanding_subplots import select_subplot
+from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
+    MovingImagePlot, HistogramPlot, CumulativeLineHistogram
+from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
 
 __author__ = 'peter'
 
@@ -20,27 +27,22 @@ your code just so you can SEE YOUR DAMN VARIABLES?
 
 Well now your troubles are over.
 
-Presenting: dbplot!
-
-dbplot just takes your data, and plots it.  Simple as 1, 2, plot!
-
-No more thinking about what kind plot to use, or how to make updating plots of changing variables.  Just dbplot it!
+dbplot just takes your data, and plots it.  No fuss, no muss.  No more thinking about what kind plot to use, or how to
+make updating plots of changing variables.  Just dbplot it.
 
     dbplot(data, 'my-data')
 
-dbplot will look at your data, and figure out which type of plot is appropriate.  If you don't like it, you can fully
+dbplot will look at your data, and figure out which type of plot is appropriate.  If you don't like it, you can
 customize it, using the plot_type argument.
 
-dbplot makes online plotting easy.  You want to plot updates to your variable?  Just dbplot it!
+dbplot makes online plotting easy.  You want to plot updates to your variable?  Just dbplot it.
 
     dbplot(var, 'my-var')
     dbplot(updated_var, 'my-var')
 
-For just float('inf') easy payments of $0, you can make dbplot yours for use around the office, home, or garden.
+Check out demo_dbplot.py for some demos of what dbplot can do.
 
-Check out demo_dbplot.py for some exciting demos of what dbplot can do.
-
-Remember:  If you can't see your data, you are a fraud and your research career will fail.  So try dbplot today!
+Remember:  If you can't see your data, you are a fraud and your research career will fail.
 """
 
 
@@ -70,7 +72,16 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     :param hang: Hang on the plot (wait for it to be closed before continuing)
     :param title: Title of the plot (will default to name if not included)
     :param fig: Name of the figure - use this when you want to create multiple figures.
+    :param wait_for_display_sec: In server mode, you can choose to wait maximally wait_for_display_sec seconds before this call returns. In case plotting
+    is finished earlier, the call returns earlier. Setting wait_for_display_sec to a negative number will cause the call to block until the plot has been displayed.
     """
+    if is_server_plotting_on():
+        # Redirect the function call to the plotting server.  The flag gets turned on in a configuration file.  It is
+        # turned off when this file is run ON the plotting server, from the first line in plotting_server.py
+        arg_locals = locals().copy()
+        from artemis.remote.plotting.plotting_client import dbplot_remotetly
+        dbplot_remotetly(arg_locals=arg_locals)
+        return
 
     if isinstance(fig, plt.Figure):
         assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
@@ -127,6 +138,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         elif isinstance(axis, basestring) or axis is None:
             ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
             ax_name = axis
+            # ax.set_title(axis)
         else:
             raise Exception("Axis specifier must be a string, an Axis object, or a SubplotSpec object.  Not {}".format(axis))
 
@@ -234,6 +246,7 @@ def freeze_all_dbplots(fig = None):
     for name in _DBPLOT_FIGURES[fig].subplots.keys():
         freeze_dbplot(name, fig=fig)
 
+
 @contextmanager
 def hold_dbplots(fig = None, plot_every = None):
     """
@@ -241,6 +254,11 @@ def hold_dbplots(fig = None, plot_every = None):
     :param fig:
     :return:
     """
+    if is_server_plotting_on():
+        # For now, this does nothing.  Eventually, it should be made to send a "draw" command through the pipe
+        yield
+        return
+
     global _hold_plots
     _hold_plots = True
     yield
@@ -274,3 +292,4 @@ def get_dbplot_axis(axis_name, fig=None):
 
 def dbplot_hang():
     plt.show()
+
