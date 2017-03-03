@@ -20,7 +20,7 @@ def test_assess_prediction_functions(print_results=True):
         print_results=print_results
         )
 
-    assert results['train', 'prediction', 'percent_argmax_correct'] == 22.3
+    assert results['train', 'prediction', 'percent_argmax_correct'] == 23.1
 
 
 def test_train_online_predictor():
@@ -44,4 +44,5 @@ def test_train_online_predictor():
 
 
 if __name__ == '__main__':
+    test_assess_prediction_functions()
     test_train_online_predictor()

@@ -24,8 +24,6 @@ def test_persistent_ordered_dict():
     with PersistentOrderedDict(file_path) as pod:
         assert pod.items() == [('a', [1, 2, 3]), ('b', [4, 5, 6]), ('c', [7, 8]), ('e', 11)]
 
-    assert pod.get_text()=="a: [1, 2, 3]\nb: [4, 5, 6]\nc: [7, 8]\ne: 11"
-
 
 if __name__ == '__main__':
     test_persistent_ordered_dict()
