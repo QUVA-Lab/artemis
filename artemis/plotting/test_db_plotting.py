@@ -10,6 +10,7 @@ from matplotlib import gridspec
 
 __author__ = 'peter'
 
+
 def test_dbplot(n_steps = 3):
 
     reset_dbplot()
@@ -39,12 +40,14 @@ def test_dbplot_logscale(n_steps = 3):
             kw = {"y_axis_type":"log"}
             dbplot(barr, 'barr', plot_type=partial(LinePlot,y_axis_type='log'))
 
+
 def test_particular_plot(n_steps = 3):
     reset_dbplot()
 
     for i in xrange(n_steps):
         r = np.random.randn(1)
         dbplot(r, plot_type=partial(HistogramPlot,edges=np.linspace(-5, 5, 20)))
+
 
 def test_history_plot_updating():
     """
@@ -59,6 +62,7 @@ def test_history_plot_updating():
         dbplot(np.random.randn(20, 20), 'b')
         dbplot(np.random.randn(), 'c', plot_type=partial(MovingPointPlot))
         # dbplot(np.random.randn(), 'c', plot_type=partial(MovingPointPlot, memory=2))
+
 
 def test_moving_point_multiple_points():
     reset_dbplot()
@@ -104,6 +108,7 @@ def test_two_plots_in_the_same_axis_version_1():
             dbplot(data, 'histogram', plot_type='histogram')
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='histogram', plot_type='line')
 
+
 def test_two_plots_in_the_same_axis_version_2():
     reset_dbplot()
     # Option 2: Give both plots the same 'axis' argument
@@ -113,6 +118,7 @@ def test_two_plots_in_the_same_axis_version_2():
         with hold_dbplots():
             dbplot(data, 'histogram', plot_type='histogram', axis='hist')
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='hist', plot_type='line')
+
 
 @pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not have an interpretation of freeze_all_dbplots")
 def test_freeze_dbplot():

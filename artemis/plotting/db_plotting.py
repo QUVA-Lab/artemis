@@ -48,7 +48,7 @@ Remember:  If you can't see your data, you are a fraud and your research career 
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
            fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, plot_constructor=None,
-           grid=False):
+           grid=False, wait_for_display_sec=0):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
