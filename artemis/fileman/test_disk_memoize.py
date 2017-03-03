@@ -105,7 +105,7 @@ def test_clear_error_for_missing_arg():
 
     clear_memo_files_for_function(compute_slow_thing)
 
-    with raises(TypeError):
+    with raises(AssertionError):
         compute_slow_thing(1)
 
 
@@ -113,7 +113,7 @@ def test_clear_arror_for_wrong_arg():
 
     clear_memo_files_for_function(compute_slow_thing)
 
-    with raises(TypeError):
+    with raises(AssertionError):
         compute_slow_thing(a=1, b=2, c=3, d=4)
 
 
@@ -128,7 +128,7 @@ def test_unnoticed_wrong_arg_bug_is_dead():
 
     clear_memo_files_for_function(compute_slow_thing)
     compute_slow_thing(a=1, b=2, c=3)  # Creates a memo
-    with raises(TypeError):
+    with raises(AssertionError):
         compute_slow_thing(a=1, b=2, see=3)  # Previously, this was not caught, leading you not to notice your typo
 
 

@@ -1,11 +1,11 @@
 from ConfigParser import NoSectionError, NoOptionError, ConfigParser
 import os
-
+import sys
 
 __author__ = 'peter'
 
 
-def get_config_value(config_filename, section, option, default_generator = None, write_default = False):
+def get_config_value(config_filename, section, option, default_generator = None, write_default = False, read_method=None):
     """
     Get a setting from a configuration file.  If none exists, you can optionally create one.  An example config file is
     the ~/.theanorc file, which may contain:
@@ -26,6 +26,10 @@ def get_config_value(config_filename, section, option, default_generator = None,
     :param option: The option of interest (see above example)
     :param default_generator: A function that generates the property if it is not there.
     :param write_default: Set to true if property was not found and you want to write the default value into the file.
+    :param read_method: The method to read your setting.
+        If left at None (default) it just returns the string.
+        If 'eval' it parses the setting into a python object
+        If it is a function, it passes the value through the function before returning it.
     :return: The value of the property of interest.
     """
     config_path = get_config_path(config_filename)
@@ -60,10 +64,42 @@ def get_config_value(config_filename, section, option, default_generator = None,
         with open(config_path, 'w') as f:
             config.write(f)
 
+    if read_method == 'eval':
+        value = eval(value)
+    elif callable(read_method):
+        value = read_method(value)
     return value
+
+
+def get_artemis_config_value(section, option, default_generator = None, write_default = False, read_method=None):
+    """
+    Get a setting from the artemis configuration.
+    See docstring for get_config_value
+    """
+    return get_config_value('.artemisrc', section=section, option=option, default_generator=default_generator, write_default=write_default, read_method = read_method)
+
+
+def get_home_dir():
+    # This function exists because of some weirdness when running remotely.
+    home_dir = os.path.expanduser('~')
+    if os.path.exists(home_dir):
+        return home_dir
+    elif sys.platform=='linux2':
+        home_dir = os.path.join('/home', os.getlogin())
+    elif sys.platform=='darwin':
+        home_dir==os.path.join('/Users', os.getlogin())
+    assert os.path.exists(home_dir), 'The home directory "{}" seems not to exist.  This is odd, to say the least.'.format(home_dir)
+    return home_dir
 
 
 def get_config_path(config_filename):
     assert config_filename.startswith('.'), "We enforce the convention that configuration files must start with '.'"
-    config_path = os.path.join(os.path.expanduser('~'), config_filename)
+    config_path = os.path.join(get_home_dir(), config_filename)
     return config_path
+
+
+if __name__ == '__main__':
+    config_path = get_config_path('.artemisrc')
+    print 'Contents of {}:\n-------------\n'.format(config_path)
+    with open(config_path) as f:
+        print f.read()

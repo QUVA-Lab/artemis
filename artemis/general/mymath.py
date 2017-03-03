@@ -182,6 +182,22 @@ def angle_between(a, b, axis=None, in_degrees = False):
 
     Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
+    cos_dist = cosine_distance(a, b, axis=axis)
+    angle = np.arccos(cos_dist)
+    if in_degrees:
+        angle = angle * 180/np.pi
+    return angle
+
+
+def cosine_distance(a, b, axis=None):
+    """
+    Return the cosine distance between two vectors a and b, in radians.  Raise an exception if one is a zero vector
+    :param a: A vector
+    :param b: A vector the same size as a
+    :return: The angle between these vectors, in radians.
+
+    Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
+    """
     a = np.array(a) if not isinstance(a, np.ndarray) else a
     b = np.array(b) if not isinstance(b, np.ndarray) else b
     if not a.dtype==float:
@@ -193,15 +209,11 @@ def angle_between(a, b, axis=None, in_degrees = False):
         b = b.ravel()
         axis = 0
     assert a.shape[-1]==b.shape[-1]
-    arccos_input = (a*b).sum(axis=axis)/np.sqrt((a**2).sum(axis=axis) * (b**2).sum(axis=axis))
+    cosine_distance = (a*b).sum(axis=axis)/np.sqrt((a**2).sum(axis=axis) * (b**2).sum(axis=axis))
     # For numerical resons, we might get values outside [-1, 1] here, so we truncate:
-    print 'arccos input {}'.format(arccos_input)
-    arccos_input = np.minimum(arccos_input, 1)
-    arccos_input = np.maximum(arccos_input, -1)
-    angle = np.arccos(arccos_input)
-    if in_degrees:
-        angle = angle * 180/np.pi
-    return angle
+    cosine_distance = np.minimum(cosine_distance, 1)
+    cosine_distance = np.maximum(cosine_distance, -1)
+    return cosine_distance
 
 
 def degrees_between(a, b):
