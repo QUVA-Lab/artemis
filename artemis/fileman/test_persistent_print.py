@@ -68,7 +68,6 @@ def test_new_log_file():
     os.remove(local_log_loc)
 
 
-
 if __name__ == '__main__':
 
     test_proper_persistent_print_usage()

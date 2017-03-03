@@ -281,8 +281,6 @@ records.  You can specify records in the following ways:
                     except Exception as err:
                         print err
 
-        # display_results()
-        # display_results(experiment_identifiers=exp_ids)
         _warn_with_prompt()
 
     def errortrace(self, user_range):

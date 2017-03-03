@@ -879,22 +879,16 @@ class Experiment(object):
                 exp_rec.info.set_field(EIF.FIGS, fig_locs)
 
         exp_rec.save_result(results)
-
-        # for key, val in self.info.iteritems():
-        #     exp_rec.add_info(key, val)
         for n in self._notes:
             exp_rec.info.add_note(n)
         if self.display_function is not None:
             self.display_function(results)
-        ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10,
-                                                                                      mode="Testing" if test_mode else "Running",
-                                                                                      name=self.name))
+        ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=self.name))
         set_test_mode(old_test_mode)
         return exp_rec
 
     def _create_experiment_variant(self, args, kwargs, is_root):
-        assert len(args) in (0,
-                             1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
+        assert len(args) in (0, 1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
         ex = Experiment(
@@ -962,8 +956,6 @@ class Experiment(object):
         return self.get_variant(_kwargs_to_experiment_name(kwargs))
 
     def display_last(self, result='___FINDLATEST', err_if_none=True):
-        # assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (
-        # self.name,)
         if result == '___FINDLATEST':
             result = experiment_id_to_latest_result(self.name)
         if err_if_none:

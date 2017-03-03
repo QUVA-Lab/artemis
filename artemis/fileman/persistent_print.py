@@ -1,7 +1,6 @@
 import sys
-
 from artemis.fileman.local_dir import get_local_path
-from artemis.general.display import _ORIGINAL_STDOUT, _ORIGINAL_STDERR, CaptureStdOut
+from artemis.general.display import CaptureStdOut
 
 __author__ = 'peter'
 
@@ -12,7 +11,13 @@ Useful in ipython notebooks where you lose output when printing to the browser.
 
 On advice from:
 http://stackoverflow.com/questions/4675728/redirect-stdout-to-a-file-in-python
+
+** Note this is no longer being used.  Possibly delete
 """
+
+
+_ORIGINAL_STDOUT = sys.stdout
+_ORIGINAL_STDERR = sys.stderr
 
 
 def capture_print(log_file_path = 'logs/dump/%T-log.txt', print_to_console=True):
