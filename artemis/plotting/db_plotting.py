@@ -1,13 +1,6 @@
 from collections import OrderedDict, namedtuple
 from artemis.fileman.config_files import get_artemis_config_value
-from artemis.plotting.drawing_plots import redraw_figure
-from artemis.plotting.expanding_subplots import select_subplot
-from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
-    MovingImagePlot, HistogramPlot, CumulativeLineHistogram, BarPlot
-from artemis.plotting.plotting_backend import LinePlot, ImagePlot
-from contextlib import contextmanager
-from matplotlib import pyplot as plt
-import numpy as np
+from artemis.plotting.matplotlib_backend import BarPlot
 from matplotlib.axes import Axes
 from matplotlib.gridspec import SubplotSpec
 from contextlib import contextmanager
@@ -22,11 +15,6 @@ from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plo
 __author__ = 'peter'
 
 """
-Are you tired of setting up subplots, looking through overly complicated matplotlib documentation, and having to restructure
-your code just so you can SEE YOUR DAMN VARIABLES?
-
-Well now your troubles are over.
-
 dbplot just takes your data, and plots it.  No fuss, no muss.  No more thinking about what kind plot to use, or how to
 make updating plots of changing variables.  Just dbplot it.
 
@@ -40,15 +28,13 @@ dbplot makes online plotting easy.  You want to plot updates to your variable?  
     dbplot(var, 'my-var')
     dbplot(updated_var, 'my-var')
 
-Check out demo_dbplot.py for some demos of what dbplot can do.
-
-Remember:  If you can't see your data, you are a fraud and your research career will fail.
+See demo_dbplot.py for some demos of what dbplot can do.
 """
 
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
-           fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, plot_constructor=None,
-           grid=False, wait_for_display_sec=0):
+           fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, grid=False,
+           wait_for_display_sec=0):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
@@ -72,6 +58,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     :param hang: Hang on the plot (wait for it to be closed before continuing)
     :param title: Title of the plot (will default to name if not included)
     :param fig: Name of the figure - use this when you want to create multiple figures.
+    :param grid: Turn the grid on
     :param wait_for_display_sec: In server mode, you can choose to wait maximally wait_for_display_sec seconds before this call returns. In case plotting
     is finished earlier, the call returns earlier. Setting wait_for_display_sec to a negative number will cause the call to block until the plot has been displayed.
     """
@@ -98,10 +85,6 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         axis=name
 
     if name not in suplot_dict:
-        if plot_constructor is not None:
-            print "Warning: The 'plot_constructor' argument to dbplot is deprecated.  Use plot_type instead"
-            assert plot_type is None
-            plot_type = plot_constructor
 
         if isinstance(plot_type, str):
             plot = {
@@ -181,16 +164,13 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     return _DBPLOT_FIGURES[fig].subplots[name].axis
 
 
-
 _PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots', 'axes'])
 
 _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 
 _DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
 
-# _DEFAULT_SIZE = get_artemis_config_value(section='plotting', option='default_fig_size', default_generator=lambda: (10, 8), write_default=True, read_method='eval')
 _DEFAULT_SIZE = get_artemis_config_value(section='plotting', option='default_fig_size', default_generator=lambda: (10, 8), write_default=True, read_method='eval')
-# _DEFAULT_SIZE = get_artemis_config_value(section='plotting', option='default_fig_size', default_generator=lambda: None)
 
 _draw_counters = {}
 
@@ -230,12 +210,8 @@ def _make_dbplot_figure():
     if _DEFAULT_SIZE is None:
         fig= plt.figure()
     else:
-        # fig= plt.figure()
         fig= plt.figure(figsize=_DEFAULT_SIZE)  # This is broken in matplotlib2 for some reason
-        pass
-        # fig= plt.figure(figsize=(10, 8))  # This is broken in matplotlib2 for some reason
     return fig
-
 
 
 def freeze_dbplot(name, fig = None):

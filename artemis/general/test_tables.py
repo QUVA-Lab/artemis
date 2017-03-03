@@ -1,6 +1,5 @@
 from artemis.general.should_be_builtins import bad_value
 from artemis.general.tables import build_table
-from artemis.general.test_display import test_side_by_side
 
 
 def test_build_table(show_table=True):
@@ -23,5 +22,4 @@ def test_build_table(show_table=True):
 
 
 if __name__ == '__main__':
-    # test_build_table()
-    test_side_by_side()
+    test_build_table()

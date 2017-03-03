@@ -125,7 +125,7 @@ class NestedType(object):
 
     def __init__(self, meta_object):
         """
-        :param meta_object: A nested typse descriptor.  See docstring and tests for examples.
+        :param meta_object: A nested type descriptor.  See docstring and tests for examples.
         """
         self.meta_object = meta_object
 
@@ -196,10 +196,11 @@ def get_leaf_values(data_object, containers = _primitive_containers):
 
 def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, check_types = True):
     """
-    :param meta_object:
-    :param data_iteratable:
-    :param assert_fully_used:
-    :return:
+    Fill the data from the iterable into the meta_object.
+    :param meta_object: A nested type descripter.  See NestedType init
+    :param data_iteratable: The iterable data object
+    :param assert_fully_used: Assert that we actually get through all the items in the iterable
+    :return: The filled object
     """
 
     try:

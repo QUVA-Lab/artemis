@@ -109,7 +109,6 @@ class IndentPrint(object):
         else:
             new_message = self.indent + message.replace('\n', '\n'+self.indent)
         self.old_stdout.write(new_message)
-        # self.old_stdout.flush()
 
     def close(self):
         self.old_stdout.close()
