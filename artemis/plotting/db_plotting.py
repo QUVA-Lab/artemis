@@ -176,7 +176,9 @@ _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 
 _DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
 
+# _DEFAULT_SIZE = get_artemis_config_value(section='plotting', option='default_fig_size', default_generator=lambda: (10, 8), write_default=True, read_method='eval')
 _DEFAULT_SIZE = get_artemis_config_value(section='plotting', option='default_fig_size', default_generator=lambda: (10, 8), write_default=True, read_method='eval')
+# _DEFAULT_SIZE = get_artemis_config_value(section='plotting', option='default_fig_size', default_generator=lambda: None)
 
 _draw_counters = {}
 
@@ -216,7 +218,10 @@ def _make_dbplot_figure():
     if _DEFAULT_SIZE is None:
         fig= plt.figure()
     else:
-        fig= plt.figure(figsize=_DEFAULT_SIZE)
+        # fig= plt.figure()
+        fig= plt.figure(figsize=_DEFAULT_SIZE)  # This is broken in matplotlib2 for some reason
+        pass
+        # fig= plt.figure(figsize=(10, 8))  # This is broken in matplotlib2 for some reason
     return fig
 
 

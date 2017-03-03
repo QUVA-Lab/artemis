@@ -894,7 +894,7 @@ class Experiment(object):
 
     def _create_experiment_variant(self, args, kwargs, is_root):
         assert len(args) in (0,
-                             1), "When creating an experiment variant, you can either provide one unnamed argument, the experiment name, or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
+                             1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
         ex = Experiment(

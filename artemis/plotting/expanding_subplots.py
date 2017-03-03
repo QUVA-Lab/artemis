@@ -67,7 +67,6 @@ def select_subplot(name, fig=None, layout=None):
     return _subplots[name]
 
 
-
 def add_subplot(fig = None, layout = None):
     """
     Add a subplot, and adjust the positions of the other subplots appropriately.
@@ -114,3 +113,20 @@ def hstack_plots():
     new_subplots[0].get_yaxis().set_visible(True)
     for ax in new_subplots[:-1]:
         ax.set_xticks(ax.get_xticks()[:-1])
+
+
+@contextmanager
+def vstack_plots():
+
+    with CaptureNewSubplots() as cap:
+        with _define_plot_settings(layout='v', show_x = True):
+            plt.subplots_adjust(hspace=0)
+            yield
+    new_subplots = cap.get_new_subplots().values()
+    xmins, xmaxs = zip(*[ax.get_xlim() for ax in new_subplots])
+    xrange = min(xmins), max(xmaxs)
+    for ax in new_subplots:
+        ax.set_xlim(xrange)
+    new_subplots[-1].get_xaxis().set_visible(True)
+    for ax in new_subplots[:-1]:
+        ax.set_yticks(ax.get_yticks()[:-1])

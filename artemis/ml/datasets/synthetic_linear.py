@@ -31,7 +31,7 @@ def get_synthethic_linear_dataset(noise_level = 0.1, n_input_dims = 20, n_output
         n_output_dims = 1
 
     rng = np.random.RandomState(seed)
-    w = rng.randn(n_input_dims, n_output_dims)
+    w = rng.randn(n_input_dims, n_output_dims) * 1/np.sqrt(n_input_dims)
     input_data = rng.randn(n_training_samples+n_test_samples, n_input_dims)
     target_data = np.dot(input_data, w) + offset_mag * rng.randn(n_output_dims) + noise_level*rng.randn(n_training_samples+n_test_samples, n_output_dims)
     if nonlinearity=='softmax':
@@ -40,6 +40,8 @@ def get_synthethic_linear_dataset(noise_level = 0.1, n_input_dims = 20, n_output
         target_data = sigm(target_data)
     elif nonlinearity=='argmax':
         target_data==np.argmax(target_data, axis=1)
+    elif nonlinearity is None:
+        target_data = target_data
     else:
         assert callable(nonlinearity), 'Unknown nonlinearity: {}'.format(nonlinearity)
         target_data = nonlinearity(target_data)

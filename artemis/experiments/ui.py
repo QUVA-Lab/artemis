@@ -10,7 +10,8 @@ from artemis.general.should_be_builtins import separate_common_items, bad_value,
     izip_equal, all_equal
 from artemis.general.tables import build_table
 from tabulate import tabulate
-
+from functools import partial
+import re
 
 def _setup_input_memory():
     try:
@@ -32,7 +33,8 @@ def find_experiment(*search_terms):
     :param search_term: A term that will be used to search for an experiment.
     :return:
     """
-    found_experiments = OrderedDict((name, ex) for name, ex in GLOBAL_EXPERIMENT_LIBRARY.iteritems() if all(term in name for term in search_terms))
+
+    found_experiments = OrderedDict((name, ex) for name, ex in GLOBAL_EXPERIMENT_LIBRARY.iteritems() if all(re.search(term, name) for term in search_terms))
     if len(found_experiments)==0:
         raise Exception("None of the {} experiments matched the search: '{}'".format(len(GLOBAL_EXPERIMENT_LIBRARY), search_terms))
     elif len(found_experiments)>1:
@@ -41,7 +43,7 @@ def find_experiment(*search_terms):
         return found_experiments.values()[0]
 
 
-def browse_experiments(catch_errors = False, close_after_run = True, just_last_record=False, raise_display_errors = False):
+def browse_experiments(catch_errors = False, close_after_run = True, just_last_record=False, raise_display_errors = False, run_args = None):
     """
     Browse Experiments
 
@@ -50,7 +52,7 @@ def browse_experiments(catch_errors = False, close_after_run = True, just_last_r
     :param just_last_record: Just show the last record for the experiment
     """
 
-    browser = ExperimentBrowser(catch_errors=catch_errors, close_after_run=close_after_run, just_last_record=just_last_record, raise_display_errors=raise_display_errors)
+    browser = ExperimentBrowser(catch_errors=catch_errors, close_after_run=close_after_run, just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args)
     browser.launch()
 
 
@@ -69,7 +71,11 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > run 4-6 -e          Run experiments 4, 5, and 6 in sequence, and stop on errors
 > run 4-6 -p          Run experiments 4, 5, and 6 in parallel processes, and catch all errors.
 > call 4              Call experiment 4 (like running, but doesn't save a record)
+> filter 4-6          Just show experiments 4-6
+> filter has:xyz      Just show experiments with "xyz" in the name
 > results 4-6         View the results experiments 4, 5, 6
+> view results        View just the columns for experiment name and result
+> view full           View all columns (the default view)
 > show 4              Show the output from the last run of experiment 4 (if it has been run already).
 > records             Browse through all experiment records.
 > allruns             Toggle between showing all past runs of each experiment, and just the last one.
@@ -80,12 +86,14 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > q                   Quit.
 > r                   Refresh list of experiments.
 
-Commands 'run', 'call' allow you to select experiments.  You can select experiments in the following ways:
+Commands 'run', 'call', 'filter' allow you to select experiments.  You can select experiments in the following ways:
     4               Select experiment #4
     4-6             Select experiments 4, 5, 6
     all             Select all experiments
     unfinished      Select all experiment for which there are no records of it being run to completion.
     invalid         Select all experiments where all records were made before arguments to the experiment have changed
+    has:xyz         Select all experiments with the string "xyz" in their names
+    hasnot:xyz      Select all experiments without substring "xyz" in their names
 
 Commands 'results', 'show', 'records', 'compare', 'sidebyside', 'select', 'delete' allow you to specify a range of experiment
 records.  You can specify records in the following ways:
@@ -103,7 +111,7 @@ records.  You can specify records in the following ways:
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
 """
 
-    def __init__(self, catch_errors = False, close_after_run = True, just_last_record = False, view_mode = 'full', raise_display_errors=False):
+    def __init__(self, catch_errors = False, close_after_run = True, just_last_record = False, view_mode = 'full', raise_display_errors=False, run_args=None):
 
         self.close_after_run = close_after_run
         self.just_last_record = just_last_record
@@ -111,6 +119,8 @@ records.  You can specify records in the following ways:
         self.exp_record_dict = self.reload_record_dict()
         self.raise_display_errors = raise_display_errors
         self.view_mode = view_mode
+        self._filter = None
+        self.run_args = {} if run_args is None else run_args
 
     def reload_record_dict(self):
         d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in GLOBAL_EXPERIMENT_LIBRARY.keys())
@@ -131,6 +141,7 @@ records.  You can specify records in the following ways:
             'view': self.view,
             'h': self.help,
             'results': self.results,
+            'filter': self.filter,
             'explist': self.explist,
             'sidebyside': self.side_by_side,
             'compare': self.compare,
@@ -144,7 +155,7 @@ records.  You can specify records in the following ways:
             self.exp_record_dict = self.reload_record_dict()
 
             print "==================== Experiments ===================="
-            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors)
+            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, exp_filter=self._filter)
             print '-----------------------------------------------------'
             user_input = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
             with IndentPrint():
@@ -155,7 +166,9 @@ records.  You can specify records in the following ways:
                     cmd = split[0]
                     args = split[1:]
 
-                    if cmd in func_dict:
+                    if cmd == '':
+                        continue
+                    elif cmd in func_dict:
                         out = func_dict[cmd](*args)
                     elif interpret_numbers(cmd) is not None:
                         if not any(x in args for x in ('-s', '-e', '-p')):
@@ -179,7 +192,7 @@ records.  You can specify records in the following ways:
                         raise
 
     @staticmethod
-    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False):
+    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False, exp_filter = None):
 
         headers = {
             'full': ['E#', 'R#', 'Name', 'Last Run' if just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result'],
@@ -206,6 +219,7 @@ records.  You can specify records in the following ways:
                     raise
                 return '<Error>'
 
+        exps_to_show = set(exp_record_dict.keys()) if exp_filter is None else set(select_experiments(exp_filter, exp_record_dict))
 
         for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
             if len(record_ids)==0:
@@ -217,11 +231,13 @@ records.  You can specify records in the following ways:
                         experiment_record = load_experiment_record(record_id)
                     except:
                         experiment_record = None
-                    rows.append([get_field(h) for h in headers])
+                    if exp_id in exps_to_show:
+                        rows.append([get_field(h) for h in headers])
         assert all_equal([len(headers)]+[len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), '\n'.join([len(row) for row in rows]))
-        # rows.append([' ']*len(rows[-1]))
-
-        return tabulate(rows, headers=headers)
+        table = tabulate(rows, headers=headers)
+        if exp_filter:
+            table += '\n[Filtered with "{}" to show {}/{} experiments]'.format(exp_filter, len(exps_to_show), len(exp_record_dict))
+        return table
 
     def run(self, user_range, mode='-s'):
         assert mode in ('-s', '-p', '-e')
@@ -229,11 +245,10 @@ records.  You can specify records in the following ways:
         if len(ids)>1 and mode == '-p':
             import multiprocessing
             p = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-            p.map(run_experiment_ignoring_errors, ids)
+            p.map(partial(run_experiment_ignoring_errors, **self.run_args), ids)
         else:
             for experiment_identifier in ids:
-                load_experiment(experiment_identifier).run(raise_exceptions=mode=='-e')
-
+                load_experiment(experiment_identifier).run(raise_exceptions=mode=='-e', **self.run_args )
         if self.close_after_run:
             return self.QUIT
         else:
@@ -323,6 +338,9 @@ records.  You can specify records in the following ways:
     def allruns(self, ):
         self.just_last_record = not self.just_last_record
 
+    def filter(self, user_range):
+        self._filter = user_range if user_range!='--clear' else None
+
     def view(self, mode):
         self.view_mode = mode
 
@@ -343,6 +361,12 @@ def select_experiments(user_range, exp_record_dict):
         return [experiment_list[i] for i in number_range]
     elif user_range == 'all':
         return experiment_list
+    elif user_range.startswith('has:'):
+        phrase = user_range[4:]
+        return [exp_id for exp_id in experiment_list if phrase in exp_id]
+    elif user_range.startswith('hasnot:'):
+        phrase = user_range[len('hasnot:'):]
+        return [exp_id for exp_id in experiment_list if phrase not in exp_id]
     elif user_range in ('unfinished', 'invalid'):  # Return all experiments where all records are unfinished/invalid
         record_filters = select_experiment_records(user_range, exp_record_dict)
         return [exp_id for exp_id in experiment_list if all(record_filters[exp_id])]
