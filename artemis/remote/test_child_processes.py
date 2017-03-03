@@ -1,12 +1,8 @@
 import SocketServer
 import os
-import socket
 import sys
 import time
 import signal
-
-import pytest
-
 from artemis.plotting.plotting_backend import get_plotting_server_address
 from artemis.remote.child_processes import check_ssh_connection, check_if_port_is_free, execute_command, ChildProcess, \
     ParamikoPrintThread, Nanny
@@ -38,7 +34,6 @@ def test_check_if_port_is_free():
             sock.close()
             # now no error to be expected
             check_if_port_is_free(ip_address,port)
-
 
 
 def test_communications():
@@ -114,6 +109,7 @@ def test_is_alive():
             print("alive")
             time.sleep(0.3)
         print("dead")
+
 
 if __name__ == "__main__":
     test_check_ssh_connections()
