@@ -115,7 +115,7 @@ def _load_image(local_path, max_resolution = None, force_rgb = False):
     """
     # TODO: Consider replacing PIL with scipy
     ext = os.path.splitext(local_path)[1].lower()
-    assert ext in _IMAGE_EXTENSIONS
+    assert ext in _IMAGE_EXTENSIONS, "Can't deal with extension: {}".format(ext)
     from PIL import Image
     pic = Image.open(local_path)
 
