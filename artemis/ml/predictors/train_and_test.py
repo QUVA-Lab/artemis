@@ -112,6 +112,12 @@ def percent_binary_correct(actual, target):
     :return: The percent of times the "actual" was closes to the correct.
     """
     assert len(actual) == len(target)
+    if actual.ndim==2:
+        assert actual.shape[1]==1
+        actual = actual[:, 0]
+    if target.ndim==2:
+        assert target.shape[1]==1
+        target = target[:, 0]
     assert target.ndim==1
     if actual.ndim>1:
         assert actual.shape == (len(target), 1)
