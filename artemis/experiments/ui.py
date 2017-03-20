@@ -43,7 +43,7 @@ def find_experiment(*search_terms):
         return found_experiments.values()[0]
 
 
-def browse_experiments(catch_errors = False, close_after_run = True, just_last_record=False, raise_display_errors = False, run_args = None):
+def browse_experiments(catch_errors = False, close_after_run = True, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True):
     """
     Browse Experiments
 
@@ -51,6 +51,11 @@ def browse_experiments(catch_errors = False, close_after_run = True, just_last_r
     :param close_after_run: Close this menu after running an experiment
     :param just_last_record: Just show the last record for the experiment
     """
+
+    if run_args is None:
+        run_args = {}
+    if 'keep_record' not in run_args:
+        run_args['keep_record'] = keep_record
 
     browser = ExperimentBrowser(catch_errors=catch_errors, close_after_run=close_after_run, just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args)
     browser.launch()
