@@ -291,3 +291,45 @@ def sqrtspace(a, b, n_points):
     :return: Distribute n_points quadratically from point a to point b, inclusive
     """
     return np.linspace(0, 1, n_points)**2*(b-a)+a
+
+
+def fixed_diff(x, axis=-1, initial_value = 0.):
+    """
+    Modification of numpy.diff where the first element is compared to the initial value.
+    The resulting array has the same shape as x.
+
+    Note that this inverts np.cumsum so that np.cumsum(fixed_diff(x)) == x    (except for numerical errors)
+
+    :param x: An array
+    :param axis: Axis along which to diff
+    :param initial_value: The initial value agains which to diff the first element along the axis.
+    :return: An array of the same shape, representing the difference in x along the axis.
+    """
+    if axis<0:
+        axis = x.ndim+axis
+
+    result = np.empty_like(x)
+    initial_indices = (slice(None), )*axis
+    result[initial_indices+(slice(1, None), )] = np.diff(x, axis=axis)
+    if initial_value == 'first':
+        result[initial_indices+(0, )] = 0
+    else:
+        result[initial_indices+(0, )] = x[initial_indices+(0, )]-initial_value
+    return result
+
+
+def decaying_cumsum(x, memory, axis=-1):
+
+    if axis<0:
+        axis = x.ndim+axis
+    assert 0 <= memory < 1
+    result = np.empty_like(x)
+    leading_indices = (slice(None), )*axis
+    one_minus_mem = 1-memory
+    result[leading_indices+(0, )] = one_minus_mem*x[leading_indices+(0, )]
+    for i in xrange(1, x.shape[axis]):
+        result[leading_indices+(i, )] = memory*result[leading_indices+(i-1, )] + one_minus_mem*x[leading_indices+(i, )]
+    if np.max(np.abs(result)>1e9):
+        print 'sdfdsf: {}'.format(np.max(np.abs(x)))
+
+    return result

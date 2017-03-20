@@ -84,10 +84,14 @@ def activation_function(data, function_name):
         return data
     elif function_name=='softmax':
         return softmax(data, axis=-1)
+    elif function_name=='softplus':
+        return np.log(np.exp(data)+1)
     elif function_name in ('sigm', 'sigmoid'):
         return 1./(1+np.exp(-data))
+    elif function_name == 'tanh':
+        return np.tanh(data)
     else:
-        raise Exception('Add it.')
+        raise Exception('No Nonlinearity "{}".  Add it.'.format(function_name))
 
 
 def forward_pass_activations(input_data, weights, biases = None, hidden_activations='relu', output_activations = 'relu'):

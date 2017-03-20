@@ -87,10 +87,12 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
     assert isinstance(arrays, (list, tuple)), 'You need to provide an array or collection of arrays.'
     assert len(arrays)>0, 'Need at least one array'
     total_size = arrays[0].shape[0]
+    if minibatch_size=='full':
+        minibatch_size=total_size
     assert all(a.shape[0] == total_size for a in arrays), 'All arrays must have the same length!  Lengths are: %s' % ([len(arr) for arr in arrays])
     end = total_size*n_epochs
     ixs = np.arange(minibatch_size)
-    while ixs[0] <= end:
+    while ixs[0] < end:
         yield tuple(a[ixs % total_size] for a in arrays)
         ixs+=minibatch_size
 
