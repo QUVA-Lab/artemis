@@ -21,7 +21,7 @@ class ProgressIndicator(object):
             'seconds': self._should_update_time,
             }[self._update_unit]
 
-        self._i = 1
+        self._i = 0
         self._last_update = -float('inf')
         self._post_info_callback = post_info_callback
         self.just_use_last = just_use_last
@@ -33,18 +33,23 @@ class ProgressIndicator(object):
 
     def print_update(self, progress=None):
         self._current_time = time.time()
-        self._i = self._i+1 if progress is None else progress
-        if self._should_update() or self._i == self._expected_iterations:
-            frac = float(self._i)/self._expected_iterations
+
+        if progress is None:
+            progress = self._i
+        # self._i = self._i+1 if progress is None else progress
+        if self._should_update() or progress == self._expected_iterations-1:
             elapsed = self._current_time - self._start_time
+            frac = float(progress)/(self._expected_iterations-1)
             if self.just_use_last:
                 remaining = (self._current_time - self._last_time)/(frac - self._last_progress) * (1-frac) if frac > 0 else float('NaN')
             else:
                 remaining = elapsed * (1 / frac - 1) if frac > 0 else float('NaN')
             elapsed = self._current_time - self._start_time
-            self._last_update = self._i if self._update_unit == 'iterations' else self._current_time
+            self._last_update = progress if self._update_unit == 'iterations' else self._current_time
             print 'Progress%s: %s%%.  %.1fs Elapsed, %.1fs Remaining.%s' \
                 % ('' if self.name is None else ' of '+self.name, int(100*frac), elapsed, remaining, (', %s' % (self._post_info_callback(), )) if self._post_info_callback is not None else '')
+        self._i += 1
+
         if self.just_use_last:
             self._last_time = self._current_time
             self._last_progress = frac

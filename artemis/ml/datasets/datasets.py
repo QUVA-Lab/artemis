@@ -132,13 +132,23 @@ class DataCollection(object):
 
     @property
     def input(self):
+        """Deprecated.  Use self.x"""
         only_input, = self._inputs
         return only_input
 
     @property
+    def x(self):
+        return self.input
+
+    @property
     def target(self):
+        """Deprecated.  Use self.y"""
         only_target, = self._targets
         return only_target
+
+    @property
+    def y(self):
+        return self.target
 
     def minibatch_iterator(self, **kwargs):
         """
@@ -159,6 +169,7 @@ class DataCollection(object):
     @property
     def xy(self):
         return self.input, self.target
+
 
 def minibatch_iterator(minibatch_size = 1, epochs = 1, final_treatment = 'stop', single_channel = False):
     """
