@@ -89,7 +89,10 @@ from artemis.general.functional import infer_derived_arg_values, get_partial_cha
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import separate_common_items, izip_equal
 from artemis.general.test_mode import is_test_mode, set_test_mode
-from enum import Enum
+try:
+    from enum import Enum
+except ImportError:
+    raise ImportError("Failed to import the enum package. This was added in python 3.4 but backported back to 2.4.  To install, run 'pip install --upgrade pip enum34'")
 
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
