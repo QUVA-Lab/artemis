@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from artemis.fileman.local_dir import make_file_dir, format_filename, get_local_path
 from artemis.plotting.manage_plotting import ShowContext
 import os
@@ -84,3 +86,18 @@ class SaveFiguresOnShow(ShowContext):
 
     def get_figure_locs(self):
         return list(self._locations)
+
+@contextmanager
+def save_figures_on_close(dir, prefix='', default_ext = 'pdf', close_after =False):
+
+    old_fignums = plt.get_fignums()
+
+    yield
+
+    new_figs = [fig for fig in plt.get_fignums() if fig ]
+
+    for fig_no in new_figs:
+        make_file_dir(path)
+    fig.savefig(path)
+
+
