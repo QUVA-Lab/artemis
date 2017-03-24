@@ -55,6 +55,8 @@ def dbplot_remotetly(arg_locals):
             while _id_queue.get(timeout=time_left) != unique_plot_id:
                 time_used = time.time() - begin
                 time_left = wait_for_display_sec - time_used
+                if time_left < 0:
+                    break
         except Queue.Empty:
             pass
 

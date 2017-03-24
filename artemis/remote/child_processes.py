@@ -75,6 +75,7 @@ class Nanny(object):
         stdout_threads = {}
         stderr_threads = {}
 
+        N_workers = 0
         def err_fun(cp_ip):
             print("Error in process on %s:"%cp_ip)
             return True
@@ -83,6 +84,8 @@ class Nanny(object):
             stdin, stdout, stderr = cp.execute_child_process()
 
             prefix = cp.name.ljust(name_max_lenght)+": "
+            if "worker" in cp.name:
+                N_workers+=1
             stdout_thread = threading.Thread(target=self.monitor_and_forward_child_communication,
                                   args=(stdout,sys.stdout,termination_request_event,stdout_stopping_criterium, prefix))
 
@@ -96,8 +99,10 @@ class Nanny(object):
             stderr_thread.start()
 
         try:
-            while not termination_request_event.wait(0.01):
-                pass
+            for _ in range(N_workers):
+                while not termination_request_event.wait(0.01):
+                    pass
+                termination_request_event.clear()
         except KeyboardInterrupt:
             sys.exit(1)
 
@@ -236,7 +241,7 @@ class ChildProcess(object):
 
         if self.is_alive():
             self.kill(signal=message)
-            time.sleep(2.0)
+            time.sleep(4.0)
         if self.is_alive():
             self.kill(signal.SIGTERM)
         if not self.is_local():

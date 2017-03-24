@@ -91,6 +91,7 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
             different_versions[local_key] = (local_version, remote_packages[local_key])
 
     # Install missing packages
+    chosen_packages_to_install_and_update = None
     if len(missing_packages) > 0:
         missing_packages_string = ", ".join(missing_packages.keys())
         chosen_packages_to_install_and_update = {}
@@ -165,29 +166,30 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                         if i in numbers:
                             chosen_packages_to_install_and_update[key] = different_versions[key][0]
                     valid=True
-    if len(chosen_packages_to_install_and_update) == 0:
-        print ("virtualenv up-to-date")
-    else:
-        install_packages_on_remote_virtualenv(ip_address, chosen_packages_to_install_and_update)
-        if not ignore_warnings:
-            remote_packages = get_remote_installed_packages(ip_address)
-            missing_packages = OrderedDict()
-            different_versions = OrderedDict()
-            for (local_key, local_version) in local_packages.iteritems():
-                if local_key not in remote_packages.keys():
-                    missing_packages[local_key] = local_version
-                elif local_version != remote_packages[local_key]:
-                    different_versions[local_key] = (local_version, remote_packages[local_key])
-            if len(missing_packages)>0 or len(different_versions)>0:
-                valid = False
-                while not valid:
-                    ix=raw_input("The following packages could not be installed or upgraded: \n %s \nDo you want to continue? (y/n)"% (",".join(missing_packages.keys() + different_versions.keys())))
-                    if ix in ["y","n"]:
-                        valid=True
+    if chosen_packages_to_install_and_update is not None:
+        if len(chosen_packages_to_install_and_update) == 0:
+            print ("virtualenv up-to-date")
+        else:
+            install_packages_on_remote_virtualenv(ip_address, chosen_packages_to_install_and_update)
+            if not ignore_warnings:
+                remote_packages = get_remote_installed_packages(ip_address)
+                missing_packages = OrderedDict()
+                different_versions = OrderedDict()
+                for (local_key, local_version) in local_packages.iteritems():
+                    if local_key not in remote_packages.keys():
+                        missing_packages[local_key] = local_version
+                    elif local_version != remote_packages[local_key]:
+                        different_versions[local_key] = (local_version, remote_packages[local_key])
+                if len(missing_packages)>0 or len(different_versions)>0:
+                    valid = False
+                    while not valid:
+                        ix=raw_input("The following packages could not be installed or upgraded: \n %s \nDo you want to continue? (y/n)"% (",".join(missing_packages.keys() + different_versions.keys())))
+                        if ix in ["y","n"]:
+                            valid=True
 
-                if ix == "n":
-                    print("Exiting...")
-                    sys.exit(0)
-                else:
-                    print("Ignoring discrepancies...")
+                    if ix == "n":
+                        print("Exiting...")
+                        sys.exit(0)
+                    else:
+                        print("Ignoring discrepancies...")
     print("="*10 + " Done remote virtualenv %s "%ip_address + "="*10)
