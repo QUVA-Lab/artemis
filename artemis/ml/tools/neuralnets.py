@@ -47,7 +47,7 @@ def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal'
         return ws
 
 
-def initialize_weight_matrix(n_in, n_out, mag, base_dist='normal', rng=None):
+def initialize_weight_matrix(n_in, n_out, mag='xavier', base_dist='normal', rng=None):
     """
     Initialize a weight matrix
     :param n_in: Number of input units

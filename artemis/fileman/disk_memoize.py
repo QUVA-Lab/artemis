@@ -1,13 +1,11 @@
-import hashlib
-from collections import OrderedDict
-import inspect
 import logging
-from artemis.fileman.local_dir import get_local_path, make_file_dir
-from artemis.general.test_mode import is_test_mode
-from functools import partial
-import numpy as np
-import pickle
 import os
+from functools import partial
+from artemis.fileman.local_dir import get_local_path, make_file_dir
+from artemis.general.functional import infer_arg_values
+from artemis.general.hashing import compute_fixed_hash
+from artemis.general.test_mode import is_test_mode
+
 logging.basicConfig()
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
@@ -47,6 +45,8 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
     :param local_cache: Keep a cache in python (so you don't need to go to disk if you call again in the same process)
     :param disable_on_tests: Persistent memos can really screw up tests, so disable memos when is_test_mode() returns
         True.  Generally, leave this as true, unless you are testing memoization itself.
+    :param use_cpickle: Use CPickle, instead of pickle, to save results.  This can be faster for complex python
+        structures, but can be slower for numpy arrays.  So we recommend not using it.
     :return: A wrapper around the function that checks for memos and loads old results if they exist.
     """
 
@@ -57,28 +57,13 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
 
     cached_local_results = {}
 
-    arg_spec = inspect.getargspec(fcn)
-    assert arg_spec[1] is None, "You cannot have variable arguments in a disk-memoized function... for now."
-    all_arg_names, _, _, defaults = arg_spec
-    default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-(len(defaults) if defaults is not None else 0):], defaults if defaults is not None else [])}
-
     def check_memos(*args, **kwargs):
 
         if disable_on_tests and is_test_mode():
             return fcn(*args, **kwargs)
 
         result_computed = False
-
-        if any(name not in kwargs and name not in default_args for name in all_arg_names[len(args):]):
-            raise TypeError('Function %s required arguments: %s, but did not receive them.' % (fcn, [name for name in all_arg_names[len(args):] if name not in default_args]))
-
-        full_args = tuple(
-            zip(all_arg_names, args)  # Handle unnamed args f(1, 2)
-            + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]]  # Handle named keyworkd args f(a=1, b=2)
-            + [(name, kwargs[name]) for name in kwargs if name not in all_arg_names]  # Need to handle case if f takes **kwargs
-            )
-        assert len(set(name for name, _ in full_args)) == len(full_args), 'Somehow, there was an error and you ended up with repeated arguments.'
-
+        full_args = infer_arg_values(fcn, *args, **kwargs)
         filepath = get_function_hash_filename(fcn, full_args)
         # The filepath is used as the unique identifier, for both the local path and the disk-path
         # It may be more efficient to use the built-in hashability of certain types for the local cash, and just have special
@@ -183,46 +168,6 @@ def clear_all_memos():
     for m in all_memos:
         os.remove(m)
     print 'Removed %s memos.' % (len(all_memos))
-
-
-def compute_fixed_hash(obj, hasher = None):
-    """
-    Given an object, return a hash that will always be the same (not just for the lifetime of the
-    object, but for all future runs of the program too).
-    :param obj: Some nested container of primitives
-    :param hasher: (for internal use - note that this is stateful, so calling this function with this argument changes
-        the hasher object)
-    :return:
-    """
-
-    if hasher is None:
-        hasher = hashlib.md5()
-
-    hasher.update(obj.__class__.__name__)
-
-    if isinstance(obj, np.ndarray):
-        hasher.update(pickle.dumps(obj.dtype, protocol=2))
-        hasher.update(pickle.dumps(obj.shape, protocol=2))
-        hasher.update(obj.tostring())
-    elif isinstance(obj, (int, str, float, bool)) or (obj is None) or (obj in (int, str, float, bool)):
-        hasher.update(pickle.dumps(obj, protocol=2))
-    elif isinstance(obj, (list, tuple)):
-        hasher.update(str(len(obj)))  # Necessary to distinguish ([a, b], c) from ([a, b, c])
-        for el in obj:
-            compute_fixed_hash(el, hasher=hasher)
-    elif isinstance(obj, dict):
-        hasher.update(str(len(obj)))  # Necessary to distinguish ([a, b], c) from ([a, b, c])
-        keys = obj.keys() if isinstance(obj, OrderedDict) else sorted(obj.keys())
-        for k in keys:
-            compute_fixed_hash(k, hasher=hasher)
-            compute_fixed_hash(obj[k], hasher=hasher)
-    elif hasattr(obj, 'memo_hashable'):  # A special method returning hashable information about an object
-        compute_fixed_hash(obj.memo_hashable(), hasher=hasher)
-    else:
-        # TODO: Consider whether to pickle by default.  Note that pickle strings are not necessairly the same for identical objects.
-        raise NotImplementedError("Don't have a method for hashing this %s" % (obj, ))
-
-    return hasher.hexdigest()
 
 
 class DisableMemoReading(object):

@@ -1,4 +1,6 @@
 from abc import ABCMeta, abstractmethod
+from itertools import cycle
+
 from artemis.general.should_be_builtins import bad_value
 from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array, \
     UnlimitedRecordBuffer
@@ -32,6 +34,9 @@ class HistoryFreePlot(IPlot):
     @abstractmethod
     def _plot_last_data(self, data):
         pass
+
+
+colour_cycle = 'bgrmcyk'
 
 
 class ImagePlot(HistoryFreePlot):
@@ -93,7 +98,7 @@ class ImagePlot(HistoryFreePlot):
         else:
             self._plot.set_array(plottable_data)
         if self.show_clims:
-            self._plot.axes.set_xlabel('%.2f - %.2f' % clims)
+            self._plot.axes.set_xlabel('{:.3g} <> {:.3g}'.format(*clims))
 
 
 class MovingImagePlot(ImagePlot):
@@ -115,10 +120,26 @@ class MovingImagePlot(ImagePlot):
 
 class LinePlot(HistoryFreePlot):
 
-    def __init__(self, y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
+    def __init__(self, x_axis_type = 'lin', y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
                  x_bound_extend = (0, 0), make_legend = None, axes_update_mode = 'fit', add_end_markers = False, legend_entries = None,
-                 legend_entry_size = 8, plot_kwargs = {}):
-        assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
+                 legend_entry_size = 8, plot_kwargs = {}, allow_axis_offset = False):
+        """
+        :param y_axis_type: 'lin' (only one supported now)
+        :param x_bounds: A tuple of (lower_bound, upper_bound), where None means automatic
+        :param y_bounds: A tuple of (lower_bound, upper_bound), where None means automatic
+        :param y_bound_extend: A tuple of (float, float) indicating how much to extend the automatically determined bounds.
+        :param x_bound_extend: A tuple of (float, float) indicating how much to extend the automatically determined bounds.
+        :param make_legend: True to make a legend
+            'fit': Fit to current curve
+            'expand': Expand axes to contain curve (useful if plotting over pre-existing curve)
+        :param add_end_markers: Add a circle to indicate a start, and an "X" to indicate the end of each line.
+        :param legend_entries: Entries of the legend.  Should be one per line in the data.
+        :param legend_entry_size: Font size for legend entries.
+        :param plot_kwargs:
+        """
+        # assert y_axis_type == 'lin', 'Changing axis scaling not supported yet'
+        self.x_axis_type = x_axis_type
+        self.y_axis_type = y_axis_type
         self._plots = None
         self.x_bounds = x_bounds
         self.y_bounds = y_bounds
@@ -131,6 +152,7 @@ class LinePlot(HistoryFreePlot):
         self._end_markers = []
         self.legend_entries = [legend_entries] if isinstance(legend_entries, basestring) else legend_entries
         self.legend_entry_size = legend_entry_size
+        self.allow_axis_offset = allow_axis_offset
 
     def _plot_last_data(self, data):
         """
@@ -147,15 +169,15 @@ class LinePlot(HistoryFreePlot):
             y_data = data
         if isinstance(y_data, np.ndarray):
             n_lines = 1 if y_data.ndim==1 else y_data.shape[1]
-            x_data = [np.arange(y_data.shape[0])] * n_lines if x_data is None else [x_data] * n_lines if x_data.ndim==1 else x_data.T
+            x_data = [np.arange(1, y_data.shape[0]+1) if self.x_axis_type=='log' else np.arange(y_data.shape[0])] * n_lines if x_data is None else [x_data] * n_lines if x_data.ndim==1 else x_data.T
             # x_data = y_data.T if y_data.ndim==2 else y_data[None] if y_data.ndim==1 else bad_value(y_data.ndim)
-            y_data = y_data.T if y_data.ndim==2 else y_data[None] if y_data.ndim==1 else bad_value(y_data.ndim)
+            y_data = y_data.T if y_data.ndim==2 else y_data[None] if y_data.ndim==1 else bad_value(y_data.ndim, "Line plot data must be 1D or 2D, not {}D".format(y_data.ndim))
         else:  # List of arrays
             if all(d.ndim==0 for d in data):  # Turn it into one line
-                x_data = np.arange(len(data))[None, :]
+                x_data = np.arange(1, y_data.shape[0]+1) if self.x_axis_type=='log' else np.arange(y_data.shape[0])[None, :]
                 y_data = np.array(data)[None, :]
             else:  # List of arrays becomes a list of lines
-                x_data = [np.arange(len(d)) for d in y_data] if x_data is None else x_data
+                x_data = [np.arange(1, y_data.shape[0]+1) if self.x_axis_type=='log' else np.arange(y_data.shape[0]) for d in y_data] if x_data is None else x_data
         assert len(x_data)==len(y_data), "The number of lines in your x-data (%s) does not match the number in your y-data (%s)" % (len(x_data), len(y_data))
 
         lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data)+1e-9 if self.y_bounds[1] is None else self.y_bounds[1])
@@ -170,13 +192,26 @@ class LinePlot(HistoryFreePlot):
         right += self.x_bound_extend[1]*delta
 
         # Expand y_bound:
-        delta = upper-lower if upper-lower >0 else 1e-9
-        lower -= self.y_bound_extend[0]*delta
-        upper += self.y_bound_extend[1]*delta
+        if self.y_axis_type=='lin':
+            delta = upper-lower if upper-lower >0 else 1e-9
+            lower -= self.y_bound_extend[0]*delta
+            upper += self.y_bound_extend[1]*delta
+        elif self.y_axis_type=='log':
+            lower *= (1-self.y_bound_extend[0])
+            upper *= (1+self.y_bound_extend[1])
+        else:
+            raise Exception(self.y_axis_type)
 
         if self._plots is None:
             self._plots = []
             plt.gca().autoscale(enable=False)
+            plt.gca().get_yaxis().get_major_formatter().set_useOffset(self.allow_axis_offset)
+            plt.gca().get_xaxis().get_major_formatter().set_useOffset(self.allow_axis_offset)
+            if self.x_axis_type!='lin':
+                plt.gca().set_xscale(self.x_axis_type)
+            if self.y_axis_type!='lin':
+                plt.gca().set_yscale(self.y_axis_type)
+
             if isinstance(self.plot_kwargs, dict):
                 plot_kwargs = [self.plot_kwargs]*len(x_data)
             elif isinstance(self.plot_kwargs, (list, tuple)):
@@ -185,7 +220,7 @@ class LinePlot(HistoryFreePlot):
             for i, (xd, yd, legend_entry) in enumerate(zip(x_data, y_data, self.legend_entries if self.legend_entries is not None else [None]*len(x_data))):
                 p, =plt.plot(xd, yd, label = legend_entry, **plot_kwargs[i])
                 self._plots.append(p)
-                self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
+                _update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
                 if self.add_end_markers:
                     colour = p.get_color()
                     self._end_markers.append((plt.plot(xd[[0]], yd[[0]], marker='.', markersize=20, color=colour)[0], plt.plot(xd[0], yd[0], marker='x', markersize=10, mew=4, color=colour)[0]))
@@ -204,7 +239,7 @@ class LinePlot(HistoryFreePlot):
             for i, (p, xd, yd) in enumerate(zip(self._plots, x_data, y_data)):
                 p.set_xdata(xd)
                 p.set_ydata(yd)
-                self._update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
+                _update_axes_bound(p.axes, (left, right), (lower, upper), self.axes_update_mode)
                 if self.add_end_markers:
                     self._end_markers[i][0].set_xdata(xd[[0]])
                     self._end_markers[i][0].set_ydata(yd[[0]])
@@ -213,22 +248,22 @@ class LinePlot(HistoryFreePlot):
 
         # plt.legend(loc='best', framealpha=0.5, prop={'size': self.legend_entry_size})
 
-    @staticmethod
-    def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
-        if mode=='fit':
+
+def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
+    if mode=='fit':
+        ax.set_xbound(left, right)
+        ax.set_ybound(lower, upper)
+    elif mode=='expand':
+        old_left, old_right = ax.get_xbound()
+        old_lower, old_upper = ax.get_ybound()
+        if (old_left, old_right, old_lower, old_upper) == (0, 1, 0, 1):  # Virgin axes (probably)... overwrite them
             ax.set_xbound(left, right)
             ax.set_ybound(lower, upper)
-        elif mode=='expand':
-            old_left, old_right = ax.get_xbound()
-            old_lower, old_upper = ax.get_ybound()
-            if (old_left, old_right, old_lower, old_upper) == (0, 1, 0, 1):  # Virgin axes (probably)... overwrite them
-                ax.set_xbound(left, right)
-                ax.set_ybound(lower, upper)
-            else:
-                ax.set_xbound(min(old_left, left), max(old_right, right))
-                ax.set_ybound(min(old_lower, lower), max(old_upper, upper))
         else:
-            raise Exception('No axis update mode: "%s"' % (mode, ))
+            ax.set_xbound(min(old_left, left), max(old_right, right))
+            ax.set_ybound(min(old_lower, lower), max(old_upper, upper))
+    else:
+        raise Exception('No axis update mode: "%s"' % (mode, ))
 
 
 class MovingPointPlot(LinePlot):
@@ -306,6 +341,34 @@ class TextPlot(IPlot):
             self._text_plot = ax.text(self._x_offset, self._y_offset, self._full_text, horizontalalignment=self.horizontal_alignment, verticalalignment=self.vertical_alignment, size = self.size)
         else:
             self._text_plot.set_text(self._full_text)
+
+
+class BarPlot(HistoryFreePlot):
+
+    def __init__(self, fill_width=0.8, ):
+        self._plots = None
+        self.fill_width = fill_width
+
+    def _plot_last_data(self, data):
+        """
+        :param data: Can be:
+            A vector of values
+            A (n_values, n_measures) array of values
+        """
+        if data.ndim==1:
+            data = data[:, None]
+
+        if self._plots is None:
+            n_values, n_sources = data.shape
+            width = self.fill_width/n_sources
+            x_centers = np.arange(n_values)
+            self._plots = [plt.bar(x_centers+width*i-self.fill_width/2., data[:, i], width=width, color=c, edgecolor=c) for i, c in zip(xrange(n_sources), cycle(colour_cycle))]
+            plt.xticks(x_centers)
+        else:
+            for i, plot in enumerate(self._plots):
+                for rect, h in zip(plot, data[:, i]):
+                    rect.set_height(h)
+            _update_axes_bound(rect.axes, (-.5, data.shape[0]-.5), (min(0, np.min(data)), max(0, np.max(data))), mode='fit')
 
 
 class HistogramPlot(IPlot):

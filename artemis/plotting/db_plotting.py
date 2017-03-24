@@ -1,4 +1,8 @@
 from collections import OrderedDict, namedtuple
+from artemis.fileman.config_files import get_artemis_config_value
+from artemis.plotting.matplotlib_backend import BarPlot
+from matplotlib.axes import Axes
+from matplotlib.gridspec import SubplotSpec
 from contextlib import contextmanager
 import numpy as np
 from matplotlib import pyplot as plt
@@ -7,7 +11,6 @@ from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
-
 
 __author__ = 'peter'
 
@@ -25,14 +28,13 @@ dbplot makes online plotting easy.  You want to plot updates to your variable?  
     dbplot(var, 'my-var')
     dbplot(updated_var, 'my-var')
 
-Check out demo_dbplot.py for some demos of what dbplot can do.
-
-Remember:  If you can't see your data, you are a fraud and your research career will fail.
+See demo_dbplot.py for some demos of what dbplot can do.
 """
 
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
-           fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, plot_constructor=None, wait_for_display_sec=0):
+           fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, grid=False,
+           wait_for_display_sec=0):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
@@ -56,6 +58,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     :param hang: Hang on the plot (wait for it to be closed before continuing)
     :param title: Title of the plot (will default to name if not included)
     :param fig: Name of the figure - use this when you want to create multiple figures.
+    :param grid: Turn the grid on
     :param wait_for_display_sec: In server mode, you can choose to wait maximally wait_for_display_sec seconds before this call returns. In case plotting
     is finished earlier, the call returns earlier. Setting wait_for_display_sec to a negative number will cause the call to block until the plot has been displayed.
     """
@@ -82,10 +85,6 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         axis=name
 
     if name not in suplot_dict:
-        if plot_constructor is not None:
-            print "Warning: The 'plot_constructor' argument to dbplot is deprecated.  Use plot_type instead"
-            assert plot_type is None
-            plot_type = plot_constructor
 
         if isinstance(plot_type, str):
             plot = {
@@ -93,10 +92,12 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
                 'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
                 'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
                 # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
+                'bar': BarPlot,
                 'img': ImagePlot,
                 'colour': lambda: ImagePlot(is_colour_data=True),
                 'equal_aspect': lambda: ImagePlot(aspect='equal'),
                 'image_history': lambda: MovingImagePlot(),
+                'fixed_line_history': lambda: MovingPointPlot(buffer_len=100),
                 'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
                 'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
                 'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
@@ -112,24 +113,34 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             assert hasattr(plot_type, "__call__")
             plot = plot_type()
 
-        if axis in _DBPLOT_FIGURES[fig].axes:
-            _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[axis], plot_object=plot)
-            plt.sca(_DBPLOT_FIGURES[fig].axes[axis])
-        else:  # Make a new axis
-            # _extend_subplots(fig=fig, subplot_name=name, axis_name=axis, plot_object=plot)  # This guarantees that the new plot will exist
+        if isinstance(axis, SubplotSpec):
+            axis = plt.subplot(axis)
+        if isinstance(axis, Axes):
+            ax = axis
+            ax_name = str(axis)
+        elif isinstance(axis, basestring) or axis is None:
             ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
+            ax_name = axis
+            # ax.set_title(axis)
+        else:
+            raise Exception("Axis specifier must be a string, an Axis object, or a SubplotSpec object.  Not {}".format(axis))
 
-            ax.set_title(axis)
-
+        if ax_name not in _DBPLOT_FIGURES[fig].axes:
+            ax.set_title(name)
             _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=ax, plot_object=plot)
-            _DBPLOT_FIGURES[fig].axes[axis] = ax
+            _DBPLOT_FIGURES[fig].axes[ax_name] = ax
 
-            if xlabel is not None:
-                _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
-            if ylabel is not None:
-                _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
-            if draw_every is not None:
-                _draw_counters[fig, name] = -1
+        _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[ax_name], plot_object=plot)
+        plt.sca(_DBPLOT_FIGURES[fig].axes[ax_name])
+        if xlabel is not None:
+            _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
+        if ylabel is not None:
+            _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
+        if draw_every is not None:
+            _draw_counters[fig, name] = -1
+
+        if grid:
+            plt.grid()
 
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
@@ -159,7 +170,7 @@ _Subplot = namedtuple('Subplot', ['axis', 'plot_object'])
 
 _DBPLOT_FIGURES = {}  # An dict<figure_name: _PlotWindow(figure, OrderedDict<subplot_name:_Subplot>)>
 
-_DEFAULT_SIZE = None
+_DEFAULT_SIZE = get_artemis_config_value(section='plotting', option='default_fig_size', default_generator=lambda: (10, 8), write_default=True, read_method='eval')
 
 _draw_counters = {}
 
@@ -199,9 +210,8 @@ def _make_dbplot_figure():
     if _DEFAULT_SIZE is None:
         fig= plt.figure()
     else:
-        fig= plt.figure(figsize=_DEFAULT_SIZE)
+        fig= plt.figure(figsize=_DEFAULT_SIZE)  # This is broken in matplotlib2 for some reason
     return fig
-
 
 
 def freeze_dbplot(name, fig = None):

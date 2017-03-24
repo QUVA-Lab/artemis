@@ -76,21 +76,24 @@ import re
 import shutil
 import tempfile
 import time
+import traceback
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
+from pprint import pprint
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
-from artemis.fileman.persistent_print import CaptureStdOut
-from artemis.general.should_be_builtins import get_final_args
+from artemis.general.display import CaptureStdOut
+from artemis.general.functional import infer_derived_arg_values, get_partial_chain
+from artemis.general.hashing import compute_fixed_hash
+from artemis.general.should_be_builtins import separate_common_items, izip_equal
 from artemis.general.test_mode import is_test_mode, set_test_mode
-
+from enum import Enum
 
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 ARTEMIS_LOGGER.setLevel(logging.INFO)
-
 
 __author__ = 'peter'
 
@@ -138,33 +141,130 @@ def experiment_root(f):
 class ExperimentFunction(object):
     """ Decorator for an experiment
     """
-    def __init__(self, display_function = None, info=None, is_root = False):
+
+    def __init__(self, display_function=None, one_liner_results=None, info=None, is_root=False):
+        """
+        :param display_function: A function that takes the results (whatever your experiment returns) and displays them.
+        :param one_liner_results: A function that takes your results and returns a 1 line string summarizing them.
+        :param info: Don't use this?
+        :param is_root: True to make this a root experiment - so that it is not listed to be run itself.
+        """
         self.display_function = display_function
         self.info = info
         self.is_root = is_root
+        self.one_liner_results = one_liner_results
 
     def __call__(self, f):
         f.is_base_experiment = True
         ex = Experiment(
-            name = f.__name__,
-            function = f,
+            name=f.__name__,
+            function=f,
             display_function=self.display_function,
-            info=OrderedDict([('Root Experiment', f.__name__), ('Defined in', inspect.getmodule(f).__file__ )]),
-            is_root = self.is_root
-            )
+            one_liner_results=self.one_liner_results,
+            info=OrderedDict([('Root Experiment', f.__name__), ('Defined in', inspect.getmodule(f).__file__)]),
+            is_root=self.is_root
+        )
         return ex
 
 
 GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()
 
 
+class ExpInfoFields(Enum):
+    NAME = 'Name'
+    ID = 'Identifier'
+    DIR = 'Directory'
+    TIMESTAMP = 'Timestamp'
+    ARGS = 'Args'
+    FUNCTION = 'Function'
+    MODULE = 'Module'
+    FILE = 'File'
+    STATUS = 'Status'
+    N_FIGS = '# Figures Generated'
+    FIGS = 'Figure Locs'
+    RUNTIME = 'Run Time'
+    VERSION = 'Version'
+    NOTES = 'Notes'
+
+
+class ExpStatusOptions(Enum):
+    STARTED = 'Running (or Killed)'
+    ERROR = 'Error'
+    STOPPED = 'Stopped by User'
+    FINISHED = 'Ran Succesfully'
+
+
+class ExperimentRecordInfo(object):
+    def __init__(self, file_path, write_text_version=True):
+        before, ext = os.path.splitext(file_path)
+        assert ext == '.pkl', 'Your file-path must be a pickle'
+        self._text_path = before + '.txt' if write_text_version else None
+        self.persistent_obj = PersistentOrderedDict(file_path=file_path)
+
+    def has_field(self, field):
+        assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
+        return field in self.persistent_obj
+
+    def get_field(self, field):
+        """
+        :param field: A member of ExperimentRecordInfo.FIELDS
+        :return:
+        """
+        assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
+        return self.persistent_obj[field]
+
+    def set_field(self, field, value):
+        assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
+        if field == ExpInfoFields.STATUS:
+            assert value in ExpStatusOptions, 'Status value must be in: {}'.format(ExpStatusOptions)
+        with self.persistent_obj as pod:
+            pod[field] = value
+        if self._text_path is not None:
+            with open(self._text_path, 'w') as f:
+                f.write(self.get_text())
+
+    def add_note(self, note):
+        if not self.has_field(ExpInfoFields.NOTES):
+            self.set_field(ExpInfoFields.NOTES, [note])
+        else:
+            self.set_field(ExpInfoFields.NOTES, self.get_field(ExpInfoFields.NOTES) + [note])
+
+    def get_text(self):
+        if ExpInfoFields.VERSION not in self.persistent_obj:  # Old version... we must adapt
+            return '\n'.join(
+                '{}: {}'.format(key, self.get_field_text(key)) for key, value in self.persistent_obj.iteritems())
+        else:
+            return '\n'.join(
+                '{}: {}'.format(key.value, self.get_field_text(key)) for key, value in self.persistent_obj.iteritems())
+
+    def get_field_text(self, field, replacement_if_none=''):
+        assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
+        if not self.has_field(field):
+            return replacement_if_none
+        elif field is ExpInfoFields.STATUS:
+            return self.get_field(field).value
+        elif field is ExpInfoFields.ARGS:
+            return ['{}={}'.format(k, v) for k, v in self.get_field(field)]
+        else:
+            return str(self.get_field(field))
+
+
+class NoSavedResultError(Exception):
+    def __init__(self, experiment_record_id):
+        Exception.__init__(self, "Experiment Record {} has no saved result.".format(experiment_record_id))
+
+
 class ExperimentRecord(object):
+
+    ERROR_FILE_NAME = 'errortrace.txt'
 
     def __init__(self, experiment_directory):
         self._experiment_directory = experiment_directory
-        self.add_info('Name', self.get_name())
-        self.add_info('Identifier', self.get_identifier())
-        self.add_info('Directory', self.get_dir())
+        self._info = ExperimentRecordInfo(os.path.join(experiment_directory, 'info.pkl'))
+
+    @property
+    def info(self):
+        return self._info
 
     def show_figures(self):
         from artemis.plotting.saving_plots import show_saved_figure
@@ -173,7 +273,8 @@ class ExperimentRecord(object):
 
     def get_log(self):
         log_file_path = os.path.join(self._experiment_directory, 'output.txt')
-        assert os.path.exists(log_file_path), 'No output file found.  Maybe "%s" is not an experiment directory?' % (self._experiment_directory, )
+        assert os.path.exists(log_file_path), 'No output file found.  Maybe "%s" is not an experiment directory?' % (
+        self._experiment_directory,)
         with open(log_file_path) as f:
             text = f.read()
         return text
@@ -184,10 +285,11 @@ class ExperimentRecord(object):
         :param full_path: If true, list file with the full local path
         :return: A list of strings indicating the file paths.
         """
-        paths = [os.path.join(root, filename) for root, _, files in os.walk(self._experiment_directory) for filename in files]
+        paths = [os.path.join(root, filename) for root, _, files in os.walk(self._experiment_directory) for filename in
+                 files]
         if not full_path:
             dir_length = len(self._experiment_directory)
-            paths = [f[dir_length+1:] for f in paths]
+            paths = [f[dir_length + 1:] for f in paths]
         return paths
 
     def open_file(self, filename, *args, **kwargs):
@@ -206,7 +308,7 @@ class ExperimentRecord(object):
         make_file_dir(full_path)  # Make the path if it does not yet exist
         return open(full_path, *args, **kwargs)
 
-    def get_figure_locs(self, include_directory = True):
+    def get_figure_locs(self, include_directory=True):
         locs = [f for f in os.listdir(self._experiment_directory) if f.startswith('fig-')]
         if include_directory:
             return [os.path.join(self._experiment_directory, f) for f in locs]
@@ -214,24 +316,15 @@ class ExperimentRecord(object):
             return locs
 
     def show(self):
-        print '{header} Showing Experiment {header}\n{info}\n{subborder}Logs {subborder}\n{log}\n{border}'.format(header="="*20, border="="*50, info=self.get_info_text(), subborder='-'*20, log=self.get_log())
+        print '{header} Showing Experiment {header}\n{info}\n{subborder}Logs {subborder}\n{log}\n{border}'.format(
+            header="=" * 20, border="=" * 50, info=self.info.get_text(), subborder='-' * 20, log=self.get_log())
         self.show_figures()
 
-    def _get_info_obj(self):
-        return PersistentOrderedDict(os.path.join(self._experiment_directory, 'info.pkl'))
-
-    def get_info(self, field = None):
-        return self._get_info_obj().get_data() if field is None else self._get_info_obj()[field]
-
-    def add_info(self, field, data):
-        with self._get_info_obj() as pod:
-            pod[field] = data
-
-    def add_note(self, note):
-        self.add_info('Notes', self.get_info('Notes')+[note])
-
     def get_info_text(self):
-        return self._get_info_obj().get_text()
+        return self.info.get_text()
+
+    def has_result(self):
+        return os.path.exists(os.path.join(self._experiment_directory, 'result.pkl'))
 
     def get_result(self):
         result_loc = os.path.join(self._experiment_directory, 'result.pkl')
@@ -240,18 +333,44 @@ class ExperimentRecord(object):
                 result = pickle.load(f)
             return result
         else:
-            return None
+            raise NoSavedResultError(self.get_identifier())
 
     def save_result(self, result):
         file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
         make_file_dir(file_path)
         with open(file_path, 'w') as f:
             pickle.dump(result, f, protocol=2)
-            print 'Saving Result for Experiment "%s"' % (self.get_identifier(), )
+            print 'Saving Result for Experiment "%s"' % (self.get_identifier(),)
 
     def get_identifier(self):
         root, identifier = os.path.split(self._experiment_directory)
         return identifier
+
+    def get_one_liner(self):
+        """
+        :return: A one line description of the experiment resutls
+        """
+        if not self.has_result():
+            return '<Experiment did not finish>'
+        else:
+            result = self.get_result()
+            if result is None:
+                return '<Experiment Returned no result>'
+            else:
+                try:
+                    exp = self.get_experiment()
+                except ExperimentNotFoundError:
+                    return '<Experiment {} was not found>'.format(record_id_to_experiment_id(self.get_identifier()))
+                except Exception as err:
+                    return '<Error loading experiment>'
+                one_liner = exp.get_one_liner(result)
+                if one_liner is None:
+                    return '<One-liner function not defined>'
+                else:
+                    return one_liner
+
+    def get_experiment(self):
+        return load_experiment(record_id_to_experiment_id(self.get_identifier()))
 
     def get_name(self):
         return self.get_identifier()[27:]  # NOTE: THIS WILL HAVE TO CHANGE IF WE USE A DIFFERENT DATA FORMAT!
@@ -262,22 +381,70 @@ class ExperimentRecord(object):
     def delete(self):
         shutil.rmtree(self._experiment_directory)
 
-    @staticmethod
-    def experiment_id_to_name(identifier):
-        """
-        Get the experiment name from the identifier.
-        :param identifier: A string identifying the experiment, eg '2016.12.19T11.04.42.281111-experiment_test_function'
-        :return: The experiment name, eg 'experiment_test_function'
-        """
-        return identifier[27:]
+    @classmethod
+    def from_identifier(cls, record_id):
+        path = os.path.join(get_local_path(os.path.join('experiments', record_id)))
+        return ExperimentRecord(path)
 
+    def get_invalid_arg_note(self):
+        """
+        Return a string identifying ig the arguments for this experiment are still valid.
+        :return:
+        """
+        experiment_id = record_id_to_experiment_id(self.get_identifier())
+        if is_experiment_loadable(experiment_id):
+            last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
+            current_args = dict(load_experiment(record_id_to_experiment_id(self.get_identifier())).get_args())
+            if not self.is_valid(last_run_args=last_run_args, current_args=current_args):
+                last_arg_str, this_arg_str = [
+                    ['{}:{}'.format(k, v) for k, v in argdict.iteritems()] if isinstance(argdict, dict) else
+                    ['{}:{}'.format(k, v) for k, v in argdict]
+                    for argdict in (last_run_args, current_args)]
+                common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
+                notes = "Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+            else:
+                notes = "Yes"
+        else:
+            notes = "<Experiment Not Currently Imported>"
+        return notes
+
+    def is_valid(self, last_run_args=None, current_args=None):
+        """
+        :return: True if the experiment arguments have changed, otherwise false.
+        """
+        if last_run_args is None:
+            last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
+        if current_args is None:
+            current_args = dict(load_experiment(record_id_to_experiment_id(self.get_identifier())).get_args())
+        return compute_fixed_hash(last_run_args) == compute_fixed_hash(current_args)
+
+    def get_error_trace(self):
+        """
+        Get the error trace, or return None if there is no error trace.
+        :return:
+        """
+        file_path = os.path.join(self._experiment_directory, self.ERROR_FILE_NAME)
+        if os.path.exists(file_path):
+            with open(file_path) as f:
+                return f.read()
+        else:
+            return None
+
+    def write_error_trace(self, print_too = True):
+        file_path = os.path.join(self._experiment_directory, self.ERROR_FILE_NAME)
+        assert not os.path.exists(file_path), 'Error trace has already been created in this experiment... Something fishy going on here.'
+        with open(file_path, 'w') as f:
+            error_text = traceback.format_exc()
+            f.write(error_text)
+        if print_too:
+            print error_text
 
 _CURRENT_EXPERIMENT_RECORD = None
 
 
 @contextmanager
-def record_experiment(identifier='%T-%N', name = 'unnamed', print_to_console = True, show_figs = None,
-            save_figs = True, saved_figure_ext = '.pdf', use_temp_dir = False):
+def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True, show_figs=None,
+                      save_figs=True, saved_figure_ext='.pdf', use_temp_dir=False, date=None):
     """
     :param identifier: The string that uniquely identifies this experiment record.  Convention is that it should be in
         the format
@@ -290,8 +457,9 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', print_to_console = T
     """
     # Note: matplotlib imports are internal in order to avoid trouble for people who may import this module without having
     # a working matplotlib (which can occasionally be tricky to install).
-
-    identifier = format_filename(file_string = identifier, base_name=name, current_time = datetime.now())
+    if date is None:
+        date = datetime.now()
+    identifier = format_filename(file_string=identifier, base_name=name, current_time=date)
 
     if show_figs is None:
         show_figs = 'draw' if is_test_mode() else 'hang'
@@ -308,11 +476,12 @@ def record_experiment(identifier='%T-%N', name = 'unnamed', print_to_console = T
     from artemis.plotting.manage_plotting import WhatToDoOnShow
     global _CURRENT_EXPERIMENT_RECORD  # Register
     _CURRENT_EXPERIMENT_RECORD = ExperimentRecord(experiment_directory)
-    capture_context = CaptureStdOut(log_file_path = os.path.join(experiment_directory, 'output.txt'), print_to_console = print_to_console)
+    capture_context = CaptureStdOut(log_file_path=os.path.join(experiment_directory, 'output.txt'),
+                                    print_to_console=print_to_console)
     show_context = WhatToDoOnShow(show_figs)
     if save_figs:
         from artemis.plotting.saving_plots import SaveFiguresOnShow
-        save_figs_context = SaveFiguresOnShow(path = os.path.join(experiment_directory, 'fig-%T-%L'+saved_figure_ext))
+        save_figs_context = SaveFiguresOnShow(path=os.path.join(experiment_directory, 'fig-%T-%L' + saved_figure_ext))
         with capture_context, show_context, save_figs_context:
             yield _CURRENT_EXPERIMENT_RECORD
     else:
@@ -362,7 +531,7 @@ def open_in_experiment_dir(filename, *args, **kwargs):
     return get_current_experiment_record().open_file(filename, *args, **kwargs)
 
 
-def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_record_kwargs):
+def run_experiment(name, exp_dict=GLOBAL_EXPERIMENT_LIBRARY, **experiment_record_kwargs):
     """
     Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
     You can run the experiment agin later by calling show_experiment(location_string):
@@ -377,7 +546,22 @@ def run_experiment(name, exp_dict = GLOBAL_EXPERIMENT_LIBRARY, **experiment_reco
     return experiment.run(**experiment_record_kwargs)
 
 
-def _get_matching_template_from_experiment_name(experiment_name, template = '%T-%N'):
+def record_id_to_experiment_id(record_id):
+    return record_id[27:]
+
+
+def record_id_to_timestamp(record_id):
+    return record_id[:26]
+
+
+def run_experiment_ignoring_errors(name, **kwargs):
+    try:
+        run_experiment(name, **kwargs)
+    except Exception as err:
+        traceback.print_exc()
+
+
+def _get_matching_template_from_experiment_name(experiment_name, template='%T-%N'):
     # Potentially obselete, though will keep around in case it gets useful one day.
     named_template = template.replace('%N', re.escape(experiment_name))
     expr = named_template.replace('%T', '\d\d\d\d\.\d\d\.\d\d\T\d\d\.\d\d\.\d\d\.\d\d\d\d\d\d')
@@ -387,31 +571,16 @@ def _get_matching_template_from_experiment_name(experiment_name, template = '%T-
 
 def delete_experiment_with_id(experiment_identifier):
     if experiment_exists(experiment_identifier):
-        get_experiment_record(experiment_identifier).delete()
+        load_experiment_record(experiment_identifier).delete()
 
 
 def get_local_experiment_path(identifier):
     return os.path.join(get_local_path('experiments'), identifier)
 
 
-def get_experiment_record(identifier):
-    local_path = get_local_experiment_path(identifier)
-    assert os.path.exists(local_path), "Couldn't find experiment '%s' at '%s'" % (identifier, local_path)
-    return ExperimentRecord(local_path)
-
-
 def experiment_exists(identifier):
     local_path = get_local_experiment_path(identifier)
     return os.path.exists(local_path)
-
-
-def show_experiment(identifier):
-    """
-    Show the results of an experiment (plots and logs)
-    :param identifier: A string uniquely identifying the experiment
-    """
-    exp_rec = get_experiment_record(identifier)
-    exp_rec.show()
 
 
 def merge_experiment_dicts(*dicts):
@@ -420,36 +589,71 @@ def merge_experiment_dicts(*dicts):
     """
     merge_dict = OrderedDict()
     for d in dicts:
-        assert not any(k in merge_dict for k in d), "Experiments %s has been defined twice." % ([k for k in d.keys() if k in merge_dict],)
+        assert not any(k in merge_dict for k in d), "Experiments %s has been defined twice." % (
+        [k for k in d.keys() if k in merge_dict],)
         merge_dict.update(d)
     return merge_dict
 
 
-def get_latest_experiment_identifier(name):
+def filter_experiment_ids(ids, expr=None, names=None):
+    if expr is not None:
+        ids = [e for e in ids if expr in e]
+    if names is not None:
+        ids = [eid for eid in ids if record_id_to_experiment_id(eid) in names]
+    return ids
+
+
+def get_all_record_ids(experiment_ids=None, filters=None):
+    """
+    :param experiment_ids: A list of experiment names
+    :param filters: A list or regular expressions for matching experiments.
+    :return: A list of experiment identifiers.
+    """
+    expdir = get_local_path('experiments')
+    ids = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
+    ids = filter_experiment_ids(ids=ids, names=experiment_ids)
+    if filters is not None:
+        for expr in filters:
+            ids = filter_experiment_ids(ids=ids, expr=expr)
+    ids = sorted(ids)
+    return ids
+
+
+def experiment_id_to_record_ids(experiment_identifier):
+    """
+    :param experiment_identifier: The name of the experiment
+    :return: A list of records for this experiment, temporal order
+    """
+    matching_experiments = get_all_record_ids(experiment_ids=[experiment_identifier])
+    return sorted(matching_experiments)
+
+
+def experiment_id_to_latest_record_id(experiment_identifier):
     """
     Show results of the latest experiment matching the given template.
     :param name: The experiment name
     :param template: The template which turns a name into an experiment identifier
     :return: A string identifying the latest matching experiment, or None, if not found.
     """
-    matching_experiments = get_all_experiment_ids(names = [name])
-    if len(matching_experiments) == 0:
+    all_records = experiment_id_to_record_ids(experiment_identifier)
+    assert len(all_records)>0, "No record found for experiment: '{}'".format(experiment_identifier)
+    return all_records[-1]
+
+
+def experiment_id_to_latest_result(experiment_id):
+    return load_latest_experiment_record(experiment_id).get_result()
+
+
+def load_latest_experiment_record(experiment_name):
+    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name)
+    if experiment_record_identifier is None:
         return None
     else:
-        latest_experiment_id = sorted(matching_experiments)[-1]
-        return latest_experiment_id
+        return load_experiment_record(experiment_record_identifier)
 
 
-def get_lastest_result(experiment_name):
-    return get_latest_experiment_record(experiment_name).get_result()
-
-
-def get_latest_experiment_record(experiment_name):
-    experiment_record_identifier = get_latest_experiment_identifier(experiment_name)
-    if experiment_record_identifier is None:
-        raise Exception("No saved records for experiment '{name}'".format(name=experiment_name))
-    exp_rec = get_experiment_record(experiment_record_identifier)
-    return exp_rec
+def has_experiment_record(experiment_identifier):
+    return os.path.exists(get_local_experiment_path(identifier=experiment_identifier))
 
 
 def load_experiment_record(experiment_identifier):
@@ -462,35 +666,11 @@ def load_experiment_record(experiment_identifier):
     return ExperimentRecord(full_path)
 
 
-def filter_experiment_ids(ids, expr=None, names=None):
-
-    if expr is not None:
-        ids = [e for e in ids if expr in e]
-    if names is not None:
-        ids = [eid for eid in ids if ExperimentRecord.experiment_id_to_name(eid) in names]
-    return ids
-
-
-def get_all_experiment_ids(names=None, filters = None):
-    """
-    :param names: A list of experiment names
-    :param filters: A list or regular expressions for matching experiments.
-    :return: A list of experiment identifiers.
-    """
-    expdir = get_local_path('experiments')
-    ids = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
-    ids = filter_experiment_ids(ids=ids, names=names)
-    if filters is not None:
-        for expr in filters:
-            ids = filter_experiment_ids(ids=ids, expr=expr)
-    return ids
-
-
 def _register_experiment(experiment):
     GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
-def clear_experiments(ids = None):
+def clear_experiment_records(ids=None):
     """
     Delete all experiments with ids in the list, or all experiments if ids is None.
     :param ids: A list of experiment ids, or None to remove all.
@@ -513,12 +693,26 @@ def clear_experiments(ids = None):
 
 
 def get_experiment_info(name):
-    experiment = GLOBAL_EXPERIMENT_LIBRARY[name]
+    experiment = load_experiment(name)
     return str(experiment)
 
 
-def get_experiment(name):
-    return GLOBAL_EXPERIMENT_LIBRARY[name]
+class ExperimentNotFoundError(Exception):
+    def __init__(self, experiment_id):
+        Exception.__init__(self,
+                           'Experiment "{}" could not be loaded, either because it has not been imported, or its definition was removed.'.format(
+                               experiment_id))
+
+
+def load_experiment(experiment_id):
+    try:
+        return GLOBAL_EXPERIMENT_LIBRARY[experiment_id]
+    except KeyError:
+        raise ExperimentNotFoundError(experiment_id)
+
+
+def is_experiment_loadable(experiment_id):
+    return experiment_id in GLOBAL_EXPERIMENT_LIBRARY
 
 
 def _kwargs_to_experiment_name(kwargs):
@@ -534,7 +728,7 @@ def experiment_testing_context():
     Use this context when testing the experiment/experiment_record infrastructure.
     Should only really be used in test_experiment_record.py
     """
-    ids = get_all_experiment_ids()
+    ids = get_all_record_ids()
     global keep_record_by_default
     old_val = keep_record_by_default
     keep_record_by_default = True
@@ -542,9 +736,11 @@ def experiment_testing_context():
     keep_record_by_default = old_val
 
     def clean_on_close():
-        new_ids = set(get_all_experiment_ids()).difference(ids)
-        clear_experiments(list(new_ids))
-    atexit.register(clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally
+        new_ids = set(get_all_record_ids()).difference(ids)
+        clear_experiment_records(list(new_ids))
+
+    atexit.register(
+        clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally
 
 
 def save_figure_in_experiment(name, fig=None, default_ext='.pdf'):
@@ -559,14 +755,19 @@ def save_figure_in_experiment(name, fig=None, default_ext='.pdf'):
     from artemis.plotting.saving_plots import save_figure
     if fig is None:
         fig = plt.gcf()
-    save_path = os.path.join(get_current_experiment_dir(),name)
-    save_figure(fig,path=save_path,default_ext=default_ext)
+    save_path = os.path.join(get_current_experiment_dir(), name)
+    save_figure(fig, path=save_path, default_ext=default_ext)
     return save_path
 
 
 class Experiment(object):
+    """
+    An experiment.  In general you should not use this class directly.  Use the experiment_function decorator, and
+    create variants using decorated_function.add_variant()
+    """
 
-    def __init__(self, function=None, display_function = None, info = None, conclusion = None, name = None, is_root = False):
+    def __init__(self, function=None, display_function=pprint, one_liner_results=None, info=None, conclusion=None,
+                 name=None, is_root=False):
         """
         :param function: The function defining the experiment
         :param display_function: A function that can be called to display the results returned by function.
@@ -578,6 +779,7 @@ class Experiment(object):
         self.name = name
         self.function = function
         self.display_function = display_function
+        self.one_liner_results = one_liner_results
         self.variants = OrderedDict()
         if info is None:
             info = OrderedDict()
@@ -592,44 +794,26 @@ class Experiment(object):
             _register_experiment(self)
 
     def __call__(self, *args, **kwargs):
-        """ Run the function as normal, without recording or anything. """
-        if (_CURRENT_EXPERIMENT_RECORD is not None) and hasattr(self.function, 'is_base_experiment'):
-            # If we get here it means that we're being called by the run() function of the experiment or one of its variants.
-            r = _CURRENT_EXPERIMENT_RECORD
-            start_time = time.time()
-            try:
-                arg_spec = inspect.getargspec(self.function)
-                all_arg_names, _, _, defaults = arg_spec
-                named_args = get_final_args(args=args, kwargs=kwargs, all_arg_names=all_arg_names, default_kwargs=defaults)
-                r.add_info('Args', named_args)
-            except Exception as err:
-                ARTEMIS_LOGGER.error('Could not record arguments because %s: %s' % (err.__class__.__name__, err.message))
-            r.add_info('Function', self.function.__name__)
-            r.add_info('Module', inspect.getmodule(self.function).__file__)
-            try:
-                out = self.function(*args, **kwargs)
-                r.add_info('Status', 'Ran Successfully')
-            except Exception as err:
-                r.add_info('Status', 'Had an Error: %s: %s' % (err.__class__.__name__, err.message))
-                raise
-            finally:
-                fig_locs = _CURRENT_EXPERIMENT_RECORD.get_figure_locs(include_directory=False)
-                r.add_info('# Figures Generated', len(fig_locs))
-                r.add_info('Figures Generated', fig_locs)
-                r.add_info('Run Time', time.time() - start_time)
-                for key, val in self.info.iteritems():
-                    r.add_info(key, val)
-                for n in self._notes:
-                    r.add_note(n)
-            return out
-        else:
-            return self.function(*args, **kwargs)
+        """ Run the function as normal, without recording or anything.  You can also modify with arguments. """
+        return self.function(*args, **kwargs)
 
     def __str__(self):
         return 'Experiment: %s\n  Description: %s' % \
-            (self.name, self.info)
+               (self.name, self.info)
 
-    def run(self, print_to_console = True, show_figs = None, test_mode=None, keep_record=None, **experiment_record_kwargs):
+    def get_args(self):
+        """
+        :param to_root: If True, find all args of this experiment down to the root experiment.
+            If False, just return the args that differentiate this variant from its parent.
+        :return: A dictionary of arguments to the experiment
+        """
+        return infer_derived_arg_values(self.function)
+
+    def get_root_function(self):
+        return get_partial_chain(self.function)[0]
+
+    def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
+            **experiment_record_kwargs):
         """
         Run the experiment, and return the ExperimentRecord that is generated.
 
@@ -644,6 +828,8 @@ class Experiment(object):
                 True: Results are saved into a folder
                 False: Results folder is deleted at the end.
                 None: If "test_mode" is true, then delete results at end, otherwise save them.
+        :param raise_exceptions: True to raise any exception that occurs when running the experiment.  False to catch it,
+            print the error, and move on.
         :param experiment_record_kwargs: Passed to the "record_experiment" context.
         :return: The ExperimentRecord object, if keep_record is true, otherwise None
         """
@@ -654,26 +840,64 @@ class Experiment(object):
 
         old_test_mode = is_test_mode()
         set_test_mode(test_mode)
-        ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
-        with record_experiment(name = self.name, print_to_console=print_to_console, show_figs=show_figs, use_temp_dir=not keep_record, **experiment_record_kwargs) as exp_rec:
-            results = self()
+        ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border='=' * 10,
+                                                                                 mode="Testing" if test_mode else "Running",
+                                                                                 name=self.name))
+        EIF = ExpInfoFields
+        date = datetime.now()
+        with record_experiment(name=self.name, print_to_console=print_to_console, show_figs=show_figs,
+                               use_temp_dir=not keep_record, date=date, **experiment_record_kwargs) as exp_rec:
+            start_time = time.time()
+            try:
+                exp_rec.info.set_field(ExpInfoFields.NAME, self.name)
+                exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_identifier())
+                exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
+                exp_rec.info.set_field(EIF.ARGS, self.get_args().items())
+                root_function = self.get_root_function()
+                exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
+                exp_rec.info.set_field(EIF.TIMESTAMP, str(date))
+                exp_rec.info.set_field(EIF.MODULE, inspect.getmodule(root_function).__name__)
+                exp_rec.info.set_field(EIF.FILE, inspect.getmodule(root_function).__file__)
+                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STARTED)
+                results = self.function()
+                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.FINISHED)
+            except KeyboardInterrupt:
+                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STOPPED)
+                exp_rec.write_error_trace(print_too=False)
+                raise
+            except Exception:
+                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.ERROR)
+                exp_rec.write_error_trace(print_too=not raise_exceptions)
+                if raise_exceptions:
+                    raise
+                else:
+                    return exp_rec
+            finally:
+                exp_rec.info.set_field(EIF.RUNTIME, time.time() - start_time)
+                fig_locs = exp_rec.get_figure_locs(include_directory=False)
+                exp_rec.info.set_field(EIF.N_FIGS, len(fig_locs))
+                exp_rec.info.set_field(EIF.FIGS, fig_locs)
+
         exp_rec.save_result(results)
+        for n in self._notes:
+            exp_rec.info.add_note(n)
         if self.display_function is not None:
             self.display_function(results)
-        ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border = '='*10, mode = "Testing" if test_mode else "Running", name=self.name))
+        ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=self.name))
         set_test_mode(old_test_mode)
         return exp_rec
 
     def _create_experiment_variant(self, args, kwargs, is_root):
-        assert len(args) in (0, 1), "You can either provide one unnamed argument, the experiment name, or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
+        assert len(args) in (0, 1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
-        assert name not in self.variants, 'Variant "%s" already exists.' % (name, )
+        assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
         ex = Experiment(
-            name=self.name+'.'+name,
-            function=partial(self, **kwargs),
+            name=self.name + '.' + name,
+            function=partial(self.function, **kwargs),
             display_function=self.display_function,
-            is_root = is_root
-            )
+            one_liner_results=self.one_liner_results,
+            is_root=is_root
+        )
         self.variants[name] = ex
         return ex
 
@@ -692,7 +916,7 @@ class Experiment(object):
 
         :return: The experiment.
         """
-        return self._create_experiment_variant(args, kwargs, is_root = False)
+        return self._create_experiment_variant(args, kwargs, is_root=False)
 
     def add_root_variant(self, *args, **kwargs):
         """
@@ -726,16 +950,28 @@ class Experiment(object):
         :param path: Optionally, a list of names of subvariants (to call up a nested experiment)
         :return:
         """
-        return self.variants[name].get_variant(*path) if len(path)>0 else self.variants[name]
+        return self.variants[name].get_variant(*path) if len(path) > 0 else self.variants[name]
 
     def get_unnamed_variant(self, **kwargs):
         return self.get_variant(_kwargs_to_experiment_name(kwargs))
 
-    def display_last(self):
-        assert self.display_function is not None, "You have not specified a display function for experiment: %s" % (self.name, )
-        result = get_lastest_result(self.name)
-        assert result is not None, "No result was computed for the last run of '%s'" % (self.name, )
-        self.display_function(result)
+    def display_last(self, result='___FINDLATEST', err_if_none=True):
+        if result == '___FINDLATEST':
+            result = experiment_id_to_latest_result(self.name)
+        if err_if_none:
+            assert result is not None, "No result was computed for the last run of '%s'" % (self.name,)
+        if result is None:
+            if err_if_none:
+                raise Exception("No result was computed for the last run of '%s'" % (self.name,))
+            else:
+                print "<No result saved from last run>"
+        elif self.display_function is None:
+            print result
+        else:
+            self.display_function(result)
+
+    def get_one_liner(self, results):
+        return self.one_liner_results(results) if self.one_liner_results is not None else str(results).replace('\n', ';')
 
     def display_or_run(self):
         """
@@ -745,26 +981,26 @@ class Experiment(object):
 
         :return:
         """
-        if get_latest_experiment_identifier(self.name) is None:
+        if experiment_id_to_latest_record_id(self.name) is None:
             self.run()
         else:
-            result = get_lastest_result(self.name)
+            result = experiment_id_to_latest_result(self.name)
             if result is not None and self.display_function is not None:
                 self.display_last()
             else:
                 self.run()
 
-    def get_all_variants(self, include_roots = False):
+    def get_all_variants(self, include_roots=False, include_self=False):
         """
         Return a list of variants of this experiment
         :param include_roots:
         :return:
         """
         variants = []
-        if not self.is_root or include_roots:
+        if include_self and (not self.is_root or include_roots):
             variants.append(self)
         for name, v in self.variants.iteritems():
-            variants += v.get_all_variants()
+            variants += v.get_all_variants(include_roots=include_roots, include_self=True)
         return variants
 
     def run_all(self):
@@ -777,7 +1013,7 @@ class Experiment(object):
 
     def run_all_multiprocess(self):
         experiments = self.get_all_variants()
-        p = multiprocessing.Pool(processes = multiprocessing.cpu_count())
+        p = multiprocessing.Pool(processes=multiprocessing.cpu_count())
         p.map(run_experiment, [ex.name for ex in experiments])
 
     def test(self, **kwargs):
@@ -791,15 +1027,73 @@ class Experiment(object):
         Get all identifiers of this experiment that have been run.
         :return:
         """
-        return get_all_experiment_ids(names = [self.name])
+        return get_all_record_ids(experiment_ids=[self.name])
 
     def clear_records(self):
         """
         Delete all records from this experiment
         """
-        clear_experiments(ids = self.get_all_ids())
+        clear_experiment_records(ids=self.get_all_ids())
 
     def get_name(self):
         return self.name
 
 
+def make_record_comparison_table(record_ids, args_to_show=None, results_extractor = None, print_table = False):
+    """
+    Make a table comparing the arguments and results of different experiment records.  You can use the output
+    of this function with the tabulate package to make a nice readable table.
+
+    :param record_ids: A list of record ids whose results to compare
+    :param args_to_show: A list of arguments to show.  If none, it will just show all arguments
+        that differ between experiments.
+    :param results_extractor: A dict<str->callable> where the callables take the result of the
+        experiment as an argument and return an entry in the table.  For example:
+    :param print_table: Optionally, import tabulate and print the table here and now.
+    :return: headers, rows
+        headers is a list of of headers for the top of the table
+        rows is a list of lists filling in the information.
+
+    example usage:
+
+        headers, rows = make_record_comparison_table(
+            record_ids = [experiment_id_to_latest_record_id(eid) for eid in [
+                'demo_fast_weight_mlp.multilayer_baseline.1epoch.version=mlp',
+                'demo_fast_weight_mlp.multilayer_baseline.1epoch.full-gd.n_steps=1',
+                'demo_fast_weight_mlp.multilayer_baseline.1epoch.full-gd.n_steps=20',
+                ]],
+            results_extractor={
+                'Test': lambda result: result.get_best('test').score.get_score('test'),
+                'Train': lambda result: result.get_best('test').score.get_score('train'),
+                }
+             )
+        import tabulate
+        print tabulate.tabulate(rows, headers=headers, tablefmt=tablefmt)
+    """
+
+    records = [load_experiment_record(rid) for rid in record_ids]
+    args = [rec.info.get_field(ExpInfoFields.ARGS) for rec in records]
+    if args_to_show is None:
+        common, separate = separate_common_items(args)
+        args_to_show = [k for k, v in separate[0]]
+
+    if results_extractor is None:
+        results_extractor = {'Result': str}
+    else:
+        assert isinstance(results_extractor, dict)
+
+    headers = args_to_show + results_extractor.keys()
+
+    rows = []
+    for record, record_args in izip_equal(records, args):
+        arg_dict = dict(record_args)
+        args_vals = [arg_dict[k] for k in args_to_show]
+        results = record.get_result()
+        rows.append(args_vals+[f(results) for f in results_extractor.values()])
+
+    if print_table:
+        import tabulate
+        print tabulate.tabulate(rows, headers=headers, tablefmt='simple')
+
+
+    return headers, rows

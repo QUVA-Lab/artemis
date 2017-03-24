@@ -1,3 +1,4 @@
+import logging
 from collections import OrderedDict
 import pickle
 import os
@@ -22,8 +23,12 @@ class PersistentOrderedDict(OrderedDict):
     def __init__(self, file_path, pickle_protocol=2):
         self.file_path = file_path
         if os.path.exists(self.file_path):
-            with open(self.file_path) as f:
-                items = pickle.load(f)
+            try:
+                with open(self.file_path, 'rb') as f:
+                    items = pickle.load(f)
+            except:
+                logging.critical("WARNING: Failed to unpickle file: {}.  Starting from scratch instead".format(self.file_path))
+                items = []
         else:
             items = []
         self.pickle_protocol = pickle_protocol
@@ -38,9 +43,6 @@ class PersistentOrderedDict(OrderedDict):
 
     def __exit__(self, thing1, thing2, thing3):
         self.close()
-
-    def get_text(self):
-        return '\n'.join('{}: {}'.format(str(key), str(value)) for key, value in self.iteritems())
 
     def get_data(self):
         return OrderedDict(self)
