@@ -1,7 +1,11 @@
+import logging
 from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
-from scipy import weave
 from scipy.stats import norm, mode as sp_mode
+try:
+    from scipy import weave
+except ImportError:
+    logging.warn("Could not import scipy.weave.  That's ok, ignore this unless you need it.")
 __author__ = 'peter'
 
 # Note - this module used to be called math, but it somehow results in a numpy import error
