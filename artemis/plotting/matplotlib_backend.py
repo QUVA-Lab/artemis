@@ -41,7 +41,7 @@ colour_cycle = 'bgrmcyk'
 
 class ImagePlot(HistoryFreePlot):
 
-    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = True, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = False, aspect = 'auto', cmap = 'gray', is_colour_data = None):
         """
         :param interpolation: How to interpolate array to form the image {'none', 'nearest', ''bilinear', 'bicubic', ... (see plt.imshow)}
         :param show_axes: Show axes marks (numbers along the side showing pixel locations)

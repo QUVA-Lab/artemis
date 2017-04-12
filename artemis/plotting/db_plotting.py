@@ -34,7 +34,7 @@ See demo_dbplot.py for some demos of what dbplot can do.
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
            fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, grid=False,
-           wait_for_display_sec=0):
+           wait_for_display_sec=0, cornertext = None):
     """
     Plot arbitrary data.  This program tries to figure out what type of plot to use.
 
@@ -146,6 +146,16 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
     plot.update(data)
     plot.plot()
+
+    if cornertext is not None:
+        # fig = _DBPLOT_FIGURES[fig].figure
+        if not hasattr(_DBPLOT_FIGURES[fig].figure, '__cornertext'):
+            _DBPLOT_FIGURES[fig].figure.__cornertext = _DBPLOT_FIGURES[fig].subplots.values()[0].axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
+        else:
+            _DBPLOT_FIGURES[fig].figure.__cornertext.set_text(cornertext)
+
+        # annotation = _DBPLOT_FIGURES[fig].subplots.values()[0].axis.annotate(cornertext, xy=(0, 0), xytext=(0, 0), textcoords='figure points')
+        pass
     if title is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
     if legend is not None:
@@ -211,6 +221,8 @@ def _make_dbplot_figure():
         fig= plt.figure()
     else:
         fig= plt.figure(figsize=_DEFAULT_SIZE)  # This is broken in matplotlib2 for some reason
+
+    # fig.cornerbox__ = fig.add_axes([0, 0, 0.2, 0.05])
     return fig
 
 
@@ -236,18 +248,21 @@ def hold_dbplots(fig = None, plot_every = None):
         return
 
     global _hold_plots
+    _old_hold_state = _hold_plots
     _hold_plots = True
     yield
-    _hold_plots = False
+    _hold_plots = _old_hold_state
 
-    if plot_every is not None:
+    if _old_hold_state:
+        plot_now = False
+    elif plot_every is not None:
         global _hold_plot_counter
         plot_now = _hold_plot_counter % plot_every == 0
         _hold_plot_counter+=1
     else:
         plot_now = True
 
-    if plot_now:
+    if plot_now and fig in _DBPLOT_FIGURES:
         redraw_figure(_DBPLOT_FIGURES[fig].figure)
 
 
@@ -269,3 +284,16 @@ def get_dbplot_axis(axis_name, fig=None):
 def dbplot_hang():
     plt.show()
 
+
+def dbplot_collection(collection, name, **kwargs):
+    """
+    Plot a collection of items in one go.
+    :param collection:
+    :param name:
+    :param kwargs:
+    :return:
+    """
+    with hold_dbplots():
+        if isinstance(collection, (list, tuple)):
+            for i, el in enumerate(collection):
+                dbplot(el, '{}[{}]'.format(name, i), **kwargs)
