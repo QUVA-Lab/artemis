@@ -371,8 +371,36 @@ class InfoScorePairSequence(object):
         if len(self)==0:
             return repr(self) + '\n' + '<Empty>'
         else:
-            rows = self[0].get_table_header() + [pair.get_table_row() for pair in self]
+            rows = self[0].get_table_headers() + [pair.get_table_row() for pair in self]
             return repr(self)+'\n  '+tabulate(rows).replace('\n', '\n  ')
+
+
+def plot_info_score_pairs(info_score_pair_sequences):
+    """
+    :param info_score_pair_sequences: An InfoScorePairSequence or a list of InfoScorePair Sequences, or a dict of them.
+    :return:
+    """
+
+    if isinstance(info_score_pair_sequences, InfoScorePairSequence):
+        info_score_pair_sequences = [info_score_pair_sequences]
+
+    if isinstance(info_score_pair_sequences, (list, tuple)):
+        info_score_pair_sequences = OrderedDict((ix, ispc) for ispc in info_score_pair_sequences)
+
+    from matplotlib import pyplot as plt
+
+    colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
+    for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
+        epochs = [info.epoch for info, _ in ispc]
+        training_curve = ispc.get_values(subset='train')
+        test_curve = ispc.get_values(subset='test')
+        plt.plot(epochs, training_curve, color=colour, linestyle='--', label='{}:{}'.format(name, 'training'))
+        plt.plot(epochs, test_curve, color=colour, label='{}:{}'.format(name, 'test'))
+    plt.xlabel('Epoch')
+    plt.ylabel('Score')
+    plt.legend()
+    plt.grid()
+    plt.show()
 
 
 def assess_prediction_functions(test_pairs, functions, costs, print_results=False):
@@ -447,11 +475,11 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
     :param predict_fcn: A function of the form y=predict_fcn(x) which makes a prediction giben inputs
     :param minibatch_size: Minibatch size
     :param n_epochs: Number of epoch
-    :param test_epochs: Test epcohs
+    :param test_epochs: Epochs to test at
     :param score_measure: String or function of the form:
         score = score_measure(guess, ground_truth)
         To be used in testing.
-    :param test_callback: Function to be called on test.  It has the form: f(info, score)
+    :param test_callback: Function to be called after a test.  It has the form: f(info, score)
     :param training_callback: Function to be called after every training iteration.  It has the form f(info, x, y) where
     :param score_collection: If not None, a InfoScoreCollection object into which you save scores.  This allows you to
         access the scores before this function returns.
