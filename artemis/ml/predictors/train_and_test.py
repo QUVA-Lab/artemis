@@ -558,7 +558,7 @@ def print_best_score(score_info_pairs, **best_score_kwargs):
     print_score_results(score=best_score, info=best_info)
 
 
-class ScheduledParameter(object):
+class ParameterSchedule(object):
 
     def __init__(self, schedule, print_variable_name = None):
         """
