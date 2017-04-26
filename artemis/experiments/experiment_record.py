@@ -665,8 +665,8 @@ def experiment_id_to_latest_result(experiment_id):
     return load_latest_experiment_record(experiment_id).get_result()
 
 
-def load_latest_experiment_record(experiment_name):
-    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name)
+def load_latest_experiment_record(experiment_name, filter_status=None):
+    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name, filter_status=filter_status)
     return None if experiment_record_identifier is None else load_experiment_record(experiment_record_identifier)
 
 
@@ -1049,7 +1049,7 @@ class Experiment(object):
             return
         results = OrderedDict()
         for eid in experiment_ids:
-            record = load_latest_experiment_record(eid)
+            record = load_latest_experiment_record(eid, filter_status=ExpStatusOptions.FINISHED)
             if record is None:
                 if error_if_no_result:
                     raise Exception("Experiment {} had no result.  Run this experiment to completion before trying to compare its results.".format(eid))
