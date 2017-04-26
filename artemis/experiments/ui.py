@@ -150,6 +150,7 @@ records.  You can specify records in the following ways:
             'explist': self.explist,
             'sidebyside': self.side_by_side,
             'compare': self.compare,
+            'compare_results': self.compare_results,
             'delete': self.delete,
             'errortrace': self.errortrace,
             'q': self.quit,
@@ -346,6 +347,11 @@ records.  You can specify records in the following ways:
 
     def view(self, mode):
         self.view_mode = mode
+
+    def compare_results(self, user_range):
+        experiment_ids = select_experiments(user_range, self.exp_record_dict)
+        load_experiment(experiment_ids[0]).compare_results(experiment_ids)
+        _warn_with_prompt()
 
     def explist(self, surround = ""):
         print "\n".join([surround+k+surround for k in self.exp_record_dict.keys()])
