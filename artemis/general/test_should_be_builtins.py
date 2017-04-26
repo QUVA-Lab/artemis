@@ -1,5 +1,5 @@
 from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items, remove_duplicates, \
-    detect_duplicates
+    detect_duplicates, remove_common_prefix
 
 __author__ = 'peter'
 
@@ -39,9 +39,15 @@ def test_detect_duplicates():
     assert detect_duplicates(['a', 'b', 'a', 'c', 'c'], keep_last=True)==[True, False, False, True, False]
 
 
+def test_remove_common_prefix():
+    assert remove_common_prefix([[1, 2, 3, 4], [1, 2, 5], [1, 2, 3, 5]]) == [[3, 4], [5], [3, 5]]
+    assert remove_common_prefix([[1, 2, 3, 4], [1, 2, 5], [1, 2, 3, 5]], max_elements=1) == [[2, 3, 4], [2, 5], [2, 3, 5]]
+
+
 if __name__ == '__main__':
-    test_separate_common_items()
-    test_reducemap()
-    test_itermap()
-    test_remove_duplicates()
-    test_detect_duplicates()
+    # test_separate_common_items()
+    # test_reducemap()
+    # test_itermap()
+    # test_remove_duplicates()
+    # test_detect_duplicates()
+    test_remove_common_prefix()

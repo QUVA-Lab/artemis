@@ -436,7 +436,7 @@ def _filter_records(user_range, exp_record_dict):
         # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
     elif user_range == 'invalid':
         for k, v in base.iteritems():
-            base[k] = [not load_experiment_record(rec_id).is_valid() for rec_id in exp_record_dict[k]]
+            base[k] = [load_experiment_record(rec_id).is_valid() is False for rec_id in exp_record_dict[k]]
     elif user_range == 'all':
         for k, v in base.iteritems():
             base[k] = [True]*len(v)
@@ -600,7 +600,7 @@ class ExperimentRecordBrowser(object):
         return get_all_record_ids(experiment_ids= self.experiment_names, filters=self.filters)
 
     @staticmethod
-    def get_record_table(record_ids = None, headers = ('#', 'Identifier', 'Start Time', 'Duration', 'Status', 'Notes', 'Result'), raise_display_errors = False):
+    def get_record_table(record_ids = None, headers = ('#', 'Identifier', 'Start Time', 'Duration', 'Status', 'Valid', 'Notes', 'Result'), raise_display_errors = False):
 
         d = {
             '#': lambda: i,
@@ -609,6 +609,7 @@ class ExperimentRecordBrowser(object):
             'Duration': lambda: experiment_record.info.get_field_text(ExpInfoFields.RUNTIME, replacement_if_none='?'),
             'Status': lambda: experiment_record.info.get_field_text(ExpInfoFields.STATUS, replacement_if_none='?'),
             'Args': lambda: experiment_record.info.get_field_text(ExpInfoFields.ARGS, replacement_if_none='?'),
+            'Valid': lambda: experiment_record.get_invalid_arg_note(),
             'Notes': lambda: experiment_record.info.get_field_text(ExpInfoFields.NOTES, replacement_if_none='?'),
             'Result': lambda: experiment_record.get_one_liner(),
             }

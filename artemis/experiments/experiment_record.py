@@ -403,13 +403,16 @@ class ExperimentRecord(object):
         if is_experiment_loadable(experiment_id):
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
             current_args = dict(load_experiment(record_id_to_experiment_id(self.get_identifier())).get_args())
-            if not self.is_valid(last_run_args=last_run_args, current_args=current_args):
+            validity = self.is_valid(last_run_args=last_run_args, current_args=current_args)
+            if validity is False:
                 last_arg_str, this_arg_str = [
                     ['{}:{}'.format(k, v) for k, v in argdict.iteritems()] if isinstance(argdict, dict) else
                     ['{}:{}'.format(k, v) for k, v in argdict]
                     for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
-                notes = "Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+                notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+            elif validity is None:
+                notes = "Cannot Determine."
             else:
                 notes = "Yes"
         else:
@@ -418,13 +421,18 @@ class ExperimentRecord(object):
 
     def is_valid(self, last_run_args=None, current_args=None):
         """
-        :return: True if the experiment arguments have changed, otherwise false.
+        :return: True if the experiment arguments have not changed
+            False if they have changed
+            None if it cannot be determined because arguments are not hashable objects.
         """
         if last_run_args is None:
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
         if current_args is None:
             current_args = dict(load_experiment(record_id_to_experiment_id(self.get_identifier())).get_args())
-        return compute_fixed_hash(last_run_args) == compute_fixed_hash(current_args)
+        try:
+            return compute_fixed_hash(last_run_args) == compute_fixed_hash(current_args)
+        except NotImplementedError:  # Happens when we have unhashable arguments
+            return None
 
     def get_error_trace(self):
         """
