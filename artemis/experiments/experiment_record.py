@@ -1042,7 +1042,7 @@ class Experiment(object):
     def test_all(self, **kwargs):
         self.run_all(test_mode=True, **kwargs)
 
-    def compare_results(self, experiment_ids):
+    def compare_results(self, experiment_ids, error_if_no_result = True):
 
         if self.comparison_function is None:
             print 'Cannot compare results, because you have not specified any comparison function for this experiment.  Use @ExperimentFunction(comparison_function = my_func)'
@@ -1051,7 +1051,10 @@ class Experiment(object):
         for eid in experiment_ids:
             record = load_latest_experiment_record(eid)
             if record is None:
-                ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(eid))
+                if error_if_no_result:
+                    raise Exception("Experiment {} had no result.  Run this experiment to completion before trying to compare its results.".format(eid))
+                else:
+                    ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(eid))
             else:
                 results[eid] = record.get_result()
         if len(results)==0:
