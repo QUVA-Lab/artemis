@@ -227,13 +227,18 @@ class ModelTestScore(object):
 
     def get_table(self):
         # test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*self.scores.keys())]
+
+        def lookup( (test_pair_name_, function_name_), cost_name_):
+            return self[test_pair_name_, function_name_, cost_name_]
+
         rows = build_table(
-            lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: self[test_pair_name_, function_name_, cost_name_],
+            # lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: self[test_pair_name_, function_name_, cost_name_],
+            lookup_fcn=lookup,
             row_categories=[[test_pair_name for test_pair_name in self.get_data_subsets()], [function_name for function_name in self.get_prediction_functions()]],
             column_categories=[cost_name for cost_name in self.get_costs()],
             row_header_labels=['Subset', 'Function'],
             clear_repeated_headers=False,
-            remove_unchanging_cols=True
+            remove_unchanging_cols=False
         )
         import tabulate
         return tabulate.tabulate(rows)
@@ -439,7 +444,7 @@ def print_score_results(score, info=None):
 
 
 def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
-            score_measure='percent_argmax_correct', test_callback=None, training_callback = None, score_collection = None):
+            score_measure='percent_argmax_correct', test_on = 'training+test', test_callback=None, training_callback = None, score_collection = None):
     """
     Train an online predictor.  Return a data structure with info about the training.
     :param dataset: A DataSet object
@@ -470,7 +475,9 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
             print 'Epoch {}.  Rate: {:.3g}s/epoch'.format(info.epoch, rate)
             last_epoch = info.epoch
             last_time = info.time
-            score = assess_prediction_functions(dataset, functions=predict_fcn, costs=score_measure, print_results=True)
+            test_pairs = ([('Training', dataset.training_set.xy)] if 'training' in test_on else []) \
+                + [('Test', dataset.test_set.xy)] if 'test' in test_on else []
+            score = assess_prediction_functions(test_pairs, functions=predict_fcn, costs=score_measure, print_results=True)
             p = InfoScorePair(info, score)
             info_score_pairs.append(p)
             # print p.get_table(remove_headers=len(info_score_pairs)>1)
