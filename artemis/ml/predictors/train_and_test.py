@@ -376,8 +376,36 @@ class InfoScorePairSequence(object):
         if len(self)==0:
             return repr(self) + '\n' + '<Empty>'
         else:
-            rows = self[0].get_table_header() + [pair.get_table_row() for pair in self]
+            rows = self[0].get_table_headers() + [pair.get_table_row() for pair in self]
             return repr(self)+'\n  '+tabulate(rows).replace('\n', '\n  ')
+
+
+def plot_info_score_pairs(info_score_pair_sequences):
+    """
+    :param info_score_pair_sequences: An InfoScorePairSequence or a list of InfoScorePair Sequences, or a dict of them.
+    :return:
+    """
+
+    if isinstance(info_score_pair_sequences, InfoScorePairSequence):
+        info_score_pair_sequences = [info_score_pair_sequences]
+
+    if isinstance(info_score_pair_sequences, (list, tuple)):
+        info_score_pair_sequences = OrderedDict((ix, ispc) for ix, ispc in enumerate(info_score_pair_sequences))
+
+    from matplotlib import pyplot as plt
+
+    colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
+    for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
+        epochs = [info.epoch for info, _ in ispc]
+        training_curve = ispc.get_values(subset='train')
+        test_curve = ispc.get_values(subset='test')
+        plt.plot(epochs, training_curve, color=colour, linestyle='--', label='{}:{}'.format(name, 'training'))
+        plt.plot(epochs, test_curve, color=colour, label='{}:{}'.format(name, 'test'))
+    plt.xlabel('Epoch')
+    plt.ylabel('Score')
+    plt.legend()
+    plt.grid()
+    plt.show()
 
 
 def assess_prediction_functions(test_pairs, functions, costs, print_results=False):
@@ -444,22 +472,27 @@ def print_score_results(score, info=None):
 
 
 def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
-            score_measure='percent_argmax_correct', test_on = 'training+test', test_callback=None, training_callback = None, score_collection = None):
+            score_measure='percent_argmax_correct', test_callback=None, training_callback = None, score_collection = None,
+            test_on = 'training+test', pass_iteration_info_to_training = False):
     """
     Train an online predictor.  Return a data structure with info about the training.
     :param dataset: A DataSet object
-    :param train_fcn: A function of the form train_fcn(x, y) which updates the parameters
+    :param train_fcn: A function of the form train_fcn(x, y) which updates the parameters, OR
+        train_fcn(x, y, iteration_info)   if pass_iteration_info_to_training==True
     :param predict_fcn: A function of the form y=predict_fcn(x) which makes a prediction giben inputs
     :param minibatch_size: Minibatch size
     :param n_epochs: Number of epoch
-    :param test_epochs: Test epcohs
+    :param test_epochs: Epochs to test at
     :param score_measure: String or function of the form:
         score = score_measure(guess, ground_truth)
         To be used in testing.
-    :param test_callback: Function to be called on test.  It has the form: f(info, score)
+    :param test_callback: Function to be called after a test.  It has the form: f(info, score)
     :param training_callback: Function to be called after every training iteration.  It has the form f(info, x, y) where
     :param score_collection: If not None, a InfoScoreCollection object into which you save scores.  This allows you to
         access the scores before this function returns.
+    :param test_on: What to run tests on: {'training', 'test', 'training+test'}
+    :param pass_iteration_info_to_training: Pass an IterationInfo object into the training function (x, y, iter_info).
+        This object contains fields (epoch, sample, time) which can be used to do things like adjust parameters on a schedule.
     :return: A list<info, scores>  where...
         IterationInfo object (see artemis.ml.tools.iteration.py) with fields:
             'iteration', 'epoch', 'sample', 'time', 'test_now', 'done'
@@ -484,7 +517,10 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
             if test_callback is not None:
                 test_callback(info, score)
         if not info.done:
-            train_fcn(x_mini, y_mini)
+            if pass_iteration_info_to_training:
+                train_fcn(x_mini, y_mini, info)
+            else:
+                train_fcn(x_mini, y_mini)
             if training_callback is not None:
                 training_callback(info, x_mini, y_mini)
     return info_score_pairs
@@ -528,3 +564,37 @@ def print_best_score(score_info_pairs, **best_score_kwargs):
     # DEPRECATED!!!
     best_info, best_score = get_best_score(score_info_pairs, **best_score_kwargs)
     print_score_results(score=best_score, info=best_info)
+
+
+class ParameterSchedule(object):
+
+    def __init__(self, schedule, print_variable_name = None):
+        """
+        Given a schedule for a changing parameter (e.g. learning rate) get the values for this parameter at a given time.
+        e.g.:
+            learning_rate_scheduler = ScheduledParameter({0: 0.1, 10: 0.01, 100: 0.001}, print_variable_name='eta')
+            new_learning_rate = learning_rate_scheduler.get_new_value(epoch=14)
+            assert new_learning_rate == 0.01
+
+        :param schedule: A dict<epoch: value> where the epoch is a number indicating the training progress and the value
+            indicates the value that the parameter should take.
+            OR A function which takes the epoch and returns a parameter value.
+        """
+        if isinstance(schedule, dict):
+            assert all(isinstance(num, (int, float)) for num in schedule.keys())
+            self._reverse_sorted_schedule_checkpoints = sorted(schedule.keys(), reverse=True)
+        else:
+            assert callable(schedule)
+        self.schedule = schedule
+        self.print_variable_name = print_variable_name
+        self.last_value = None  # Just used for print statements.
+
+    def get_new_value(self, epoch):
+        if isinstance(self.schedule, dict):
+            new_value = self.schedule[(e for e in self._reverse_sorted_schedule_checkpoints if e <= epoch).next()]
+        else:
+            new_value = self.schedule(epoch)
+        if self.last_value != new_value and self.print_variable_name is not None:
+            print 'Epoch {}: {} = {}'.format(epoch, self.print_variable_name, new_value)
+            self.last_value = new_value
+        return new_value

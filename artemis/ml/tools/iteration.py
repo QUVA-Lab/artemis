@@ -111,6 +111,7 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = Non
         'every', which will test once-per-epoch,
         'always', which will test on every iteration
         'never', which will never test.
+        ('every', 0.2), which will test at every 0.2 epochs (for example)
     :yield: IterationInfo objects which contain info about the state of iteration.
     """
     # next_text_point = 0 if test_epochs is not None and len(test_epochs)>0 else None

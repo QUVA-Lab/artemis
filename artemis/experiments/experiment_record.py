@@ -145,14 +145,18 @@ class ExperimentFunction(object):
     """ Decorator for an experiment
     """
 
-    def __init__(self, display_function=None, one_liner_results=None, info=None, is_root=False):
+    def __init__(self, display_function=None, comparison_function=None, one_liner_results=None, info=None, is_root=False):
         """
         :param display_function: A function that takes the results (whatever your experiment returns) and displays them.
+        :param comparison_function: A function that takes an OrderedDict<experiment_name, experiment_return_value>.
+            You can optionally define this function to compare the results of different experiments.
+            You can use call this via the UI with the compare_results command.
         :param one_liner_results: A function that takes your results and returns a 1 line string summarizing them.
         :param info: Don't use this?
         :param is_root: True to make this a root experiment - so that it is not listed to be run itself.
         """
         self.display_function = display_function
+        self.comparison_function = comparison_function
         self.info = info
         self.is_root = is_root
         self.one_liner_results = one_liner_results
@@ -163,6 +167,7 @@ class ExperimentFunction(object):
             name=f.__name__,
             function=f,
             display_function=self.display_function,
+            comparison_function = self.comparison_function,
             one_liner_results=self.one_liner_results,
             info=OrderedDict([('Root Experiment', f.__name__), ('Defined in', inspect.getmodule(f).__file__)]),
             is_root=self.is_root
@@ -398,13 +403,16 @@ class ExperimentRecord(object):
         if is_experiment_loadable(experiment_id):
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
             current_args = dict(load_experiment(record_id_to_experiment_id(self.get_identifier())).get_args())
-            if not self.is_valid(last_run_args=last_run_args, current_args=current_args):
+            validity = self.is_valid(last_run_args=last_run_args, current_args=current_args)
+            if validity is False:
                 last_arg_str, this_arg_str = [
                     ['{}:{}'.format(k, v) for k, v in argdict.iteritems()] if isinstance(argdict, dict) else
                     ['{}:{}'.format(k, v) for k, v in argdict]
                     for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
-                notes = "Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+                notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+            elif validity is None:
+                notes = "Cannot Determine."
             else:
                 notes = "Yes"
         else:
@@ -413,13 +421,18 @@ class ExperimentRecord(object):
 
     def is_valid(self, last_run_args=None, current_args=None):
         """
-        :return: True if the experiment arguments have changed, otherwise false.
+        :return: True if the experiment arguments have not changed
+            False if they have changed
+            None if it cannot be determined because arguments are not hashable objects.
         """
         if last_run_args is None:
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
         if current_args is None:
             current_args = dict(load_experiment(record_id_to_experiment_id(self.get_identifier())).get_args())
-        return compute_fixed_hash(last_run_args) == compute_fixed_hash(current_args)
+        try:
+            return compute_fixed_hash(last_run_args) == compute_fixed_hash(current_args)
+        except NotImplementedError:  # Happens when we have unhashable arguments
+            return None
 
     def get_error_trace(self):
         """
@@ -622,37 +635,39 @@ def get_all_record_ids(experiment_ids=None, filters=None):
     return ids
 
 
-def experiment_id_to_record_ids(experiment_identifier):
+def experiment_id_to_record_ids(experiment_identifier, filter_status = None):
     """
     :param experiment_identifier: The name of the experiment
+    :param filter_status: An ExpStatusOptions enum, indicating that you only want experiments with this status.
+        e.g. ExpStatusOptions.FINISHED
     :return: A list of records for this experiment, temporal order
     """
-    matching_experiments = get_all_record_ids(experiment_ids=[experiment_identifier])
-    return sorted(matching_experiments)
+    matching_records = get_all_record_ids(experiment_ids=[experiment_identifier])
+    if filter_status is not None:
+        assert filter_status in ExpStatusOptions, 'filter status must be one of the ExpStatusOptions'
+        matching_records = [record for record in  matching_records if load_experiment_record(record).info.get_field(ExpInfoFields.STATUS) is filter_status]
+    return sorted(matching_records)
 
 
-def experiment_id_to_latest_record_id(experiment_identifier):
+def experiment_id_to_latest_record_id(experiment_identifier, filter_status = None):
     """
     Show results of the latest experiment matching the given template.
     :param name: The experiment name
     :param template: The template which turns a name into an experiment identifier
     :return: A string identifying the latest matching experiment, or None, if not found.
     """
-    all_records = experiment_id_to_record_ids(experiment_identifier)
-    assert len(all_records)>0, "No record found for experiment: '{}'".format(experiment_identifier)
-    return all_records[-1]
+
+    all_records = experiment_id_to_record_ids(experiment_identifier, filter_status=filter_status)
+    return all_records[-1] if len(all_records)>0 else None
 
 
 def experiment_id_to_latest_result(experiment_id):
     return load_latest_experiment_record(experiment_id).get_result()
 
 
-def load_latest_experiment_record(experiment_name):
-    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name)
-    if experiment_record_identifier is None:
-        return None
-    else:
-        return load_experiment_record(experiment_record_identifier)
+def load_latest_experiment_record(experiment_name, filter_status=None):
+    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name, filter_status=filter_status)
+    return None if experiment_record_identifier is None else load_experiment_record(experiment_record_identifier)
 
 
 def has_experiment_record(experiment_identifier):
@@ -769,7 +784,7 @@ class Experiment(object):
     create variants using decorated_function.add_variant()
     """
 
-    def __init__(self, function=None, display_function=pprint, one_liner_results=None, info=None, conclusion=None,
+    def __init__(self, function=None, display_function=pprint, comparison_function=None, one_liner_results=None, info=None, conclusion=None,
                  name=None, is_root=False):
         """
         :param function: The function defining the experiment
@@ -783,6 +798,7 @@ class Experiment(object):
         self.function = function
         self.display_function = display_function
         self.one_liner_results = one_liner_results
+        self.comparison_function = comparison_function
         self.variants = OrderedDict()
         if info is None:
             info = OrderedDict()
@@ -898,6 +914,7 @@ class Experiment(object):
             name=self.name + '.' + name,
             function=partial(self.function, **kwargs),
             display_function=self.display_function,
+            comparison_function=self.comparison_function,
             one_liner_results=self.one_liner_results,
             is_root=is_root
         )
@@ -1024,6 +1041,26 @@ class Experiment(object):
 
     def test_all(self, **kwargs):
         self.run_all(test_mode=True, **kwargs)
+
+    def compare_results(self, experiment_ids, error_if_no_result = True):
+
+        if self.comparison_function is None:
+            print 'Cannot compare results, because you have not specified any comparison function for this experiment.  Use @ExperimentFunction(comparison_function = my_func)'
+            return
+        results = OrderedDict()
+        for eid in experiment_ids:
+            record = load_latest_experiment_record(eid, filter_status=ExpStatusOptions.FINISHED)
+            if record is None:
+                if error_if_no_result:
+                    raise Exception("Experiment {} had no result.  Run this experiment to completion before trying to compare its results.".format(eid))
+                else:
+                    ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(eid))
+            else:
+                results[eid] = record.get_result()
+        if len(results)==0:
+            ARTEMIS_LOGGER.warn('None of your experiments had any results.  Your comparison function will probably show no meaningful result.')
+        self.comparison_function(results)
+
 
     def get_all_ids(self):
         """
