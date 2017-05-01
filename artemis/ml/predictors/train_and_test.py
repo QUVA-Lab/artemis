@@ -166,6 +166,8 @@ class ModelTestScore(object):
         self.scores = OrderedDict()
 
     def __getitem__(self, (data_subset, prediction_function_name, cost_name)):
+
+
         return self.scores[data_subset, prediction_function_name, cost_name]
 
     def __setitem__(self, (data_subset, prediction_function_name, cost_name), value):
@@ -408,6 +410,21 @@ def plot_info_score_pairs(info_score_pair_sequences):
     plt.show()
 
 
+def _dataset_to_test_pair(dataset, include = 'train+test'):
+    """
+    :param dataset:
+    :param include:
+    :return:
+    """
+    assert include in ('train', 'test', 'train+test', 'training', 'training+test')
+    pairs = []
+    if 'train' in include:
+        pairs.append(('train', (dataset.training_set.input, dataset.training_set.target)))
+    if 'test' in include:
+        pairs.append(('test', (dataset.test_set.input, dataset.test_set.target)))
+    return pairs
+
+
 def assess_prediction_functions(test_pairs, functions, costs, print_results=False):
     """
 
@@ -420,10 +437,7 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     :return: A ModelTestScore object
     """
     if isinstance(test_pairs, DataSet):
-        test_pairs = [
-            ('train', (test_pairs.training_set.input, test_pairs.training_set.target)),
-            ('test', (test_pairs.test_set.input, test_pairs.test_set.target)),
-            ]
+        test_pairs = _dataset_to_test_pair(test_pairs)
     assert isinstance(test_pairs, list)
     assert all(len(_)==2 for _ in test_pairs)
     assert all(len(pair)==2 for name, pair in test_pairs)
@@ -508,8 +522,7 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
             print 'Epoch {}.  Rate: {:.3g}s/epoch'.format(info.epoch, rate)
             last_epoch = info.epoch
             last_time = info.time
-            test_pairs = ([('Training', dataset.training_set.xy)] if 'training' in test_on else []) \
-                + [('Test', dataset.test_set.xy)] if 'test' in test_on else []
+            test_pairs = _dataset_to_test_pair(dataset, include = test_on)
             score = assess_prediction_functions(test_pairs, functions=predict_fcn, costs=score_measure, print_results=True)
             p = InfoScorePair(info, score)
             info_score_pairs.append(p)
