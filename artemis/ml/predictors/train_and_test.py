@@ -380,7 +380,7 @@ class InfoScorePairSequence(object):
             return repr(self)+'\n  '+tabulate(rows).replace('\n', '\n  ')
 
 
-def plot_info_score_pairs(info_score_pair_sequences):
+def plot_info_score_pairs(info_score_pair_sequences, score_measure=None):
     """
     :param info_score_pair_sequences: An InfoScorePairSequence or a list of InfoScorePair Sequences, or a dict of them.
     :return:
@@ -397,8 +397,8 @@ def plot_info_score_pairs(info_score_pair_sequences):
     colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
     for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
         epochs = [info.epoch for info, _ in ispc]
-        training_curve = ispc.get_values(subset='train')
-        test_curve = ispc.get_values(subset='test')
+        training_curve = ispc.get_values(subset='Training', score_measure=score_measure)
+        test_curve = ispc.get_values(subset='Test', score_measure=score_measure)
         plt.plot(epochs, training_curve, color=colour, linestyle='--', label='{}:{}'.format(name, 'training'))
         plt.plot(epochs, test_curve, color=colour, label='{}:{}'.format(name, 'test'))
     plt.xlabel('Epoch')
@@ -414,7 +414,7 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     :param test_pairs: A list<pair_name, (x, y)>, where x, y are equal-length vectors representing the samples in a dataset.
         Eg. [('training', (x_train, y_train)), ('test', (x_test, y_test))]
     :param functions: A list<function_name, function> of functions for computing the forward pass.
-    :param costs: A list<cost_name, cost_function> of cost functions, where cost_function has the form:
+    :param costs: A list<(cost_name, cost_function)> or dict<cost_name: cost_function> of cost functions, where cost_function has the form:
         cost = cost_fcn(guess, y), where cost is a scalar, and guess is the output of the prediction function given one
             of the inputs (x) in test_pairs.
     :return: A ModelTestScore object
@@ -427,6 +427,8 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     assert isinstance(test_pairs, list)
     assert all(len(_)==2 for _ in test_pairs)
     assert all(len(pair)==2 for name, pair in test_pairs)
+    if isinstance(functions, dict):
+        functions = functions.items()
     if callable(functions):
         functions = [(functions.__name__ if hasattr(functions, '__name__') else None, functions)]
     else:
@@ -435,6 +437,8 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
         costs = [(costs.__name__, costs)]
     elif isinstance(costs, basestring):
         costs = [(costs, get_evaluation_function(costs))]
+    elif isinstance(costs, dict):
+        costs = costs.items()
     else:
         costs = [(cost, get_evaluation_function(cost)) if isinstance(cost, basestring) else (cost.__name__, cost) if callable(cost) else cost for cost in costs]
     assert all(callable(cost) for name, cost in costs)

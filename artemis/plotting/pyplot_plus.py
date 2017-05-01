@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import logging
 import numpy as np
+import matplotlib.colors as colors
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
@@ -49,3 +50,21 @@ def set_default_figure_size(width, height):
     """
     from pylab import rcParams
     rcParams['figure.figsize'] = width, height
+
+
+_lines_colour_cycle = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
+
+
+def get_lines_color_cycle():
+    return _lines_colour_cycle
+
+
+def get_line_color(ix, modifier=None):
+    colour = _lines_colour_cycle[ix]
+    if modifier=='dark':
+        return tuple(c/2 for c in colors.hex2color(colour))
+    elif modifier=='light':
+        return tuple(1-(1-c)/2 for c in colors.hex2color(colour))
+    elif modifier is not None:
+        raise NotImplementedError(modifier)
+    return
