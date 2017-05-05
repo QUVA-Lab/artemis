@@ -1,5 +1,5 @@
 from artemis.general.mymath import softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel, \
-    align_curves, angle_between, fixed_diff, decaying_cumsum
+    align_curves, angle_between, fixed_diff, decaying_cumsum, geosum
 import numpy as np
 __author__ = 'peter'
 
@@ -200,6 +200,10 @@ def test_decaying_cumsum():
     assert np.allclose(ca[:, 2, :], 0.4*(0.6**2*a[:, 0, :] + 0.6**1*a[:, 1, :] + a[:, 2, :]))
 
 
+def test_geosum():
+    assert geosum(0.5, t_end=4, t_start=2) == 0.5**2 + 0.5**3 + 0.5**4 == 0.4375
+
+
 if __name__ == '__main__':
     test_decaying_cumsum()
     test_fixed_diff()
@@ -214,3 +218,4 @@ if __name__ == '__main__':
     test_cumvar()
     test_cummean()
     test_softmax()
+    test_geosum()

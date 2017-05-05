@@ -116,11 +116,11 @@ def hstack_plots(spacing=0):
 
 
 @contextmanager
-def vstack_plots(spacing=0):
+def vstack_plots(spacing=0, **adjust_kwargs):
 
     with CaptureNewSubplots() as cap:
         with _define_plot_settings(layout='v', show_x = True):
-            plt.subplots_adjust(hspace=spacing)
+            plt.subplots_adjust(hspace=spacing, **adjust_kwargs)
             yield
     new_subplots = cap.get_new_subplots().values()
     xmins, xmaxs = zip(*[ax.get_xlim() for ax in new_subplots])

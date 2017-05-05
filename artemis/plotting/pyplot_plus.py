@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import logging
 import numpy as np
 import matplotlib.colors as colors
+from si_prefix import si_format
+
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
@@ -68,3 +70,54 @@ def get_line_color(ix, modifier=None):
     elif modifier is not None:
         raise NotImplementedError(modifier)
     return
+
+
+def non_uniform_imshow(im, x_locs=None, y_locs=None, spacing='lin', format_str='{:.2g}', **other_imagesc_args):
+
+    if x_locs is not None:
+        assert len(x_locs)==im.shape[1]
+        assert np.all(np.diff(x_locs)>0)
+    if y_locs is not None:
+        assert len(y_locs)==im.shape[0]
+        assert np.all(np.diff(y_locs)>0)
+
+    handle = plt.imshow(im, **other_imagesc_args)
+    plt.gca().invert_yaxis()
+
+    relabel_axes(plt.gca(), xvalues=x_locs, yvalues=y_locs, format_str=format_str)
+    return handle
+
+
+def relabel_axis(axis, value_array, n_points = 5, format_str='{:.2g}'):
+    ticks = np.round(np.linspace(0, len(value_array)-1, num=n_points)).astype('int')
+    axis.set_ticks(ticks)
+    if format_str=='SI':
+        axis.set_ticklabels([si_format(t, format_str='{value}{prefix}') for t in value_array[ticks]])
+    else:
+        axis.set_ticklabels([format_str.format(t) for t in value_array[ticks]])
+
+
+def relabel_axes(axes, n_points='auto', xvalues=None, yvalues=None, xlabel=None, ylabel=None, format_str='{:.2g}'):
+
+    if n_points=='auto':
+        n_points = 5 if len(xvalues)%5==0 else \
+            4 if len(xvalues)%4==0 else \
+            3 if len(xvalues)%3==0 else \
+            5
+    if xvalues is not None:
+        relabel_axis(axes.xaxis, xvalues, n_points=n_points, format_str=format_str)
+    if xlabel is not None:
+        axes.set_xlabel(xlabel)
+    if yvalues is not None:
+        relabel_axis(axes.yaxis, yvalues, n_points=n_points, format_str=format_str)
+    if ylabel is not None:
+        axes.set_ylabel(ylabel)
+
+
+def remove_x_axis():
+    plt.tick_params(axis='x', labelbottom='off')
+
+
+def remove_y_axis():
+    plt.tick_params(axis='y', labelbottom='off')
+    # plt.gca().yaxis.set_major_locator(plt.NullLocator())

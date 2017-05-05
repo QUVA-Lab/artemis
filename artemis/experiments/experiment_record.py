@@ -832,7 +832,7 @@ class Experiment(object):
         return get_partial_chain(self.function)[0]
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
-            **experiment_record_kwargs):
+            display_results=True, **experiment_record_kwargs):
         """
         Run the experiment, and return the ExperimentRecord that is generated.
 
@@ -865,7 +865,7 @@ class Experiment(object):
         EIF = ExpInfoFields
         date = datetime.now()
         with record_experiment(name=self.name, print_to_console=print_to_console, show_figs=show_figs,
-                               use_temp_dir=not keep_record, date=date, **experiment_record_kwargs) as exp_rec:
+                use_temp_dir=not keep_record, date=date, **experiment_record_kwargs) as exp_rec:
             start_time = time.time()
             try:
                 exp_rec.info.set_field(ExpInfoFields.NAME, self.name)
@@ -900,7 +900,7 @@ class Experiment(object):
         exp_rec.save_result(results)
         for n in self._notes:
             exp_rec.info.add_note(n)
-        if self.display_function is not None:
+        if display_results and self.display_function is not None:
             self.display_function(results)
         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=self.name))
         set_test_mode(old_test_mode)
@@ -1137,3 +1137,7 @@ def make_record_comparison_table(record_ids, args_to_show=None, results_extracto
 
 
     return headers, rows
+
+
+def clear_all_experiments():
+    GLOBAL_EXPERIMENT_LIBRARY.clear()

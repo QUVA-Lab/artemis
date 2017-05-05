@@ -337,3 +337,24 @@ def decaying_cumsum(x, memory, axis=-1):
         print 'sdfdsf: {}'.format(np.max(np.abs(x)))
 
     return result
+
+
+def point_space(start, stop, n_points, spacing):
+    if spacing=='lin':
+        values = np.linspace(start, stop, n_points)
+    elif spacing=='sqrt':
+        values = sqrtspace(start, stop, n_points)
+    elif spacing=='log':
+        values = np.logspace(np.log10(start), np.log10(stop), n_points)
+    else:
+        raise NotImplementedError(spacing)
+    return values
+
+
+def geosum(rate, t_end, t_start=0):
+    """
+    Geometric sum of a series from t_start to t_end
+
+    e.g. geosum(0.5, t_end=4, t_start=2) = 0.5**2 + 0.5**3 + 0.5**4 = 0.375
+    """
+    return (rate**(t_end+1)-rate**t_start)/(rate-1)

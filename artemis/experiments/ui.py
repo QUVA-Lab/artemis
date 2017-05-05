@@ -254,7 +254,7 @@ records.  You can specify records in the following ways:
             p.map(partial(run_experiment_ignoring_errors, **self.run_args), ids)
         else:
             for experiment_identifier in ids:
-                load_experiment(experiment_identifier).run(raise_exceptions=mode=='-e', **self.run_args )
+                load_experiment(experiment_identifier).run(raise_exceptions=mode=='-e', display_results = False, **self.run_args )
         if self.close_after_run:
             return self.QUIT
         else:
