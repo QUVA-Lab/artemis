@@ -430,7 +430,7 @@ class ExperimentRecord(object):
         if current_args is None:
             current_args = dict(load_experiment(record_id_to_experiment_id(self.get_identifier())).get_args())
         try:
-            return compute_fixed_hash(last_run_args) == compute_fixed_hash(current_args)
+            return compute_fixed_hash(last_run_args, try_objects=True) == compute_fixed_hash(current_args, try_objects=True)
         except NotImplementedError:  # Happens when we have unhashable arguments
             return None
 

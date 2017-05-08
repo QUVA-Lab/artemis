@@ -120,7 +120,7 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = Non
     if minibatch_size=='full':
         minibatch_size = n_samples
     if isinstance(test_epochs, str):
-        assert test_epochs in ('always', 'never', 'every')
+        assert test_epochs in ('always', 'never', 'every'), "test_epochs={} is not valid".format(test_epochs)
     elif isinstance(test_epochs, tuple):
         assert len(test_epochs)==2, "If you pass in a tuple for test epochs, it should be in the form ('every', period).  Get {}".format(test_epochs)
         name, period = test_epochs
