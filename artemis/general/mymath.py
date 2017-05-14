@@ -357,4 +357,6 @@ def geosum(rate, t_end, t_start=0):
 
     e.g. geosum(0.5, t_end=4, t_start=2) = 0.5**2 + 0.5**3 + 0.5**4 = 0.375
     """
-    return (rate**(t_end+1)-rate**t_start)/(rate-1)
+    return np.where(rate==1, (t_end-t_start+1).astype(float), (rate**(t_end+1)-rate**t_start)/(rate-1))
+
+    # return (rate**(t_end+1)-rate**t_start)/(rate-1) if rate!=1 else rate*(t_end-t_start+1)

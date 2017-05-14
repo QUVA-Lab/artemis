@@ -131,7 +131,7 @@ records.  You can specify records in the following ways:
         d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in GLOBAL_EXPERIMENT_LIBRARY.keys())
         if self.just_last_record:
             for k in d.keys():
-                d[k] = [d[k][-1]]
+                d[k] = [d[k][-1]] if len(d[k])>0 else []
         return d
 
     def launch(self):

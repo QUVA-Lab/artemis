@@ -381,6 +381,29 @@ class InfoScorePairSequence(object):
             rows = self[0].get_table_headers() + [pair.get_table_row() for pair in self]
             return repr(self)+'\n  '+tabulate(rows).replace('\n', '\n  ')
 
+    def get_summary(self, subset = None, prediction_function = None, score_measure = None, lower_is_better = False, score_format='.3g'):
+        subsets = self._pairs[0].score.get_data_subsets() if subset is None else [subset]
+        funcs = self._pairs[0].score.get_prediction_functions() if prediction_function is None else [prediction_function]
+        costs = self._pairs[0].score.get_costs() if score_measure is None else [score_measure]
+        entries = []
+        for subset in subsets:
+            for func in funcs:
+                for cost in costs:
+                    title = ','.join(([subset] if len(subsets)>1 else [])+([func] if len(funcs)>1 else [])+([cost] if len(costs)>1 else []))
+                    score = self.get_best_value(subset=subset, prediction_function=func, score_measure=cost, lower_is_better=lower_is_better)
+                    entries.append(('{}:{:'+score_format+'}').format(title, score))
+        return '; '.join(entries)
+
+    def get_data_subsets(self):
+        return remove_duplicates([s for s, _, _ in self.scores.keys()])
+
+    def get_prediction_functions(self):
+        return remove_duplicates([f for _, f, _ in self.scores.keys()])
+
+    def get_costs(self):
+        return remove_duplicates([c for _, c, c in self.scores.keys()])
+
+
 
 def plot_info_score_pairs(info_score_pair_sequences, score_measure=None):
     """

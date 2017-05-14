@@ -236,7 +236,7 @@ def freeze_all_dbplots(fig = None):
 
 
 @contextmanager
-def hold_dbplots(fig = None, plot_every = None):
+def hold_dbplots(fig = None, draw_every = None):
     """
     Use this in a "with" statement to prevent plotting until the end.
     :param fig:
@@ -255,9 +255,9 @@ def hold_dbplots(fig = None, plot_every = None):
 
     if _old_hold_state:
         plot_now = False
-    elif plot_every is not None:
+    elif draw_every is not None:
         global _hold_plot_counter
-        plot_now = _hold_plot_counter % plot_every == 0
+        plot_now = _hold_plot_counter % draw_every == 0
         _hold_plot_counter+=1
     else:
         plot_now = True

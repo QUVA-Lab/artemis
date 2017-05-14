@@ -963,14 +963,21 @@ class Experiment(object):
         self._notes.append(str(note))
         return self
 
-    def get_variant(self, name, *path):
+    def get_variant(self, *args, **kwargs):
         """
         Get a variant on this experiment.
         :param name: A the name of the variant
         :param path: Optionally, a list of names of subvariants (to call up a nested experiment)
         :return:
         """
-        return self.variants[name].get_variant(*path) if len(path) > 0 else self.variants[name]
+        if len(args)==0:
+            name = _kwargs_to_experiment_name(kwargs)
+        else:
+            assert len(args)==1, 'You can only provide 1 unnamed argument to get_variant: the variant name.'
+            name, = args
+            assert len(kwargs)==0, 'If you provide a variant name ({}), there is no need to specify the keyword arguments. ({})'.format(name, kwargs)
+        assert name in self.variants, "No variant '{}' exists.  Existing variants: {}".format(name, self.variants.keys())
+        return self.variants[name]
 
     def get_unnamed_variant(self, **kwargs):
         return self.get_variant(_kwargs_to_experiment_name(kwargs))
