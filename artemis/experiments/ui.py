@@ -223,7 +223,7 @@ records.  You can specify records in the following ways:
             except:
                 if raise_display_errors:
                     raise
-                return '<Error>'
+                return '<Display Error>'
 
         exps_to_show = set(exp_record_dict.keys()) if exp_filter is None else set(select_experiments(exp_filter, exp_record_dict))
 
