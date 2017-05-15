@@ -483,7 +483,8 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     for test_pair_name, (x, y) in test_pairs:
         for function_name, function in functions:
             for cost_name, cost_function in costs:
-                results[test_pair_name, function_name, cost_name] = cost_function(function(x), y)
+                predictions = function(x)
+                results[test_pair_name, function_name, cost_name] = cost_function(predictions, y)
 
     if print_results:
         print results.get_table()
@@ -491,9 +492,12 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     return results
 
 
+
+
+
 def print_score_results(score, info=None):
     """
-    :param results: An OrderedDict in the format returned by assess_prediction_functions.
+    :param results: An OrderedDict in the format returned by assess_prediction_functions_on_generator.
     :return:
     """
     if info is not None:

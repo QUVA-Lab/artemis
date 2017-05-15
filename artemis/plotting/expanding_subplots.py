@@ -19,7 +19,9 @@ _newplot_settings = dict(
     sharex = None,
     sharey = None,
     xlabel = None,
-    ylabel = None
+    ylabel = None,
+    xlim = None,
+    ylim = None,
     )
 
 
@@ -45,6 +47,11 @@ def _create_subplot(fig = None, layout = None, **subplot_args):
         ax.set_xlabel(_newplot_settings['xlabel'])
     if _newplot_settings['ylabel'] is not None:
         ax.set_ylabel(_newplot_settings['ylabel'])
+
+    if _newplot_settings['xlim'] is not None:
+        ax.set_xlim(_newplot_settings['xlim'])
+    if _newplot_settings['ylim'] is not None:
+        ax.set_ylim(_newplot_settings['ylim'])
 
     if _newplot_settings['grid']:
         plt.grid()
@@ -140,10 +147,10 @@ def hstack_plots(spacing=0):
 
 
 @contextmanager
-def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True, remove_ticks = True, xlabel=None, ylabel=None, **adjust_kwargs):
+def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True, show_y='once', remove_ticks = True, xlabel=None, ylabel=None, xlim=None, ylim=None, **adjust_kwargs):
 
     with CaptureNewSubplots() as cap:
-        with _define_plot_settings(layout='h', show_y = False, show_x = show_x, grid=grid, sharex=sharex, sharey=sharey, xlabel=xlabel):
+        with _define_plot_settings(layout='h', show_y = False if show_y=='once' else show_y, show_x = show_x, grid=grid, sharex=sharex, sharey=sharey, xlabel=xlabel, xlim=xlim, ylim=ylim):
             plt.subplots_adjust(wspace=spacing, **adjust_kwargs)
             yield
     new_subplots = cap.get_new_subplots().values()
@@ -153,7 +160,8 @@ def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True
     for ax in new_subplots:
         ax.set_ylim(yrange)
 
-    new_subplots[0].tick_params(axis='y', labelleft='on')
+    if show_y in (True, 'once'):
+        new_subplots[0].tick_params(axis='y', labelleft='on')
     new_subplots[0].set_ylabel(ylabel)
 
     if remove_ticks:
@@ -162,17 +170,24 @@ def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True
 
 
 @contextmanager
-def vstack_plots(spacing=0, sharex=True, sharey = False, grid=False, remove_ticks = True, **adjust_kwargs):
+def vstack_plots(spacing=0, sharex=True, sharey = False, show_x = 'once', show_y=True, grid=False, remove_ticks = True, xlabel=None, ylabel=None, xlim=None, ylim=None, **adjust_kwargs):
 
     with CaptureNewSubplots() as cap:
-        with _define_plot_settings(layout='v', show_x = True, grid=grid, sharex=sharex, sharey=sharey):
+        with _define_plot_settings(layout='v', show_x = False if show_x=='once' else show_x, show_y=show_y, grid=grid, sharex=sharex, sharey=sharey, ylabel=ylabel, xlim=xlim, ylim=ylim):
             plt.subplots_adjust(hspace=spacing, **adjust_kwargs)
             yield
     new_subplots = cap.get_new_subplots().values()
     xmins, xmaxs = zip(*[ax.get_xlim() for ax in new_subplots])
     xrange = min(xmins), max(xmaxs)
-    for ax in new_subplots:
-        ax.set_xlim(xrange)
+
+    if show_x in (True, 'once'):
+        new_subplots[-1].tick_params(axis='x', labelbottom='on')
+    new_subplots[-1].set_xlabel(xlabel)
+    #
+    # if xlims
+    # for ax in new_subplots:
+    #     ax.set_xlim(xrange)
+
     if remove_ticks:
         new_subplots[-1].get_xaxis().set_visible(True)
         for ax in new_subplots[:-1]:

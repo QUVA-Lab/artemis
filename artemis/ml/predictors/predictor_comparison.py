@@ -151,7 +151,7 @@ def assess_offline_predictor(predictor, dataset, evaluation_function, test_on = 
 def assess_online_predictor(predictor, dataset, evaluation_function, test_epochs, minibatch_size, test_on = 'training+test',
         accumulator = None, report_test_scores=True, test_batch_size = None, test_callback = None):
     """
-    DEPRECATED: use assess_prediction_functions in train_and_test.py
+    DEPRECATED: use assess_prediction_functions_on_generator in train_and_test.py
 
     Train an online predictor and return the LearningCurveData.
 

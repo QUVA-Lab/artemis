@@ -176,6 +176,14 @@ def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs=None, test_epoch
         yield arrays, info
 
 
+def minibatch_index_info_generator(n_samples, minibatch_size, n_epochs, test_epochs = None, slice_when_possible=False):
+    for ixs, info in itertools.izip(
+            minibatch_index_generator(n_samples=n_samples, minibatch_size=minibatch_size, n_epochs=n_epochs, slice_when_possible=slice_when_possible),
+            iteration_info(n_samples=n_samples, minibatch_size=minibatch_size, test_epochs=test_epochs)
+            ):
+        yield ixs, info
+
+
 def minibatch_iterate(data, minibatch_size, n_epochs=1):
     """
     Yields minibatches in sequence.
@@ -209,3 +217,19 @@ def minibatch_iterate_info(data, minibatch_size, n_epochs, test_epochs = None):
             iteration_info(n_samples=data.shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs)
             ):
         yield arrays, info
+
+
+# def minibatch_process(f, data, minibatch_size):
+#     """
+#     Process data through a function f in minibatches.  Useful when memory is too small to do it all at once.
+#
+#     :param f: A function of the form y=f(x)
+#     :param data: One array, or a collection of arrays.
+#     :return: An output, the concatenated sum of the inputs
+#     """
+#     if isinstance(data, np.ndarray):
+#         data = (data, )
+#
+#     outputs = ffor data in zip_minibatch_iterate(data):
+#
+#
