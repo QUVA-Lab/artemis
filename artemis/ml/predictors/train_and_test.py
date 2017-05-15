@@ -404,7 +404,6 @@ class InfoScorePairSequence(object):
         return remove_duplicates([c for _, c, c in self.scores.keys()])
 
 
-
 def plot_info_score_pairs(info_score_pair_sequences, score_measure=None):
     """
     :param info_score_pair_sequences: An InfoScorePairSequence or a list of InfoScorePair Sequences, or a dict of them.
@@ -422,8 +421,8 @@ def plot_info_score_pairs(info_score_pair_sequences, score_measure=None):
     colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
     for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
         epochs = [info.epoch for info, _ in ispc]
-        training_curve = ispc.get_values(subset='Training', score_measure=score_measure)
-        test_curve = ispc.get_values(subset='Test', score_measure=score_measure)
+        training_curve = ispc.get_values(subset='train', score_measure=score_measure)
+        test_curve = ispc.get_values(subset='test', score_measure=score_measure)
         plt.plot(epochs, training_curve, color=colour, linestyle='--', label='{}:{}'.format(name, 'training'))
         plt.plot(epochs, test_curve, color=colour, label='{}:{}'.format(name, 'test'))
     plt.xlabel('Epoch')
