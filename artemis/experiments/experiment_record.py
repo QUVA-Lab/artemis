@@ -1050,22 +1050,10 @@ class Experiment(object):
         self.run_all(test_mode=True, **kwargs)
 
     def compare_results(self, experiment_ids, error_if_no_result = True):
-
         if self.comparison_function is None:
             print 'Cannot compare results, because you have not specified any comparison function for this experiment.  Use @ExperimentFunction(comparison_function = my_func)'
             return
-        results = OrderedDict()
-        for eid in experiment_ids:
-            record = load_latest_experiment_record(eid, filter_status=ExpStatusOptions.FINISHED)
-            if record is None:
-                if error_if_no_result:
-                    raise Exception("Experiment {} had no result.  Run this experiment to completion before trying to compare its results.".format(eid))
-                else:
-                    ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(eid))
-            else:
-                results[eid] = record.get_result()
-        if len(results)==0:
-            ARTEMIS_LOGGER.warn('None of your experiments had any results.  Your comparison function will probably show no meaningful result.')
+        results = load_lastest_experiment_results(experiment_ids, error_if_no_result=error_if_no_result)
         self.comparison_function(results)
 
     def get_all_ids(self):
@@ -1083,6 +1071,22 @@ class Experiment(object):
 
     def get_name(self):
         return self.name
+
+
+def load_lastest_experiment_results(experiment_ids, error_if_no_result = True):
+    results = OrderedDict()
+    for eid in experiment_ids:
+        record = load_latest_experiment_record(eid, filter_status=ExpStatusOptions.FINISHED)
+        if record is None:
+            if error_if_no_result:
+                raise Exception("Experiment {} had no result.  Run this experiment to completion before trying to compare its results.".format(eid))
+            else:
+                ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(eid))
+        else:
+            results[eid] = record.get_result()
+    if len(results)==0:
+        ARTEMIS_LOGGER.warn('None of your experiments had any results.  Your comparison function will probably show no meaningful result.')
+    return results
 
 
 def make_record_comparison_table(record_ids, args_to_show=None, results_extractor = None, print_table = False):
