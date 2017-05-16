@@ -404,32 +404,42 @@ class InfoScorePairSequence(object):
         return remove_duplicates([c for _, c, c in self.scores.keys()])
 
 
-def plot_info_score_pairs(info_score_pair_sequences, score_measure=None):
+def plot_info_score_pairs(ispc, prediction_function = None, score_measure=None, name='', show=True):
     """
     :param info_score_pair_sequences: An InfoScorePairSequence or a list of InfoScorePair Sequences, or a dict of them.
     :return:
     """
 
+    from matplotlib import pyplot as plt
+
+    colour = next(plt.gca()._get_lines.prop_cycler)['color']
+    # colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
+    # for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
+    epochs = [info.epoch for info, _ in ispc]
+    training_curve = ispc.get_values(subset='train', prediction_function = prediction_function, score_measure=score_measure)
+    test_curve = ispc.get_values(subset='test', prediction_function=prediction_function, score_measure=score_measure)
+    plt.plot(epochs, training_curve, color=colour, linestyle='--', label='{}:{}'.format(name, 'training'))
+    plt.plot(epochs, test_curve, color=colour, label='{}:{}'.format(name, 'test'))
+    plt.xlabel('Epoch')
+    plt.ylabel('Score')
+    plt.legend()
+    plt.grid()
+
+
+def plot_info_score_pairs_collection(info_score_pair_sequences, prediction_function = None, score_measure=None, show=True):
+
+    from matplotlib import pyplot as plt
     if isinstance(info_score_pair_sequences, InfoScorePairSequence):
         info_score_pair_sequences = [info_score_pair_sequences]
 
     if isinstance(info_score_pair_sequences, (list, tuple)):
         info_score_pair_sequences = OrderedDict((ix, ispc) for ix, ispc in enumerate(info_score_pair_sequences))
 
-    from matplotlib import pyplot as plt
-
     colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
     for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
-        epochs = [info.epoch for info, _ in ispc]
-        training_curve = ispc.get_values(subset='train', score_measure=score_measure)
-        test_curve = ispc.get_values(subset='test', score_measure=score_measure)
-        plt.plot(epochs, training_curve, color=colour, linestyle='--', label='{}:{}'.format(name, 'training'))
-        plt.plot(epochs, test_curve, color=colour, label='{}:{}'.format(name, 'test'))
-    plt.xlabel('Epoch')
-    plt.ylabel('Score')
-    plt.legend()
-    plt.grid()
-    plt.show()
+        plot_info_score_pairs(ispc, prediction_function = prediction_function, score_measure=score_measure, show=False)
+    if show:
+        plt.show()
 
 
 def _dataset_to_test_pair(dataset, include = 'train+test'):

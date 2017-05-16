@@ -43,7 +43,7 @@ def find_experiment(*search_terms):
         return found_experiments.values()[0]
 
 
-def browse_experiments(catch_errors = False, close_after_run = True, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True):
+def browse_experiments(catch_errors = False, close_after_run = True, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True, command=None):
     """
     Browse Experiments
 
@@ -58,7 +58,7 @@ def browse_experiments(catch_errors = False, close_after_run = True, just_last_r
         run_args['keep_record'] = keep_record
 
     browser = ExperimentBrowser(catch_errors=catch_errors, close_after_run=close_after_run, just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args)
-    browser.launch()
+    browser.launch(command=command)
 
 
 class ExperimentBrowser(object):
@@ -127,6 +127,7 @@ records.  You can specify records in the following ways:
         self._filter = None
         self.run_args = {} if run_args is None else run_args
 
+
     def reload_record_dict(self):
         d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in GLOBAL_EXPERIMENT_LIBRARY.keys())
         if self.just_last_record:
@@ -134,7 +135,7 @@ records.  You can specify records in the following ways:
                 d[k] = [d[k][-1]] if len(d[k])>0 else []
         return d
 
-    def launch(self):
+    def launch(self, command=None):
 
         func_dict = {
             'run': self.run,
@@ -163,7 +164,11 @@ records.  You can specify records in the following ways:
             print "==================== Experiments ===================="
             print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, exp_filter=self._filter)
             print '-----------------------------------------------------'
-            user_input = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
+            if command is None:
+                user_input = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
+            else:
+                user_input=command
+                command = None
             with IndentPrint():
                 try:
                     split = user_input.split(' ')

@@ -1068,7 +1068,6 @@ class Experiment(object):
             ARTEMIS_LOGGER.warn('None of your experiments had any results.  Your comparison function will probably show no meaningful result.')
         self.comparison_function(results)
 
-
     def get_all_ids(self):
         """
         Get all identifiers of this experiment that have been run.
@@ -1148,3 +1147,17 @@ def make_record_comparison_table(record_ids, args_to_show=None, results_extracto
 
 def clear_all_experiments():
     GLOBAL_EXPERIMENT_LIBRARY.clear()
+
+
+@contextmanager
+def capture_created_experiments():
+    """
+    A convenient way to cross-breed experiments.  If you define experiments in this block, you can capture them for
+    later use (for instance by modifying them)
+    :return:
+    """
+    current_len = len(GLOBAL_EXPERIMENT_LIBRARY)
+    new_experiments = []
+    yield new_experiments
+    for ex in GLOBAL_EXPERIMENT_LIBRARY.values()[current_len:]:
+        new_experiments.append(ex)
