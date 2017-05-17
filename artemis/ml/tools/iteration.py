@@ -100,7 +100,7 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
 IterationInfo = namedtuple('IterationInfo', ['iteration', 'epoch', 'sample', 'time', 'test_now', 'done'])
 
 
-def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = None):
+def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = 5):
     """
     Create an iterator that keeps track of the state of minibatch iteration, and simplifies the scheduling of tests.
     You can izip this iterator with one that returns your data.
@@ -212,6 +212,8 @@ def minibatch_iterate_info(data, minibatch_size, n_epochs, test_epochs = None):
         minibatch is a minibatch of data (minibatch_size, ...)
         info is an IterationInfo object returning information about the state of iteration.
     """
+    
+
     for arrays, info in itertools.izip(
             minibatch_iterate(data, minibatch_size=minibatch_size, n_epochs=n_epochs),
             iteration_info(n_samples=data.shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs)
