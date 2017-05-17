@@ -147,7 +147,7 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = 5):
             sample = i*minibatch_size,
             time = time.time()-start_time,
             test_now = test_now,
-            done = epoch >= n_epochs
+            done = epoch >= n_epochs if n_epochs is not None else False
             )
         yield info
         last_epoch = epoch
@@ -179,7 +179,7 @@ def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs=None, test_epoch
 def minibatch_index_info_generator(n_samples, minibatch_size, n_epochs, test_epochs = None, slice_when_possible=False):
     for ixs, info in itertools.izip(
             minibatch_index_generator(n_samples=n_samples, minibatch_size=minibatch_size, n_epochs=n_epochs, slice_when_possible=slice_when_possible),
-            iteration_info(n_samples=n_samples, minibatch_size=minibatch_size, test_epochs=test_epochs)
+            iteration_info(n_samples=n_samples, minibatch_size=minibatch_size, test_epochs=test_epochs, n_epochs=n_epochs)
             ):
         yield ixs, info
 
