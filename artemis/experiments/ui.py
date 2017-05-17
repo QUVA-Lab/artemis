@@ -234,7 +234,8 @@ records.  You can specify records in the following ways:
 
         for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
             if len(record_ids)==0:
-                rows.append([str(i), '', exp_id, '<No Records>', '-', '-', '-', '-'])
+                if exp_id in exps_to_show:
+                    rows.append([str(i), '', exp_id, '<No Records>', '-', '-', '-', '-'])
             else:
                 for j, record_id in enumerate(record_ids):
                     index, name = ['{}.{}'.format(i, j), exp_id] if j==0 else ['{}.{}'.format('`'*len(str(i)), j), exp_id]
