@@ -148,14 +148,10 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     plot.plot()
 
     if cornertext is not None:
-        # fig = _DBPLOT_FIGURES[fig].figure
         if not hasattr(_DBPLOT_FIGURES[fig].figure, '__cornertext'):
             _DBPLOT_FIGURES[fig].figure.__cornertext = _DBPLOT_FIGURES[fig].subplots.values()[0].axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
         else:
             _DBPLOT_FIGURES[fig].figure.__cornertext.set_text(cornertext)
-
-        # annotation = _DBPLOT_FIGURES[fig].subplots.values()[0].axis.annotate(cornertext, xy=(0, 0), xytext=(0, 0), textcoords='figure points')
-        pass
     if title is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
     if legend is not None:
