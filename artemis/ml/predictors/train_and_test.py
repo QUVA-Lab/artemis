@@ -403,8 +403,6 @@ def plot_info_score_pairs(ispc, prediction_function = None, score_measure=None, 
     from matplotlib import pyplot as plt
 
     colour = next(plt.gca()._get_lines.prop_cycler)['color']
-    # colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
-    # for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
     epochs = [info.epoch for info, _ in ispc]
     training_curve = ispc.get_values(subset='train', prediction_function = prediction_function, score_measure=score_measure)
     test_curve = ispc.get_values(subset='test', prediction_function=prediction_function, score_measure=score_measure)
