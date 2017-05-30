@@ -33,10 +33,8 @@ class ProgressIndicator(object):
 
     def print_update(self, progress=None):
         self._current_time = time.time()
-
         if progress is None:
             progress = self._i
-        # self._i = self._i+1 if progress is None else progress
         if self._should_update() or progress == self._expected_iterations-1:
             elapsed = self._current_time - self._start_time
             frac = float(progress)/(self._expected_iterations-1)

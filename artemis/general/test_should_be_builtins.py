@@ -45,9 +45,9 @@ def test_remove_common_prefix():
 
 
 if __name__ == '__main__':
-    # test_separate_common_items()
-    # test_reducemap()
-    # test_itermap()
-    # test_remove_duplicates()
-    # test_detect_duplicates()
+    test_separate_common_items()
+    test_reducemap()
+    test_itermap()
+    test_remove_duplicates()
+    test_detect_duplicates()
     test_remove_common_prefix()

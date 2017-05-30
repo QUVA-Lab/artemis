@@ -90,5 +90,5 @@ def test_minibatch_iterate_info():
 
 if __name__ == '__main__':
     test_minibatch_iterate_info()
-    # test_minibatch_index_generator()
-    # test_checkpoint_minibatch_generator()
+    test_minibatch_index_generator()
+    test_checkpoint_minibatch_generator()

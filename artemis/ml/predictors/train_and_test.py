@@ -292,15 +292,6 @@ class InfoScorePair(object):
 
         return table
 
-        # iterfields = IterationInfo._fields
-        # subset_names, prediction_funcs, cost_funcs = zip(*self.score.keys())
-        # return [
-        #     (' ', )*len(iterfields) + subset_names,
-        #     (' ', )*len(iterfields) + prediction_funcs,
-        #     iterfields + cost_funcs
-        #     ]
-
-
 
 class InfoScorePairSequence(object):
     """
@@ -500,9 +491,6 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
         print results.get_table()
 
     return results
-
-
-
 
 
 def print_score_results(score, info=None):

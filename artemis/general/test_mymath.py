@@ -202,6 +202,7 @@ def test_decaying_cumsum():
 
 def test_geosum():
     assert geosum(0.5, t_end=4, t_start=2) == 0.5**2 + 0.5**3 + 0.5**4 == 0.4375
+    assert geosum(1, t_end=4, t_start=2) == 1**2+1**3+1**4 == 3
 
 
 if __name__ == '__main__':

@@ -81,7 +81,7 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
     Yields minibatches from each array in arrays in sequence.
     :param arrays: A collection of arrays, all of which must have the same shape[0]
     :param minibatch_size: The number of samples per minibatch
-    :param n_epochs: The number of epochs to run for
+    :param n_epochs: The number of epochs to run for (or 'inf' for an infinite iterator)
     :yield: len(arrays) arrays, each of shape: (minibatch_size, )+arr.shape[1:]
     """
     assert isinstance(arrays, (list, tuple)), 'You need to provide an array or collection of arrays.'
@@ -89,6 +89,9 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
     total_size = arrays[0].shape[0]
     if minibatch_size=='full':
         minibatch_size=total_size
+    if n_epochs=='inf':
+        n_epochs=float('inf')
+    assert isinstance(n_epochs, (int, float))
     assert all(a.shape[0] == total_size for a in arrays), 'All arrays must have the same length!  Lengths are: %s' % ([len(arr) for arr in arrays])
     end = total_size*n_epochs
     ixs = np.arange(minibatch_size)
@@ -170,10 +173,12 @@ def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs=None, test_epoch
         assert isinstance(test_epochs, (list, tuple, np.ndarray)), "If you don't specify n_epochs, you need to specify an array of test epochs."
         n_epochs = test_epochs[-1]
     for arrays, info in itertools.izip(
-            zip_minibatch_iterate(arrays, minibatch_size=minibatch_size, n_epochs=n_epochs),
+            zip_minibatch_iterate(arrays, minibatch_size=minibatch_size, n_epochs='inf'),
             iteration_info(n_samples=arrays[0].shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs, n_epochs=n_epochs)
             ):
         yield arrays, info
+        if info.done:
+            break
 
 
 def minibatch_index_info_generator(n_samples, minibatch_size, n_epochs, test_epochs = None, slice_when_possible=False):

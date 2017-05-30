@@ -1,5 +1,5 @@
 from collections import OrderedDict, namedtuple
-from artemis.fileman.config_files import get_artemis_config_value
+from artemis.config import get_artemis_config_value
 from artemis.plotting.matplotlib_backend import BarPlot
 from matplotlib.axes import Axes
 from matplotlib.gridspec import SubplotSpec
