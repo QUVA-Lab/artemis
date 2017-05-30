@@ -81,6 +81,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
+from getpass import getuser
 from pprint import pprint
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
@@ -89,6 +90,8 @@ from artemis.general.functional import infer_derived_arg_values, get_partial_cha
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import separate_common_items, izip_equal
 from artemis.general.test_mode import is_test_mode, set_test_mode
+from uuid import getnode
+import numpy as np
 try:
     from enum import Enum
 except ImportError:
@@ -169,7 +172,6 @@ class ExperimentFunction(object):
             display_function=self.display_function,
             comparison_function = self.comparison_function,
             one_liner_results=self.one_liner_results,
-            info=OrderedDict([('Root Experiment', f.__name__), ('Defined in', inspect.getmodule(f).__file__)]),
             is_root=self.is_root
         )
         return ex
@@ -193,6 +195,8 @@ class ExpInfoFields(Enum):
     RUNTIME = 'Run Time'
     VERSION = 'Version'
     NOTES = 'Notes'
+    USER = 'User'
+    MAC = 'MAC Address'
 
 
 class ExpStatusOptions(Enum):
@@ -649,7 +653,7 @@ def experiment_id_to_record_ids(experiment_identifier, filter_status = None):
     return sorted(matching_records)
 
 
-def experiment_id_to_latest_record_id(experiment_identifier, filter_status = None):
+def experiment_id_to_latest_record_id(experiment_identifier, filter_status = None, actual_index=-1):
     """
     Show results of the latest experiment matching the given template.
     :param name: The experiment name
@@ -658,15 +662,15 @@ def experiment_id_to_latest_record_id(experiment_identifier, filter_status = Non
     """
 
     all_records = experiment_id_to_record_ids(experiment_identifier, filter_status=filter_status)
-    return all_records[-1] if len(all_records)>0 else None
+    return all_records[actual_index] if len(all_records)>0 else None
 
 
 def experiment_id_to_latest_result(experiment_id):
     return load_latest_experiment_record(experiment_id).get_result()
 
 
-def load_latest_experiment_record(experiment_name, filter_status=None):
-    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name, filter_status=filter_status)
+def load_latest_experiment_record(experiment_name, filter_status=None, actual_index=-1):
+    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name, filter_status=filter_status, actual_index=actual_index)
     return None if experiment_record_identifier is None else load_experiment_record(experiment_record_identifier)
 
 
@@ -784,7 +788,7 @@ class Experiment(object):
     create variants using decorated_function.add_variant()
     """
 
-    def __init__(self, function=None, display_function=pprint, comparison_function=None, one_liner_results=None, info=None, conclusion=None,
+    def __init__(self, function=None, display_function=None, comparison_function=None, one_liner_results=None,
                  name=None, is_root=False):
         """
         :param function: The function defining the experiment
@@ -800,13 +804,6 @@ class Experiment(object):
         self.one_liner_results = one_liner_results
         self.comparison_function = comparison_function
         self.variants = OrderedDict()
-        if info is None:
-            info = OrderedDict()
-        else:
-            assert isinstance(info, dict)
-        if conclusion is not None:
-            info['Conclusion'] = conclusion
-        self.info = info
         self._notes = []
         self.is_root = is_root
         if not is_root:
@@ -817,8 +814,7 @@ class Experiment(object):
         return self.function(*args, **kwargs)
 
     def __str__(self):
-        return 'Experiment: %s\n  Description: %s' % \
-               (self.name, self.info)
+        return 'Experiment {}'.format(self.name)
 
     def get_args(self):
         """
@@ -868,6 +864,7 @@ class Experiment(object):
                 use_temp_dir=not keep_record, date=date, **experiment_record_kwargs) as exp_rec:
             start_time = time.time()
             try:
+
                 exp_rec.info.set_field(ExpInfoFields.NAME, self.name)
                 exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_identifier())
                 exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
@@ -875,9 +872,12 @@ class Experiment(object):
                 root_function = self.get_root_function()
                 exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
                 exp_rec.info.set_field(EIF.TIMESTAMP, str(date))
-                exp_rec.info.set_field(EIF.MODULE, inspect.getmodule(root_function).__name__)
-                exp_rec.info.set_field(EIF.FILE, inspect.getmodule(root_function).__file__)
+                module = inspect.getmodule(root_function)
+                exp_rec.info.set_field(EIF.MODULE, module.__name__)
+                exp_rec.info.set_field(EIF.FILE, module.__file__ if hasattr(module, '__file__') else '<unknown>')
                 exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STARTED)
+                exp_rec.info.set_field(EIF.USER, getuser())
+                exp_rec.info.set_field(EIF.MAC, ':'.join(("%012X" % getnode())[i:i+2] for i in range(0, 12, 2)))
                 results = self.function()
                 exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.FINISHED)
             except KeyboardInterrupt:
@@ -983,7 +983,7 @@ class Experiment(object):
         return self.get_variant(_kwargs_to_experiment_name(kwargs))
 
     def display_last(self, result='___FINDLATEST', err_if_none=True):
-        if result == '___FINDLATEST':
+        if isinstance(result, basestring) and result == '___FINDLATEST':
             result = experiment_id_to_latest_result(self.name)
         if err_if_none:
             assert result is not None, "No result was computed for the last run of '%s'" % (self.name,)
@@ -998,7 +998,16 @@ class Experiment(object):
             self.display_function(result)
 
     def get_one_liner(self, results):
-        return self.one_liner_results(results) if self.one_liner_results is not None else str(results).replace('\n', ';')
+        if self.one_liner_results is not None:
+            return self.one_liner_results(results)
+        elif isinstance(results, np.ndarray):
+            short = 'ndarray<shape={},dtype={}>'.format(results.shape, results.dtype).replace(' ', '')
+            if results.size<4:
+                return short+str(results).replace('\n', ';')
+            else:
+                return short
+        else:
+            return str(results).replace('\n', ';')
 
     def display_or_run(self):
         """
@@ -1020,8 +1029,9 @@ class Experiment(object):
     def get_all_variants(self, include_roots=False, include_self=False):
         """
         Return a list of variants of this experiment
-        :param include_roots:
-        :return:
+        :param include_roots: Include "root" experiments
+        :param include_self: Include this experiment (unless include_roots is false and this this experiment is a root)
+        :return: A list of experiments.
         """
         variants = []
         if include_self and (not self.is_root or include_roots):
@@ -1030,11 +1040,11 @@ class Experiment(object):
             variants += v.get_all_variants(include_roots=include_roots, include_self=True)
         return variants
 
-    def run_all(self):
+    def run_all(self, include_roots = False):
         """
         Run this experiment (if not a root-experiment) and all variants (if not roots).
         """
-        experiments = self.get_all_variants()
+        experiments = self.get_all_variants(include_self=True, include_roots=include_roots)
         for ex in experiments:
             ex.run()
 
@@ -1063,11 +1073,15 @@ class Experiment(object):
         """
         return get_all_record_ids(experiment_ids=[self.name])
 
-    def clear_records(self):
+    def clear_records(self, include_children=False):
         """
         Delete all records from this experiment
         """
         clear_experiment_records(ids=self.get_all_ids())
+        if include_children:
+            children = self.get_all_variants(include_roots=False, include_self=True)
+            for child in children:
+                child.clear_records()
 
     def get_name(self):
         return self.name

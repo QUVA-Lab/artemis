@@ -3,6 +3,8 @@ from artemis.config import get_artemis_config
 __author__ = 'peter'
 
 config = get_artemis_config()
+
+
 BACKEND = config.get('plotting', 'backend')
 if config.has_option('plotting', 'plotting_server'):
     _USE_SERVER = True
