@@ -1,3 +1,5 @@
+import pytest
+
 from artemis.general.mymath import softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel, \
     align_curves, angle_between, fixed_diff, decaying_cumsum, geosum
 import numpy as np
@@ -65,6 +67,7 @@ def test_mode():
     assert m2.shape == (3, 5)
 
 
+@pytest.mark.skipif(True, reason='Requires scipy weave, which does not install reliably.')
 def test_cummode():
 
     arr = np.random.RandomState(0).randint(low=0, high=3, size=(5, 7))
@@ -81,6 +84,7 @@ def test_cummode():
             assert np.all(n_elements_of_mode_class >= n_elements_of_this_class)
 
 
+@pytest.mark.skipif(True, reason='Requires scipy weave, which does not install reliably.')
 def test_cummode_weighted():
 
     arr = np.random.RandomState(0).randint(low=0, high=3, size=(5, 7))
