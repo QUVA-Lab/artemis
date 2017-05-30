@@ -29,6 +29,7 @@ def test_rsync():
     assert rsync(options, from_path, to_path)
     shutil.rmtree(from_path)
 
+
 @pytest.mark.skipif(is_local, reason ="No sense for local ip")
 def test_simple_rsync():
     from_path = get_local_path(relative_path="tmp/tests/", make_local_dir=True)
