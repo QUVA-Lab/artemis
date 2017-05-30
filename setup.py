@@ -6,7 +6,7 @@ setup(
     author_email='poconn4@gmail.com',
     url='https://github.com/quva-lab/artemis',
     long_description='Artemis aims to get rid of all the boring, bureaucratic coding (plotting, file management, etc) involved in machine learning projects, so you can get to the good stuff quickly.',
-    install_requires=['numpy', 'scipy', 'matplotlib', 'pytest', 'pillow', 'tabulate'],
+    install_requires=['numpy', 'scipy', 'matplotlib', 'pytest', 'pillow', 'tabulate', 'si-prefix'],
     extras_require = {
         'remote_plotting': ["paramiko", "netifaces"]
         },
