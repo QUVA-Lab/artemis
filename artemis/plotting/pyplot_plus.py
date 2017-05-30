@@ -69,7 +69,7 @@ def get_line_color(ix, modifier=None):
         return tuple(1-(1-c)/2 for c in colors.hex2color(colour))
     elif modifier is not None:
         raise NotImplementedError(modifier)
-    return
+    return colors.hex2color(colour)
 
 
 def non_uniform_imshow(im, x_locs=None, y_locs=None, spacing='lin', format_str='{:.2g}', **other_imagesc_args):

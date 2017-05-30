@@ -21,11 +21,11 @@ def _setup_input_memory():
         pass  # readline not available
 
 
-def _warn_with_prompt(message= None, prompt = 'Press Enter to continue'):
+def _warn_with_prompt(message= None, prompt = 'Press Enter to continue', use_prompt=True):
     if message is not None:
         print message
-    raw_input('({}) >> '.format(prompt))
-
+    if use_prompt:
+        raw_input('({}) >> '.format(prompt))
 
 def find_experiment(*search_terms):
     """
@@ -43,12 +43,12 @@ def find_experiment(*search_terms):
         return found_experiments.values()[0]
 
 
-def browse_experiments(catch_errors = False, close_after_run = True, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True, command=None):
+def browse_experiments(catch_errors = False, close_after = False, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True, command=None):
     """
     Browse Experiments
 
     :param catch_errors: True if you want to catch any errors here
-    :param close_after_run: Close this menu after running an experiment
+    :param close_after: Close this menu after running an experiment
     :param just_last_record: Just show the last record for the experiment
     """
 
@@ -57,7 +57,7 @@ def browse_experiments(catch_errors = False, close_after_run = True, just_last_r
     if 'keep_record' not in run_args:
         run_args['keep_record'] = keep_record
 
-    browser = ExperimentBrowser(catch_errors=catch_errors, close_after_run=close_after_run, just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args)
+    browser = ExperimentBrowser(catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args)
     browser.launch(command=command)
 
 
@@ -116,9 +116,9 @@ records.  You can specify records in the following ways:
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
 """
 
-    def __init__(self, catch_errors = False, close_after_run = True, just_last_record = False, view_mode = 'full', raise_display_errors=False, run_args=None):
+    def __init__(self, catch_errors = False, close_after = True, just_last_record = False, view_mode ='full', raise_display_errors=False, run_args=None):
 
-        self.close_after_run = close_after_run
+        self.close_after = close_after
         self.just_last_record = just_last_record
         self.catch_errors = catch_errors
         self.exp_record_dict = self.reload_record_dict()
@@ -192,7 +192,7 @@ records.  You can specify records in the following ways:
                         if response.lower()=='h':
                             self.help()
                         out = None
-                    if out is self.QUIT:
+                    if out is self.QUIT or self.close_after:
                         break
                 except Exception as name:
                     if self.catch_errors:
@@ -261,10 +261,7 @@ records.  You can specify records in the following ways:
         else:
             for experiment_identifier in ids:
                 load_experiment(experiment_identifier).run(raise_exceptions=mode=='-e', display_results = False, **self.run_args )
-        if self.close_after_run:
-            return self.QUIT
-        else:
-            _warn_with_prompt('Finished running {} experiment{}.'.format(len(ids), '' if len(ids)==1 else 's'))
+        _warn_with_prompt('Finished running {} experiment{}.'.format(len(ids), '' if len(ids)==1 else 's'), use_prompt=not self.close_after)
 
     def test(self, user_range):
         ids = select_experiments(user_range, self.exp_record_dict)
@@ -272,12 +269,12 @@ records.  You can specify records in the following ways:
             load_experiment(experiment_identifier).test()
 
     def help(self):
-        _warn_with_prompt(self.HELP_TEXT, prompt = 'Press Enter to exit help.')
+        _warn_with_prompt(self.HELP_TEXT, prompt = 'Press Enter to exit help.', use_prompt=not self.close_after)
 
     def show(self, user_range):
         for rid in select_experiment_records(user_range, self.exp_record_dict, flat=True):
             load_experiment_record(rid).show()
-        _warn_with_prompt()
+        _warn_with_prompt(use_prompt=not self.close_after)
 
     def results(self, user_range = 'all'):
         record_ids = select_experiment_records(user_range, self.exp_record_dict)
@@ -293,7 +290,7 @@ records.  You can specify records in the following ways:
                     except Exception as err:
                         print err
 
-        _warn_with_prompt()
+        _warn_with_prompt(use_prompt=not self.close_after)
 
     def errortrace(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
@@ -302,7 +299,7 @@ records.  You can specify records in the following ways:
                 with IndentPrint(erid, show_line=True):
                     record = load_experiment_record(erid)
                     print record.get_error_trace()
-        _warn_with_prompt()
+        _warn_with_prompt(use_prompt=not self.close_after)
 
     def delete(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
@@ -314,20 +311,18 @@ records.  You can specify records in the following ways:
             clear_experiment_records(record_ids)
             print 'Records deleted.'
         else:
-            _warn_with_prompt('Records were not deleted.')
+            _warn_with_prompt('Records were not deleted.', use_prompt=not self.close_after)
 
     def call(self, user_range):
         ids = select_experiments(user_range, self.exp_record_dict)
         for experiment_identifier in ids:
             load_experiment(experiment_identifier)()
-        if self.close_after_run:
-            return self.QUIT
 
     def select(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         with IndentPrint():
             print ExperimentRecordBrowser.get_record_table(record_ids)
-        _warn_with_prompt('Selection "{}" includes {} out of {} records.'.format(user_range, len(record_ids), sum(len(recs) for recs in self.exp_record_dict.values())))
+        _warn_with_prompt('Selection "{}" includes {} out of {} records.'.format(user_range, len(record_ids), sum(len(recs) for recs in self.exp_record_dict.values())), use_prompt=not self.close_after)
 
     def side_by_side(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
@@ -335,12 +330,12 @@ records.  You can specify records in the following ways:
         texts = ['{title}\n{sep}\n{info}\n{sep}\n{output}\n{sep}'.format(title=rid, sep='='*len(rid), info=record.info.get_text(), output=record.get_log())
                  for rid, record in zip(record_ids, records)]
         print side_by_side(texts, max_linewidth=128)
-        _warn_with_prompt()
+        _warn_with_prompt(use_prompt=not self.close_after)
 
     def compare(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         compare_experiment_records(record_ids)
-        _warn_with_prompt()
+        _warn_with_prompt(use_prompt=not self.close_after)
 
     def records(self, ):
         browse_experiment_records(self.exp_record_dict.keys())
@@ -357,11 +352,11 @@ records.  You can specify records in the following ways:
     def compare_results(self, user_range):
         experiment_ids = select_experiments(user_range, self.exp_record_dict)
         load_experiment(experiment_ids[0]).compare_results(experiment_ids)
-        _warn_with_prompt()
+        _warn_with_prompt(use_prompt=not self.close_after)
 
     def explist(self, surround = ""):
         print "\n".join([surround+k+surround for k in self.exp_record_dict.keys()])
-        _warn_with_prompt()
+        _warn_with_prompt(use_prompt=not self.close_after)
 
     def quit(self):
         return self.QUIT
