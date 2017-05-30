@@ -39,6 +39,7 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
     :param column_categories: A list<list<str>> of catefories that will make up the columns
     :param clear_repeated_headers: True to not repeat row headers.
     :param row_header_labels: Labels for the row headers.
+    :param remove_unchanging_cols: Remove columns for which all d
     :return: A list of rows.
     """
     # Now, build that table!

@@ -83,6 +83,10 @@ class DataSet(object):
     def from_xyxy(training_inputs, training_targets, test_inputs, test_targets):
         return DataSet(training_set = DataCollection(training_inputs, training_targets), test_set = DataCollection(test_inputs, test_targets))
 
+    @staticmethod
+    def from_xy(x, y, training_fraction, validation_fraction = None):
+        return DataCollection(x, y).to_dataset(training_fraction=training_fraction, validation_fraction=validation_fraction)
+
     def __repr__(self):
         return '<%s with %s training samples, %s test samples, input_shapes = %s, target_shapes = %s at %s>' \
             % (self.name, self.training_set.n_samples, self.test_set.n_samples,
@@ -132,13 +136,23 @@ class DataCollection(object):
 
     @property
     def input(self):
+        """Deprecated.  Use self.x"""
         only_input, = self._inputs
         return only_input
 
     @property
+    def x(self):
+        return self.input
+
+    @property
     def target(self):
+        """Deprecated.  Use self.y"""
         only_target, = self._targets
         return only_target
+
+    @property
+    def y(self):
+        return self.target
 
     def minibatch_iterator(self, **kwargs):
         """
@@ -156,9 +170,21 @@ class DataCollection(object):
         new_targets = [x[:n_samples] for x in self.targets]
         return DataCollection(new_inputs, new_targets)
 
+    def to_dataset(self, training_fraction, validation_fraction = None):
+        assert 0<training_fraction<1
+        assert validation_fraction is None or 0<validation_fraction<1
+        training_end = int(training_fraction*self.n_samples+.5)
+        test_start = self.n_samples - training_end if validation_fraction is None else self.n_samples - int(validation_fraction*self.n_samples+.5)
+        return DataSet(
+            training_set=DataCollection(inputs = [x[:training_end] for x in self.inputs], targets=[y[:training_end] for y in self.targets]),
+            test_set=DataCollection(inputs = [x[test_start:] for x in self.inputs], targets=[y[test_start:] for y in self.targets]),
+            validation_set=DataCollection(inputs = [x[training_end:test_start] for x in self.inputs], targets=[y[training_end:test_start] for y in self.targets]) if validation_fraction is not None else None,
+            )
+
     @property
     def xy(self):
         return self.input, self.target
+
 
 def minibatch_iterator(minibatch_size = 1, epochs = 1, final_treatment = 'stop', single_channel = False):
     """

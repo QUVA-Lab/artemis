@@ -1,4 +1,4 @@
-from artemis.config import get_artemis_config
+from artemis.config import get_artemis_config_value
 from artemis.general.test_mode import set_test_mode
 from artemis.plotting.db_plotting import dbplot
 from artemis.plotting.web_backend import setup_web_plotting
@@ -11,8 +11,7 @@ __author__ = 'peter'
 
 def test_plotting_server():
 
-    config = get_artemis_config()
-    if config.get('plotting', 'backend') != 'matplotlib-web':
+    if get_artemis_config_value(section='plotting', option='backend') != 'matplotlib-web':
         setup_web_plotting()
 
     for i in xrange(5):

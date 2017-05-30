@@ -11,6 +11,7 @@ import time
 import uuid
 from ConfigParser import NoOptionError
 import paramiko
+from artemis.config import get_artemis_config_value
 from artemis.fileman.config_files import get_config_value
 from artemis.remote.utils import get_local_ips
 
@@ -202,7 +203,7 @@ class ChildProcess(object):
 
         if type(command) == list:
             if not self.local_process:
-                command = [c.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python")), 1) if c.startswith("python") else c for c in command]
+                command = [c.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python")), 1) if c.startswith("python") else c for c in command]
                 command = [s.replace("~",home_dir) for s in command]
                 command = " ".join([c for c in command])
             else:
@@ -212,7 +213,7 @@ class ChildProcess(object):
 
         elif type(command) == str or type(command) == unicode and command.startswith("python"):
             if not self.local_process:
-                command = command.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python")), 1)
+                command = command.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python")), 1)
             else:
                 command = command.replace("python", sys.executable)
             command = command.replace("~",home_dir)
@@ -347,12 +348,12 @@ def get_ssh_connection(ip_address):
     '''
 
     try:
-        path_to_private_key = get_config_value(config_filename=".artemisrc", section=ip_address, option="private_key")
+        path_to_private_key = get_artemis_config_value(section=ip_address, option="private_key")
     except NoOptionError:
         path_to_private_key = os.path.join(os.path.expanduser("~"),".ssh/id_rsa")
 
     private_key = paramiko.RSAKey.from_private_key_file(os.path.expanduser(path_to_private_key))
-    username = get_config_value(config_filename=".artemisrc", section=ip_address, option="username")
+    username = get_artemis_config_value(section=ip_address, option="username")
     ssh_conn = paramiko.SSHClient()
     ssh_conn.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh_conn.connect(hostname=ip_address, username=username, pkey=private_key)

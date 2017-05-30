@@ -4,6 +4,7 @@ import os
 from ConfigParser import NoSectionError, NoOptionError
 
 import paramiko
+from artemis.config import get_artemis_config_value
 
 from artemis.fileman.config_files import get_config_value
 from artemis.remote.child_processes import get_ssh_connection
@@ -20,7 +21,7 @@ def check_config_file(ip_address,file_path=".artemisrc"):
     artemisrc_path = os.path.expanduser("~/%s"%file_path)
     for option in mandatory_options:
         try:
-            get_config_value(config_filename=file_path,section=ip_address,option=option)
+            get_artemis_config_value(section=ip_address,option=option)
         except NoSectionError:
             print("Section %s could not be found in %s. Please provide it." %(ip_address, artemisrc_path))
             raise
@@ -30,7 +31,7 @@ def check_config_file(ip_address,file_path=".artemisrc"):
 
     # optional_options = ["private_key"]
     try:
-        private_key_path = get_config_value(config_filename=file_path,section=ip_address,option="private_key")
+        private_key_path = get_artemis_config_value(section=ip_address,option="private_key")
         assert os.path.isfile(private_key_path), "The path to the private_key for %s you specified in %s is not valid. You provided %s" %(ip_address, artemisrc_path, private_key_path)
     except NoOptionError:
         pass
@@ -41,11 +42,11 @@ def check_config_file(ip_address,file_path=".artemisrc"):
         if "Authentication failed" in e.message:
             print("An AuthenticationException is being raised. Make sure you have your private key set up correctly")
         else:
-            print("An AuthenticationException is being raised. Did you specify the correct username for %s in %s? You provided the username %s"% (ip_address, artemisrc_path,get_config_value(config_filename=".artemisrc",section=ip_address,option="username")))
+            print("An AuthenticationException is being raised. Did you specify the correct username for %s in %s? You provided the username %s"% (ip_address, artemisrc_path, get_artemis_config_value(section=ip_address,option="username")))
         raise
     except paramiko.ssh_exception.SSHException:
         try:
-            private_key_path = get_config_value(config_filename=file_path,section=ip_address,option="private_key")
+            private_key_path = get_artemis_config_value(section=ip_address,option="private_key")
             print ("Something is wrong with the private_key you specified in %s for %s . You provided %s" % (artemisrc_path, ip_address, private_key_path))
             raise
         except NoOptionError:
@@ -55,7 +56,7 @@ def check_config_file(ip_address,file_path=".artemisrc"):
 
 
     #python tests:
-    python_path = get_config_value(config_filename=file_path,section=ip_address,option="python")
+    python_path = get_artemis_config_value(section=ip_address,option="python")
 
     command = "python -c 'import os; print(os.path.isfile(os.path.expanduser(\"%s\")))'"%python_path
     ssh_conn = get_ssh_connection(ip_address)
@@ -83,7 +84,7 @@ def simple_rsync(local_path, remote_path, ip_address, verbose=False):
         options += "v"
 
     local_path = os.path.expanduser(local_path)
-    username = get_config_value(config_filename=".artemisrc", section=ip_address, option="username")
+    username = get_artemis_config_value(section=ip_address, option="username")
     if remote_path.startswith("~"):
         remote_path = remote_path[1:]
     if remote_path.startswith(("/")):
