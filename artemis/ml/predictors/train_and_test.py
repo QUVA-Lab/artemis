@@ -234,7 +234,6 @@ class ModelTestScore(object):
             return self[test_pair_name_, function_name_, cost_name_]
 
         rows = build_table(
-            # lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: self[test_pair_name_, function_name_, cost_name_],
             lookup_fcn=lookup,
             row_categories=[[test_pair_name for test_pair_name in self.get_data_subsets()], [function_name for function_name in self.get_prediction_functions()]],
             column_categories=[cost_name for cost_name in self.get_costs()],
