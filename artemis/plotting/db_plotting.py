@@ -258,14 +258,9 @@ def hold_dbplots(fig = None, draw_every = None):
     else:
         plot_now = True
 
-<<<<<<< HEAD
     if plot_now:
         if len(_DBPLOT_FIGURES) > 0:
             redraw_figure(_DBPLOT_FIGURES[fig].figure)
-=======
-    if plot_now and fig in _DBPLOT_FIGURES:
-        redraw_figure(_DBPLOT_FIGURES[fig].figure)
->>>>>>> master
 
 
 def clear_dbplot(fig = None):

@@ -1,13 +1,7 @@
 import logging
 from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
-<<<<<<< HEAD
-try:
-    from scipy import weave
-except ImportError:
-    print("AAAA")
-=======
->>>>>>> master
+
 from scipy.stats import norm, mode as sp_mode
 try:
     from scipy import weave
