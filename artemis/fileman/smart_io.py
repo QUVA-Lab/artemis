@@ -37,7 +37,7 @@ def smart_save(obj, relative_path, remove_file_after = False):
         if ext=='.pkl':
             with open(local_path, 'w') as f:
                 pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
-        if ext in _IMAGE_EXTENSIONS:
+        elif ext in _IMAGE_EXTENSIONS:
             _save_image(obj, local_path)
         elif ext=='.pdf':
             obj.savefig(local_path)
