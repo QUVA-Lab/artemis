@@ -15,8 +15,8 @@ import os
 from matplotlib import pyplot as plt
 
 from artemis.fileman.local_dir import get_local_path, format_filename
-from artemis.plotting.db_plotting import dbplot, hold_dbplots
 from artemis.plotting.plotting_backend import set_server_plotting
+from artemis.plotting.db_plotting import dbplot, hold_dbplots, set_dbplot_figure_size
 from artemis.plotting.saving_plots import save_figure
 from artemis.remote.plotting.utils import _queue_get_all_no_wait, handle_socket_accepts
 from artemis.remote.utils import get_socket, recv_size, send_size
@@ -97,7 +97,7 @@ def run_plotting_server(address, port):
     sock, port = get_socket(address=address, port=port)
     write_port_to_file(port)
     max_number_clients = 100
-    max_plot_batch_size = 20000
+    max_plot_batch_size = 2000
     sock.listen(max_number_clients)
     print(port)
     print("Plotting Server is listening")
@@ -119,6 +119,8 @@ def run_plotting_server(address, port):
     # Received exp_dir on first db_plot_message?
     exp_dir_received = False
     # Now, we can accept plots in the main thread!
+
+    set_dbplot_figure_size(9,10)
     while True:
         if killer.kill_now:
             # The server has received a signal.SIGINT (2), so we stop receiving plots and terminate
@@ -133,6 +135,7 @@ def run_plotting_server(address, port):
                     # Take apart the received message, plot, and return the plot_id to the client who sent it
                     plot_message = pickle.loads(client_msg.dbplot_message)  # A DBPlotMessage object (see plotting_client.py)
                     plot_message.dbplot_args['draw_now'] = False
+
                     if not exp_dir_received:
                         if "exp_dir" == plot_message.dbplot_args["name"]:
                             atexit.register(save_current_figure,(plot_message.dbplot_args["data"]))
@@ -141,11 +144,14 @@ def run_plotting_server(address, port):
                                 continue
                             else:
                                 continue
-                    dbplot(**plot_message.dbplot_args)
+                    axis = dbplot(**plot_message.dbplot_args)
+                    axis.ticklabel_format(style='sci', useOffset=False)
                     return_values.append((client_msg.client_address, plot_message.plot_id))
                 if not exp_dir_received:
                     atexit.register(save_current_figure)
                     exp_dir_received = True
+                plt.rcParams.update({'axes.titlesize': 'small', 'axes.labelsize': 'small'})
+                plt.subplots_adjust(hspace=0.4,wspace=0.6)
             for client, plot_id in return_values:
                 return_queue.put([client,plot_id])
         else:

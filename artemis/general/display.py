@@ -140,3 +140,4 @@ def side_by_side(multiline_strings, gap=4, max_linewidth=None):
         final_line = [line + ' '*(max_length-len(line)) for line, max_length in zip(line, longests)]
         new_lines.append(spacer.join(final_line))
     return '\n'.join(new_lines)
+

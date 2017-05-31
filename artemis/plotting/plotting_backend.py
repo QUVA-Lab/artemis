@@ -1,7 +1,8 @@
-from artemis.config import get_artemis_config
+from artemis.config import get_artemis_config_value
 
 __author__ = 'peter'
 
+<<<<<<< HEAD
 config = get_artemis_config()
 BACKEND = config.get('plotting', 'backend')
 if config.has_option('plotting', 'plotting_server'):
@@ -12,6 +13,12 @@ if config.has_option('plotting', 'plotting_server'):
 else:
     _USE_SERVER = False
     _PLOTTING_SERVER = ""
+=======
+_PLOTTING_SERVER = get_artemis_config_value(section='plotting', option='plotting_server', default_generator="")
+_USE_SERVER = _PLOTTING_SERVER != ""
+
+BACKEND = get_artemis_config_value(section='plotting', option='backend')
+>>>>>>> master
 assert BACKEND in ('matplotlib', 'matplotlib-web', 'bokeh'), 'Your config file ~/.artimisrc lists "%s" as the backend.  Valid backends are "matplotlib" and "bokeh".  Change the file.' % (BACKEND, )
 
 if BACKEND in ('matplotlib', 'matplotlib-web'):

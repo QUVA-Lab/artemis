@@ -5,6 +5,7 @@ from collections import OrderedDict
 import numpy as np
 import pip
 from artemis.fileman.config_files import get_config_value
+from artemis.config import get_artemis_config_value
 from artemis.remote.child_processes import get_ssh_connection
 
 
@@ -15,7 +16,7 @@ def get_remote_installed_packages(ip_address):
     :param address: Ip address of remote server
     :return:
     '''
-    python_executable = get_config_value(config_filename=".artemisrc", section=ip_address, option="python")
+    python_executable = get_artemis_config_value(section=ip_address, option="python")
     function = "%s -c 'import pip; import json; print json.dumps({i.key: i.version  for i in pip.get_installed_distributions() })' "%python_executable
 
     ssh_conn = get_ssh_connection(ip_address)
@@ -43,7 +44,7 @@ def install_packages_on_remote_virtualenv(ip_address, packages):
     if len(packages) == 0:
         return
     print("installing/upgrading remote packages ...")
-    python_path = get_config_value(".artemisrc",ip_address,"python")
+    python_path = get_artemis_config_value(ip_address,"python")
     activate_path = os.path.join(os.path.dirname(python_path),"activate") # TODO: Make this work without the user using virtualenv
     activate_command = "source %s"%activate_path
     ssh_conn = get_ssh_connection(ip_address)
@@ -91,6 +92,7 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
             different_versions[local_key] = (local_version, remote_packages[local_key])
 
     # Install missing packages
+    chosen_packages_to_install_and_update = None
     if len(missing_packages) > 0:
         missing_packages_string = ", ".join(missing_packages.keys())
         chosen_packages_to_install_and_update = {}
@@ -165,29 +167,30 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                         if i in numbers:
                             chosen_packages_to_install_and_update[key] = different_versions[key][0]
                     valid=True
-    if len(chosen_packages_to_install_and_update) == 0:
-        print ("virtualenv up-to-date")
-    else:
-        install_packages_on_remote_virtualenv(ip_address, chosen_packages_to_install_and_update)
-        if not ignore_warnings:
-            remote_packages = get_remote_installed_packages(ip_address)
-            missing_packages = OrderedDict()
-            different_versions = OrderedDict()
-            for (local_key, local_version) in local_packages.iteritems():
-                if local_key not in remote_packages.keys():
-                    missing_packages[local_key] = local_version
-                elif local_version != remote_packages[local_key]:
-                    different_versions[local_key] = (local_version, remote_packages[local_key])
-            if len(missing_packages)>0 or len(different_versions)>0:
-                valid = False
-                while not valid:
-                    ix=raw_input("The following packages could not be installed or upgraded: \n %s \nDo you want to continue? (y/n)"% (",".join(missing_packages.keys() + different_versions.keys())))
-                    if ix in ["y","n"]:
-                        valid=True
+    if chosen_packages_to_install_and_update is not None:
+        if len(chosen_packages_to_install_and_update) == 0:
+            print ("virtualenv up-to-date")
+        else:
+            install_packages_on_remote_virtualenv(ip_address, chosen_packages_to_install_and_update)
+            if not ignore_warnings:
+                remote_packages = get_remote_installed_packages(ip_address)
+                missing_packages = OrderedDict()
+                different_versions = OrderedDict()
+                for (local_key, local_version) in local_packages.iteritems():
+                    if local_key not in remote_packages.keys():
+                        missing_packages[local_key] = local_version
+                    elif local_version != remote_packages[local_key]:
+                        different_versions[local_key] = (local_version, remote_packages[local_key])
+                if len(missing_packages)>0 or len(different_versions)>0:
+                    valid = False
+                    while not valid:
+                        ix=raw_input("The following packages could not be installed or upgraded: \n %s \nDo you want to continue? (y/n)"% (",".join(missing_packages.keys() + different_versions.keys())))
+                        if ix in ["y","n"]:
+                            valid=True
 
-                if ix == "n":
-                    print("Exiting...")
-                    sys.exit(0)
-                else:
-                    print("Ignoring discrepancies...")
+                    if ix == "n":
+                        print("Exiting...")
+                        sys.exit(0)
+                    else:
+                        print("Ignoring discrepancies...")
     print("="*10 + " Done remote virtualenv %s "%ip_address + "="*10)

@@ -166,6 +166,8 @@ class ModelTestScore(object):
         self.scores = OrderedDict()
 
     def __getitem__(self, (data_subset, prediction_function_name, cost_name)):
+
+
         return self.scores[data_subset, prediction_function_name, cost_name]
 
     def __setitem__(self, (data_subset, prediction_function_name, cost_name), value):
@@ -227,13 +229,17 @@ class ModelTestScore(object):
 
     def get_table(self):
         # test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*self.scores.keys())]
+
+        def lookup( (test_pair_name_, function_name_), cost_name_):
+            return self[test_pair_name_, function_name_, cost_name_]
+
         rows = build_table(
-            lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: self[test_pair_name_, function_name_, cost_name_],
+            lookup_fcn=lookup,
             row_categories=[[test_pair_name for test_pair_name in self.get_data_subsets()], [function_name for function_name in self.get_prediction_functions()]],
             column_categories=[cost_name for cost_name in self.get_costs()],
             row_header_labels=['Subset', 'Function'],
             clear_repeated_headers=False,
-            remove_unchanging_cols=True
+            remove_unchanging_cols=False
         )
         import tabulate
         return tabulate.tabulate(rows)
@@ -284,15 +290,6 @@ class InfoScorePair(object):
             table = table[table.rfind('\n'):]
 
         return table
-
-        # iterfields = IterationInfo._fields
-        # subset_names, prediction_funcs, cost_funcs = zip(*self.score.keys())
-        # return [
-        #     (' ', )*len(iterfields) + subset_names,
-        #     (' ', )*len(iterfields) + prediction_funcs,
-        #     iterfields + cost_funcs
-        #     ]
-
 
 
 class InfoScorePairSequence(object):
@@ -371,8 +368,81 @@ class InfoScorePairSequence(object):
         if len(self)==0:
             return repr(self) + '\n' + '<Empty>'
         else:
-            rows = self[0].get_table_header() + [pair.get_table_row() for pair in self]
+            rows = self[0].get_table_headers() + [pair.get_table_row() for pair in self]
             return repr(self)+'\n  '+tabulate(rows).replace('\n', '\n  ')
+
+    def get_summary(self, subset = None, prediction_function = None, score_measure = None, lower_is_better = False, score_format='.3g'):
+        subsets = self._pairs[0].score.get_data_subsets() if subset is None else [subset]
+        funcs = self._pairs[0].score.get_prediction_functions() if prediction_function is None else [prediction_function]
+        costs = self._pairs[0].score.get_costs() if score_measure is None else [score_measure]
+        entries = []
+        for subset in subsets:
+            for func in funcs:
+                for cost in costs:
+                    title = ','.join(([subset] if len(subsets)>1 else [])+([func] if len(funcs)>1 else [])+([cost] if len(costs)>1 else []))
+                    score = self.get_best_value(subset=subset, prediction_function=func, score_measure=cost, lower_is_better=lower_is_better)
+                    entries.append(('{}:{:'+score_format+'}').format(title, score))
+        return '; '.join(entries)
+
+    def get_data_subsets(self):
+        return remove_duplicates([s for s, _, _ in self.scores.keys()])
+
+    def get_prediction_functions(self):
+        return remove_duplicates([f for _, f, _ in self.scores.keys()])
+
+    def get_costs(self):
+        return remove_duplicates([c for _, c, c in self.scores.keys()])
+
+
+def plot_info_score_pairs(ispc, prediction_function = None, score_measure=None, name='', show=True):
+    """
+    :param info_score_pair_sequences: An InfoScorePairSequence or a list of InfoScorePair Sequences, or a dict of them.
+    :return:
+    """
+
+    from matplotlib import pyplot as plt
+
+    colour = next(plt.gca()._get_lines.prop_cycler)['color']
+    epochs = [info.epoch for info, _ in ispc]
+    training_curve = ispc.get_values(subset='train', prediction_function = prediction_function, score_measure=score_measure)
+    test_curve = ispc.get_values(subset='test', prediction_function=prediction_function, score_measure=score_measure)
+    plt.plot(epochs, training_curve, color=colour, linestyle='--', label='{}:{}'.format(name, 'training'))
+    plt.plot(epochs, test_curve, color=colour, label='{}:{}'.format(name, 'test'))
+    plt.xlabel('Epoch')
+    plt.ylabel('Score')
+    plt.legend()
+    plt.grid()
+
+
+def plot_info_score_pairs_collection(info_score_pair_sequences, prediction_function = None, score_measure=None, show=True):
+
+    from matplotlib import pyplot as plt
+    if isinstance(info_score_pair_sequences, InfoScorePairSequence):
+        info_score_pair_sequences = [info_score_pair_sequences]
+
+    if isinstance(info_score_pair_sequences, (list, tuple)):
+        info_score_pair_sequences = OrderedDict((ix, ispc) for ix, ispc in enumerate(info_score_pair_sequences))
+
+    colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
+    for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
+        plot_info_score_pairs(ispc, prediction_function = prediction_function, score_measure=score_measure, show=False)
+    if show:
+        plt.show()
+
+
+def _dataset_to_test_pair(dataset, include = 'train+test'):
+    """
+    :param dataset:
+    :param include:
+    :return:
+    """
+    assert include in ('train', 'test', 'train+test', 'training', 'training+test')
+    pairs = []
+    if 'train' in include:
+        pairs.append(('train', (dataset.training_set.input, dataset.training_set.target)))
+    if 'test' in include:
+        pairs.append(('test', (dataset.test_set.input, dataset.test_set.target)))
+    return pairs
 
 
 def assess_prediction_functions(test_pairs, functions, costs, print_results=False):
@@ -381,19 +451,18 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     :param test_pairs: A list<pair_name, (x, y)>, where x, y are equal-length vectors representing the samples in a dataset.
         Eg. [('training', (x_train, y_train)), ('test', (x_test, y_test))]
     :param functions: A list<function_name, function> of functions for computing the forward pass.
-    :param costs: A list<cost_name, cost_function> of cost functions, where cost_function has the form:
+    :param costs: A list<(cost_name, cost_function)> or dict<cost_name: cost_function> of cost functions, where cost_function has the form:
         cost = cost_fcn(guess, y), where cost is a scalar, and guess is the output of the prediction function given one
             of the inputs (x) in test_pairs.
     :return: A ModelTestScore object
     """
     if isinstance(test_pairs, DataSet):
-        test_pairs = [
-            ('train', (test_pairs.training_set.input, test_pairs.training_set.target)),
-            ('test', (test_pairs.test_set.input, test_pairs.test_set.target)),
-            ]
+        test_pairs = _dataset_to_test_pair(test_pairs)
     assert isinstance(test_pairs, list)
     assert all(len(_)==2 for _ in test_pairs)
     assert all(len(pair)==2 for name, pair in test_pairs)
+    if isinstance(functions, dict):
+        functions = functions.items()
     if callable(functions):
         functions = [(functions.__name__ if hasattr(functions, '__name__') else None, functions)]
     else:
@@ -402,6 +471,8 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
         costs = [(costs.__name__, costs)]
     elif isinstance(costs, basestring):
         costs = [(costs, get_evaluation_function(costs))]
+    elif isinstance(costs, dict):
+        costs = costs.items()
     else:
         costs = [(cost, get_evaluation_function(cost)) if isinstance(cost, basestring) else (cost.__name__, cost) if callable(cost) else cost for cost in costs]
     assert all(callable(cost) for name, cost in costs)
@@ -410,7 +481,8 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     for test_pair_name, (x, y) in test_pairs:
         for function_name, function in functions:
             for cost_name, cost_function in costs:
-                results[test_pair_name, function_name, cost_name] = cost_function(function(x), y)
+                predictions = function(x)
+                results[test_pair_name, function_name, cost_name] = cost_function(predictions, y)
 
     if print_results:
         print results.get_table()
@@ -420,7 +492,7 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
 
 def print_score_results(score, info=None):
     """
-    :param results: An OrderedDict in the format returned by assess_prediction_functions.
+    :param results: An OrderedDict in the format returned by assess_prediction_functions_on_generator.
     :return:
     """
     if info is not None:
@@ -439,22 +511,27 @@ def print_score_results(score, info=None):
 
 
 def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
-            score_measure='percent_argmax_correct', test_callback=None, training_callback = None, score_collection = None):
+            score_measure='percent_argmax_correct', test_callback=None, training_callback = None, score_collection = None,
+            test_on = 'training+test', pass_iteration_info_to_training = False):
     """
     Train an online predictor.  Return a data structure with info about the training.
     :param dataset: A DataSet object
-    :param train_fcn: A function of the form train_fcn(x, y) which updates the parameters
+    :param train_fcn: A function of the form train_fcn(x, y) which updates the parameters, OR
+        train_fcn(x, y, iteration_info)   if pass_iteration_info_to_training==True
     :param predict_fcn: A function of the form y=predict_fcn(x) which makes a prediction giben inputs
     :param minibatch_size: Minibatch size
     :param n_epochs: Number of epoch
-    :param test_epochs: Test epcohs
+    :param test_epochs: Epochs to test at
     :param score_measure: String or function of the form:
         score = score_measure(guess, ground_truth)
         To be used in testing.
-    :param test_callback: Function to be called on test.  It has the form: f(info, score)
+    :param test_callback: Function to be called after a test.  It has the form: f(info, score)
     :param training_callback: Function to be called after every training iteration.  It has the form f(info, x, y) where
     :param score_collection: If not None, a InfoScoreCollection object into which you save scores.  This allows you to
         access the scores before this function returns.
+    :param test_on: What to run tests on: {'training', 'test', 'training+test'}
+    :param pass_iteration_info_to_training: Pass an IterationInfo object into the training function (x, y, iter_info).
+        This object contains fields (epoch, sample, time) which can be used to do things like adjust parameters on a schedule.
     :return: A list<info, scores>  where...
         IterationInfo object (see artemis.ml.tools.iteration.py) with fields:
             'iteration', 'epoch', 'sample', 'time', 'test_now', 'done'
@@ -470,14 +547,18 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
             print 'Epoch {}.  Rate: {:.3g}s/epoch'.format(info.epoch, rate)
             last_epoch = info.epoch
             last_time = info.time
-            score = assess_prediction_functions(dataset, functions=predict_fcn, costs=score_measure, print_results=True)
+            test_pairs = _dataset_to_test_pair(dataset, include = test_on)
+            score = assess_prediction_functions(test_pairs, functions=predict_fcn, costs=score_measure, print_results=True)
             p = InfoScorePair(info, score)
             info_score_pairs.append(p)
             # print p.get_table(remove_headers=len(info_score_pairs)>1)
             if test_callback is not None:
                 test_callback(info, score)
         if not info.done:
-            train_fcn(x_mini, y_mini)
+            if pass_iteration_info_to_training:
+                train_fcn(x_mini, y_mini, info)
+            else:
+                train_fcn(x_mini, y_mini)
             if training_callback is not None:
                 training_callback(info, x_mini, y_mini)
     return info_score_pairs
@@ -521,3 +602,37 @@ def print_best_score(score_info_pairs, **best_score_kwargs):
     # DEPRECATED!!!
     best_info, best_score = get_best_score(score_info_pairs, **best_score_kwargs)
     print_score_results(score=best_score, info=best_info)
+
+
+class ParameterSchedule(object):
+
+    def __init__(self, schedule, print_variable_name = None):
+        """
+        Given a schedule for a changing parameter (e.g. learning rate) get the values for this parameter at a given time.
+        e.g.:
+            learning_rate_scheduler = ScheduledParameter({0: 0.1, 10: 0.01, 100: 0.001}, print_variable_name='eta')
+            new_learning_rate = learning_rate_scheduler.get_new_value(epoch=14)
+            assert new_learning_rate == 0.01
+
+        :param schedule: A dict<epoch: value> where the epoch is a number indicating the training progress and the value
+            indicates the value that the parameter should take.
+            OR A function which takes the epoch and returns a parameter value.
+        """
+        if isinstance(schedule, dict):
+            assert all(isinstance(num, (int, float)) for num in schedule.keys())
+            self._reverse_sorted_schedule_checkpoints = sorted(schedule.keys(), reverse=True)
+        else:
+            assert callable(schedule)
+        self.schedule = schedule
+        self.print_variable_name = print_variable_name
+        self.last_value = None  # Just used for print statements.
+
+    def get_new_value(self, epoch):
+        if isinstance(self.schedule, dict):
+            new_value = self.schedule[(e for e in self._reverse_sorted_schedule_checkpoints if e <= epoch).next()]
+        else:
+            new_value = self.schedule(epoch)
+        if self.last_value != new_value and self.print_variable_name is not None:
+            print 'Epoch {}: {} = {}'.format(epoch, self.print_variable_name, new_value)
+            self.last_value = new_value
+        return new_value

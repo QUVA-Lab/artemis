@@ -224,3 +224,44 @@ def count_unique_items(items):
             unique_items.append(item)
             unique_item_counts.append(1)
     return zip(unique_items, unique_item_counts)
+
+
+def check(value, condition, string = ""):
+    """
+    Verify that the condition is true and return the value.
+
+    Useful for conditional assignments, eg:
+        xs = [x]*n_elements if not isinstance(x, (list, tuple)) else check(x, len(x)==n_elements)
+
+    :param value:
+    :param condition:
+    :param string:
+    :return:
+    """
+    assert condition, string
+    return value
+
+
+def remove_common_prefix(list_of_lists, max_elements=None):
+    """
+    Remove common elements starting each list in the list of lists.
+
+        assert remove_common_prefix([[1, 2, 3, 4], [1, 2, 5], [1, 2, 3, 5]]) == [[3, 4], [5], [3, 5]]
+
+    :param list_of_lists: A list of lists
+    :param max_elements: Maximum number of elements to delete
+    :return: Truncated list of lists
+    """
+
+    count = 0
+    while max(len(parts) for parts in list_of_lists)>1:
+
+        if max_elements is not None and count >= max_elements:
+            break
+
+        if all_equal(*[parts[0] for parts in list_of_lists]):
+            list_of_lists = [parts[1:] for parts in list_of_lists]
+        else:
+            break
+        count += 1
+    return list_of_lists

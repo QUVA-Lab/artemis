@@ -1,28 +1,22 @@
-import ConfigParser
 import os
+from artemis.fileman.config_files import get_config_path, get_config_value
 
-from artemis.fileman.config_files import get_config_path
+_DEFAULT_ARTEMIS_CONFIG = """
+[plotting]
+backend = matplotlib
+update_period = 0.5
+mode = safe
+default_fig_size = (12, 8)
+"""
 
-__author__ = 'peter'
 
-
-_CONFIG = None
-
-
-def get_artemis_config():
+def get_artemis_config_value(section, option, default_generator = None, write_default = False, read_method=None):
     """
-    :return: A ConfigParser object, containing the information in the ~/.artemisrc file.  Create a default file if none
-        exists.
+    Get a setting from the artemis configuration.
+    See docstring for get_config_value
     """
-    global _CONFIG
-    if _CONFIG is None:
-        config_path = get_config_path('.artemisrc')
-        if not os.path.exists(config_path):
-            with open(config_path, 'w') as f:
-                f.write('[plotting]\nbackend: matplotlib')
-        config = ConfigParser.ConfigParser(defaults = {
-            'update_period': '1',
-            })
-        config.read(os.path.join(os.path.expanduser('~'), '.artemisrc'))
-        _CONFIG = config
-    return _CONFIG
+    config_path = get_config_path('.artemisrc')
+    if not os.path.exists(config_path):
+        with open(config_path, 'w') as f:
+            f.write(_DEFAULT_ARTEMIS_CONFIG)
+    return get_config_value('.artemisrc', section=section, option=option, default_generator=default_generator, write_default=write_default, read_method = read_method)

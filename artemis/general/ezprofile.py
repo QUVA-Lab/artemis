@@ -7,7 +7,7 @@ __author__ = 'peter'
 
 class EZProfiler(object):
 
-    def __init__(self, profiler_name = 'Profile', print_result = True, record_stop = True):
+    def __init__(self, profiler_name = 'Profile', print_result = True, print_on_start=False, record_stop = True):
         """
         :param profiler_name: The name of this profiler (will be included in report)
         :param print_result: Print
@@ -17,6 +17,7 @@ class EZProfiler(object):
         self.print_result = print_result
         self.profiler_name = profiler_name
         self.record_stop = record_stop
+        self.print_on_start = print_on_start
         self._lap_times = OrderedDict()
         self._lap_times['Start'] = time()
 
@@ -36,6 +37,8 @@ class EZProfiler(object):
     def __enter__(self):
         start_time = time()
         self.start_time = start_time
+        if self.print_on_start:
+            print '{} Started'.format(self.profiler_name)
         return self
 
     def __exit__(self, *args):

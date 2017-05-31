@@ -2,12 +2,9 @@ from __future__ import print_function
 import SocketServer
 import logging
 import socket
-
 import struct
-
 import sys
-
-from artemis.fileman.config_files import get_config_value
+from artemis.config import get_artemis_config_value
 
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
@@ -130,8 +127,7 @@ def is_valid_port(port):
 
 
 def get_remote_artemis_path(remote_ip):
-    return get_config_value(
-        config_filename='~/.artemisrc',
+    return get_artemis_config_value(
         section=remote_ip,
         option='artemis_path',
         default_generator=lambda: raw_input('Specify Remote Artemis Installation Path: '),

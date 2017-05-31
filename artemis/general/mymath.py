@@ -1,10 +1,18 @@
+import logging
 from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
+<<<<<<< HEAD
 try:
     from scipy import weave
 except ImportError:
     print("AAAA")
+=======
+>>>>>>> master
 from scipy.stats import norm, mode as sp_mode
+try:
+    from scipy import weave
+except ImportError:
+    logging.warn("Could not import scipy.weave.  That's ok, ignore this unless you need it.")
 __author__ = 'peter'
 
 # Note - this module used to be called math, but it somehow results in a numpy import error
@@ -194,10 +202,10 @@ def angle_between(a, b, axis=None, in_degrees = False):
 
 def cosine_distance(a, b, axis=None):
     """
-    Return the cosine distance between two vectors a and b, in radians.  Raise an exception if one is a zero vector
-    :param a: A vector
-    :param b: A vector the same size as a
-    :return: The angle between these vectors, in radians.
+    Return the cosine distance between two vectors a and b.  Raise an exception if one is a zero vector
+    :param a: An array
+    :param b: Another array of the same shape
+    :return: The cosine distance between a and b, reduced along the given axis.
 
     Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
@@ -336,3 +344,24 @@ def decaying_cumsum(x, memory, axis=-1):
         print 'sdfdsf: {}'.format(np.max(np.abs(x)))
 
     return result
+
+
+def point_space(start, stop, n_points, spacing):
+    if spacing=='lin':
+        values = np.linspace(start, stop, n_points)
+    elif spacing=='sqrt':
+        values = sqrtspace(start, stop, n_points)
+    elif spacing=='log':
+        values = np.logspace(np.log10(start), np.log10(stop), n_points)
+    else:
+        raise NotImplementedError(spacing)
+    return values
+
+
+def geosum(rate, t_end, t_start=0):
+    """
+    Geometric sum of a series from t_start to t_end
+
+    e.g. geosum(0.5, t_end=4, t_start=2) = 0.5**2 + 0.5**3 + 0.5**4 = 0.375
+    """
+    return np.where(rate==1, np.array(t_end-t_start+1, copy=False).astype(float), np.array(rate**(t_end+1)-rate**t_start)/(rate-1))

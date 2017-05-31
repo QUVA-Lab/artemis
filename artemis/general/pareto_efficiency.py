@@ -1,3 +1,5 @@
+from artemis.general.should_be_builtins import all_equal
+
 __author__ = 'peter'
 import numpy as np
 
@@ -34,3 +36,14 @@ def is_pareto_efficient_ixs(costs):
     is_efficient = np.zeros(costs.shape[0], dtype = bool)
     is_efficient[candidates] = True
     return is_efficient
+
+
+def find_pareto_ixs(cost_arrays):
+    """
+    :param cost_arrays: A collection of nd-arrays representing a grid of costs for different indices.
+    :return: A tuple of indices which can be used to index the pareto-efficient points.
+    """
+    assert all_equal(*[c.shape for c in cost_arrays])
+    flat_ixs, = np.nonzero(is_pareto_efficient(np.reshape(cost_arrays, (len(cost_arrays), -1)).T), )
+    ixs = np.unravel_index(flat_ixs, dims=cost_arrays[0].shape)
+    return ixs

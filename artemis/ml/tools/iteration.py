@@ -81,7 +81,7 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
     Yields minibatches from each array in arrays in sequence.
     :param arrays: A collection of arrays, all of which must have the same shape[0]
     :param minibatch_size: The number of samples per minibatch
-    :param n_epochs: The number of epochs to run for
+    :param n_epochs: The number of epochs to run for (or 'inf' for an infinite iterator)
     :yield: len(arrays) arrays, each of shape: (minibatch_size, )+arr.shape[1:]
     """
     assert isinstance(arrays, (list, tuple)), 'You need to provide an array or collection of arrays.'
@@ -89,6 +89,9 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
     total_size = arrays[0].shape[0]
     if minibatch_size=='full':
         minibatch_size=total_size
+    if n_epochs=='inf':
+        n_epochs=float('inf')
+    assert isinstance(n_epochs, (int, float))
     assert all(a.shape[0] == total_size for a in arrays), 'All arrays must have the same length!  Lengths are: %s' % ([len(arr) for arr in arrays])
     end = total_size*n_epochs
     ixs = np.arange(minibatch_size)
@@ -100,7 +103,7 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
 IterationInfo = namedtuple('IterationInfo', ['iteration', 'epoch', 'sample', 'time', 'test_now', 'done'])
 
 
-def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = None):
+def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = 5):
     """
     Create an iterator that keeps track of the state of minibatch iteration, and simplifies the scheduling of tests.
     You can izip this iterator with one that returns your data.
@@ -111,6 +114,7 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = Non
         'every', which will test once-per-epoch,
         'always', which will test on every iteration
         'never', which will never test.
+        ('every', 0.2), which will test at every 0.2 epochs (for example)
     :yield: IterationInfo objects which contain info about the state of iteration.
     """
     # next_text_point = 0 if test_epochs is not None and len(test_epochs)>0 else None
@@ -119,7 +123,7 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = Non
     if minibatch_size=='full':
         minibatch_size = n_samples
     if isinstance(test_epochs, str):
-        assert test_epochs in ('always', 'never', 'every')
+        assert test_epochs in ('always', 'never', 'every'), "test_epochs={} is not valid".format(test_epochs)
     elif isinstance(test_epochs, tuple):
         assert len(test_epochs)==2, "If you pass in a tuple for test epochs, it should be in the form ('every', period).  Get {}".format(test_epochs)
         name, period = test_epochs
@@ -146,7 +150,7 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = Non
             sample = i*minibatch_size,
             time = time.time()-start_time,
             test_now = test_now,
-            done = epoch >= n_epochs
+            done = epoch >= n_epochs if n_epochs is not None else False
             )
         yield info
         last_epoch = epoch
@@ -169,10 +173,20 @@ def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs=None, test_epoch
         assert isinstance(test_epochs, (list, tuple, np.ndarray)), "If you don't specify n_epochs, you need to specify an array of test epochs."
         n_epochs = test_epochs[-1]
     for arrays, info in itertools.izip(
-            zip_minibatch_iterate(arrays, minibatch_size=minibatch_size, n_epochs=n_epochs),
+            zip_minibatch_iterate(arrays, minibatch_size=minibatch_size, n_epochs='inf'),
             iteration_info(n_samples=arrays[0].shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs, n_epochs=n_epochs)
             ):
         yield arrays, info
+        if info.done:
+            break
+
+
+def minibatch_index_info_generator(n_samples, minibatch_size, n_epochs, test_epochs = None, slice_when_possible=False):
+    for ixs, info in itertools.izip(
+            minibatch_index_generator(n_samples=n_samples, minibatch_size=minibatch_size, n_epochs=n_epochs, slice_when_possible=slice_when_possible),
+            iteration_info(n_samples=n_samples, minibatch_size=minibatch_size, test_epochs=test_epochs, n_epochs=n_epochs)
+            ):
+        yield ixs, info
 
 
 def minibatch_iterate(data, minibatch_size, n_epochs=1):
@@ -203,8 +217,26 @@ def minibatch_iterate_info(data, minibatch_size, n_epochs, test_epochs = None):
         minibatch is a minibatch of data (minibatch_size, ...)
         info is an IterationInfo object returning information about the state of iteration.
     """
+    
+
     for arrays, info in itertools.izip(
             minibatch_iterate(data, minibatch_size=minibatch_size, n_epochs=n_epochs),
             iteration_info(n_samples=data.shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs)
             ):
         yield arrays, info
+
+
+# def minibatch_process(f, data, minibatch_size):
+#     """
+#     Process data through a function f in minibatches.  Useful when memory is too small to do it all at once.
+#
+#     :param f: A function of the form y=f(x)
+#     :param data: One array, or a collection of arrays.
+#     :return: An output, the concatenated sum of the inputs
+#     """
+#     if isinstance(data, np.ndarray):
+#         data = (data, )
+#
+#     outputs = ffor data in zip_minibatch_iterate(data):
+#
+#

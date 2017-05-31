@@ -17,7 +17,7 @@ Or, you know, a "mainstream" library, like Keras: https://keras.io/
 """
 
 
-def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal', include_biases = True, rng=None):
+def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal', include_biases = True, scale=1., rng=None):
     """
     Initialize parameters for a fully-connected neural network.
 
@@ -39,7 +39,7 @@ def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal'
     For a good explanation of the 'xavier' initialization schemes.
     """
     rng = get_rng(rng)
-    ws = [initialize_weight_matrix(n_in, n_out, mag=mag, base_dist=base_dist, rng=rng) for n_in, n_out in zip(layer_sizes[:-1], layer_sizes[1:])]
+    ws = [initialize_weight_matrix(n_in, n_out, mag=mag, base_dist=base_dist, scale=scale, rng=rng) for n_in, n_out in zip(layer_sizes[:-1], layer_sizes[1:])]
     if include_biases:
         bs = [np.zeros(n_out) for n_out in layer_sizes[1:]]
         return zip(ws, bs)
@@ -47,7 +47,7 @@ def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal'
         return ws
 
 
-def initialize_weight_matrix(n_in, n_out, mag='xavier', base_dist='normal', rng=None):
+def initialize_weight_matrix(n_in, n_out, mag='xavier', base_dist='normal', scale=1., rng=None):
     """
     Initialize a weight matrix
     :param n_in: Number of input units
@@ -74,7 +74,7 @@ def initialize_weight_matrix(n_in, n_out, mag='xavier', base_dist='normal', rng=
         mag if isinstance(mag, numbers.Real) else \
         bad_value(mag)
 
-    return w_base * mag_number
+    return w_base * (mag_number*scale)
 
 
 def activation_function(data, function_name):
