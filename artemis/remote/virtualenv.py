@@ -5,6 +5,7 @@ from collections import OrderedDict
 import numpy as np
 import pip
 from artemis.fileman.config_files import get_config_value
+from artemis.config import get_artemis_config_value
 from artemis.remote.child_processes import get_ssh_connection
 
 
@@ -15,7 +16,7 @@ def get_remote_installed_packages(ip_address):
     :param address: Ip address of remote server
     :return:
     '''
-    python_executable = get_config_value(config_filename=".artemisrc", section=ip_address, option="python")
+    python_executable = get_artemis_config_value(section=ip_address, option="python")
     function = "%s -c 'import pip; import json; print json.dumps({i.key: i.version  for i in pip.get_installed_distributions() })' "%python_executable
 
     ssh_conn = get_ssh_connection(ip_address)
@@ -43,7 +44,7 @@ def install_packages_on_remote_virtualenv(ip_address, packages):
     if len(packages) == 0:
         return
     print("installing/upgrading remote packages ...")
-    python_path = get_config_value(".artemisrc",ip_address,"python")
+    python_path = get_artemis_config_value(ip_address,"python")
     activate_path = os.path.join(os.path.dirname(python_path),"activate") # TODO: Make this work without the user using virtualenv
     activate_command = "source %s"%activate_path
     ssh_conn = get_ssh_connection(ip_address)

@@ -17,7 +17,7 @@ def fixed_hash_eq(obj1, obj2):
     return compute_fixed_hash(obj1)==compute_fixed_hash(obj2)
 
 
-def compute_fixed_hash(obj, hasher = None):
+def compute_fixed_hash(obj, hasher = None, try_objects=False):
     """
     Given an object, return a hash that will always be the same (not just for the lifetime of the
     object, but for all future runs of the program too).
@@ -49,6 +49,9 @@ def compute_fixed_hash(obj, hasher = None):
         compute_fixed_hash(obj.get_hash_description(), hasher=hash)
     elif hasattr(obj, 'memo_hashable'):  # Deprecated, just here for back-compatibility
         compute_fixed_hash(obj.memo_hashable(), hasher=hasher)
+    elif try_objects:
+        raise NotImplementedError()
+        # klass = obj.__class__.__name__
     else:
         # TODO: Consider whether to pickle by default.  Note that pickle strings are not necessairly the same for identical objects.
         raise NotImplementedError("Don't have a method for hashing this %s" % (obj, ))

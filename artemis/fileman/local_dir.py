@@ -1,5 +1,6 @@
 import datetime
 from artemis.fileman.config_files import get_config_value
+from artemis.config import get_artemis_config_value
 import os
 
 __author__ = 'peter'
@@ -19,7 +20,7 @@ Where the path is referenced relative to the data directory on that machine.
 def get_default_local_path():
     return os.path.join(os.getenv("HOME"), '.artemis')
 
-LOCAL_DIR = get_config_value('.artemisrc', 'fileman', 'data_dir', default_generator = get_default_local_path, write_default = True)
+LOCAL_DIR = get_artemis_config_value(section='fileman', option='data_dir', default_generator = get_default_local_path, write_default = True)
 
 
 def get_local_path(relative_path = '', make_local_dir = False):

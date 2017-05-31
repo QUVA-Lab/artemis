@@ -1,7 +1,11 @@
+import logging
 from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
-from scipy import weave
 from scipy.stats import norm, mode as sp_mode
+try:
+    from scipy import weave
+except ImportError:
+    logging.warn("Could not import scipy.weave.  That's ok, ignore this unless you need it.")
 __author__ = 'peter'
 
 # Note - this module used to be called math, but it somehow results in a numpy import error
@@ -191,10 +195,10 @@ def angle_between(a, b, axis=None, in_degrees = False):
 
 def cosine_distance(a, b, axis=None):
     """
-    Return the cosine distance between two vectors a and b, in radians.  Raise an exception if one is a zero vector
-    :param a: A vector
-    :param b: A vector the same size as a
-    :return: The angle between these vectors, in radians.
+    Return the cosine distance between two vectors a and b.  Raise an exception if one is a zero vector
+    :param a: An array
+    :param b: Another array of the same shape
+    :return: The cosine distance between a and b, reduced along the given axis.
 
     Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
@@ -291,3 +295,66 @@ def sqrtspace(a, b, n_points):
     :return: Distribute n_points quadratically from point a to point b, inclusive
     """
     return np.linspace(0, 1, n_points)**2*(b-a)+a
+
+
+def fixed_diff(x, axis=-1, initial_value = 0.):
+    """
+    Modification of numpy.diff where the first element is compared to the initial value.
+    The resulting array has the same shape as x.
+
+    Note that this inverts np.cumsum so that np.cumsum(fixed_diff(x)) == x    (except for numerical errors)
+
+    :param x: An array
+    :param axis: Axis along which to diff
+    :param initial_value: The initial value agains which to diff the first element along the axis.
+    :return: An array of the same shape, representing the difference in x along the axis.
+    """
+    if axis<0:
+        axis = x.ndim+axis
+
+    result = np.empty_like(x)
+    initial_indices = (slice(None), )*axis
+    result[initial_indices+(slice(1, None), )] = np.diff(x, axis=axis)
+    if initial_value == 'first':
+        result[initial_indices+(0, )] = 0
+    else:
+        result[initial_indices+(0, )] = x[initial_indices+(0, )]-initial_value
+    return result
+
+
+def decaying_cumsum(x, memory, axis=-1):
+
+    if axis<0:
+        axis = x.ndim+axis
+    assert 0 <= memory < 1
+    result = np.empty_like(x)
+    leading_indices = (slice(None), )*axis
+    one_minus_mem = 1-memory
+    result[leading_indices+(0, )] = one_minus_mem*x[leading_indices+(0, )]
+    for i in xrange(1, x.shape[axis]):
+        result[leading_indices+(i, )] = memory*result[leading_indices+(i-1, )] + one_minus_mem*x[leading_indices+(i, )]
+    if np.max(np.abs(result)>1e9):
+        print 'sdfdsf: {}'.format(np.max(np.abs(x)))
+
+    return result
+
+
+def point_space(start, stop, n_points, spacing):
+    if spacing=='lin':
+        values = np.linspace(start, stop, n_points)
+    elif spacing=='sqrt':
+        values = sqrtspace(start, stop, n_points)
+    elif spacing=='log':
+        values = np.logspace(np.log10(start), np.log10(stop), n_points)
+    else:
+        raise NotImplementedError(spacing)
+    return values
+
+
+def geosum(rate, t_end, t_start=0):
+    """
+    Geometric sum of a series from t_start to t_end
+
+    e.g. geosum(0.5, t_end=4, t_start=2) = 0.5**2 + 0.5**3 + 0.5**4 = 0.375
+    """
+    return np.where(rate==1, np.array(t_end-t_start+1, copy=False).astype(float), np.array(rate**(t_end+1)-rate**t_start)/(rate-1))

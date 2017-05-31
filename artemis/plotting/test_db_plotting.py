@@ -160,7 +160,15 @@ def test_custom_axes_placement(hang=False):
         dbplot_hang()
 
 
+def test_cornertext():
+
+    dbplot(np.random.randn(5, 5), 'a', cornertext='one')
+    dbplot(np.random.randn(5, 5), 'a', cornertext='two')
+    dbplot(np.random.randn(5, 5), 'a', cornertext='three')
+
+
 if __name__ == '__main__':
+    test_cornertext()
     test_trajectory_plot()
     test_demo_dbplot()
     test_freeze_dbplot()

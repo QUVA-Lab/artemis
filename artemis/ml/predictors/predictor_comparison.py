@@ -15,6 +15,8 @@ def compare_predictors(dataset, online_predictors={}, offline_predictors={}, min
         evaluation_function = 'mse', test_epochs = sqrtspace(0, 1, 10), report_test_scores = True,
         test_on = 'training+test', test_batch_size = None, accumulators = None, online_test_callbacks = {}):
     """
+    DEPRECATED: use train_and_test_online_predictor instead.
+
     Compare a set of predictors by running them on a dataset, and return the learning curves for each predictor.
 
     :param dataset: A DataSet object
@@ -149,6 +151,8 @@ def assess_offline_predictor(predictor, dataset, evaluation_function, test_on = 
 def assess_online_predictor(predictor, dataset, evaluation_function, test_epochs, minibatch_size, test_on = 'training+test',
         accumulator = None, report_test_scores=True, test_batch_size = None, test_callback = None):
     """
+    DEPRECATED: use assess_prediction_functions_on_generator in train_and_test.py
+
     Train an online predictor and return the LearningCurveData.
 
     :param predictor:  An IPredictor object
@@ -163,7 +167,9 @@ def assess_online_predictor(predictor, dataset, evaluation_function, test_epochs
     :param test_callback: A callback which takes the predictor, and is called every time a test
         is done.  This can be useful for plotting/debugging the state.
     :return: LearningCurveData containing the score on the test sets
+
     """
+    # TODO: Remove this class, as it is deprecated
 
     record = LearningCurveData()
 

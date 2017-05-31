@@ -1,6 +1,6 @@
-from ConfigParser import NoSectionError, NoOptionError, ConfigParser
 import os
 import sys
+from ConfigParser import NoSectionError, NoOptionError, ConfigParser
 
 __author__ = 'peter'
 
@@ -24,7 +24,8 @@ def get_config_value(config_filename, section, option, default_generator = None,
         with '.', and are stored in the user-home directory.
     :param section: Section in the config file (as referred by squared brackets: see example above)
     :param option: The option of interest (see above example)
-    :param default_generator: A function that generates the property if it is not there.
+    :param default_generator: A function that generates the property if it is not there, or just the default value if
+        default_generator is not callable
     :param write_default: Set to true if property was not found and you want to write the default value into the file.
     :param read_method: The method to read your setting.
         If left at None (default) it just returns the string.
@@ -52,7 +53,7 @@ def get_config_value(config_filename, section, option, default_generator = None,
             if default_generator is None:
                 raise
             else:
-                value = default_generator()
+                value = default_generator() if callable(default_generator) else default_generator
                 default_used = True
 
     if default_used and write_default:
@@ -69,14 +70,6 @@ def get_config_value(config_filename, section, option, default_generator = None,
     elif callable(read_method):
         value = read_method(value)
     return value
-
-
-def get_artemis_config_value(section, option, default_generator = None, write_default = False, read_method=None):
-    """
-    Get a setting from the artemis configuration.
-    See docstring for get_config_value
-    """
-    return get_config_value('.artemisrc', section=section, option=option, default_generator=default_generator, write_default=write_default, read_method = read_method)
 
 
 def get_home_dir():

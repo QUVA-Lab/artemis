@@ -8,9 +8,8 @@ from artemis.remote.virtualenv import check_diff_local_remote_virtualenv, get_re
 
 ip_address = get_plotting_server_address()
 is_local = ip_address in get_local_ips()
-ip_address = "146.50.28.6"
 
-@pytest.mark.skipif(is_local, reason ="No sense for local ip")
+@pytest.mark.skipif(ip_address="" or is_local, reason ="No sense for local ip")
 def test_check_diff_local_remote_virtualenv():
 
     # original_virtual_env_value = get_config_value(".artemisrc", ip_address, "python")
@@ -29,11 +28,10 @@ def test_check_diff_local_remote_virtualenv():
     # with open(os.path.expanduser("~/.artemisrc"), 'wb') as configfile:
     #     Config.write(configfile)
 
-@pytest.mark.skipif(is_local, reason ="No sense for local ip")
+@pytest.mark.skipif(ip_address="" or is_local, reason ="No sense for local ip")
 def test_get_remote_installed_packages():
     packages = get_remote_installed_packages(ip_address)
     print packages
-
 
 
 if __name__ == "__main__":

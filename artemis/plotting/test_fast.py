@@ -1,11 +1,12 @@
+import pytest
 from artemis.general.test_mode import set_test_mode
 from artemis.plotting.fast import find_interval_extremes, fastplot, fastloglog
 import matplotlib.pyplot as plt
-
-__author__ = 'peter'
 import numpy as np
+__author__ = 'peter'
 
 
+@pytest.mark.skipif(True, reason='scipy.weave, which is required, does not reliablly install.')
 def test_fastplot():
 
     plt.ion()
@@ -17,6 +18,7 @@ def test_fastplot():
     plt.show()
 
 
+@pytest.mark.skipif(True, reason='scipy.weave, which is required, does not reliablly install.')
 def test_find_interval_extremes():
 
     arr = np.random.RandomState(324).randn(1000)

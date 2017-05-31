@@ -1,5 +1,7 @@
+import pytest
+
 from artemis.general.mymath import softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel, \
-    align_curves, angle_between
+    align_curves, angle_between, fixed_diff, decaying_cumsum, geosum
 import numpy as np
 __author__ = 'peter'
 
@@ -65,6 +67,7 @@ def test_mode():
     assert m2.shape == (3, 5)
 
 
+@pytest.mark.skipif(True, reason='Requires scipy weave, which does not install reliably.')
 def test_cummode():
 
     arr = np.random.RandomState(0).randint(low=0, high=3, size=(5, 7))
@@ -81,6 +84,7 @@ def test_cummode():
             assert np.all(n_elements_of_mode_class >= n_elements_of_this_class)
 
 
+@pytest.mark.skipif(True, reason='Requires scipy weave, which does not install reliably.')
 def test_cummode_weighted():
 
     arr = np.random.RandomState(0).randint(low=0, high=3, size=(5, 7))
@@ -174,7 +178,40 @@ def test_angle_between():
     assert np.allclose(angle_between([2, 1], [1, 0], in_degrees=True), np.arctan(1/2.)*180/np.pi)
 
 
+def test_fixed_diff():
+
+    a = np.random.randn(2, 3, 4)
+
+    da = fixed_diff(a, axis=1, initial_value=0)
+    assert np.array_equal(da[:, 1:, :], np.diff(a, axis=1))
+    assert np.array_equal(da[:, 0, :], a[:, 0, :])
+
+    da = fixed_diff(a, axis=1, initial_value='first')
+    assert np.array_equal(da[:, 1:, :], np.diff(a, axis=1))
+    assert np.array_equal(da[:, 0, :], np.zeros_like(da[:, 0, :]))
+
+    assert np.allclose(a, np.cumsum(fixed_diff(a, axis=1), axis=1))
+
+
+def test_decaying_cumsum():
+
+    a = np.random.randn(2, 3, 4)
+
+    ca = decaying_cumsum(a, axis=1, memory=0)
+    assert np.array_equal(ca, a)
+
+    ca = decaying_cumsum(a, axis=1, memory=.6)
+    assert np.allclose(ca[:, 2, :], 0.4*(0.6**2*a[:, 0, :] + 0.6**1*a[:, 1, :] + a[:, 2, :]))
+
+
+def test_geosum():
+    assert geosum(0.5, t_end=4, t_start=2) == 0.5**2 + 0.5**3 + 0.5**4 == 0.4375
+    assert geosum(1, t_end=4, t_start=2) == 1**2+1**3+1**4 == 3
+
+
 if __name__ == '__main__':
+    test_decaying_cumsum()
+    test_fixed_diff()
     test_angle_between()
     test_align_curves()
     test_is_parallel()
@@ -186,3 +223,4 @@ if __name__ == '__main__':
     test_cumvar()
     test_cummean()
     test_softmax()
+    test_geosum()
