@@ -43,11 +43,7 @@ def find_experiment(*search_terms):
         return found_experiments.values()[0]
 
 
-<<<<<<< HEAD
-def browse_experiments(catch_errors = False, close_after_run = True, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True, **kwargs):
-=======
-def browse_experiments(catch_errors = False, close_after = False, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True, command=None):
->>>>>>> master
+def browse_experiments(catch_errors = False, close_after = False, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True, command=None,**kwargs):
     """
     Browse Experiments
 
@@ -61,13 +57,8 @@ def browse_experiments(catch_errors = False, close_after = False, just_last_reco
     if 'keep_record' not in run_args:
         run_args['keep_record'] = keep_record
 
-<<<<<<< HEAD
-    browser = ExperimentBrowser(catch_errors=catch_errors, close_after_run=close_after_run, just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args, **kwargs)
-    browser.launch()
-=======
-    browser = ExperimentBrowser(catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args)
+    browser = ExperimentBrowser(catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args,**kwargs)
     browser.launch(command=command)
->>>>>>> master
 
 
 class ExperimentBrowser(object):

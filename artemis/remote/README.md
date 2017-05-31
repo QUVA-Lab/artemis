@@ -1,5 +1,5 @@
 #Artemis plotting Server Edition (in beta...)#
-If you want to use the srver edition of artemis' plotting capability, you need to do a few things: 
+If you want to use the server edition of artemis' plotting capability, you need to do a few things:
 
 ##Edit your .artemisrc in the homedirectory:##
 In order to activate the server edition, add the option 'plotting_server' under the section 'plotting'. The option contains the ip-address of the server you want to use. The following is an example:

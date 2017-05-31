@@ -13,12 +13,9 @@ import time
 import uuid
 from slacker import Slacker
 import paramiko
-<<<<<<< HEAD
 
 from artemis.experiments.experiment_record import get_current_experiment_name, get_current_experiment_dir
-=======
 from artemis.config import get_artemis_config_value
->>>>>>> master
 from artemis.fileman.config_files import get_config_value
 from artemis.remote.plotting.utils import handle_socket_accepts
 from artemis.remote.utils import get_local_ips, get_socket
@@ -96,16 +93,13 @@ class Nanny(object):
             stdin, stdout, stderr = cp.execute_child_process()
 
             prefix = cp.name.ljust(name_max_lenght)+": "
-<<<<<<< HEAD
             gettrace = getattr(sys, 'gettrace', None)
 
             timeout = 1800 if not gettrace() else None # only set timeout if not in debug mode
             if not cp.monitor_if_stuck:
                 timeout = None
-=======
             if "worker" in cp.name:
                 N_workers+=1
->>>>>>> master
             stdout_thread = threading.Thread(target=self.monitor_and_forward_child_communication,
                                   args=(stdout,sys.stdout,termination_request_event,stdout_stopping_criterium, prefix, timeout))
 
@@ -275,11 +269,8 @@ class ChildProcess(object):
                 command.append("--port=%i"%port)
                 command.append("--address=%s"%address)
             if not self.local_process:
-<<<<<<< HEAD
-                command = [c.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python", default_generator=lambda: sys.executable)), 1) if c.startswith("python") else c for c in command]
-=======
-                command = [c.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python")), 1) if c.startswith("python") else c for c in command]
->>>>>>> master
+                command = [c.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python", default_generator=lambda: sys.executable)), 1) if c.startswith("python") else c for c in command]
+                # command = [c.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python")), 1) if c.startswith("python") else c for c in command]
                 command = [s.replace("~",home_dir) for s in command]
                 command = " ".join([c for c in command])
             else:
@@ -292,11 +283,8 @@ class ChildProcess(object):
                 command += " --port=%i "%port
                 command += "--address=%s"%address
             if not self.local_process:
-<<<<<<< HEAD
-                command = command.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python",default_generator=lambda: sys.executable)), 1)
-=======
-                command = command.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python")), 1)
->>>>>>> master
+                command = command.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python",default_generator=lambda: sys.executable)), 1)
+                # command = command.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python")), 1)
             else:
                 command = command.replace("python", sys.executable)
             command = command.replace("~",home_dir)
@@ -446,26 +434,10 @@ def get_ssh_connection(ip_address):
     :return:
     '''
 
-<<<<<<< HEAD
-    # try:
-    #     path_to_private_key = get_config_value(config_filename=".artemisrc", section=ip_address, option="private_key")
-    # except NoOptionError:
     path_to_private_key = os.path.join(os.path.expanduser("~"),".ssh/id_rsa")
 
-
     private_key = paramiko.RSAKey.from_private_key_file(os.path.expanduser(path_to_private_key))
-    # print("Private key %s" %(private_key,))
-    username = get_config_value(config_filename=".artemisrc", section=ip_address, option="username", default_generator=lambda: getpass.getuser())
-    # print("Trying username %s"%username)
-=======
-    try:
-        path_to_private_key = get_artemis_config_value(section=ip_address, option="private_key")
-    except NoOptionError:
-        path_to_private_key = os.path.join(os.path.expanduser("~"),".ssh/id_rsa")
-
-    private_key = paramiko.RSAKey.from_private_key_file(os.path.expanduser(path_to_private_key))
-    username = get_artemis_config_value(section=ip_address, option="username")
->>>>>>> master
+    username = get_artemis_config_value(section=ip_address, option="username", default_generator=lambda: getpass.getuser())
     ssh_conn = paramiko.SSHClient()
     ssh_conn.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh_conn.connect(hostname=ip_address, username=username, pkey=private_key)
