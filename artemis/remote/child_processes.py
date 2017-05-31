@@ -1,6 +1,8 @@
 from __future__ import print_function
 
+import Queue
 import atexit
+import getpass
 import os
 import shlex
 import signal
@@ -9,10 +11,13 @@ import sys
 import threading
 import time
 import uuid
-from ConfigParser import NoOptionError
+from slacker import Slacker
 import paramiko
+
+from artemis.experiments.experiment_record import get_current_experiment_name, get_current_experiment_dir
 from artemis.fileman.config_files import get_config_value
-from artemis.remote.utils import get_local_ips
+from artemis.remote.plotting.utils import handle_socket_accepts
+from artemis.remote.utils import get_local_ips, get_socket
 
 
 class ParamikoPrintThread(threading.Thread):
@@ -60,6 +65,9 @@ class Nanny(object):
         '''
         self.child_processes[cp.get_id()] = cp
 
+    def get_child_processes(self):
+        return self.child_processes
+
     def execute_all_child_processes(self, time_out=1, terminate_at_error=False,):
         '''
         Executes all child processes and starts managing communications. This method returns only when all child processes terminated.
@@ -83,12 +91,17 @@ class Nanny(object):
             stdin, stdout, stderr = cp.execute_child_process()
 
             prefix = cp.name.ljust(name_max_lenght)+": "
+            gettrace = getattr(sys, 'gettrace', None)
+
+            timeout = 1800 if not gettrace() else None # only set timeout if not in debug mode
+            if not cp.monitor_if_stuck:
+                timeout = None
             stdout_thread = threading.Thread(target=self.monitor_and_forward_child_communication,
-                                  args=(stdout,sys.stdout,termination_request_event,stdout_stopping_criterium, prefix))
+                                  args=(stdout,sys.stdout,termination_request_event,stdout_stopping_criterium, prefix, timeout))
 
             stderr_stopping_criterium = lambda x: err_fun(cp.get_ip()) if terminate_at_error else None
             stderr_thread = threading.Thread(target=self.monitor_and_forward_child_communication,
-                                  args=(stderr,sys.stderr,termination_request_event,stderr_stopping_criterium, prefix))
+                                  args=(stderr,sys.stderr,termination_request_event,stderr_stopping_criterium, prefix, None))
             stdout_threads[cp.get_id()] = stdout_thread
             stderr_threads[cp.get_id()] = stderr_thread
 
@@ -111,7 +124,7 @@ class Nanny(object):
         for id,cp in self.child_processes.iteritems():
             if cp.is_alive():
                 print("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip()))
-                cp.deconstruct(signal.SIGTERM)
+                cp.deconstruct(signal.SIGKILL)
 
         # This should return immediatly, since the unterlying pipes should have run dry. if it doesn't I messed up...:
         for stdout_thread, stderr_thread in zip(stdout_threads.values(), stderr_threads.values()):
@@ -137,7 +150,7 @@ class Nanny(object):
         signal.signal(signal.SIGTERM, self.original_sigterm_handler)
         os.kill(os.getpid(), signum)
 
-    def monitor_and_forward_child_communication(self, source_pipe, target_pipe, termination_request_event=None, stopping_criterium=None,  prefix=""):
+    def monitor_and_forward_child_communication(self, source_pipe, target_pipe, termination_request_event=None, stopping_criterium=None,  prefix="", timeout=None):
         '''
         thread to forward communication from source_pipe to target_pipe
         :param source_pipe:
@@ -147,10 +160,19 @@ class Nanny(object):
         :param prefix:
         :return:
         '''
+        if timeout is not None:
+            line_printed_event = threading.Event()
+            line_printed_event.clear()
+            t = threading.Thread(target=self._output_monitoring_timer_thread,args=(line_printed_event,termination_request_event,timeout))
+            t.setDaemon(True)
+            t.start()
         with source_pipe:
             for line in iter(source_pipe.readline, b''):
                 target_pipe.write("%s%s"%(prefix,line))
                 target_pipe.flush()
+                if timeout is not None:
+                    # sys.stderr.write("Setting Event again\n")
+                    line_printed_event.set()
                 if stopping_criterium is not None and stopping_criterium(line) and not "pydev debugger" in line and line.strip():
                     target_pipe.write(source_pipe.read())
                     target_pipe.flush()
@@ -158,16 +180,45 @@ class Nanny(object):
             if termination_request_event is not None:
                 termination_request_event.set() # The input pipe closed, this thread terminates and we would like everybody to terminate
 
+    def _output_monitoring_timer_thread(self, line_printed_event,termination_request_event, timeout=1800): # 5min
+        while not termination_request_event.wait(0.1):
+            t_start = time.time()
+            line_printed_event.wait(timeout)
+            line_printed_event.clear()
+            t_end = time.time()
+            # print("Something was written, time since last line: %.3f"%(t_end-t_start))
+            if t_end-t_start > timeout:
+                if line_printed_event.is_set():
+                    continue
+                try:
+                    exp_name = get_current_experiment_name()
+                    curr_dir = get_current_experiment_dir()
+                    with open(os.path.join(curr_dir,"experiment_stuck"),"wb"):
+                        pass
+                except:
+                    exp_name=""
+                print("Timeout occurred after %.1fmin, experiment %s stuck"%(timeout/60., exp_name))
+                slack = Slacker("xoxp-17864595792-19966742594-180028709216-64d0272c02db9613852f7b93a510b192")
+                slack.chat.post_message('@matthias', "Timeout occurred after %.1fmin, experiment %s stuck"%(timeout/60., exp_name))
+
+                termination_request_event.set()
+                break
+
+
+
+
 
 class ChildProcess(object):
     counter=1
-    def __init__(self, ip_address, command, name=None, take_care_of_deconstruct=False):
+    def __init__(self, ip_address, command, name=None, take_care_of_deconstruct=False, set_up_port_for_structured_back_communication=False, monitor_if_stuck=False):
         '''
         Creates a ChildProcess
         :param ip_address: The command will be executed at this ip_address
         :param command: the command to execute. If it is a python command and remote, will substitute the virtualenv
         :param name: optional name. If not set, will be process_i, with i a clobal counter
         :param take_care_of_deconstruct: If set to True, deconstruct() is registered at exit
+        :param port_for_structured_back_communication: If set, start listening to json stuff here and expose a way to receive it.
+        The started process is responsible for finding this port and addressing it.
         :return:
         '''
         if name is None:
@@ -176,9 +227,10 @@ class ChildProcess(object):
         self.name = name
         self.ip_address = ip_address
         self.local_process = self.ip_address in get_local_ips()
+        self.set_up_port_for_structured_back_communication = set_up_port_for_structured_back_communication
+        self.queue_from_cp = None
+        self.monitor_if_stuck = monitor_if_stuck
 
-
-        # command = command.replace(unichr(34),unichr(39))
         self.command = command
         self.id = uuid.uuid4()
         self.channel = None
@@ -193,16 +245,25 @@ class ChildProcess(object):
         :param command:
         :return:
         '''
+        if self.set_up_port_for_structured_back_communication:
+            self.queue_from_cp, port = self.listen_on_port()
+            if self.is_local():
+                address = "127.0.0.1"
+            else:
+                address = get_local_ips()[-1]
+
         if self.is_local():
             home_dir = os.path.expanduser("~")
-
         else:
             _,_,stdout,_ = self._run_command("echo $$; exec echo ~")
             home_dir = stdout.read().strip()
 
         if type(command) == list:
+            if self.set_up_port_for_structured_back_communication:
+                command.append("--port=%i"%port)
+                command.append("--address=%s"%address)
             if not self.local_process:
-                command = [c.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python")), 1) if c.startswith("python") else c for c in command]
+                command = [c.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python", default_generator=lambda: sys.executable)), 1) if c.startswith("python") else c for c in command]
                 command = [s.replace("~",home_dir) for s in command]
                 command = " ".join([c for c in command])
             else:
@@ -211,8 +272,11 @@ class ChildProcess(object):
                 command = [s.replace("~",home_dir) for s in command]
 
         elif type(command) == str or type(command) == unicode and command.startswith("python"):
+            if self.set_up_port_for_structured_back_communication:
+                command += " --port=%i "%port
+                command += "--address=%s"%address
             if not self.local_process:
-                command = command.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python")), 1)
+                command = command.replace("python", self.get_extended_command(get_config_value(".artemisrc", section=self.get_ip(), option="python",default_generator=lambda: sys.executable)), 1)
             else:
                 command = command.replace("python", sys.executable)
             command = command.replace("~",home_dir)
@@ -266,12 +330,28 @@ class ChildProcess(object):
         assert self.cp_started, "A ssh_connection will only be available after running execute_child_process()"
         return self.ssh_conn
 
+    def listen_on_port(self):
+        sock, port = get_socket("0.0.0.0", port=7000)
+        sock.listen(1)
+        main_input_queue = Queue.Queue()
+        t = threading.Thread(target=handle_socket_accepts,args=(sock, main_input_queue, None,1))
+        t.setDaemon(True)
+        t.start()
+        return main_input_queue, port
+
+    def get_queue_from_cp(self):
+        assert self.set_up_port_for_structured_back_communication, "You did not specify a port to be set up. Don't expect structured info from child process"
+        assert self.queue_from_cp, "The queue has not been set up yet. Did you start the child process before calling this function?"
+        return self.queue_from_cp
+
     def execute_child_process(self, get_pty = False):
         '''
         Executes ChildProcess in a non-blocking manner. This returns immediately.
         This method returns a tuple (stdin, stdout, stderr) of the child process
         :return:
         '''
+
+
         if not self.is_local():
             self.ssh_conn = get_ssh_connection(self.ip_address)
         command = self.prepare_command(self.command)
@@ -346,13 +426,16 @@ def get_ssh_connection(ip_address):
     :return:
     '''
 
-    try:
-        path_to_private_key = get_config_value(config_filename=".artemisrc", section=ip_address, option="private_key")
-    except NoOptionError:
-        path_to_private_key = os.path.join(os.path.expanduser("~"),".ssh/id_rsa")
+    # try:
+    #     path_to_private_key = get_config_value(config_filename=".artemisrc", section=ip_address, option="private_key")
+    # except NoOptionError:
+    path_to_private_key = os.path.join(os.path.expanduser("~"),".ssh/id_rsa")
+
 
     private_key = paramiko.RSAKey.from_private_key_file(os.path.expanduser(path_to_private_key))
-    username = get_config_value(config_filename=".artemisrc", section=ip_address, option="username")
+    # print("Private key %s" %(private_key,))
+    username = get_config_value(config_filename=".artemisrc", section=ip_address, option="username", default_generator=lambda: getpass.getuser())
+    # print("Trying username %s"%username)
     ssh_conn = paramiko.SSHClient()
     ssh_conn.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh_conn.connect(hostname=ip_address, username=username, pkey=private_key)
@@ -417,8 +500,6 @@ def check_ssh_connection(ip_address):
 def check_if_port_is_free(ip_address, port):
     '''
     This checks if the remote server is able to accept requests at the given port.
-    :param connections: A list ["ip_address:port"] of strings
-    :param force_close: In case the port is in use, force close the program that is occupying it.
     :return:
     '''
 

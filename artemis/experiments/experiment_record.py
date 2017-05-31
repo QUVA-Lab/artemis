@@ -445,6 +445,7 @@ class ExperimentRecord(object):
 _CURRENT_EXPERIMENT_RECORD = None
 
 
+
 @contextmanager
 def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True, show_figs=None,
                       save_figs=True, saved_figure_ext='.pdf', use_temp_dir=False, date=None):
@@ -473,6 +474,9 @@ def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True,
         experiment_directory = tempfile.mkdtemp()
         atexit.register(lambda: shutil.rmtree(experiment_directory))
     else:
+        # if "cifar" in identifier:
+        #     experiment_directory = get_local_path('experiments/cifar10/{identifier}'.format(identifier=identifier))
+        # else:
         experiment_directory = get_local_path('experiments/{identifier}'.format(identifier=identifier))
 
     make_dir(experiment_directory)

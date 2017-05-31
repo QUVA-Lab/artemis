@@ -12,7 +12,25 @@ from artemis.fileman.config_files import get_config_value
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
 
-def get_socket(address,port):
+def one_time_send_to(address, port, message):
+    '''
+    Send message to given address at port. This method is not intended to be used repeatedly at the same port as it does not maintain a socket connection
+    :param port:
+    :param message: A
+    :return:
+    '''
+    server_address = (address, port)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.connect(tuple(server_address))
+    except:
+        raise
+
+    send_size(sock,message)
+
+
+
+def get_socket(address,port,find_free=True):
     '''
     Returns a socket, bound to the next free port starting from the given port.
     :param port:
@@ -24,7 +42,8 @@ def get_socket(address,port):
             server_address = (address, port)
             sock.bind(server_address)
         except SocketServer.socket.error as exc:
-            # ARTEMIS_LOGGER.info('Port', port, 'already in use')
+            if not find_free:
+                raise
             port += 1
             if exc.args[0] == 48 or exc.args[0] == 98:
                 port += 1

@@ -1,6 +1,9 @@
 from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
-from scipy import weave
+try:
+    from scipy import weave
+except ImportError:
+    print("AAAA")
 from scipy.stats import norm, mode as sp_mode
 __author__ = 'peter'
 

@@ -42,6 +42,24 @@ def test_communications():
                     blocking=True,
                     command = "python -c 'from __future__ import print_function\nimport sys,time\nfor i in range(10): print(i, file=sys.stderr if i%2==0 else sys.stdout);sys.stdout.flush();time.sleep(0.3)'")
 
+def test_structured_return_messages():
+    ip_address = "127.0.0.1"
+    command = "python %s"%os.path.join(os.path.dirname(__file__), "bogus_test_functions.py")
+    n  = Nanny()
+    cp = ChildProcess(ip_address, command,set_up_port_for_structured_back_communication=True)
+    n.register_child_process(cp)
+    n.execute_all_child_processes()
+    # stdin , stdout, stderr = cp.execute_child_process()
+    # t1 = ParamikoPrintThread(source_pipe=stdout, target_pipe=sys.stdout, prefix="stdout: ")
+    # t1.start()
+    # stderr
+    # t2 = ParamikoPrintThread(source_pipe=stderr, target_pipe=sys.stderr, prefix="stderr: ")
+    # t2.start()
+
+    q = cp.get_queue_from_cp()
+    out = q.get()
+    print(out)
+    # print("Stop")
 
 def test_kill_process_gently():
 
@@ -112,9 +130,11 @@ def test_is_alive():
 
 
 if __name__ == "__main__":
-    test_check_ssh_connections()
-    test_check_if_port_is_free()
-    test_communications()
-    test_kill_process_gently()
-    test_remote_graphics()
-    test_is_alive()
+    test_structured_return_messages()
+    sys.exit(0)
+    # test_check_ssh_connections()
+    # test_check_if_port_is_free()
+    # test_communications()
+    # test_kill_process_gently()
+    # test_remote_graphics()
+    # test_is_alive()

@@ -5,17 +5,30 @@ This file is required to perform plotting server related tests. Its purpose is t
 
 
 from __future__ import print_function
+
+import json
 import sys
 import atexit
 import time
-def function():
-    i = 1
-    while i<10:
-        print(i, file=sys.stderr)
-        sys.stderr.flush()
-        time.sleep(1.0)
-        i +=1
 
+from artemis.remote.utils import one_time_send_to
+
+import argparse
+
+
+def function(port,address):
+    port = int(port)
+    i = 1
+    while i<400:
+        print(i)
+        sys.stdout.flush()
+        time.sleep(0.5)
+        i +=1
+    d = {"a":1,"b":2,"bla":"dbu"}
+    # print("Sleeping now")
+    # time.sleep(1000)
+    # print("sending now:")
+    # one_time_send_to(address, port, json.dumps(d))
 
 def atexit_function():
     print("atexit called")
@@ -23,5 +36,10 @@ def atexit_function():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port")
+    parser.add_argument("--address")
+    args = parser.parse_args()
+
     atexit.register(atexit_function)
-    function()
+    function(args.port, args.address)

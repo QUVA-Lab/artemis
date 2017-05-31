@@ -248,7 +248,8 @@ def hold_dbplots(fig = None, plot_every = None):
         plot_now = True
 
     if plot_now:
-        redraw_figure(_DBPLOT_FIGURES[fig].figure)
+        if len(_DBPLOT_FIGURES) > 0:
+            redraw_figure(_DBPLOT_FIGURES[fig].figure)
 
 
 def clear_dbplot(fig = None):

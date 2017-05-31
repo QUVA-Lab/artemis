@@ -12,7 +12,6 @@ if config.has_option('plotting', 'plotting_server'):
 else:
     _USE_SERVER = False
     _PLOTTING_SERVER = ""
-
 assert BACKEND in ('matplotlib', 'matplotlib-web', 'bokeh'), 'Your config file ~/.artimisrc lists "%s" as the backend.  Valid backends are "matplotlib" and "bokeh".  Change the file.' % (BACKEND, )
 
 if BACKEND in ('matplotlib', 'matplotlib-web'):

@@ -7,6 +7,9 @@ import time
 import uuid
 import pickle
 from collections import namedtuple
+
+from artemis.experiments.experiment_record import get_current_experiment_dir
+from artemis.fileman.local_dir import get_local_dir
 from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.plotting_backend import get_plotting_server_address
 from artemis.remote.child_processes import check_ssh_connection, ChildProcess, ParamikoPrintThread
@@ -33,10 +36,23 @@ def dbplot_remotetly(arg_locals):
     if _to_subprocess_queue is None:
         # This is the first call to dbplot, we need to set up the server.
         set_up_plotting_server()
+        # Send path to experiment:
+        # try:
+        #     exp_path = get_current_experiment_dir()
+        #     exp_path = exp_path.replace(os.path.expanduser('~'), '~', 1)
+        # except:
+        #     exp_path = ""
+        # arg_locals["exp_path"] = exp_path
+        # dbplot_remotetly(arg_locals={"exp_path":exp_path})
+        # unique_plot_id = str(uuid.uuid4())
+        # data_to_send = DBPlotMessage(plot_id=unique_plot_id, dbplot_args={"exp_path":exp_path})
+        # serialized_command = pickle.dumps(data_to_send, protocol=2)
+        # _to_subprocess_queue.put(serialized_command)
 
     # The data is being prepared and sent to the remote plotting server
     unique_plot_id = str(uuid.uuid4())
     # data_to_send = {"plot_id":unique_plot_id, "dbplot_args":arg_locals}
+
     data_to_send = DBPlotMessage(plot_id = unique_plot_id, dbplot_args=arg_locals)
     serialized_command = pickle.dumps(data_to_send, protocol=2)
     _to_subprocess_queue.put(serialized_command)
