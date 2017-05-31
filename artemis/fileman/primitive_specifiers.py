@@ -1,6 +1,8 @@
+from abc import abstractmethod
+
 __author__ = 'peter'
 from copy import deepcopy
-
+import pickle
 """
 This module is made to help create "PrimativeSpecifiers".  A Primative Specifier is an object that can be turned
 into a primative data structure, independent of all code.  You might want to do this, for instance, if you want to save
@@ -9,6 +11,23 @@ load your model into their code.).
 """
 
 _SAVEABLE_CLASSES = {}
+
+
+class Serializable(object):
+
+    @abstractmethod
+    def to_spec(self):
+        """
+        :return: An object that can be used to reconstruct this class.
+        """
+
+    @classmethod
+    @abstractmethod
+    def from_spec(cls, spec):
+        """
+        :param spec: An object of the form returned by to_spec.
+        :return: An instance of the class
+        """
 
 
 def _register_saveable_class(saveable_class):
@@ -43,3 +62,4 @@ class PrimativeSpecifier(object):
 
     def clone(self):
         return load_primative(deepcopy(self.to_primative()))
+
