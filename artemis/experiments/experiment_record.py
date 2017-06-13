@@ -675,7 +675,7 @@ def load_latest_experiment_record(experiment_name, filter_status=None, actual_in
 
 
 def has_experiment_record(experiment_identifier):
-    return os.path.exists(get_local_experiment_path(identifier=experiment_identifier))
+    return experiment_id_to_latest_record_id(experiment_identifier) is not None
 
 
 def load_experiment_record(experiment_identifier):
