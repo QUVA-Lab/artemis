@@ -1,13 +1,12 @@
 from contextlib import contextmanager
-
-from artemis.fileman.local_dir import make_file_dir, format_filename, get_local_path
+from artemis.fileman.local_dir import make_file_dir, format_filename, get_local_path, make_dir
 from artemis.plotting.manage_plotting import ShowContext
 import os
-__author__ = 'peter'
 import logging
+from matplotlib import pyplot as plt
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 logging.basicConfig()
-from matplotlib import pyplot as plt
+__author__ = 'peter'
 
 _supported_filetypes = ('.eps', '.jpeg', '.jpg', '.pdf', '.pgf', '.png', '.ps', '.raw', '.rgba', '.svg', '.svgz', '.tif', '.tiff')
 
@@ -87,17 +86,29 @@ class SaveFiguresOnShow(ShowContext):
     def get_figure_locs(self):
         return list(self._locations)
 
-@contextmanager
-def save_figures_on_close(dir, prefix='', default_ext = 'pdf', close_after =False):
 
-    old_fignums = plt.get_fignums()
+@contextmanager
+def save_figures_on_close(path, prefix='fig-', default_ext = '.pdf', only_new_figs = False):
+    """
+    Just save all figures when this block exits.  (Note that this doesn't really need to be a context manager, but we
+    make it one anyway to keep it consistent with SaveFiguresOnShow
+    :param dir:
+    :param prefix:
+    :param default_ext:
+    :param close_after:
+    :return:
+    """
+
+    if not default_ext.startswith('.'):
+        default_ext = '.'+default_ext
+
+    figs = plt.get_fignums()
 
     yield
 
-    new_figs = [fig for fig in plt.get_fignums() if fig ]
+    figs = [no for no in plt.get_fignums() if no not in figs] if only_new_figs else plt.get_fignums()
 
-    for fig_no in new_figs:
-        make_file_dir(path)
-    fig.savefig(path)
+    make_dir(path)
 
-
+    for ix, fig in enumerate(figs):
+        plt.figure(fig).savefig(os.path.join(path, prefix+str(ix))+default_ext)

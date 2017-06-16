@@ -92,6 +92,8 @@ from artemis.general.should_be_builtins import separate_common_items, izip_equal
 from artemis.general.test_mode import is_test_mode, set_test_mode
 from uuid import getnode
 import numpy as np
+
+
 try:
     from enum import Enum
 except ImportError:
@@ -501,7 +503,9 @@ def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True,
     show_context = WhatToDoOnShow(show_figs)
     if save_figs:
         from artemis.plotting.saving_plots import SaveFiguresOnShow
-        save_figs_context = SaveFiguresOnShow(path=os.path.join(experiment_directory, 'fig-%T-%L' + saved_figure_ext))
+        from artemis.plotting.saving_plots import save_figures_on_close
+        # save_figs_context = SaveFiguresOnShow(path=os.path.join(experiment_directory, 'fig-%T-%L' + saved_figure_ext))
+        save_figs_context = save_figures_on_close(path=experiment_directory, prefix='fig-', only_new_figs=False)
         with capture_context, show_context, save_figs_context:
             yield _CURRENT_EXPERIMENT_RECORD
     else:

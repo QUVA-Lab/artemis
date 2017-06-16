@@ -182,6 +182,7 @@ def _glyph_already_on_document(glyph):
         existing_renderers = existing_renderers + p.renderers
     return glyph._id in [r._id for r in existing_renderers]
 
+
 class LinePlot(object):
     def __init__(self, yscale = None, **kwargs):
         self._plots = None
