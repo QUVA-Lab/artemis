@@ -1,6 +1,6 @@
 from collections import namedtuple
 import itertools
-from artemis.general.should_be_builtins import bad_value
+from artemis.general.should_be_builtins import bad_value, all_equal
 import numpy as np
 import time
 
@@ -212,8 +212,6 @@ def minibatch_iterate_info(data, minibatch_size, n_epochs, test_epochs = None):
         minibatch is a minibatch of data (minibatch_size, ...)
         info is an IterationInfo object returning information about the state of iteration.
     """
-    
-
     for arrays, info in itertools.izip(
             minibatch_iterate(data, minibatch_size=minibatch_size, n_epochs=n_epochs),
             iteration_info(n_samples=data.shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs)
@@ -221,17 +219,31 @@ def minibatch_iterate_info(data, minibatch_size, n_epochs, test_epochs = None):
         yield arrays, info
 
 
-# def minibatch_process(f, data, minibatch_size):
-#     """
-#     Process data through a function f in minibatches.  Useful when memory is too small to do it all at once.
-#
-#     :param f: A function of the form y=f(x)
-#     :param data: One array, or a collection of arrays.
-#     :return: An output, the concatenated sum of the inputs
-#     """
-#     if isinstance(data, np.ndarray):
-#         data = (data, )
-#
-#     outputs = ffor data in zip_minibatch_iterate(data):
-#
-#
+def minibatch_process(f, minibatch_size, mb_args = (), mb_kwargs = {}, fixed_kwargs={}):
+    """
+    Process inputs through a function f in minibatches, and stitch together the outputs.
+
+    :param f: A function of the form y=f(x1, x2, ...)  where x1.shape[0] == x2.shape[0] == y.shape[0].
+        We assume that outputs of f are equivariant to permuations along the 0th axis of inputs of f.
+        i.e. each row is processed independently.
+    :param minibatch_size: The size of the minibatches in which to feed the date through y
+    :param mb_args: Arguments that will be fed through in minibatches
+    :param mb_kwargs: Keyword-Arguments that will be fed through in minibatches
+    :param fixed_kwargs: Keyword arguments that will remain fixed.
+    :return: The output y
+    """
+    all_mb_args = list(mb_args) + mb_kwargs.values()
+    assert len(all_mb_args)>0, 'Need some input.'
+    assert callable(f), 'f must be a function'
+    n_samples = len(mb_args[0])
+    assert all(len(arg) == n_samples for arg in all_mb_args)
+    mb_kwarg_list = mb_kwargs.items()
+    fixed_kwarg_list = fixed_kwargs.items()
+    index_generator = minibatch_index_generator(n_samples = n_samples, n_epochs=1, minibatch_size=minibatch_size, final_treatment='truncate')
+    ix = index_generator.next()
+    first_output = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
+    results = np.empty((n_samples, )+first_output.shape[1:], dtype=first_output.dtype)
+    results[:len(first_output)] = first_output
+    for ix in index_generator:
+        results[ix] = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
+    return results

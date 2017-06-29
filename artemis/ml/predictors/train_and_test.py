@@ -6,7 +6,7 @@ from artemis.general.mymath import softmax
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
 from artemis.ml.datasets.datasets import DataSet
-from artemis.ml.tools.iteration import zip_minibatch_iterate_info, IterationInfo
+from artemis.ml.tools.iteration import zip_minibatch_iterate_info, IterationInfo, minibatch_process
 
 __author__ = 'peter'
 
@@ -457,7 +457,7 @@ def _dataset_to_test_pair(dataset, include = 'train+test'):
     return pairs
 
 
-def assess_prediction_functions(test_pairs, functions, costs, print_results=False):
+def assess_prediction_functions(test_pairs, functions, costs, print_results=False, prediction_minibatches = None):
     """
 
     :param test_pairs: A list<pair_name, (x, y)>, where x, y are equal-length vectors representing the samples in a dataset.
@@ -466,6 +466,7 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     :param costs: A list<(cost_name, cost_function)> or dict<cost_name: cost_function> of cost functions, where cost_function has the form:
         cost = cost_fcn(guess, y), where cost is a scalar, and guess is the output of the prediction function given one
             of the inputs (x) in test_pairs.
+    :param prediction_minibatches: Size of minibatches to predict in.
     :return: A ModelTestScore object
     """
     if isinstance(test_pairs, DataSet):
@@ -492,8 +493,11 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
     results = ModelTestScore()
     for test_pair_name, (x, y) in test_pairs:
         for function_name, function in functions:
-            for cost_name, cost_function in costs:
+            if prediction_minibatches is None:
                 predictions = function(x)
+            else:
+                predictions = minibatch_process(function, minibatch_size=prediction_minibatches, mb_args=(x, ))
+            for cost_name, cost_function in costs:
                 results[test_pair_name, function_name, cost_name] = cost_function(predictions, y)
 
     if print_results:
