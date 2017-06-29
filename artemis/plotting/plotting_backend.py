@@ -5,6 +5,7 @@ __author__ = 'peter'
 _PLOTTING_SERVER = get_artemis_config_value(section='plotting', option='plotting_server', default_generator="")
 _USE_SERVER = _PLOTTING_SERVER != ""
 
+
 BACKEND = get_artemis_config_value(section='plotting', option='backend')
 assert BACKEND in ('matplotlib', 'matplotlib-web', 'bokeh'), 'Your config file ~/.artimisrc lists "%s" as the backend.  Valid backends are "matplotlib" and "bokeh".  Change the file.' % (BACKEND, )
 
