@@ -425,7 +425,7 @@ def plot_info_score_pairs_collection(info_score_pair_sequences, prediction_funct
 
     colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
     for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
-        plot_info_score_pairs(ispc, prediction_function = prediction_function, score_measure=score_measure, show=False)
+        plot_info_score_pairs(ispc, prediction_function = prediction_function, score_measure=score_measure, show=False, name=name)
     if show:
         plt.show()
 
