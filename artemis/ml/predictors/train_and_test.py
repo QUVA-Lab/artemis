@@ -516,7 +516,7 @@ def print_score_results(score, info=None):
 
 def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
             score_measure='percent_argmax_correct', test_callback=None, training_callback = None, score_collection = None,
-            test_on = 'training+test', pass_iteration_info_to_training = False):
+            test_on = 'training+test', pass_iteration_info_to_training = False, predict_in_minibatches=False):
     """
     Train an online predictor.  Return a data structure with info about the training.
     :param dataset: A DataSet object
@@ -536,6 +536,7 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
     :param test_on: What to run tests on: {'training', 'test', 'training+test'}
     :param pass_iteration_info_to_training: Pass an IterationInfo object into the training function (x, y, iter_info).
         This object contains fields (epoch, sample, time) which can be used to do things like adjust parameters on a schedule.
+    :param predict_in_minibatches: Also run the prediction function in minibatches (for example to save memory)
     :return: A list<info, scores>  where...
         IterationInfo object (see artemis.ml.tools.iteration.py) with fields:
             'iteration', 'epoch', 'sample', 'time', 'test_now', 'done'
@@ -552,7 +553,7 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
             last_epoch = info.epoch
             last_time = info.time
             test_pairs = _dataset_to_test_pair(dataset, include = test_on)
-            score = assess_prediction_functions(test_pairs, functions=predict_fcn, costs=score_measure, print_results=True)
+            score = assess_prediction_functions(test_pairs, functions=predict_fcn, costs=score_measure, print_results=True, prediction_minibatches=minibatch_size if predict_in_minibatches else None)
             p = InfoScorePair(info, score)
             info_score_pairs.append(p)
             # print p.get_table(remove_headers=len(info_score_pairs)>1)
