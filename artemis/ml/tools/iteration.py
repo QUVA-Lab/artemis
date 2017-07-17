@@ -7,6 +7,10 @@ import time
 __author__ = 'peter'
 
 
+SINGLE_MINIBATCH_SIZE = 'single'
+FULL_MINIBATCH_SIZE = 'full'
+
+
 def minibatch_index_generator(n_samples, minibatch_size, n_epochs = 1, final_treatment = 'stop', slice_when_possible = True):
     """
     Generates the indices for minibatch-iteration.
@@ -22,7 +26,12 @@ def minibatch_index_generator(n_samples, minibatch_size, n_epochs = 1, final_tre
     :yield: IIndices that you can use to slice arrays for minibatch iteration.
     """
 
-    true_minibatch_size = n_samples if minibatch_size == 'full' else \
+    if minibatch_size==SINGLE_MINIBATCH_SIZE:
+        for i in (xrange(n_samples*n_epochs) if not np.isinf(n_epochs) else itertools.count(0)):
+            yield i % n_samples
+        return
+
+    true_minibatch_size = n_samples if minibatch_size == FULL_MINIBATCH_SIZE else \
         minibatch_size if isinstance(minibatch_size, int) else \
         bad_value(minibatch_size)
     remaining_samples = int(n_epochs * n_samples) if not np.isinf(n_epochs) else np.inf
@@ -76,7 +85,7 @@ def checkpoint_minibatch_index_generator(n_samples, checkpoints, slice_when_poss
             yield np.arange(start, stop) % n_samples
 
 
-def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
+def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1, final_treatment = 'truncate'):
     """
     Yields minibatches from each array in arrays in sequence.
     :param arrays: A collection of arrays, all of which must have the same shape[0]
@@ -87,17 +96,21 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1):
     assert isinstance(arrays, (list, tuple)), 'You need to provide an array or collection of arrays.'
     assert len(arrays)>0, 'Need at least one array'
     total_size = arrays[0].shape[0]
-    if minibatch_size=='full':
+    if minibatch_size==FULL_MINIBATCH_SIZE:
         minibatch_size=total_size
     if n_epochs=='inf':
         n_epochs=float('inf')
     assert isinstance(n_epochs, (int, float))
     assert all(a.shape[0] == total_size for a in arrays), 'All arrays must have the same length!  Lengths are: %s' % ([len(arr) for arr in arrays])
-    end = total_size*n_epochs
-    ixs = np.arange(minibatch_size)
-    while ixs[0] < end:
-        yield tuple(a[ixs % total_size] for a in arrays)
-        ixs+=minibatch_size
+
+    for ixs in minibatch_index_generator(n_samples=total_size, minibatch_size=minibatch_size, n_epochs=n_epochs, final_treatment=final_treatment):
+        yield tuple(a[ixs] for a in arrays)
+
+    # end = total_size*n_epochs
+    # ixs = np.arange(minibatch_size)
+    # while ixs[0] < end:
+    #     yield tuple(a[ixs % total_size] for a in arrays)
+        # ixs+=minibatch_size
 
 
 IterationInfo = namedtuple('IterationInfo', ['iteration', 'epoch', 'sample', 'time', 'test_now', 'done'])
@@ -120,8 +133,12 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = 5):
     # next_text_point = 0 if test_epochs is not None and len(test_epochs)>0 else None
     start_time = time.time()
     n_samples = float(n_samples)
-    if minibatch_size=='full':
+    if minibatch_size==FULL_MINIBATCH_SIZE:
         minibatch_size = n_samples
+    elif minibatch_size == SINGLE_MINIBATCH_SIZE:
+        minibatch_size = 1
+    elif not isinstance(minibatch_size, int):
+        raise Exception('Unexpected value for minibatch_size: {}'.format(minibatch_size))
     if isinstance(test_epochs, str):
         assert test_epochs in ('always', 'never', 'every'), "test_epochs={} is not valid".format(test_epochs)
     elif isinstance(test_epochs, tuple):
@@ -197,7 +214,7 @@ def minibatch_iterate(data, minibatch_size, n_epochs=1):
     :param n_epochs: The number of epochs to run for
     :yield: (minibatch_size, ...) data arrays.
     """
-    if minibatch_size == 'full':
+    if minibatch_size == FULL_MINIBATCH_SIZE:
         minibatch_size = len(data)
     end = len(data)*n_epochs
     ixs = np.arange(minibatch_size)
@@ -247,7 +264,8 @@ def minibatch_process(f, minibatch_size, mb_args = (), mb_kwargs = {}, fixed_kwa
     index_generator = minibatch_index_generator(n_samples = n_samples, n_epochs=1, minibatch_size=minibatch_size, final_treatment='truncate')
     ix = index_generator.next()
     first_output = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
-    results = np.empty((n_samples, )+first_output.shape[1:], dtype=first_output.dtype)
+    output_shape = first_output.shape if minibatch_size==SINGLE_MINIBATCH_SIZE else first_output.shape[1:]
+    results = np.empty((n_samples, )+output_shape, dtype=first_output.dtype)
     results[:len(first_output)] = first_output
     for ix in index_generator:
         results[ix] = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
