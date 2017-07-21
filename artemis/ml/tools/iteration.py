@@ -106,12 +106,6 @@ def zip_minibatch_iterate(arrays, minibatch_size, n_epochs=1, final_treatment = 
     for ixs in minibatch_index_generator(n_samples=total_size, minibatch_size=minibatch_size, n_epochs=n_epochs, final_treatment=final_treatment):
         yield tuple(a[ixs] for a in arrays)
 
-    # end = total_size*n_epochs
-    # ixs = np.arange(minibatch_size)
-    # while ixs[0] < end:
-    #     yield tuple(a[ixs % total_size] for a in arrays)
-        # ixs+=minibatch_size
-
 
 IterationInfo = namedtuple('IterationInfo', ['iteration', 'epoch', 'sample', 'time', 'test_now', 'done'])
 

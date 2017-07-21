@@ -684,14 +684,13 @@ def has_experiment_record(experiment_identifier):
     return os.path.exists(get_local_experiment_path(identifier=experiment_identifier))
 
 
-def load_experiment_record(experiment_identifier):
+def load_experiment_record(record_id):
     """
     Load an ExperimentRecord based on the identifier
-    :param experiment_identifier: A string identifying the experiment
+    :param record_id: A string identifying the experiment record
     :return: An ExperimentRecord object
     """
-    full_path = get_local_experiment_path(identifier=experiment_identifier)
-    return ExperimentRecord(full_path)
+    return ExperimentRecord.from_identifier(record_id)
 
 
 def _register_experiment(experiment):
@@ -1089,15 +1088,20 @@ class Experiment(object):
             for child in children:
                 child.clear_records()
 
+    def get_records(self, only_completed=False):
+        record_ids = experiment_id_to_record_ids(self.name, filter_status=ExpStatusOptions.FINISHED if only_completed else None)
+        return [load_experiment_record(rid) for rid in record_ids]
+
     def get_latest_record(self, only_completed=False):
         """
         :param only_completed: Only search among records of that have run to completion.
         :return: An ExperimentRecord object
         """
-        rec = load_latest_experiment_record(self.name, filter_status=ExpStatusOptions.FINISHED if only_completed else None)
-        if rec is None:
-            raise Exception('No records for experiment {}'.format(self.name))
-        return rec
+        record_ids = experiment_id_to_record_ids(self.name, filter_status=ExpStatusOptions.FINISHED if only_completed else None)
+        if len(record_ids)==0:
+            raise Exception('No records{} for experiment {}'.format(' completed' if only_completed else self.name))
+        else:
+            return load_experiment_record(record_ids[-1])
 
     def get_name(self):
         return self.name
