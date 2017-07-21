@@ -1083,6 +1083,16 @@ class Experiment(object):
             for child in children:
                 child.clear_records()
 
+    def get_latest_record(self, only_completed=False):
+        """
+        :param only_completed: Only search among records of that have run to completion.
+        :return: An ExperimentRecord object
+        """
+        rec = load_latest_experiment_record(self.name, filter_status=ExpStatusOptions.FINISHED if only_completed else None)
+        if rec is None:
+            raise Exception('No records for experiment {}'.format(self.name))
+        return rec
+
     def get_name(self):
         return self.name
 
