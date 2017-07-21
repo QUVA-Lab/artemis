@@ -390,6 +390,12 @@ class ExperimentRecord(object):
     def get_dir(self):
         return self._experiment_directory
 
+    def get_args(self):
+        return self._info.get_field(ExpInfoFields.ARGS)
+
+    def get_status(self):
+        return self._info.get_field(ExpInfoFields.STATUS)
+
     def delete(self):
         shutil.rmtree(self._experiment_directory)
 
@@ -1095,6 +1101,10 @@ class Experiment(object):
 
     def get_name(self):
         return self.name
+
+    def browse(self):
+        from artemis.experiments.ui import browse_experiments
+        browse_experiments(root_experiment=self)
 
 
 def load_lastest_experiment_results(experiment_ids, error_if_no_result = True):

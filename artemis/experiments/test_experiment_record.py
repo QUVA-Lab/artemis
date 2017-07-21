@@ -7,7 +7,7 @@ import numpy as np
 from artemis.experiments.experiment_record import \
     experiment_id_to_latest_record_id, get_experiment_info, load_experiment_record, ExperimentRecord, record_experiment, \
     delete_experiment_with_id, get_current_experiment_dir, experiment_function, open_in_experiment_dir, \
-    experiment_testing_context
+    experiment_testing_context, ExpInfoFields, ExpStatusOptions
 from artemis.experiments.deprecated import start_experiment, end_current_experiment
 from artemis.general.test_mode import set_test_mode
 
@@ -196,8 +196,34 @@ def test_variants():
         assert len(experiments)==13
 
 
+def test_experiment_api(try_browse=False):
+
+    with experiment_testing_context():
+
+        @experiment_function
+        def my_api_test(a=1, b=3):
+            print 'aaa'
+            return a*b
+
+        my_api_test.add_variant('a2b2', a=2, b=2)
+        my_api_test.add_variant('a3b2', a=3, b=2)
+
+        my_api_test.get_variant('a2b2').run()
+        record = my_api_test.get_variant('a2b2').get_latest_record()
+
+        assert record.get_log() == 'aaa\n'
+        assert record.get_result() == 4
+        assert record.get_args() == [('a', 2), ('b', 2)]
+        assert record.get_status() == ExpStatusOptions.FINISHED
+
+    if try_browse:
+        my_api_test.browse()
+
+
 if __name__ == '__main__':
+
     set_test_mode(True)
+    test_experiment_api()
     test_get_latest_identifier()
     test_get_latest()
     test_run_and_show()
