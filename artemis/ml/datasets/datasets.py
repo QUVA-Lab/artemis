@@ -49,7 +49,7 @@ class DataSet(object):
 
     @property
     def target_size(self):
-        return np.prod(self.target_shape)
+        return np.prod(self.target_shape, dtype=np.int)
 
     @property
     def name(self):

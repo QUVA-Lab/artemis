@@ -43,10 +43,11 @@ def find_experiment(*search_terms):
         return found_experiments.values()[0]
 
 
-def browse_experiments(catch_errors = False, close_after = False, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True, command=None):
+def browse_experiments(root_experiment = None, catch_errors = False, close_after = False, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True, command=None):
     """
     Browse Experiments
 
+    :param root_experiment: Optionally, the root experiment to look at.
     :param catch_errors: True if you want to catch any errors here
     :param close_after: Close this menu after running an experiment
     :param just_last_record: Just show the last record for the experiment
@@ -57,7 +58,8 @@ def browse_experiments(catch_errors = False, close_after = False, just_last_reco
     if 'keep_record' not in run_args:
         run_args['keep_record'] = keep_record
 
-    browser = ExperimentBrowser(catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args)
+    browser = ExperimentBrowser(root_experiment=root_experiment, catch_errors=catch_errors, close_after=close_after,
+        just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args)
     browser.launch(command=command)
 
 
@@ -116,8 +118,9 @@ records.  You can specify records in the following ways:
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
 """
 
-    def __init__(self, catch_errors = False, close_after = True, just_last_record = False, view_mode ='full', raise_display_errors=False, run_args=None):
+    def __init__(self, root_experiment = None, catch_errors = False, close_after = True, just_last_record = False, view_mode ='full', raise_display_errors=False, run_args=None):
 
+        self.root_experiment = root_experiment
         self.close_after = close_after
         self.just_last_record = just_last_record
         self.catch_errors = catch_errors
@@ -127,9 +130,10 @@ records.  You can specify records in the following ways:
         self._filter = None
         self.run_args = {} if run_args is None else run_args
 
-
     def reload_record_dict(self):
-        d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in GLOBAL_EXPERIMENT_LIBRARY.keys())
+        names = GLOBAL_EXPERIMENT_LIBRARY.keys() if self.root_experiment is None else [ex.name for ex in self.root_experiment.get_all_variants(include_self=True)]
+
+        d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in names)
         if self.just_last_record:
             for k in d.keys():
                 d[k] = [d[k][-1]] if len(d[k])>0 else []

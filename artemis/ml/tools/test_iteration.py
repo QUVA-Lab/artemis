@@ -1,5 +1,5 @@
 from artemis.ml.tools.iteration import minibatch_index_generator, checkpoint_minibatch_index_generator, \
-    zip_minibatch_iterate_info
+    zip_minibatch_iterate_info, minibatch_process
 
 __author__ = 'peter'
 import numpy as np
@@ -88,7 +88,22 @@ def test_minibatch_iterate_info():
         assert test_epochs == [0, 0.5, 1, 1.5]  # Note... last test time is not included... difficult to say what should be expected here.
 
 
+def test_minibatch_process():
+
+    x = np.random.randn(5, 3)
+    mat = np.random.randn(3, 4)
+
+    def func(x):
+        return x.dot(mat)
+
+    y1 = func(x)
+    assert y1.shape==(5, 4)
+    y2 = minibatch_process(func, minibatch_size=2, mb_args=(x, ))
+
+    assert np.allclose(y1, y2)  # weird numpy rounding makes it not exactly equal
+
 if __name__ == '__main__':
+    test_minibatch_process()
     test_minibatch_iterate_info()
     test_minibatch_index_generator()
     test_checkpoint_minibatch_generator()
