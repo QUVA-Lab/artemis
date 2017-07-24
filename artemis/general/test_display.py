@@ -1,4 +1,6 @@
-from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side
+import textwrap
+
+from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper
 
 _desired = """
 aaa
@@ -58,6 +60,28 @@ def test_side_by_side():
     print 'Side by side:\n{}'.format(out)
     # assert out==desired  # Would work but pycharm automatically trims trailing spaces.
 
+
+def test_document_wrapper():
+    """
+    Document Wrapper is deals with wrapping text with new lines already present.
+    :return:
+    """
+
+    str3="0123456789\n0123456789\n01234567890123456789"
+
+    desired3="0123456789\n0123456789\n012345678901\n23456789"
+
+    w1 = textwrap.TextWrapper(width=12, replace_whitespace=False)
+    r1 = w1.fill(str3)
+    assert r1 != desired3
+    assert r1 == "0123456789\n0123456789\n0\n123456789012\n3456789"
+
+    w2 = DocumentWrapper(width=12, replace_whitespace=False)
+    r2 = w2.fill(str3)
+    assert r2 == desired3
+
+
 if __name__ == '__main__':
-    # test_indent_print()
+    test_indent_print()
     test_side_by_side()
+    test_document_wrapper()

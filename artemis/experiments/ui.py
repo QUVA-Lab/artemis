@@ -275,16 +275,31 @@ records.  You can specify records in the following ways:
     def help(self):
         _warn_with_prompt(self.HELP_TEXT, prompt = 'Press Enter to exit help.', use_prompt=not self.close_after)
 
-    def show(self, user_range):
-
+    def show(self, user_range, parallel_arg = None):
+        """
+        :param user_range:  A range specifying the record
+        :param parallel_arg: -p to print logs side-by-side, and -s to print them in sequence.
+        """
         records = [load_experiment_record(rid) for rid in select_experiment_records(user_range, self.exp_record_dict, flat=True)]
-        print side_by_side([rec.get_full_info_string() for rec in records], max_linewidth=128)
+        if parallel_arg is None:
+            parallel_arg = '-p' if len(records)>1 else '-s'
+        if len(records)==0:
+            print '... No records to show ...'
+        else:
+            if parallel_arg == '-p':
+                print side_by_side([rec.get_full_info_string() for rec in records], max_linewidth=128)
+            elif parallel_arg == '-s':  #
+                for rec in records:
+                    print rec.get_full_info_string()
+            else:
+                raise Exception('Argument to show should either be -p (print logs in parallel) or -s (print logs in sequence)')
         has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
         if has_matplotlib_figures:
             from matplotlib import pyplot as plt
             for rec in records:
                 rec.show_figures(hang=False)
             print '\n\n... Close all figures to return to experiment browser ...'
+            plt.ioff()
             plt.show()
         else:
             _warn_with_prompt(use_prompt=not self.close_after)

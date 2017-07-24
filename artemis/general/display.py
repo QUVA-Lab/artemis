@@ -119,18 +119,27 @@ class IndentPrint(object):
             print '```'
 
 
+class DocumentWrapper(textwrap.TextWrapper):
+
+    def wrap(self, text):
+        split_text = text.split('\n')
+        lines = [line for para in split_text for line in textwrap.TextWrapper.wrap(self, para)]
+        return lines
+
+
 def side_by_side(multiline_strings, gap=4, max_linewidth=None):
     """
     Return a string that displays two multiline strings side-by-side.
-    :param multiline_strings:
-    :param gap:
-    :param max_linewidth:
-    :return:
+    :param multiline_strings: A list of multi-line strings (ie strings with newlines)
+    :param gap: The gap (in spaces) to make between side-by-side display of the strings
+    :param max_linewidth: Maximum width of the strings
+    :return: A single string which shows all the above strings side-by-side.
     """
     if max_linewidth is not None:
-        multiline_strings = [textwrap.fill(s, width=max_linewidth, replace_whitespace=False) for s in multiline_strings]
-
-    lineses = [s.split('\n') for s in multiline_strings]
+        w = DocumentWrapper(width=max_linewidth, replace_whitespace=False)
+        lineses = [w.wrap(mlstring) for mlstring in multiline_strings]
+    else:
+        lineses = [s.split('\n') for s in multiline_strings]
     longests = [max(len(line) for line in lines) for lines in lineses]
 
     spacer = ' '*gap

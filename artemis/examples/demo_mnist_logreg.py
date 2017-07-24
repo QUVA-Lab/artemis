@@ -97,6 +97,7 @@ if __name__ == '__main__':
         # Commands you can try (or press h to see a list of all commands):
         # run all          # Runs all experiments
         # show 2-3         # Show the output and figures from experiments 2 and 3
+        # delete all       # Delete all records
         # delete old       # Delete all records except the newest from each experiment
         # compare 1-3      # Generate a table comparing the arguments and results of experiments 1,2,3
 
