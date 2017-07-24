@@ -276,9 +276,17 @@ records.  You can specify records in the following ways:
         _warn_with_prompt(self.HELP_TEXT, prompt = 'Press Enter to exit help.', use_prompt=not self.close_after)
 
     def show(self, user_range):
-        for rid in select_experiment_records(user_range, self.exp_record_dict, flat=True):
-            load_experiment_record(rid).show()
-        _warn_with_prompt(use_prompt=not self.close_after)
+
+        records = [load_experiment_record(rid) for rid in select_experiment_records(user_range, self.exp_record_dict, flat=True)]
+        print side_by_side([rec.get_full_info_string() for rec in records], max_linewidth=128)
+        has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
+        if has_matplotlib_figures:
+            from matplotlib import pyplot as plt
+            for rec in records:
+                rec.show_figures(hang=False)
+            plt.show()
+        else:
+            _warn_with_prompt(use_prompt=not self.close_after)
 
     def results(self, user_range = 'all'):
         record_ids = select_experiment_records(user_range, self.exp_record_dict)
@@ -331,9 +339,7 @@ records.  You can specify records in the following ways:
     def side_by_side(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         records = [ExperimentRecord.from_identifier(rid) for rid in record_ids]
-        texts = ['{title}\n{sep}\n{info}\n{sep}\n{output}\n{sep}'.format(title=rid, sep='='*len(rid), info=record.info.get_text(), output=record.get_log())
-                 for rid, record in zip(record_ids, records)]
-        print side_by_side(texts, max_linewidth=128)
+        print side_by_side([rec.get_full_info_string() for rec in records], max_linewidth=128)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def compare(self, user_range):
