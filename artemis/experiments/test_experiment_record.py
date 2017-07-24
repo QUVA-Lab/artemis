@@ -227,7 +227,7 @@ def test_figure_saving(show_them = True):
         record = experiment_test_function.run()
 
     plt.close('all')  # Close all figures
-    figs = record.load_figs()
+    figs = record.load_figures()
     assert len(figs)==2
     if show_them:
         plt.show()

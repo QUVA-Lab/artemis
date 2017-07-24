@@ -396,7 +396,7 @@ class ExperimentRecord(object):
     def get_status(self):
         return self._info.get_field(ExpInfoFields.STATUS)
 
-    def load_figs(self):
+    def load_figures(self):
         """
         :return: A list of matplotlib figures generated in the experiment.  The figures will not be drawn yet, so you
             will have to call plt.show() to draw them or plt.draw() to draw them.

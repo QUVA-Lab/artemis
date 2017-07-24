@@ -6,6 +6,17 @@ from artemis.ml.predictors.logistic_regressor import onehot
 from artemis.ml.tools.iteration import minibatch_index_info_generator
 from matplotlib import pyplot as plt
 
+"""
+This demo shows how you can use the Artemis Experiment Framework.
+
+There are two ways to interact with the experiment framework:
+1) Through the User Interface
+2) Through the experiment API.
+
+In the bottom of this file, you an see example code for running either the UI or API.  You can try the different versions
+by either running this file as "python demo_mnist_logreg.py ui" or "python demo_mnist_logreg.py api"
+"""
+
 
 class OnlineLogisticRegressor:
 
@@ -30,7 +41,7 @@ class OnlineLogisticRegressor:
         return softmax(x.dot(self.w), axis=1)
 
 
-@experiment_function
+@experiment_function  # This decorator turns the function into an "experiment".
 def demo_mnist_logreg(minibatch_size=20, learning_rate=0.01, max_training_samples = None, n_epochs=10, test_epoch_period=0.2):
 
     x_train, y_train, x_test, y_test = get_mnist_dataset(flat=True, n_training_samples=max_training_samples).xyxy
@@ -59,7 +70,7 @@ def demo_mnist_logreg(minibatch_size=20, learning_rate=0.01, max_training_sample
     plt.ion()  # Don't hang on plot
     plt.show()
 
-    return {'train': epoch_scores[-1][1], 'test': epoch_scores[-1][2]}
+    return {'train': epoch_scores[-1][1], 'test': epoch_scores[-1][2]}  # Return final scores
 
 
 demo_mnist_logreg.add_variant(minibatch_size=10)
@@ -69,9 +80,38 @@ X.add_variant(minibatch_size=10)
 
 
 if __name__ == '__main__':
-    demo_mnist_logreg.browse()
+    import sys
+    demo_version = sys.argv[1] if len(sys.argv) > 1 else 'api'
 
-    # Commands you can try:
-    # run all          # Runs all experiments
-    # show 2           # Shows the output and figure from experiment 2
-    # sidebyside 1-3   # Shows output of experiments 1-3 side-by-side
+    if demo_version == 'ui':
+        # Open the experiment browser UI, from where you can run and view experiments:
+        demo_mnist_logreg.browse()
+        # Commands you can try:
+        # run all          # Runs all experiments
+        # show 2           # Shows the output and figure from experiment 2
+        # sidebyside 1-3   # Shows output of experiments 1-3 side-by-side
+
+    elif demo_version == 'api':
+        # Demonstrate some commands in the api.  Here we will collect the results from several experiments and compare them.
+
+        # Collect a list of demo_mnist_logreg and all its variants.
+        exp_list = demo_mnist_logreg.get_all_variants(include_self=True)
+
+        # Run all experiments that have not yet been run to completion:
+        for ex in exp_list:
+            if len(ex.get_records(only_completed=True))==0:
+                ex.run()
+
+        # Print a table containing the full list of arguments and results, and show all figures.
+        for ex in exp_list:
+            record = ex.get_latest_record(only_completed=True)   # Get an object representing the latest completed run of the experiment
+            args = record.get_args()  # This is a list of tuples of (arg_name, arg_value)
+            result = record.get_result()  # This is the return value {'train': train score, 'test': test_score}
+            (fig, ) = record.load_figures()
+            fig.gca().set_title(ex.name)
+            print ex.name.ljust(60) \
+                  + ' '.join('{}:{}'.format(arg_name, arg_value).ljust(26) for arg_name, arg_value in args) \
+                  + '  ||  ' + ' '.join('{}:{}'.format(subset, score).rjust(15) for subset, score in result.items())
+        plt.show()
+    else:
+        raise NotImplementedError('No Demo Version {}'.format(demo_version))
