@@ -13,12 +13,20 @@ class OnlineLogisticRegressor:
         self.w = np.zeros((n_in, n_out))
         self.learning_rate = learning_rate
 
-    def train(self, x, targ):  # x: (n_samples, n_in), targ: (n_samples, ) target label
+    def train(self, x, targ):  # x: (n_samples, n_in), targ:
+        """
+        :param x: A (n_samples, n_in) input array
+        :param targ: A (n_samples, ) array of interger target labels
+        """
         y_pred = self.predict(x)
         dl_dy = y_pred - onehot(targ, n_classes=y_pred.shape[1])
         self.w -= self.learning_rate * (x.T.dot(dl_dy))
 
     def predict(self, x):  # x: (n_samples, n_in)
+        """
+        :param x: A (n_samples, n_in) input array
+        :return: A (n_samples, n_out) array of output probabilities for each sample.
+        """
         return softmax(x.dot(self.w), axis=1)
 
 
@@ -59,5 +67,11 @@ demo_mnist_logreg.add_variant(learning_rate=0.1)
 X=demo_mnist_logreg.add_variant(learning_rate=0.001)
 X.add_variant(minibatch_size=10)
 
+
 if __name__ == '__main__':
     demo_mnist_logreg.browse()
+
+    # Commands you can try:
+    # run all          # Runs all experiments
+    # show 2           # Shows the output and figure from experiment 2
+    # sidebyside 1-3   # Shows output of experiments 1-3 side-by-side
