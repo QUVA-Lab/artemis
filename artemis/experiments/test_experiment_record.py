@@ -78,6 +78,7 @@ def test_start_experiment():
     experiment.
     """
 
+    delete_experiment_with_id('start_stop_test')
     with experiment_testing_context():
         record = start_experiment('start_stop_test')
         experiment_test_function()
@@ -221,7 +222,7 @@ def test_experiment_api(try_browse=False):
         my_api_test.browse()
 
 
-def test_figure_saving(show_them = True):
+def test_figure_saving(show_them = False):
 
     with experiment_testing_context():
         record = experiment_test_function.run()
@@ -244,5 +245,5 @@ if __name__ == '__main__':
     test_accessing_experiment_dir()
     test_saving_result()
     test_variants()
-    test_experiment_api(try_browse=True)
-    test_figure_saving(show_them=True)
+    test_experiment_api(try_browse=False)
+    test_figure_saving(show_them=False)
