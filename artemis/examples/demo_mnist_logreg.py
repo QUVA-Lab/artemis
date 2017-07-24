@@ -9,8 +9,12 @@ from matplotlib import pyplot as plt
 """
 This demo shows how you can use the Artemis Experiment Framework.
 
+Using the Experiment framework (via the UI) requires only 2 additional lines of code:
+1) Add the (@experiment_function) decorator onto your main function (lets call it my_main_fcn).
+2) Open up the User Interface by calling my_main_funcion.browse()
+
 There are two ways to interact with the experiment framework:
-1) Through the User Interface
+1) Through the User Interface.
 2) Through the experiment API.
 
 In the bottom of this file, you an see example code for running either the UI or API.  You can try the different versions
