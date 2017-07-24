@@ -1,6 +1,7 @@
 from contextlib import contextmanager
-
+import pickle
 from artemis.fileman.local_dir import make_file_dir, format_filename, get_local_path
+from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.manage_plotting import ShowContext
 import os
 __author__ = 'peter'
@@ -9,7 +10,7 @@ ARTEMIS_LOGGER = logging.getLogger('artemis')
 logging.basicConfig()
 from matplotlib import pyplot as plt
 
-_supported_filetypes = ('.eps', '.jpeg', '.jpg', '.pdf', '.pgf', '.png', '.ps', '.raw', '.rgba', '.svg', '.svgz', '.tif', '.tiff')
+_supported_filetypes = ('.eps', '.jpeg', '.jpg', '.pdf', '.pgf', '.png', '.ps', '.raw', '.rgba', '.svg', '.svgz', '.tif', '.tiff', '.pkl')
 
 
 def save_figure(fig, path, ext=None, default_ext = '.pdf'):
@@ -35,7 +36,11 @@ def save_figure(fig, path, ext=None, default_ext = '.pdf'):
     path = format_filename(path)
 
     make_file_dir(path)
-    fig.savefig(path)
+    if ext=='.pkl':
+        with open(path, 'w') as f:
+            pickle.dump(fig, f, protocol=pickle.HIGHEST_PROTOCOL)
+    else:
+        fig.savefig(path)
 
     ARTEMIS_LOGGER.info('Saved Figure: %s' % path)
     return path
@@ -60,6 +65,10 @@ def show_saved_figure(relative_loc):
             Image.open(abs_loc).show()
         except ImportError:
             ARTEMIS_LOGGER.error("Cannot display image '%s', because PIL is not installed.  Go pip install pillow to use this.  Currently it is a soft requirement.")
+    elif ext == '.pkl':
+        with open(abs_loc) as f:
+            fig = pickle.load(f)
+        redraw_figure(fig)
     else:
         import webbrowser
         webbrowser.open('file://'+abs_loc)

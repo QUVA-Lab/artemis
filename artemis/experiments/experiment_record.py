@@ -396,6 +396,19 @@ class ExperimentRecord(object):
     def get_status(self):
         return self._info.get_field(ExpInfoFields.STATUS)
 
+    def load_figs(self):
+        """
+        :return: A list of matplotlib figures generated in the experiment.  The figures will not be drawn yet, so you
+            will have to call plt.show() to draw them or plt.draw() to draw them.
+        """
+        locs = self.get_figure_locs()
+        figs = []
+        for fig_path in locs:
+            assert fig_path.endswith('.pkl'), 'Figure {} was not saved as a pickle, so it cannot be reloaded.'.format(fig_path)
+            with open(fig_path) as f:
+                figs.append(pickle.load(f))
+        return figs
+
     def delete(self):
         shutil.rmtree(self._experiment_directory)
 
@@ -470,7 +483,7 @@ _CURRENT_EXPERIMENT_RECORD = None
 
 @contextmanager
 def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True, show_figs=None,
-                      save_figs=True, saved_figure_ext='.pdf', use_temp_dir=False, date=None):
+                      save_figs=True, saved_figure_ext='.fig.pkl', use_temp_dir=False, date=None):
     """
     :param identifier: The string that uniquely identifies this experiment record.  Convention is that it should be in
         the format
@@ -750,7 +763,7 @@ keep_record_by_default = None
 
 
 @contextmanager
-def experiment_testing_context():
+def experiment_testing_context(close_figures_at_end = True):
     """
     Use this context when testing the experiment/experiment_record infrastructure.
     Should only really be used in test_experiment_record.py
@@ -761,6 +774,10 @@ def experiment_testing_context():
     keep_record_by_default = True
     yield
     keep_record_by_default = old_val
+
+    if close_figures_at_end:
+        from matplotlib import pyplot as plt
+        plt.close('all')
 
     def clean_on_close():
         new_ids = set(get_all_record_ids()).difference(ids)
