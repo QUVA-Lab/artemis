@@ -10,6 +10,6 @@ setup(
     extras_require = {
         'remote_plotting': ["paramiko", "netifaces"]
         },
-    version='1.5',
+    version='1.5.1',
     packages=find_packages(),
     scripts=[])
