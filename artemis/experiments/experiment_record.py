@@ -278,10 +278,13 @@ class ExperimentRecord(object):
     def info(self):
         return self._info
 
-    def show_figures(self):
+    def show_figures(self, hang=False):
         from artemis.plotting.saving_plots import show_saved_figure
-        for loc in self.get_figure_locs():
-            show_saved_figure(loc)
+        for i, loc in enumerate(self.get_figure_locs()):
+            show_saved_figure(loc, title='{} Fig {}'.format(self.get_identifier(), i+1))
+        if hang and len(self.get_figure_locs())>0:
+            from matplotlib import pyplot as plt
+            plt.show()
 
     def get_log(self):
         log_file_path = os.path.join(self._experiment_directory, 'output.txt')
@@ -290,6 +293,10 @@ class ExperimentRecord(object):
         with open(log_file_path) as f:
             text = f.read()
         return text
+
+    def get_full_info_string(self):
+        return '{header} {rid} {header}\n{info}\n{subborder}Logs {subborder}\n{log}\n{border}'.format(
+            header="=" * 10, rid=self.get_identifier(), border="=" * 50, info=self.info.get_text(), subborder='-' * 20, log=self.get_log())
 
     def list_files(self, full_path=False):
         """
@@ -327,10 +334,9 @@ class ExperimentRecord(object):
         else:
             return locs
 
-    def show(self):
-        print '{header} Showing Experiment {header}\n{info}\n{subborder}Logs {subborder}\n{log}\n{border}'.format(
-            header="=" * 20, border="=" * 50, info=self.info.get_text(), subborder='-' * 20, log=self.get_log())
-        self.show_figures()
+    def show(self, hang=False):
+        print self.get_full_info_string()
+        self.show_figures(hang=hang)
 
     def get_info_text(self):
         return self.info.get_text()

@@ -46,7 +46,15 @@ def save_figure(fig, path, ext=None, default_ext = '.pdf'):
     return path
 
 
-def show_saved_figure(relative_loc):
+@contextmanager
+def interactive_matplotlib_context(on=True):
+    old_mode = plt.isinteractive()
+    plt.interactive(on)
+    yield
+    plt.interactive(old_mode)
+
+
+def show_saved_figure(relative_loc, title=None):
     """
     Display a saved figure.
 
@@ -56,7 +64,9 @@ def show_saved_figure(relative_loc):
         if it begins with "/"
     :return:
     """
-    _, ext = os.path.splitext(relative_loc)
+    fig_path, ext = os.path.splitext(relative_loc)
+    if title is None:
+        _, title = os.path.split(fig_path)
     abs_loc = get_local_path(relative_loc)
     assert os.path.exists(abs_loc), '"%s" did not exist.  That is odd.' % (abs_loc, )
     if ext in ('.jpg', '.png', '.tif'):
@@ -66,9 +76,10 @@ def show_saved_figure(relative_loc):
         except ImportError:
             ARTEMIS_LOGGER.error("Cannot display image '%s', because PIL is not installed.  Go pip install pillow to use this.  Currently it is a soft requirement.")
     elif ext == '.pkl':
-        with open(abs_loc) as f:
-            fig = pickle.load(f)
-        redraw_figure(fig)
+        with interactive_matplotlib_context():
+            with open(abs_loc) as f:
+                fig = pickle.load(f)
+                fig.canvas.set_window_title(title)
     else:
         import webbrowser
         webbrowser.open('file://'+abs_loc)
