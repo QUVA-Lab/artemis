@@ -11,7 +11,8 @@ Artemis is a collection of tools that make it easier to run experiments in Pytho
 
 ## Tutorials
 
-- [Tutorial on using Artemis to organize your Experiments](https://rawgit.com/petered/data/master/gists/experiment_tutorial.html)
+- [A simple example showing how you can use Artemis to organize your Machine Learning experiments](https://github.com/QUVA-Lab/artemis/blob/master/artemis/examples/demo_mnist_logreg.py)
+- [Step-by-step tutorial on using Artemis to organize your Experiments](https://rawgit.com/petered/data/master/gists/experiment_tutorial.html)
 
 ## Quick Demos
 
