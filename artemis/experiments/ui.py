@@ -78,15 +78,16 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > run 4-6 -e          Run experiments 4, 5, and 6 in sequence, and stop on errors
 > run 4-6 -p          Run experiments 4, 5, and 6 in parallel processes, and catch all errors.
 > call 4              Call experiment 4 (like running, but doesn't save a record)
-> filter 4-6          Just show experiments 4-6
-> filter has:xyz      Just show experiments with "xyz" in the name
+> filter 4-6          Just show experiments 4-6 and their records
+> filter has:xyz      Just show experiments with "xyz" in the name and their records
+> filter --clear      Clear all filters and show the full list of experiments
 > results 4-6         View the results experiments 4, 5, 6
 > view results        View just the columns for experiment name and result
 > view full           View all columns (the default view)
 > show 4              Show the output from the last run of experiment 4 (if it has been run already).
 > records             Browse through all experiment records.
 > allruns             Toggle between showing all past runs of each experiment, and just the last one.
-> compare 4.1,5.3     Compare records 4.1 and 5.3.
+> compare 4.1,5.3     Print a table comparing the arguments and results of records 4.1 and 5.3.
 > select 4-6          Show the list of records belonging to experiments 4, 5, 6
 > sidebyside 4.1,5.3  Display the output of record from experiments 4.1,5.3 side by side.
 > delete 4-6          Delete all records from experiments 4, 5, 6.  You will be asked to confirm the deletion.
@@ -163,10 +164,14 @@ records.  You can specify records in the following ways:
             }
 
         while True:
-            self.exp_record_dict = self.reload_record_dict()
+            all_experiments = self.reload_record_dict()
 
             print "==================== Experiments ===================="
-            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, exp_filter=self._filter)
+            self.exp_record_dict = all_experiments if self._filter is None else \
+                OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
+            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors)
+            if self._filter is not None:
+                print '[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments))
             print '-----------------------------------------------------'
             if command is None:
                 user_input = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
@@ -207,7 +212,7 @@ records.  You can specify records in the following ways:
                         raise
 
     @staticmethod
-    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False, exp_filter = None):
+    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False):
 
         headers = {
             'full': ['E#', 'R#', 'Name', 'Last Run' if just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result'],
@@ -234,11 +239,9 @@ records.  You can specify records in the following ways:
                     raise
                 return '<Display Error>'
 
-        exps_to_show = set(exp_record_dict.keys()) if exp_filter is None else set(select_experiments(exp_filter, exp_record_dict))
-
         for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
             if len(record_ids)==0:
-                if exp_id in exps_to_show:
+                if exp_id in exp_record_dict:
                     rows.append([str(i), '', exp_id, '<No Records>', '-', '-', '-', '-'])
             else:
                 for j, record_id in enumerate(record_ids):
@@ -247,12 +250,9 @@ records.  You can specify records in the following ways:
                         experiment_record = load_experiment_record(record_id)
                     except:
                         experiment_record = None
-                    if exp_id in exps_to_show:
-                        rows.append([get_field(h) for h in headers])
+                    rows.append([get_field(h) for h in headers])
         assert all_equal([len(headers)]+[len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), '\n'.join([len(row) for row in rows]))
         table = tabulate(rows, headers=headers)
-        if exp_filter:
-            table += '\n[Filtered with "{}" to show {}/{} experiments]'.format(exp_filter, len(exps_to_show), len(exp_record_dict))
         return table
 
     def run(self, user_range, mode='-s'):
@@ -284,6 +284,7 @@ records.  You can specify records in the following ways:
             from matplotlib import pyplot as plt
             for rec in records:
                 rec.show_figures(hang=False)
+            print '\n\n... Close all figures to return to experiment browser ...'
             plt.show()
         else:
             _warn_with_prompt(use_prompt=not self.close_after)

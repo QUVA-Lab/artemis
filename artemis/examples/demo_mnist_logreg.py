@@ -94,10 +94,11 @@ if __name__ == '__main__':
     if demo_version == 'ui':
         # Open the experiment browser UI, from where you can run and view experiments:
         demo_mnist_logreg.browse()
-        # Commands you can try:
+        # Commands you can try (or press h to see a list of all commands):
         # run all          # Runs all experiments
-        # show 2           # Shows the output and figure from experiment 2
-        # sidebyside 1-3   # Shows output of experiments 1-3 side-by-side
+        # show 2-3         # Show the output and figures from experiments 2 and 3
+        # delete old       # Delete all records except the newest from each experiment
+        # compare 1-3      # Generate a table comparing the arguments and results of experiments 1,2,3
 
     elif demo_version == 'api':
         # Demonstrate some commands in the api.  Here we will collect the results from several experiments and compare them.
