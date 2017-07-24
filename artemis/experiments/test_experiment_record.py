@@ -21,14 +21,15 @@ use that if you're looking for an example.
 
 
 @experiment_function
-def experiment_test_function():
+def experiment_test_function(seed=1234):
 
+    rng = np.random.RandomState(seed)
     with warnings.catch_warnings():  # This is just to stop that stupid matplotlib warning from screwing up our logs.
         warnings.simplefilter('ignore')
 
         print 'aaa'
         plt.figure('sensible defaults')
-        dat = np.random.randn(4, 5)
+        dat = rng.randn(4, 5)
         plt.subplot(211)
         plt.imshow(dat)
         plt.subplot(212)
@@ -36,7 +37,7 @@ def experiment_test_function():
         plt.show()
         print 'bbb'
         plt.figure()
-        plt.plot(np.random.randn(10))
+        plt.plot(rng.randn(10))
         plt.show()
 
 
@@ -77,6 +78,7 @@ def test_start_experiment():
     experiment.
     """
 
+    delete_experiment_with_id('start_stop_test')
     with experiment_testing_context():
         record = start_experiment('start_stop_test')
         experiment_test_function()
@@ -220,10 +222,21 @@ def test_experiment_api(try_browse=False):
         my_api_test.browse()
 
 
+def test_figure_saving(show_them = False):
+
+    with experiment_testing_context():
+        record = experiment_test_function.run()
+
+    plt.close('all')  # Close all figures
+    figs = record.load_figures()
+    assert len(figs)==2
+    if show_them:
+        plt.show()
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
-    test_experiment_api()
     test_get_latest_identifier()
     test_get_latest()
     test_run_and_show()
@@ -232,3 +245,5 @@ if __name__ == '__main__':
     test_accessing_experiment_dir()
     test_saving_result()
     test_variants()
+    test_experiment_api(try_browse=False)
+    test_figure_saving(show_them=False)

@@ -1,6 +1,5 @@
 import numpy as np
 from artemis.experiments.experiment_record import experiment_function
-from artemis.experiments.ui import browse_experiments
 from matplotlib import pyplot as plt
 
 __author__ = 'peter'
@@ -100,4 +99,4 @@ demo_linear_regression.add_variant('large_input_space', n_in=1000)
 if __name__ == "__main__":
 
     # Open a menu that allows you to run experiments and view old ones.
-    browse_experiments()
+    demo_linear_regression.browse()
