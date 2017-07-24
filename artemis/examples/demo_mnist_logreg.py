@@ -41,8 +41,12 @@ class OnlineLogisticRegressor:
         return softmax(x.dot(self.w), axis=1)
 
 
-@experiment_function  # This decorator turns the function into an "experiment".
+@experiment_function  # This decorator turns the function into an Experiment object.
 def demo_mnist_logreg(minibatch_size=20, learning_rate=0.01, max_training_samples = None, n_epochs=10, test_epoch_period=0.2):
+    """
+    Train a Logistic Regressor on the MNIST dataset, report training/test scores throughout training, and return the
+    final scores.
+    """
 
     x_train, y_train, x_test, y_test = get_mnist_dataset(flat=True, n_training_samples=max_training_samples).xyxy
 
@@ -73,15 +77,15 @@ def demo_mnist_logreg(minibatch_size=20, learning_rate=0.01, max_training_sample
     return {'train': epoch_scores[-1][1], 'test': epoch_scores[-1][2]}  # Return final scores
 
 
-demo_mnist_logreg.add_variant(minibatch_size=10)
-demo_mnist_logreg.add_variant(learning_rate=0.1)
-X=demo_mnist_logreg.add_variant(learning_rate=0.001)
-X.add_variant(minibatch_size=10)
+demo_mnist_logreg.add_variant(learning_rate=0.1)                        # You can define a variant by providing keyword arguments to the function
+X=demo_mnist_logreg.add_variant(learning_rate=0.001)                    # You can assign a variant to a variable ...
+X.add_variant(minibatch_size=10)                                        # ... which lets you make variants of variants
+demo_mnist_logreg.add_variant('small-set', max_training_samples=1000)   # You can optionally give variants names to refer to via experiment.get_variant(name)
 
 
 if __name__ == '__main__':
     import sys
-    demo_version = sys.argv[1] if len(sys.argv) > 1 else 'api'
+    demo_version = sys.argv[1] if len(sys.argv) > 1 else 'ui'
 
     if demo_version == 'ui':
         # Open the experiment browser UI, from where you can run and view experiments:
