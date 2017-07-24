@@ -1,6 +1,4 @@
 import pytest
-
-from artemis.fileman.config_files import get_config_value
 from artemis.plotting.plotting_backend import get_plotting_server_address
 from artemis.remote.utils import get_local_ips
 from artemis.remote.virtualenv import check_diff_local_remote_virtualenv, get_remote_installed_packages
