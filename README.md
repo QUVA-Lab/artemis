@@ -15,6 +15,7 @@ Artemis is a collection of tools that make it easier to run experiments in Pytho
 - [Step-by-step tutorial on using Artemis to organize your Experiments](https://rawgit.com/petered/data/master/gists/experiment_tutorial.html)
 - [A demo of showing how to make various kinds of live updating plots.](/artemis/plotting/demo_dbplot.py)  
 - [A demo repo showing how to use Artemis from your code](https://github.com/QUVA-Lab/demo_repo)
+- [A guide on using Artemis for remote plotting](https://github.com/QUVA-Lab/artemis/blob/master/artemis/remote/README.md)
 
 
 ## Installation
