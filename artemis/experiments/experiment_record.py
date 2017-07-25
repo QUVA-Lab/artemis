@@ -1324,3 +1324,8 @@ def capture_created_experiments():
     yield new_experiments
     for ex in GLOBAL_EXPERIMENT_LIBRARY.values()[current_len:]:
         new_experiments.append(ex)
+
+
+def pull_experiments(user, ip):
+
+    pass
