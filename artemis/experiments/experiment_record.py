@@ -67,6 +67,7 @@ Now, you can use the method:
 """
 
 import atexit
+import getpass
 import inspect
 import logging
 import multiprocessing
@@ -83,6 +84,8 @@ from datetime import datetime
 from functools import partial
 from getpass import getuser
 from pprint import pprint
+
+from artemis.fileman.config_files import get_home_dir
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut, side_by_side, deepstr
@@ -1337,20 +1340,37 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     :return:
     """
     import subprocess
+    import pexpect
+    import sys
     # subprocess.call("rsync -a -m --include='**/*-demo_pdnn_revision*/*' --include='*/' --exclude='*' petered@146.50.28.7:~/.artemis/experiments/ ~/.artemis/experiments/", shell=True)
+
 
     if isinstance(experiment_names, basestring):
         experiment_names = [experiment_names]
 
     inclusions = ' '.join("--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names)
 
-    command = "rsync -a -m -i {inclusions} --include='*/' --exclude='*' {user}@{ip}:~/.artemis/experiments/ ~/.artemis/experiments/".format(
+    home = get_home_dir()
+
+    command = "rsync -a -m -i {inclusions} --include='*/' --exclude='*' {user}@{ip}:~/.artemis/experiments/ {home}/.artemis/experiments/".format(
         inclusions=inclusions,
         user=user,
-        ip=ip
+        ip=ip,
+        home=home
         )
+
+
+    password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
+    child = pexpect.spawn(command)
+    code = child.expect([pexpect.TIMEOUT, 'password:'])
+    if code == 0:
+        print("Got unexpected output: %s %s" % (child.before, child.after))
+        sys.exit()
+    else:
+        child.sendline(password)
+    output = child.read()
     # try:
-    output = subprocess.call(command, shell=True)
+    # output = subprocess.call(command, shell=True)
     # except subprocess.CalledProcessError as e:
     #     raise Exception('rsync call threw an error: \n {}'.format(e.output))
     return output
