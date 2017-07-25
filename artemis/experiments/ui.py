@@ -4,7 +4,7 @@ from importlib import import_module
 from artemis.experiments.experiment_record import GLOBAL_EXPERIMENT_LIBRARY, get_all_record_ids, clear_experiment_records, \
     ExperimentRecord, run_experiment_ignoring_errors, \
     experiment_id_to_record_ids, load_experiment_record, load_experiment, record_id_to_experiment_id, \
-    record_id_to_timestamp, ExpInfoFields, ExpStatusOptions, has_experiment_record, NoSavedResultError
+    record_id_to_timestamp, ExpInfoFields, ExpStatusOptions, has_experiment_record, NoSavedResultError, pull_experiments
 from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.should_be_builtins import separate_common_items, bad_value, detect_duplicates, \
     izip_equal, all_equal
@@ -167,7 +167,8 @@ records.  You can specify records in the following ways:
             'delete': self.delete,
             'errortrace': self.errortrace,
             'q': self.quit,
-            'records': self.records
+            'records': self.records,
+            'pull': self.pull
             }
 
         while True:
@@ -372,6 +373,13 @@ records.  You can specify records in the following ways:
 
     def records(self, ):
         browse_experiment_records(self.exp_record_dict.keys())
+
+    def pull(self, user_range, machine_name):
+        from artemis.remote.remote_machines import get_remote_machine_info
+        info = get_remote_machine_info(machine_name)
+        exp_names = select_experiments(user_range, self.exp_record_dict)
+        output = pull_experiments(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False)
+        print output
 
     def allruns(self, ):
         self.just_last_record = not self.just_last_record

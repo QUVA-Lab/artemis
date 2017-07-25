@@ -1326,6 +1326,31 @@ def capture_created_experiments():
         new_experiments.append(ex)
 
 
-def pull_experiments(user, ip):
+def pull_experiments(user, ip, experiment_names, include_variants=True):
+    """
+    Pull experiments from another computer matching the given experiment name.
 
-    pass
+    :param user:
+    :param ip:
+    :param experiment_name:
+    :param include_variants:
+    :return:
+    """
+    import subprocess
+    # subprocess.call("rsync -a -m --include='**/*-demo_pdnn_revision*/*' --include='*/' --exclude='*' petered@146.50.28.7:~/.artemis/experiments/ ~/.artemis/experiments/", shell=True)
+
+    if isinstance(experiment_names, basestring):
+        experiment_names = [experiment_names]
+
+    inclusions = ' '.join("--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names)
+
+    command = "rsync -a -m -i {inclusions} --include='*/' --exclude='*' {user}@{ip}:~/.artemis/experiments/ ~/.artemis/experiments/".format(
+        inclusions=inclusions,
+        user=user,
+        ip=ip
+        )
+    # try:
+    output = subprocess.call(command, shell=True)
+    # except subprocess.CalledProcessError as e:
+    #     raise Exception('rsync call threw an error: \n {}'.format(e.output))
+    return output
