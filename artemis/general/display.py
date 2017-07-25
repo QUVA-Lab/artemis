@@ -4,24 +4,61 @@ from StringIO import StringIO
 from contextlib import contextmanager
 
 from artemis.fileman.local_dir import make_file_dir
+from artemis.general.should_be_builtins import izip_equal
 
 __author__ = 'peter'
 import numpy as np
 
 
-def deeprint(obj, memo=None):
+def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, indent ='  '):
     """
-    Consise - print.
+    A recursive, readable print of a data structure.
+    """
+    if memo is None:
+        memo = set()
 
-    TODO: Extend this to make a proper deep-print of any object.
-    """
+    if id(obj) in memo:
+        return "<{type} at {loc}> already listed".format(type=type(obj).__name__, loc=hex(id(obj)))
+    memo.add(id(obj))
+
     if isinstance(obj, np.ndarray):
-        string = '<%s with shape=%s, dtype=%s at %s%s>' % (obj.__class__.__name__, obj.shape, obj.dtype, hex(id(obj)),
-            ', value = '+str(obj) if obj.size<8 else ''
-            )
+        if obj.size<array_print_threhold:
+            string_desc = '<{type} with shape={shape}, dtype={dtype}, value={value}, at {id}>'.format(
+                type=type(obj).__name__, shape=obj.shape, dtype=obj.dtype, value=str(obj).replace('\n', ','), id=hex(id(obj)))
+        elif obj.size<array_summary_threshold:
+            string_desc = '<{type} with shape={shape}, dtype={dtype}, in=[{min:.3g}, {max:.3g}], at {id}>'.format(
+                type=type(obj).__name__, shape=obj.shape, dtype=obj.dtype, min = obj.min(), max=obj.max(), id=hex(id(obj)))
+        else:
+            string_desc = '<{type} with shape={shape}, dtype={dtype}, at {id}>'.format(
+                type=type(obj).__name__, shape=obj.shape, dtype=obj.dtype, id=hex(id(obj)))
+    elif isinstance(obj, (list, tuple, set, dict)):
+        kwargs = dict(memo=memo, array_print_threhold=array_print_threhold, array_summary_threshold=array_summary_threshold, indent=indent)
+
+        if isinstance(obj, (list, tuple)):
+            keys, values = [str(i) for i in xrange(len(obj))], obj
+        elif isinstance(obj, dict):
+            keys, values = obj.keys(), obj.values()
+        elif isinstance(obj, set):
+            keys, values = ['- ']*len(obj), obj
+        else:
+            raise Exception('Should never be here')
+
+        max_indent = max(len(k) for k in keys)
+
+
+        elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
+        # if isinstance(obj, (list, tuple)):
+        # elif isinstance(obj, dict):
+        #     elements = ['{ix}: {val}'.format(ix=str(i), val=indent_string(deepstr(val, **kwargs), indent=' ' * len(str(i)))) for i, val in obj.iteritems()]
+        # elif isinstance(obj, set):
+        #     elements = [indent_string('- {val}'.format(val=deepstr(val, **kwargs), indent='  ')) for val in obj]
+        # else:
+        #     raise Exception('Should never be here')
+        string_desc = '<{type} at {id}>\n'.format(type = type(obj).__name__, id=hex(id(obj))) + indent_string('\n'.join(elements), indent=indent)
+        return string_desc
     else:
-        string = str(obj)
-    return string
+        string_desc = str(obj)
+    return string_desc
 
 
 _ORIGINAL_STDOUT = sys.stdout
@@ -84,6 +121,13 @@ class CaptureStdOut(object):
         return getattr(self.terminal, item)
 
 
+def indent_string(str, indent = '  ', include_first = True):
+    if include_first:
+        return indent + str.replace('\n', '\n'+indent)
+    else:
+        return str.replace('\n', '\n'+indent)
+
+
 class IndentPrint(object):
     """
     Indent all print statements
@@ -107,7 +151,7 @@ class IndentPrint(object):
         if message=='\n':
             new_message = '\n'
         else:
-            new_message = self.indent + message.replace('\n', '\n'+self.indent)
+            new_message = indent_string(message, self.indent)
         self.old_stdout.write(new_message)
 
     def close(self):

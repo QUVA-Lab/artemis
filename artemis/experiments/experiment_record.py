@@ -85,13 +85,14 @@ from getpass import getuser
 from pprint import pprint
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
-from artemis.general.display import CaptureStdOut
+from artemis.general.display import CaptureStdOut, side_by_side, deepstr
 from artemis.general.functional import infer_derived_arg_values, get_partial_chain
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.should_be_builtins import separate_common_items, izip_equal
+from artemis.general.should_be_builtins import separate_common_items, izip_equal, bad_value
 from artemis.general.test_mode import is_test_mode, set_test_mode
 from uuid import getnode
 import numpy as np
+
 try:
     from enum import Enum
 except ImportError:
@@ -294,9 +295,54 @@ class ExperimentRecord(object):
             text = f.read()
         return text
 
-    def get_full_info_string(self):
-        return '{header} {rid} {header}\n{info}\n{subborder}Logs {subborder}\n{log}\n{border}'.format(
-            header="=" * 10, rid=self.get_identifier(), border="=" * 50, info=self.info.get_text(), subborder='-' * 20, log=self.get_log())
+    def get_result_string(self, mode='deep'):
+
+        result = self.get_result()
+
+        if mode=='short':
+            return self.get_one_liner()
+        elif mode=='full':
+            return str(result)
+        elif mode=='deep':
+            return deepstr(result)
+        else:
+            raise Exception("Don't know display mode '{}'".format(mode))
+
+    def get_full_info_string(self, show_info = True, show_logs = True, show_result = 'deep'):
+        """
+        Get a human-readable string containing info about the experiment record.
+
+        :param show_info: Show info about experiment (name, id, runtime, etc)
+        :param show_logs: Show logs (True, False, or an integer character count to truncate logs at)
+        :param show_result: Show the result.  Options for display are:
+            'short': Print a one-liner (note: sometimes prints multiple lines)
+            'long': Directly call str
+            'deep': Use the deepstr function for a compact nested printout.
+        :return: A string to print.
+        """
+
+        # assert show_result in (False, 'full', 'short', 'deep')
+
+        full_info_string = '{header} {rid} {header}\n'.format(header="=" * 10, rid=self.get_identifier())
+
+        if show_info:
+            full_info_string += '{}\n'.format(self.info.get_text())
+
+        if show_logs:
+            log = self.get_log()
+            if isinstance(show_logs, int) and len(log)>show_logs:
+                log = log[:show_logs-100] + '\n\n ... LOG TRUNCATED TO {} CHARACTERS ... \n\n'.format(show_logs) + log[-100:]
+            full_info_string += '{subborder} Logs {subborder}\n{log}\n'.format(subborder='-' * 20, log=log)
+        if show_result:
+            result_str = self.get_result_string(mode=show_result)
+
+            full_info_string += '{subborder} Result {subborder}\n{result}\n'.format(subborder='-' * 20, result=result_str)
+
+        full_info_string += "=" * 50 + '\n'
+
+        return full_info_string
+        # return '{header} {rid} {header}\n{info}\n{subborder}Logs {subborder}\n{log}\n{border}'.format(
+        #     header="=" * 10, rid=self.get_identifier(), border="=" * 50, info=self.info.get_text(), subborder='-' * 20, log=self.get_log())
 
     def list_files(self, full_path=False):
         """
@@ -485,6 +531,49 @@ class ExperimentRecord(object):
             print error_text
 
 _CURRENT_EXPERIMENT_RECORD = None
+
+
+def show_experiment_records(record_ids, parallel_text=None, hang_notice = None, show_logs=10000, show_results ='deep'):
+    """
+    Show the console logs, figures, and results of a collection of experiments.
+
+    :param record_ids:
+    :param parallel_text:
+    :param hang_notice:
+    :return:
+    """
+    records = [load_experiment_record(rid) for rid in record_ids]
+    if parallel_text is None:
+        parallel_text = len(records)>1
+    if len(records)==0:
+        print '... No records to show ...'
+    else:
+        if parallel_text:
+            print side_by_side([rec.get_full_info_string(show_logs=show_logs, show_result=show_results) for rec in records], max_linewidth=128)
+        else:  #
+            for rec in records:
+                print rec.get_full_info_string(show_logs=show_logs, show_result=show_results)
+    has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
+    from matplotlib import pyplot as plt
+    if has_matplotlib_figures:
+        for rec in records:
+            rec.show_figures(hang=False)
+        if hang_notice is not None:
+            print hang_notice
+
+    for rec in records:
+        result = rec.get_result()
+    #
+        from artemis.plotting.saving_plots import interactive_matplotlib_context
+        with interactive_matplotlib_context():
+            if result is not None:
+                rec.get_experiment().display_last(result)
+    #
+    with interactive_matplotlib_context(False):
+        plt.show()
+
+    return has_matplotlib_figures
+
 
 
 @contextmanager
@@ -678,24 +767,35 @@ def experiment_id_to_record_ids(experiment_identifier, filter_status = None):
     return sorted(matching_records)
 
 
-def experiment_id_to_latest_record_id(experiment_identifier, filter_status = None, actual_index=-1):
+def experiment_id_to_latest_record_id(experiment_identifier, filter_status = None, actual_index=-1, handling_if_none='pass'):
     """
     Show results of the latest experiment matching the given template.
     :param name: The experiment name
     :param template: The template which turns a name into an experiment identifier
     :return: A string identifying the latest matching experiment, or None, if not found.
     """
-
+    assert handling_if_none in ('err', 'pass')
     all_records = experiment_id_to_record_ids(experiment_identifier, filter_status=filter_status)
-    return all_records[actual_index] if len(all_records)>0 else None
+
+    if len(all_records)>0:
+        if handling_if_none=='err':
+            raise Exception('No records for experiment {}'.format(experiment_identifier))
+        else:
+            return None
+    else:
+        return all_records[actual_index]
 
 
 def experiment_id_to_latest_result(experiment_id):
+    record = load_latest_experiment_record(experiment_id)
+    if record is None:
+        raise Exception('No records ')
+
     return load_latest_experiment_record(experiment_id).get_result()
 
 
-def load_latest_experiment_record(experiment_name, filter_status=None, actual_index=-1):
-    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name, filter_status=filter_status, actual_index=actual_index)
+def load_latest_experiment_record(experiment_name, filter_status=None, actual_index=-1, handling_if_none = 'pass'):
+    experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name, filter_status=filter_status, actual_index=actual_index, handling_if_none=handling_if_none)
     return None if experiment_record_identifier is None else load_experiment_record(experiment_record_identifier)
 
 
@@ -1012,9 +1112,7 @@ class Experiment(object):
 
     def display_last(self, result='___FINDLATEST', err_if_none=True):
         if isinstance(result, basestring) and result == '___FINDLATEST':
-            result = experiment_id_to_latest_result(self.name)
-        if err_if_none:
-            assert result is not None, "No result was computed for the last run of '%s'" % (self.name,)
+            result = self.get_latest_record(only_completed=True).get_result()
         if result is None:
             if err_if_none:
                 raise Exception("No result was computed for the last run of '%s'" % (self.name,))
@@ -1122,7 +1220,7 @@ class Experiment(object):
         """
         record_ids = experiment_id_to_record_ids(self.name, filter_status=ExpStatusOptions.FINISHED if only_completed else None)
         if len(record_ids)==0:
-            raise Exception('No records{} for experiment {}'.format(' completed' if only_completed else self.name))
+            raise Exception('No{} records for experiment "{}"'.format(' completed' if only_completed else '', self.name))
         else:
             return load_experiment_record(record_ids[-1])
 

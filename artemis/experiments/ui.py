@@ -132,7 +132,14 @@ records.  You can specify records in the following ways:
         self.run_args = {} if run_args is None else run_args
 
     def reload_record_dict(self):
-        names = GLOBAL_EXPERIMENT_LIBRARY.keys() if self.root_experiment is None else [ex.name for ex in self.root_experiment.get_all_variants(include_self=True)]
+
+        names = GLOBAL_EXPERIMENT_LIBRARY.keys()
+
+        if self.root_experiment is not None:
+            # We could just go [ex.name for ex in self.root_experiment.get_all_variants(include_self=True)]
+            # but we want to preserve the order in which experiments were created
+            descendents_of_root = set(ex.name for ex in self.root_experiment.get_all_variants(include_self=True))
+            names = [name for name in names if name in descendents_of_root]
 
         d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in names)
         if self.just_last_record:

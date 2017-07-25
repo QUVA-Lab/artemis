@@ -1,6 +1,7 @@
 import textwrap
 
-from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper
+from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper, deepstr
+import numpy as np
 
 _desired = """
 aaa
@@ -35,20 +36,22 @@ def test_indent_print():
     assert '\n'+cap.read() == _desired
 
 
-str1 = """For those who are led by the Spirit of God are the
-children of God.
-Romans 8:14"""
+str1 = '' + \
+    'For those who are led by the Spirit of God are the\n' \
+    'children of God.\n' \
+    'Romans 8:14'
 
-str2 = """But to you who are listening I say: Love your enemies,
-do good to those who hate you, bless those who curse you, pray
-for those who mistreat you.
-Luke 6:27-28"""
+str2 = '' \
+       'But to you who are listening I say: Love your enemies,\n' \
+       'do good to those who hate you, bless those who curse you, pray\n' \
+       'for those who mistreat you.\n' \
+       'Luke 6:27-28'
 
-desired = """For those who are led by the Spirit of God are the    But to you who are listening I say: Love your enemies,
-children of God.                                      do good to those who hate you, bless those who curse you, pray
-Romans 8:14                                           for those who mistreat you.
-                                                      Luke 6:27-28
-"""
+desired = '' \
+    'For those who are led by the Spirit of God are the    But to you who are listening I say: Love your enemies,        \n' \
+    'children of God.                                      do good to those who hate you, bless those who curse you, pray\n' \
+    'Romans 8:14                                           for those who mistreat you.                                   \n' \
+    '                                                      Luke 6:27-28                                                  '
 
 
 def test_side_by_side():
@@ -58,7 +61,7 @@ def test_side_by_side():
 
     out = side_by_side([str1, str2])
     print 'Side by side:\n{}'.format(out)
-    # assert out==desired  # Would work but pycharm automatically trims trailing spaces.
+    assert out==desired  # Would work but pycharm automatically trims trailing spaces from the strings defined av
 
 
 def test_document_wrapper():
@@ -81,7 +84,17 @@ def test_document_wrapper():
     assert r2 == desired3
 
 
+def test_deepstr():
+
+    obj = {'a': np.arange(100).reshape(10, 10), 'bbbb': [1, 3, np.arange(6).reshape(2, 3), ('xx', 'yy')]}
+    obj['c'] = obj['bbbb']
+    string_desc = deepstr(obj)
+    print string_desc
+    # For now, no assertions, because string contains IDS which will always change.  We can come up with some way to do this later with regular experessions if needed.
+
+
 if __name__ == '__main__':
     test_indent_print()
     test_side_by_side()
     test_document_wrapper()
+    test_deepstr()

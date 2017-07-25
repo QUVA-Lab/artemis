@@ -15,7 +15,7 @@ __author__ = 'peter'
 
 """
 The experiment interface.  Currently, this can be used in many ways.  We'd like to
-converge on just using the interface demonstrated in test_get_latest_identifier.  So
+converge on just using the interface demonstrated in test_experiment_api.  So
 use that if you're looking for an example.
 """
 

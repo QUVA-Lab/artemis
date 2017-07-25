@@ -2,7 +2,7 @@
 from collections import OrderedDict
 
 import numpy as np
-from artemis.general.mymath import softmax
+from artemis.general.mymath import softmax, cosine_distance
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
 from artemis.ml.datasets.datasets import DataSet
@@ -48,6 +48,7 @@ def evaluate_predictor(predictor, test_set, evaluation_function):
 def get_evaluation_function(name):
     return {
         'mse': mean_squared_error,
+        'mean_cosine_distance': lambda a, b: cosine_distance(a, b, axis=1).mean(),
         'mean_squared_error': mean_squared_error,
         'mean_l1_error': mean_l1_error,
         'percent_argmax_correct': percent_argmax_correct,
@@ -619,10 +620,14 @@ class ParameterSchedule(object):
             new_learning_rate = learning_rate_scheduler.get_new_value(epoch=14)
             assert new_learning_rate == 0.01
 
-        :param schedule: A dict<epoch: value> where the epoch is a number indicating the training progress and the value
-            indicates the value that the parameter should take.
-            OR A function which takes the epoch and returns a parameter value.
+        :param schedule: Can be:
+            - A dict<epoch: value> where the epoch is a number indicating the training progress and the value
+              indicates the value that the parameter should take.
+            - A function which takes the epoch and returns a parameter value.
+            - A number or array, in which case the value remains constant
         """
+        if isinstance(schedule, (int, float, np.ndarray)):
+            schedule = {0: schedule}
         if isinstance(schedule, dict):
             assert all(isinstance(num, (int, float)) for num in schedule.keys())
             self._reverse_sorted_schedule_checkpoints = sorted(schedule.keys(), reverse=True)
