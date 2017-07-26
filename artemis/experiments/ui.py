@@ -91,6 +91,7 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > select 4-6          Show the list of records belonging to experiments 4, 5, 6
 > sidebyside 4.1,5.3  Display the output of record from experiments 4.1,5.3 side by side.
 > delete 4-6          Delete all records from experiments 4, 5, 6.  You will be asked to confirm the deletion.
+> pull 1-4 machine1   Pulls records from experiments 1,2,3,4 from machine1 (requires some setup, see artemis.remote.remote_machines.py)
 > q                   Quit.
 > r                   Refresh list of experiments.
 

@@ -1,13 +1,11 @@
 import sys
 import textwrap
 from StringIO import StringIO
-from contextlib import contextmanager
-
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
+import numpy as np
 
 __author__ = 'peter'
-import numpy as np
 
 
 def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, indent ='  '):
@@ -45,15 +43,7 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
 
         max_indent = max(len(k) for k in keys)
 
-
         elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
-        # if isinstance(obj, (list, tuple)):
-        # elif isinstance(obj, dict):
-        #     elements = ['{ix}: {val}'.format(ix=str(i), val=indent_string(deepstr(val, **kwargs), indent=' ' * len(str(i)))) for i, val in obj.iteritems()]
-        # elif isinstance(obj, set):
-        #     elements = [indent_string('- {val}'.format(val=deepstr(val, **kwargs), indent='  ')) for val in obj]
-        # else:
-        #     raise Exception('Should never be here')
         string_desc = '<{type} at {id}>\n'.format(type = type(obj).__name__, id=hex(id(obj))) + indent_string('\n'.join(elements), indent=indent)
         return string_desc
     else:

@@ -780,7 +780,7 @@ def experiment_id_to_latest_record_id(experiment_identifier, filter_status = Non
     assert handling_if_none in ('err', 'pass')
     all_records = experiment_id_to_record_ids(experiment_identifier, filter_status=filter_status)
 
-    if len(all_records)>0:
+    if len(all_records)==0:
         if handling_if_none=='err':
             raise Exception('No records for experiment {}'.format(experiment_identifier))
         else:

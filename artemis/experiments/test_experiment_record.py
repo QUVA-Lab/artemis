@@ -234,6 +234,11 @@ def test_figure_saving(show_them = False):
         plt.show()
 
 
+def test_compare_results():
+
+    raise Exception('Need to do this!')
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
@@ -247,3 +252,4 @@ if __name__ == '__main__':
     test_variants()
     test_experiment_api(try_browse=False)
     test_figure_saving(show_them=False)
+    test_compare_results()
