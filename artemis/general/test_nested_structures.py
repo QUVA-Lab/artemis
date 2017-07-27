@@ -67,7 +67,7 @@ def test_nested_type():
         nested_type.expand_from_leaves(swapped_leaves)
 
 
-def test_batchify_nested_object_sequence():
+def test_seqstruct_to_structseq_and_inverse():
 
     a = [{'x': np.random.randn(2), 'y': [i, 'aaa']} for i in xrange(4)]
     b = seqstruct_to_structseq(a, as_arrays=True)
@@ -88,4 +88,4 @@ if __name__ == '__main__':
     # test_flatten_struct()
     # test_get_meta_object()
     # test_nested_type()
-    test_batchify_nested_object_sequence()
+    test_seqstruct_to_structseq_and_inverse()
