@@ -300,7 +300,10 @@ class ExperimentRecord(object):
 
     def get_result_string(self, mode='deep'):
 
-        result = self.get_result()
+        try:
+            result = self.get_result()
+        except NoSavedResultError:
+            return '<No result has been saved>'
 
         if mode=='short':
             return self.get_one_liner()
@@ -333,7 +336,7 @@ class ExperimentRecord(object):
 
         if show_logs:
             log = self.get_log()
-            if isinstance(show_logs, int) and len(log)>show_logs:
+            if isinstance(show_logs, int)and show_logs not in (True, False) and len(log)>show_logs:
                 log = log[:show_logs-100] + '\n\n ... LOG TRUNCATED TO {} CHARACTERS ... \n\n'.format(show_logs) + log[-100:]
             full_info_string += '{subborder} Logs {subborder}\n{log}\n'.format(subborder='-' * 20, log=log)
         if show_result:

@@ -88,7 +88,8 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > records             Browse through all experiment records.
 > allruns             Toggle between showing all past runs of each experiment, and just the last one.
 > compare 4.1,5.3     Print a table comparing the arguments and results of records 4.1 and 5.3.
-> select 4-6          Show the list of records belonging to experiments 4, 5, 6
+> selectexp 4-6       Show the list of experiments (and their records) selected by the "experiment selector" "4-6" (see below for possible experiment selectors)
+> selectrec 4-6       Show the list of records selected by the "record selector" "4-6" (see below for possible record selectors)
 > sidebyside 4.1,5.3  Display the output of record from experiments 4.1,5.3 side by side.
 > delete 4-6          Delete all records from experiments 4, 5, 6.  You will be asked to confirm the deletion.
 > pull 1-4 machine1   Pulls records from experiments 1,2,3,4 from machine1 (requires some setup, see artemis.remote.remote_machines.py)
@@ -96,6 +97,10 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > r                   Refresh list of experiments.
 
 Commands 'run', 'call', 'filter' allow you to select experiments.  You can select experiments in the following ways:
+
+    Experiment
+    Selector        Action
+    --------------- ---------------------------------------------------------------------------------------------------
     4               Select experiment #4
     4-6             Select experiments 4, 5, 6
     all             Select all experiments
@@ -106,6 +111,10 @@ Commands 'run', 'call', 'filter' allow you to select experiments.  You can selec
 
 Commands 'results', 'show', 'records', 'compare', 'sidebyside', 'select', 'delete' allow you to specify a range of experiment
 records.  You can specify records in the following ways:
+
+    Record
+    Selector        Action
+    --------------- ---------------------------------------------------------------------------------------------------
     4.2             Select record 2 for experiment 4
     4               Select all records for experiment 4
     4-6             Select all records for experiments 4, 5, 6
@@ -155,7 +164,8 @@ records.  You can specify records in the following ways:
             'test': self.test,
             'show': self.show,
             'call': self.call,
-            'select': self.select,
+            'selectexp': self.selectexp,
+            'selectrec': self.selectrec,
             'allruns': self.allruns,
             'view': self.view,
             'h': self.help,
@@ -355,11 +365,18 @@ records.  You can specify records in the following ways:
         for experiment_identifier in ids:
             load_experiment(experiment_identifier)()
 
-    def select(self, user_range):
+    def selectexp(self, user_range):
+        exps_to_records = select_experiments(user_range, self.exp_record_dict, return_dict=True)
+        with IndentPrint():
+            print self.get_experiment_list_str(exps_to_records, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors)
+            # print ExperimentRecordBrowser.get_record_table(record_ids)
+        _warn_with_prompt('Experiment Selection "{}" includes {} out of {} experiments.'.format(user_range, len(exps_to_records), len(self.exp_record_dict)), use_prompt=not self.close_after)
+
+    def selectrec(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         with IndentPrint():
             print ExperimentRecordBrowser.get_record_table(record_ids)
-        _warn_with_prompt('Selection "{}" includes {} out of {} records.'.format(user_range, len(record_ids), sum(len(recs) for recs in self.exp_record_dict.values())), use_prompt=not self.close_after)
+        _warn_with_prompt('Record Selection "{}" includes {} out of {} records.'.format(user_range, len(record_ids), sum(len(recs) for recs in self.exp_record_dict.values())), use_prompt=not self.close_after)
 
     def side_by_side(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
@@ -404,26 +421,42 @@ records.  You can specify records in the following ways:
         return self.QUIT
 
 
-def select_experiments(user_range, exp_record_dict):
 
-    experiment_list = exp_record_dict.keys()
+def select_experiments(user_range, exp_record_dict, return_dict=False):
+
+    exp_filter = _filter_experiments(user_range, exp_record_dict)
+    if return_dict:
+        return OrderedDict((name, exp_record_dict[name]) for name in exp_record_dict if exp_filter[name])
+    else:
+        return [name for name in exp_record_dict if exp_filter[name]]
+
+
+def _filter_experiments(user_range, exp_record_dict):
 
     number_range = interpret_numbers(user_range)
     if number_range is not None:
-        return [experiment_list[i] for i in number_range]
+        # experiment_ids = [experiment_list[i] for i in number_range]
+        is_in = [i in number_range for i in xrange(len(exp_record_dict))]
     elif user_range == 'all':
-        return experiment_list
+        # experiment_ids = experiment_list
+        is_in = [True]*len(exp_record_dict)
     elif user_range.startswith('has:'):
         phrase = user_range[4:]
-        return [exp_id for exp_id in experiment_list if phrase in exp_id]
+        # experiment_ids = [exp_id for exp_id in experiment_list if phrase in exp_id]
+        is_in = [phrase in exp_id for exp_id in exp_record_dict]
+
     elif user_range.startswith('hasnot:'):
         phrase = user_range[len('hasnot:'):]
-        return [exp_id for exp_id in experiment_list if phrase not in exp_id]
+        # experiment_ids = [exp_id for exp_id in experiment_list if phrase not in exp_id]
+        is_in = [phrase not in exp_id for exp_id in exp_record_dict]
     elif user_range in ('unfinished', 'invalid'):  # Return all experiments where all records are unfinished/invalid
-        record_filters = select_experiment_records(user_range, exp_record_dict)
-        return [exp_id for exp_id in experiment_list if all(record_filters[exp_id])]
+        record_filters = _filter_records(user_range, exp_record_dict)
+        # experiment_ids = [exp_id for exp_id in experiment_list if len(record_filters[exp_id])]
+        is_in = [all(record_filters[exp_id]) for exp_id in exp_record_dict]
     else:
         raise Exception("Don't know how to use input '{}' to select experiments".format(user_range))
+
+    return OrderedDict((exp_id, exp_is_in) for exp_id, exp_is_in in izip_equal(exp_record_dict, is_in))
 
 
 def select_experiment_records(user_range, exp_record_dict, flat=True):
@@ -446,7 +479,7 @@ def _filter_records(user_range, exp_record_dict):
     """
     :param user_range:
     :param exp_record_dict:
-    :return:
+    :return: An OrderedDict<experiment_id -> list<True or False>> indicating whether each record from the given experiment passed the filter
     """
 
     def _bitwise(op, filter_set_1, filter_set_2):
