@@ -1219,16 +1219,40 @@ class Experiment(object):
         record_ids = experiment_id_to_record_ids(self.name, filter_status=ExpStatusOptions.FINISHED if only_completed else None)
         return [load_experiment_record(rid) for rid in record_ids]
 
-    def get_latest_record(self, only_completed=False):
+    def get_latest_record(self, only_completed=False, err_if_none = True):
         """
         :param only_completed: Only search among records of that have run to completion.
         :return: An ExperimentRecord object
         """
         record_ids = experiment_id_to_record_ids(self.name, filter_status=ExpStatusOptions.FINISHED if only_completed else None)
         if len(record_ids)==0:
-            raise Exception('No{} records for experiment "{}"'.format(' completed' if only_completed else '', self.name))
+            if err_if_none:
+                raise Exception('No{} records for experiment "{}"'.format(' completed' if only_completed else '', self.name))
+            else:
+                return None
         else:
             return load_experiment_record(record_ids[-1])
+
+    def get_variant_records(self, only_completed=True, only_last=True, flat=False):
+        """
+        :param only_last_finished:
+        :param flat: Just return a list of records
+        :return: if not flat (default) An OrderedDict<experiment_id: experiment_record
+        """
+        variants = self.get_all_variants(include_self=True)
+
+        if only_last:
+            exp_record_dict = OrderedDict((ex.name, ex.get_latest_record(only_completed=only_completed, err_if_none=False)) for ex in variants)
+            if flat:
+                return [record for record in exp_record_dict.values() if record is not None]
+            else:
+                return exp_record_dict
+        else:
+            exp_record_dict = OrderedDict((ex.name, ex.get_records(only_completed=only_completed)) for ex in variants)
+            if flat:
+                return [record for records in exp_record_dict.values() for record in records]
+            else:
+                return exp_record_dict
 
     def get_name(self):
         return self.name
@@ -1263,7 +1287,7 @@ def make_record_comparison_table(record_ids, args_to_show=None, results_extracto
     :param args_to_show: A list of arguments to show.  If none, it will just show all arguments
         that differ between experiments.
     :param results_extractor: A dict<str->callable> where the callables take the result of the
-        experiment as an argument and return an entry in the table.  For example:
+        experiment as an argument and return an entry in the table.
     :param print_table: Optionally, import tabulate and print the table here and now.
     :return: headers, rows
         headers is a list of of headers for the top of the table
@@ -1286,7 +1310,7 @@ def make_record_comparison_table(record_ids, args_to_show=None, results_extracto
         print tabulate.tabulate(rows, headers=headers, tablefmt=tablefmt)
     """
 
-    records = [load_experiment_record(rid) for rid in record_ids]
+    records = [rid if isinstance(rid, ExperimentRecord) else load_experiment_record(rid) for rid in record_ids]
     args = [rec.info.get_field(ExpInfoFields.ARGS) for rec in records]
     if args_to_show is None:
         common, separate = separate_common_items(args)
@@ -1294,6 +1318,8 @@ def make_record_comparison_table(record_ids, args_to_show=None, results_extracto
 
     if results_extractor is None:
         results_extractor = {'Result': str}
+    elif callable(results_extractor):
+        results_extractor = {'Result': results_extractor}
     else:
         assert isinstance(results_extractor, dict)
 
