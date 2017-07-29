@@ -88,23 +88,27 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > filter 4-6          Just show experiments 4-6 and their records
 > filter has:xyz      Just show experiments with "xyz" in the name and their records
 > filter 1diff:3      Just show all experiments that have no more than 1 argument different from experiment 3.
-> filter --clear      Clear the filter and show the full list of experiments
+> filter -            Clear the filter and show the full list of experiments
 > results 4-6         View the results experiments 4, 5, 6
 > view results        View just the columns for experiment name and result
 > view full           View all columns (the default view)
 > show 4              Show the output from the last run of experiment 4 (if it has been run already).
+> show 4-6            Show the output of experiments 4,5,6 together.
 > records             Browse through all experiment records.
 > allruns             Toggle between showing all past runs of each experiment, and just the last one.
 > compare 4.1,5.3     Print a table comparing the arguments and results of records 4.1 and 5.3.
 > selectexp 4-6       Show the list of experiments (and their records) selected by the "experiment selector" "4-6" (see below for possible experiment selectors)
 > selectrec 4-6       Show the list of records selected by the "record selector" "4-6" (see below for possible record selectors)
 > sidebyside 4.1,5.3  Display the output of record from experiments 4.1,5.3 side by side.
+> delete 4.1          Delete record 1 of experiment 4
+> delete unfinished   Delete all experiment records that have not run to completion
 > delete 4-6          Delete all records from experiments 4, 5, 6.  You will be asked to confirm the deletion.
 > pull 1-4 machine1   Pulls records from experiments 1,2,3,4 from machine1 (requires some setup, see artemis.remote.remote_machines.py)
 > q                   Quit.
 > r                   Refresh list of experiments.
 
-Commands 'run', 'call', 'filter', 'pull' allow you to select experiments.  You can select experiments in the following ways:
+Commands 'run', 'call', 'filter', 'pull', '1diff', 'selectexp' allow you to select experiments.  You can select
+experiments in the following ways:
 
     Experiment
     Selector        Action
@@ -118,8 +122,8 @@ Commands 'run', 'call', 'filter', 'pull' allow you to select experiments.  You c
     hasnot:xyz      Select all experiments without substring "xyz" in their names
     1diff:3         Select all experiments who have no more than 1 argument which is different from experiment 3's arguments.
 
-Commands 'results', 'show', 'records', 'compare', 'sidebyside', 'select', 'delete' allow you to specify a range of experiment
-records.  You can specify records in the following ways:
+Commands 'results', 'show', 'records', 'compare', 'sidebyside', 'selectrec', 'delete' allow you to specify a range of
+experiment records.  You can specify records in the following ways:
 
     Record
     Selector        Action
@@ -413,7 +417,7 @@ records.  You can specify records in the following ways:
         self.just_last_record = not self.just_last_record
 
     def filter(self, user_range):
-        self._filter = user_range if user_range!='--clear' else None
+        self._filter = user_range if user_range not in ('-', '--clear') else None
 
     def view(self, mode):
         self.view_mode = mode
@@ -442,34 +446,37 @@ def select_experiments(user_range, exp_record_dict, return_dict=False):
 
 def _filter_experiments(user_range, exp_record_dict):
 
-    number_range = interpret_numbers(user_range)
-    if number_range is not None:
-        # experiment_ids = [experiment_list[i] for i in number_range]
-        is_in = [i in number_range for i in xrange(len(exp_record_dict))]
-    elif user_range == 'all':
-        # experiment_ids = experiment_list
-        is_in = [True]*len(exp_record_dict)
-    elif user_range.startswith('has:'):
-        phrase = user_range[len('has:'):]
-        # experiment_ids = [exp_id for exp_id in experiment_list if phrase in exp_id]
-        is_in = [phrase in exp_id for exp_id in exp_record_dict]
-    elif user_range.startswith('1diff:'):
-        # select experiments whose arguments differ by one element from the selected experiments
-        base_range = user_range[len('1diff:'):]
-        base_range_exps = select_experiments(base_range, exp_record_dict) # list<experiment_id>
-        all_exp_args_hashes = {eid: set(compute_fixed_hash(a) for a in load_experiment(eid).get_args().items()) for eid in exp_record_dict} # dict<experiment_id : set<arg_hashes>>
-        # assert all_equal_length(all_exp_args_hashes.values()), 'All variants must have the same number of arguments' # Note: we diable this because we may have lists of experiments with different root functions.
-        is_in = [any(len(all_exp_args_hashes[eid].difference(all_exp_args_hashes[other_eid]))<=1 for other_eid in base_range_exps) for eid in exp_record_dict]
-    elif user_range.startswith('hasnot:'):
-        phrase = user_range[len('hasnot:'):]
-        # experiment_ids = [exp_id for exp_id in experiment_list if phrase not in exp_id]
-        is_in = [phrase not in exp_id for exp_id in exp_record_dict]
-    elif user_range in ('unfinished', 'invalid'):  # Return all experiments where all records are unfinished/invalid
-        record_filters = _filter_records(user_range, exp_record_dict)
-        # experiment_ids = [exp_id for exp_id in experiment_list if len(record_filters[exp_id])]
-        is_in = [all(record_filters[exp_id]) for exp_id in exp_record_dict]
+    if user_range in exp_record_dict:
+        is_in = [k==user_range for k in exp_record_dict]
     else:
-        raise Exception("Don't know how to use input '{}' to select experiments".format(user_range))
+        number_range = interpret_numbers(user_range)
+        if number_range is not None:
+            # experiment_ids = [experiment_list[i] for i in number_range]
+            is_in = [i in number_range for i in xrange(len(exp_record_dict))]
+        elif user_range == 'all':
+            # experiment_ids = experiment_list
+            is_in = [True]*len(exp_record_dict)
+        elif user_range.startswith('has:'):
+            phrase = user_range[len('has:'):]
+            # experiment_ids = [exp_id for exp_id in experiment_list if phrase in exp_id]
+            is_in = [phrase in exp_id for exp_id in exp_record_dict]
+        elif user_range.startswith('1diff:'):
+            # select experiments whose arguments differ by one element from the selected experiments
+            base_range = user_range[len('1diff:'):]
+            base_range_exps = select_experiments(base_range, exp_record_dict) # list<experiment_id>
+            all_exp_args_hashes = {eid: set(compute_fixed_hash(a) for a in load_experiment(eid).get_args().items()) for eid in exp_record_dict} # dict<experiment_id : set<arg_hashes>>
+            # assert all_equal_length(all_exp_args_hashes.values()), 'All variants must have the same number of arguments' # Note: we diable this because we may have lists of experiments with different root functions.
+            is_in = [any(len(all_exp_args_hashes[eid].difference(all_exp_args_hashes[other_eid]))<=1 for other_eid in base_range_exps) for eid in exp_record_dict]
+        elif user_range.startswith('hasnot:'):
+            phrase = user_range[len('hasnot:'):]
+            # experiment_ids = [exp_id for exp_id in experiment_list if phrase not in exp_id]
+            is_in = [phrase not in exp_id for exp_id in exp_record_dict]
+        elif user_range in ('unfinished', 'invalid'):  # Return all experiments where all records are unfinished/invalid
+            record_filters = _filter_records(user_range, exp_record_dict)
+            # experiment_ids = [exp_id for exp_id in experiment_list if len(record_filters[exp_id])]
+            is_in = [all(record_filters[exp_id]) for exp_id in exp_record_dict]
+        else:
+            raise Exception("Don't know how to use input '{}' to select experiments".format(user_range))
 
     return OrderedDict((exp_id, exp_is_in) for exp_id, exp_is_in in izip_equal(exp_record_dict, is_in))
 
@@ -504,11 +511,15 @@ def _filter_records(user_range, exp_record_dict):
             filter_set_3[k] = [(a or b) if op=='or' else (a and b) for a, b in izip_equal(filter_set_1[k], filter_set_2[k])]
         return filter_set_3
 
+    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.iteritems())
+    if user_range in exp_record_dict:  # User just lists an experiment
+        base[user_range] = [True]*len(base[user_range])
+        return base
+
     if '|' in user_range:
         return reduce(lambda a, b: _bitwise('or', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('|')])
     if '&' in user_range:
         return reduce(lambda a, b: _bitwise('and', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
-    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.iteritems())
     number_range = interpret_numbers(user_range)
     keys = exp_record_dict.keys()
     if number_range is not None:
