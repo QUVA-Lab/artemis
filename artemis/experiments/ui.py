@@ -1,17 +1,21 @@
 import shlex
 from collections import OrderedDict
 from importlib import import_module
+
+from artemis.general.hashing import compute_fixed_hash
+
 from artemis.experiments.experiment_record import GLOBAL_EXPERIMENT_LIBRARY, get_all_record_ids, clear_experiment_records, \
     ExperimentRecord, run_experiment_ignoring_errors, \
     experiment_id_to_record_ids, load_experiment_record, load_experiment, record_id_to_experiment_id, \
-    record_id_to_timestamp, ExpInfoFields, ExpStatusOptions, has_experiment_record, NoSavedResultError, pull_experiments
+    ExpInfoFields, ExpStatusOptions, has_experiment_record, NoSavedResultError, pull_experiments
 from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.should_be_builtins import separate_common_items, bad_value, detect_duplicates, \
-    izip_equal, all_equal
+    izip_equal, all_equal, all_equal_length
 from artemis.general.tables import build_table
 from tabulate import tabulate
 from functools import partial
 import re
+
 
 def _setup_input_memory():
     try:
@@ -26,6 +30,7 @@ def _warn_with_prompt(message= None, prompt = 'Press Enter to continue', use_pro
         print message
     if use_prompt:
         raw_input('({}) >> '.format(prompt))
+
 
 def find_experiment(*search_terms):
     """
@@ -74,13 +79,16 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > run 4               Run experiment 4
 > run 4-6             Run experiment 4, 5, and 6
 > run all             Run all experiments
+> run unfinished      Run all experiments which have not yet run to completion.
 > run 4-6 -s          Run experiments 4, 5, and 6 in sequence, and catch all errors.
 > run 4-6 -e          Run experiments 4, 5, and 6 in sequence, and stop on errors
 > run 4-6 -p          Run experiments 4, 5, and 6 in parallel processes, and catch all errors.
+> run 4-6 -p2         Run experiments 4, 5, and 6 in parallel processes, using up to 2 processes at a time.
 > call 4              Call experiment 4 (like running, but doesn't save a record)
 > filter 4-6          Just show experiments 4-6 and their records
 > filter has:xyz      Just show experiments with "xyz" in the name and their records
-> filter --clear      Clear all filters and show the full list of experiments
+> filter 1diff:3      Just show all experiments that have no more than 1 argument different from experiment 3.
+> filter --clear      Clear the filter and show the full list of experiments
 > results 4-6         View the results experiments 4, 5, 6
 > view results        View just the columns for experiment name and result
 > view full           View all columns (the default view)
@@ -96,7 +104,7 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > q                   Quit.
 > r                   Refresh list of experiments.
 
-Commands 'run', 'call', 'filter' allow you to select experiments.  You can select experiments in the following ways:
+Commands 'run', 'call', 'filter', 'pull' allow you to select experiments.  You can select experiments in the following ways:
 
     Experiment
     Selector        Action
@@ -108,6 +116,7 @@ Commands 'run', 'call', 'filter' allow you to select experiments.  You can selec
     invalid         Select all experiments where all records were made before arguments to the experiment have changed
     has:xyz         Select all experiments with the string "xyz" in their names
     hasnot:xyz      Select all experiments without substring "xyz" in their names
+    1diff:3         Select all experiments who have no more than 1 argument which is different from experiment 3's arguments.
 
 Commands 'results', 'show', 'records', 'compare', 'sidebyside', 'select', 'delete' allow you to specify a range of experiment
 records.  You can specify records in the following ways:
@@ -270,16 +279,17 @@ records.  You can specify records in the following ways:
                     except:
                         experiment_record = None
                     rows.append([get_field(h) for h in headers])
-        assert all_equal([len(headers)]+[len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), '\n'.join([len(row) for row in rows]))
+        assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), '\n'.join([len(row) for row in rows]))
         table = tabulate(rows, headers=headers)
         return table
 
     def run(self, user_range, mode='-s'):
-        assert mode in ('-s', '-p', '-e')
+        assert mode in ('-s', '-e') or mode.startswith('-p')
         ids = select_experiments(user_range, self.exp_record_dict)
-        if len(ids)>1 and mode == '-p':
+        if len(ids)>1 and mode.startswith('-p'):
             import multiprocessing
-            p = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+            cpu_count = int(mode[2:]) if len(mode)>2 else multiprocessing.cpu_count()
+            p = multiprocessing.Pool(processes=cpu_count)
             p.map(partial(run_experiment_ignoring_errors, **self.run_args), ids)
         else:
             for experiment_identifier in ids:
@@ -421,7 +431,6 @@ records.  You can specify records in the following ways:
         return self.QUIT
 
 
-
 def select_experiments(user_range, exp_record_dict, return_dict=False):
 
     exp_filter = _filter_experiments(user_range, exp_record_dict)
@@ -441,10 +450,16 @@ def _filter_experiments(user_range, exp_record_dict):
         # experiment_ids = experiment_list
         is_in = [True]*len(exp_record_dict)
     elif user_range.startswith('has:'):
-        phrase = user_range[4:]
+        phrase = user_range[len('has:'):]
         # experiment_ids = [exp_id for exp_id in experiment_list if phrase in exp_id]
         is_in = [phrase in exp_id for exp_id in exp_record_dict]
-
+    elif user_range.startswith('1diff:'):
+        # select experiments whose arguments differ by one element from the selected experiments
+        base_range = user_range[len('1diff:'):]
+        base_range_exps = select_experiments(base_range, exp_record_dict) # list<experiment_id>
+        all_exp_args_hashes = {eid: set(compute_fixed_hash(a) for a in load_experiment(eid).get_args().items()) for eid in exp_record_dict} # dict<experiment_id : set<arg_hashes>>
+        # assert all_equal_length(all_exp_args_hashes.values()), 'All variants must have the same number of arguments' # Note: we diable this because we may have lists of experiments with different root functions.
+        is_in = [any(len(all_exp_args_hashes[eid].difference(all_exp_args_hashes[other_eid]))<=1 for other_eid in base_range_exps) for eid in exp_record_dict]
     elif user_range.startswith('hasnot:'):
         phrase = user_range[len('hasnot:'):]
         # experiment_ids = [exp_id for exp_id in experiment_list if phrase not in exp_id]
@@ -705,7 +720,7 @@ class ExperimentRecordBrowser(object):
         for i, record_id in enumerate(record_ids):
             experiment_record = load_experiment_record(record_id)
             rows.append(get_col_info(headers))
-        assert all_equal([len(headers)]+[len(row) for row in rows]), 'Header length: {}, Row Lengths: \n {}'.format(len(headers), [len(row) for row in rows])
+        assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n {}'.format(len(headers), [len(row) for row in rows])
         return tabulate(rows, headers=headers)
 
     def launch(self):

@@ -1,6 +1,6 @@
 import numpy as np
 
-from artemis.general.should_be_builtins import all_equal, bad_value
+from artemis.general.should_be_builtins import bad_value, all_equal
 from artemis.ml.tools.processors import OneHotEncoding
 
 
@@ -12,8 +12,8 @@ class DataSet(object):
     def __init__(self, training_set, test_set, validation_set = None, name = None):
 
         sets = [training_set, test_set] + [validation_set] if validation_set is not None else []
-        assert all_equal(*[[x.shape[1:] for x in s.inputs] for s in sets])
-        assert all_equal(*[[x.shape[1:] for x in s.targets] for s in sets])
+        assert all_equal([[x.shape[1:] for x in s.inputs] for s in sets])
+        assert all_equal([[x.shape[1:] for x in s.targets] for s in sets])
         self.training_set = training_set
         self.test_set = test_set
         self._validation_set = validation_set

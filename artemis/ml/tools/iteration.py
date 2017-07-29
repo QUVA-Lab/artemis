@@ -1,6 +1,6 @@
 from collections import namedtuple
 import itertools
-from artemis.general.should_be_builtins import bad_value, all_equal
+from artemis.general.should_be_builtins import bad_value
 import numpy as np
 import time
 
