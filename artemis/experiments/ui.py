@@ -7,7 +7,8 @@ from artemis.experiments.experiment_management import pull_experiments, select_e
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, NoSavedResultError
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
-    print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string
+    print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
+    display_experiment_record
 from artemis.experiments.experiments import GLOBAL_EXPERIMENT_LIBRARY, load_experiment
 from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.should_be_builtins import all_equal
@@ -309,13 +310,7 @@ experiment records.  You can specify records in the following ways:
         with IndentPrint("Results:", show_line=True, show_end=True):
             for record in records:
                 with IndentPrint(record.get_id(), show_line=True, show_end=True):
-                    try:
-                        result = record.get_result()
-                        record.get_experiment().display_last(result, err_if_none=False)
-                    except NoSavedResultError:
-                        print '<No result was saved>'
-                    except Exception as err:
-                        print err
+                    display_experiment_record(record)
 
         _warn_with_prompt(use_prompt=not self.close_after)
 

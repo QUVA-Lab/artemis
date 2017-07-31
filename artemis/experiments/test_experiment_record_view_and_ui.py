@@ -19,6 +19,7 @@ def compare_them(results):
 
 @ExperimentFunction(display_function=display_it, one_liner_function=one_liner, comparison_function=compare_them)
 def my_experiment(a=1, b=2):
+    print 'xxx' if a==1 else 'yyy'
     return a+b
 
 
@@ -30,6 +31,9 @@ def test_experiments_function_additions():
     with experiment_testing_context():
         r1=my_experiment.run()
         r2=my_experiment.get_variant('a2').run()
+
+        assert r1.get_log() == 'xxx\n'
+        assert r2.get_log() == 'yyy\n'
 
         assert get_oneline_result_string(my_experiment.get_latest_record()) == '3bbb'
         assert get_oneline_result_string(my_experiment.get_variant('a2').get_latest_record()) == '4bbb'
@@ -58,11 +62,8 @@ def test_experiment_function_ui():
         assert len(my_experiment.get_variant_records())==2
 
         my_experiment.browse(raise_display_errors=True, command='argtable all')
-
         my_experiment.browse(raise_display_errors=True, command='compare all')
-
         my_experiment.browse(raise_display_errors=True, command='display all')
-
         my_experiment.browse(raise_display_errors=True, command='show all')
 
 
