@@ -1,5 +1,5 @@
 import numpy as np
-from artemis.experiments.experiment_record import experiment_function
+from artemis.experiments.decorators import experiment_function
 from artemis.general.mymath import softmax
 from artemis.ml.datasets.mnist import get_mnist_dataset
 from artemis.ml.predictors.logistic_regressor import onehot

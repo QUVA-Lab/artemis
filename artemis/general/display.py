@@ -1,11 +1,60 @@
 import sys
 import textwrap
 from StringIO import StringIO
+from contextlib import contextmanager
+
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
 
 __author__ = 'peter'
+
+
+def arraystr(arr, print_threshold, summary_threshold):
+    """
+    :param arr: A string summary of an array.
+    :param print_threshold:
+    :param summary_threshold:
+    :return:
+    """
+    if arr.size<print_threshold:
+        return '<{type} with shape={shape}, dtype={dtype}, value={value}, at {id}>'.format(
+            type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, value=str(arr).replace('\n', ','), id=hex(id(arr)))
+    elif arr.size<summary_threshold:
+        return '<{type} with shape={shape}, dtype={dtype}, in=[{min:.3g}, {max:.3g}], at {id}>'.format(
+            type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, min = arr.min(), max=arr.max(), id=hex(id(arr)))
+    else:
+        return '<{type} with shape={shape}, dtype={dtype}, at {id}>'.format(
+            type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, id=hex(id(arr)))
+
+
+@contextmanager
+def hold_numpy_printoptions(**kwargs):
+    """
+    Temporarily set the numpy print options.
+    See https://docs.scipy.org/doc/numpy/reference/generated/numpy.set_printoptions.html
+    :param kwargs: Print options (see link)
+    """
+    opts = np.get_printoptions()
+    np.set_printoptions(**kwargs)
+    yield
+    np.set_printoptions(**opts)
+
+
+
+
+
+def str_with_arrayopts(obj, float_format='.3g', threshold=8, **kwargs):
+    """
+    Print
+    :param obj:
+    :param float_format:
+    :param threshold:
+    :param kwargs:
+    :return:
+    """
+    with hold_numpy_printoptions(formatter = {'float': float_format}, threshold=threshold, **kwargs):
+        return str(obj)
 
 
 def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, indent ='  '):
@@ -20,15 +69,7 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
     memo.add(id(obj))
 
     if isinstance(obj, np.ndarray):
-        if obj.size<array_print_threhold:
-            string_desc = '<{type} with shape={shape}, dtype={dtype}, value={value}, at {id}>'.format(
-                type=type(obj).__name__, shape=obj.shape, dtype=obj.dtype, value=str(obj).replace('\n', ','), id=hex(id(obj)))
-        elif obj.size<array_summary_threshold:
-            string_desc = '<{type} with shape={shape}, dtype={dtype}, in=[{min:.3g}, {max:.3g}], at {id}>'.format(
-                type=type(obj).__name__, shape=obj.shape, dtype=obj.dtype, min = obj.min(), max=obj.max(), id=hex(id(obj)))
-        else:
-            string_desc = '<{type} with shape={shape}, dtype={dtype}, at {id}>'.format(
-                type=type(obj).__name__, shape=obj.shape, dtype=obj.dtype, id=hex(id(obj)))
+        string_desc = arraystr(obj, print_threshold=array_print_threhold, summary_threshold=array_summary_threshold)
     elif isinstance(obj, (list, tuple, set, dict)):
         kwargs = dict(memo=memo, array_print_threhold=array_print_threhold, array_summary_threshold=array_summary_threshold, indent=indent)
 
@@ -184,3 +225,20 @@ def side_by_side(multiline_strings, gap=4, max_linewidth=None):
         new_lines.append(spacer.join(final_line))
     return '\n'.join(new_lines)
 
+
+def truncate_string(string, truncation, message = ''):
+    """
+    Truncate a string to a given length.  Optionally add a message at the end
+    explaining the truncation
+    :param string: A string
+    :param truncation: An int
+    :param message: A message, e.g. '...<truncated>'
+    :return: A new string no longer than truncation
+    """
+    if truncation is None:
+        return string
+    assert isinstance(truncation, int)
+    if len(string)>truncation:
+        return string[:truncation-len(message)]+message
+    else:
+        return string

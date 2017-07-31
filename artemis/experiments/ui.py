@@ -1,20 +1,19 @@
+import re
 import shlex
 from collections import OrderedDict
-from importlib import import_module
-
-from artemis.general.hashing import compute_fixed_hash
-
-from artemis.experiments.experiment_record import GLOBAL_EXPERIMENT_LIBRARY, get_all_record_ids, clear_experiment_records, \
-    ExperimentRecord, run_experiment_ignoring_errors, \
-    experiment_id_to_record_ids, load_experiment_record, load_experiment, record_id_to_experiment_id, \
-    ExpInfoFields, ExpStatusOptions, has_experiment_record, NoSavedResultError, pull_experiments
-from artemis.general.display import IndentPrint, side_by_side
-from artemis.general.should_be_builtins import separate_common_items, bad_value, detect_duplicates, \
-    izip_equal, all_equal, all_equal_length
-from artemis.general.tables import build_table
-from tabulate import tabulate
 from functools import partial
-import re
+
+from artemis.experiments.deprecated import run_experiment_ignoring_errors
+from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
+    select_experiment_records_from_list, interpret_numbers
+from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
+    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, NoSavedResultError
+from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, show_record, \
+    print_experiment_record_argtable, compare_results
+from artemis.experiments.experiments import GLOBAL_EXPERIMENT_LIBRARY, load_experiment
+from artemis.general.display import IndentPrint, side_by_side
+from artemis.general.should_be_builtins import all_equal
+from tabulate import tabulate
 
 
 def _setup_input_memory():
@@ -48,7 +47,7 @@ def find_experiment(*search_terms):
         return found_experiments.values()[0]
 
 
-def browse_experiments(root_experiment = None, catch_errors = False, close_after = False, just_last_record=False, raise_display_errors = False, run_args = None, keep_record = True, command=None):
+def browse_experiments(command=None, **kwargs):
     """
     Browse Experiments
 
@@ -57,14 +56,7 @@ def browse_experiments(root_experiment = None, catch_errors = False, close_after
     :param close_after: Close this menu after running an experiment
     :param just_last_record: Just show the last record for the experiment
     """
-
-    if run_args is None:
-        run_args = {}
-    if 'keep_record' not in run_args:
-        run_args['keep_record'] = keep_record
-
-    browser = ExperimentBrowser(root_experiment=root_experiment, catch_errors=catch_errors, close_after=close_after,
-        just_last_record=just_last_record, raise_display_errors=raise_display_errors, run_args=run_args)
+    browser = ExperimentBrowser(**kwargs)
     browser.launch(command=command)
 
 
@@ -142,8 +134,13 @@ experiment records.  You can specify records in the following ways:
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
 """
 
-    def __init__(self, root_experiment = None, catch_errors = False, close_after = True, just_last_record = False, view_mode ='full', raise_display_errors=False, run_args=None):
+    def __init__(self, root_experiment = None, catch_errors = False, close_after = True, just_last_record = False,
+            view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True):
 
+        if run_args is None:
+            run_args = {}
+        if 'keep_record' not in run_args:
+            run_args['keep_record'] = keep_record
         self.root_experiment = root_experiment
         self.close_after = close_after
         self.just_last_record = just_last_record
@@ -182,12 +179,12 @@ experiment records.  You can specify records in the following ways:
             'allruns': self.allruns,
             'view': self.view,
             'h': self.help,
-            'results': self.results,
             'filter': self.filter,
             'explist': self.explist,
             'sidebyside': self.side_by_side,
-            'compare': self.compare,
+            'argtable': self.argtable,
             'compare_results': self.compare_results,
+            'results': self.results,
             'delete': self.delete,
             'errortrace': self.errortrace,
             'q': self.quit,
@@ -320,10 +317,10 @@ experiment records.  You can specify records in the following ways:
             print '... No records to show ...'
         else:
             if parallel_arg == '-p':
-                print side_by_side([rec.get_full_info_string() for rec in records], max_linewidth=128)
+                print side_by_side([get_record_full_string(rec) for rec in records], max_linewidth=128)
             elif parallel_arg == '-s':  #
                 for rec in records:
-                    print rec.get_full_info_string()
+                    print get_record_full_string(rec)
             else:
                 raise Exception('Argument to show should either be -p (print logs in parallel) or -s (print logs in sequence)')
         has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
@@ -394,13 +391,13 @@ experiment records.  You can specify records in the following ways:
 
     def side_by_side(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        records = [ExperimentRecord.from_identifier(rid) for rid in record_ids]
-        print side_by_side([rec.get_full_info_string() for rec in records], max_linewidth=128)
+        records = [load_experiment_record(rid) for rid in record_ids]
+        print side_by_side([get_record_full_string(rec) for rec in records], max_linewidth=128)
         _warn_with_prompt(use_prompt=not self.close_after)
 
-    def compare(self, user_range):
+    def argtable(self, user_range):
         record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        compare_experiment_records(record_ids)
+        print_experiment_record_argtable(record_ids)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def records(self, ):
@@ -422,9 +419,9 @@ experiment records.  You can specify records in the following ways:
     def view(self, mode):
         self.view_mode = mode
 
-    def compare_results(self, user_range):
+    def compare(self, user_range):
         experiment_ids = select_experiments(user_range, self.exp_record_dict)
-        load_experiment(experiment_ids[0]).compare_results(experiment_ids)
+        compare_results(experiment_ids, error_if_no_result=True)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def explist(self, surround = ""):
@@ -433,189 +430,6 @@ experiment records.  You can specify records in the following ways:
 
     def quit(self):
         return self.QUIT
-
-
-def select_experiments(user_range, exp_record_dict, return_dict=False):
-
-    exp_filter = _filter_experiments(user_range, exp_record_dict)
-    if return_dict:
-        return OrderedDict((name, exp_record_dict[name]) for name in exp_record_dict if exp_filter[name])
-    else:
-        return [name for name in exp_record_dict if exp_filter[name]]
-
-
-def _filter_experiments(user_range, exp_record_dict):
-
-    if user_range in exp_record_dict:
-        is_in = [k==user_range for k in exp_record_dict]
-    else:
-        number_range = interpret_numbers(user_range)
-        if number_range is not None:
-            # experiment_ids = [experiment_list[i] for i in number_range]
-            is_in = [i in number_range for i in xrange(len(exp_record_dict))]
-        elif user_range == 'all':
-            # experiment_ids = experiment_list
-            is_in = [True]*len(exp_record_dict)
-        elif user_range.startswith('has:'):
-            phrase = user_range[len('has:'):]
-            # experiment_ids = [exp_id for exp_id in experiment_list if phrase in exp_id]
-            is_in = [phrase in exp_id for exp_id in exp_record_dict]
-        elif user_range.startswith('1diff:'):
-            # select experiments whose arguments differ by one element from the selected experiments
-            base_range = user_range[len('1diff:'):]
-            base_range_exps = select_experiments(base_range, exp_record_dict) # list<experiment_id>
-            all_exp_args_hashes = {eid: set(compute_fixed_hash(a) for a in load_experiment(eid).get_args().items()) for eid in exp_record_dict} # dict<experiment_id : set<arg_hashes>>
-            # assert all_equal_length(all_exp_args_hashes.values()), 'All variants must have the same number of arguments' # Note: we diable this because we may have lists of experiments with different root functions.
-            is_in = [any(len(all_exp_args_hashes[eid].difference(all_exp_args_hashes[other_eid]))<=1 for other_eid in base_range_exps) for eid in exp_record_dict]
-        elif user_range.startswith('hasnot:'):
-            phrase = user_range[len('hasnot:'):]
-            # experiment_ids = [exp_id for exp_id in experiment_list if phrase not in exp_id]
-            is_in = [phrase not in exp_id for exp_id in exp_record_dict]
-        elif user_range in ('unfinished', 'invalid'):  # Return all experiments where all records are unfinished/invalid
-            record_filters = _filter_records(user_range, exp_record_dict)
-            # experiment_ids = [exp_id for exp_id in experiment_list if len(record_filters[exp_id])]
-            is_in = [all(record_filters[exp_id]) for exp_id in exp_record_dict]
-        else:
-            raise Exception("Don't know how to use input '{}' to select experiments".format(user_range))
-
-    return OrderedDict((exp_id, exp_is_in) for exp_id, exp_is_in in izip_equal(exp_record_dict, is_in))
-
-
-def select_experiment_records(user_range, exp_record_dict, flat=True):
-    """
-    :param user_range:
-    :param exp_record_dict: An OrderedDict<experiment_name: list<experiment_record_name>>
-    :param flat: Return a list of experiment records, instead of an OrderedDict
-    :return: if not flat, an An OrderedDict<experiment_name: list<experiment_record_name>>
-        otherwise a list<experiment_record_name>
-    """
-    filters = _filter_records(user_range, exp_record_dict)
-    filtered_dict = OrderedDict((k, [v for v, f in izip_equal(exp_record_dict[k], filters[k]) if f]) for k in exp_record_dict.keys())
-    if flat:
-        return [record_id for records in filtered_dict.values() for record_id in records]
-    else:
-        return filtered_dict
-
-
-def _filter_records(user_range, exp_record_dict):
-    """
-    :param user_range:
-    :param exp_record_dict:
-    :return: An OrderedDict<experiment_id -> list<True or False>> indicating whether each record from the given experiment passed the filter
-    """
-
-    def _bitwise(op, filter_set_1, filter_set_2):
-        assert op in ('and', 'or')
-        filter_set_3 = filter_set_1.copy()
-        for k in filter_set_1.keys():
-            filter_set_3[k] = [(a or b) if op=='or' else (a and b) for a, b in izip_equal(filter_set_1[k], filter_set_2[k])]
-        return filter_set_3
-
-    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.iteritems())
-    if user_range in exp_record_dict:  # User just lists an experiment
-        base[user_range] = [True]*len(base[user_range])
-        return base
-
-    if '|' in user_range:
-        return reduce(lambda a, b: _bitwise('or', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('|')])
-    if '&' in user_range:
-        return reduce(lambda a, b: _bitwise('and', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
-    number_range = interpret_numbers(user_range)
-    keys = exp_record_dict.keys()
-    if number_range is not None:
-        for i in number_range:
-            base[keys[i]] = [True]*len(base[keys[i]])
-    elif '.' in user_range:
-        exp_rec_pairs = interpret_record_identifier(user_range)
-        for exp_number, rec_number in exp_rec_pairs:
-            base[keys[exp_number]][rec_number] = True
-    elif user_range == 'old':
-        for k, v in base.iteritems():
-            base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
-    elif user_range == 'unfinished':
-        for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
-        # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
-    elif user_range == 'invalid':
-        for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).is_valid() is False for rec_id in exp_record_dict[k]]
-    elif user_range == 'all':
-        for k, v in base.iteritems():
-            base[k] = [True]*len(v)
-    elif user_range == 'errors':
-        for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
-    else:
-        raise Exception("Don't know how to interpret subset '{}'".format(user_range))
-    return base
-
-
-def interpret_numbers(user_range):
-    """
-    :param user_range: A string specifying a range of numbers.  Eg.
-        interpret_numbers('4-6')==[4,5,6]
-        interpret_numbers('4,6')==[4,6]
-        interpret_numbers('4,6-9')==[4,6,7,8,9]
-    :return: A list of integers, or None if the input is not numberic
-    """
-    if all(d in '0123456789-,' for d in user_range):
-        numbers_and_ranges = user_range.split(',')
-        numbers = [n for lst in [[int(s)] if '-' not in s else range(int(s[:s.index('-')]), int(s[s.index('-')+1:])+1) for s in numbers_and_ranges] for n in lst]
-        return numbers
-    else:
-        return None
-
-
-def interpret_record_identifier(user_range):
-    """
-    You can identify a single record with, eg 3.4, meaning "record 4 from experiment 3:.
-    You can identify a range with, eg 3.1-3, meaning "records 3.1, 3.2, 3.3"
-    :param user_range: The user input
-    :return: A list of 2 tuples (exp_no, record_no).  e.g [(3, 4)], or [(3, 1), (3, 2), (3, 3)] in the above examples.
-    """
-    if ',' in user_range:
-        parts = user_range.split(',')
-        return [pair for p in parts for pair in interpret_record_identifier(p)]
-    if '.' not in user_range:
-        return None
-    else:
-        exp_number, record_numbers = user_range.split('.')
-        return [(int(exp_number), rec_num) for rec_num in interpret_numbers(record_numbers)]
-
-
-def compare_experiment_records(record_identifiers):
-
-    records = [load_experiment_record(ident) for ident in record_identifiers]
-    # info_results = OrderedDict([(identifier, record.get_info()) for identifier, record in zip(record_identifiers, records)]])
-
-    funtion_names = [record.info.get_field(ExpInfoFields.FUNCTION) for record in records]
-    args = [record.info.get_field(ExpInfoFields.ARGS) for record in records]
-    results = [record.get_result() for record in records]
-
-    common_args, different_args = separate_common_items(args)
-
-    def lookup_fcn(identifier, column):
-        index = record_identifiers.index(identifier)
-        if column=='Function':
-            return funtion_names[index]
-        elif column=='Run Time':
-            return records[index].info.get_field_text(ExpInfoFields.RUNTIME)
-        elif column=='Common Args':
-            return ', '.join('{}={}'.format(k, v) for k, v in common_args)
-        elif column=='Different Args':
-            return ', '.join('{}={}'.format(k, v) for k, v in different_args[index])
-        elif column=='Result':
-            return results[index]
-        else:
-            bad_value(column)
-
-    rows = build_table(lookup_fcn,
-        row_categories=record_identifiers,
-        column_categories=['Function', 'Run Time', 'Common Args', 'Different Args', 'Result'],
-        prettify_labels=False
-        )
-
-    print tabulate(rows)
 
 
 def browse_experiment_records(names = None, filter_text = None):
@@ -629,45 +443,6 @@ def browse_experiment_records(names = None, filter_text = None):
 
     experiment_record_browser = ExperimentRecordBrowser(experiment_names=names, filter_text=filter_text)
     experiment_record_browser.launch()
-
-
-def select_experiment_records_from_list(user_range, experiment_records):
-    return [rec_id for rec_id, f in izip_equal(experiment_records, _filter_experiment_record_list(user_range, experiment_records)) if f]
-
-
-def _filter_experiment_record_list(user_range, experiment_record_ids):
-    if user_range=='all':
-        return [True]*len(experiment_record_ids)
-    elif user_range=='new':
-        return detect_duplicates(experiment_record_ids, key=record_id_to_experiment_id, keep_last=True)
-        # return [n for n, is_old in izip_equal(get_record_ids(), old) if not old]
-    elif user_range=='old':
-        return [not x for x in _filter_records(user_range, 'new')]
-    elif user_range=='orphans':
-        orphans = []
-        for i, record_id in enumerate(experiment_record_ids):
-            info = load_experiment_record(record_id).info
-            if 'Module' in info:
-                try:
-                    import_module(info['Module'])
-                    if not record_id_to_experiment_id(record_id) in GLOBAL_EXPERIMENT_LIBRARY:
-                        orphans.append(True)
-                    else:
-                        orphans.append(False)
-                except ImportError:
-                    orphans.append(True)
-            else:  # They must be old... lets kill them!
-                orphans.append(True)
-        return orphans
-    else:
-        which_ones = interpret_numbers(user_range)
-        if which_ones is None:
-            raise Exception('Could not interpret user range: "{}"'.format(user_range))
-        filters = [False]*len(experiment_record_ids)
-        for i in which_ones:
-            filters[i] = True
-        return filters
-
 
 
 class ExperimentRecordBrowser(object):
@@ -702,7 +477,7 @@ class ExperimentRecordBrowser(object):
         return get_all_record_ids(experiment_ids= self.experiment_names, filters=self.filters)
 
     @staticmethod
-    def get_record_table(record_ids = None, headers = ('#', 'Identifier', 'Start Time', 'Duration', 'Status', 'Valid', 'Notes', 'Result'), raise_display_errors = False):
+    def get_record_table(record_ids = None, headers = ('#', 'Identifier', 'Start Time', 'Duration', 'Status', 'Valid', 'Notes', 'Result'), raise_display_errors = False, result_truncation=100):
 
         d = {
             '#': lambda: i,
@@ -711,9 +486,9 @@ class ExperimentRecordBrowser(object):
             'Duration': lambda: experiment_record.info.get_field_text(ExpInfoFields.RUNTIME, replacement_if_none='?'),
             'Status': lambda: experiment_record.info.get_field_text(ExpInfoFields.STATUS, replacement_if_none='?'),
             'Args': lambda: experiment_record.info.get_field_text(ExpInfoFields.ARGS, replacement_if_none='?'),
-            'Valid': lambda: experiment_record.get_invalid_arg_note(),
+            'Valid': lambda: get_record_invalid_arg_string(experiment_record),
             'Notes': lambda: experiment_record.info.get_field_text(ExpInfoFields.NOTES, replacement_if_none='?'),
-            'Result': lambda: experiment_record.get_one_liner(),
+            'Result': lambda: experiment_record.get_experiment().get_oneline_result_string(truncate_to=result_truncation)
             }
 
         def get_col_info(headers):
@@ -809,12 +584,12 @@ class ExperimentRecordBrowser(object):
 
     def compare(self, user_range):
         identifiers = self._select_records(user_range)
-        compare_experiment_records(identifiers)
+        print_experiment_record_argtable(identifiers)
         _warn_with_prompt('')
 
     def show(self, user_range):
         for rid in self._select_records(user_range):
-            load_experiment_record(rid).show()
+            show_record(rid)
         _warn_with_prompt('')
 
     def search(self, filter_text):
@@ -829,7 +604,6 @@ class ExperimentRecordBrowser(object):
         conf = raw_input("Going to clear {} of {} experiment records shown above.  Enter 'yes' to confirm: ".format(len(ids), len(self.record_ids)))
         if conf=='yes':
             clear_experiment_records(ids=ids)
-            assert not any(has_experiment_record(rid) for rid in ids), "Failed to delete them?"
         else:
             _warn_with_prompt("Did not delete experiments")
         self.record_ids = self.reload_ids()

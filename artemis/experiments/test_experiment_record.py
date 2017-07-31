@@ -5,9 +5,13 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 from artemis.experiments.experiment_record import \
-    experiment_id_to_latest_record_id, get_experiment_info, load_experiment_record, ExperimentRecord, record_experiment, \
-    delete_experiment_with_id, get_current_experiment_dir, experiment_function, open_in_experiment_dir, \
-    experiment_testing_context, ExpInfoFields, ExpStatusOptions
+    load_experiment_record, ExperimentRecord, record_experiment, \
+    delete_experiment_with_id, get_current_experiment_dir, open_in_experiment_dir, \
+    ExpStatusOptions
+from artemis.experiments.experiment_record_view import show_record
+from artemis.experiments.experiments import get_experiment_info, load_experiment
+from artemis.experiments.experiment_management import experiment_testing_context
+from artemis.experiments.decorators import experiment_function
 from artemis.experiments.deprecated import start_experiment, end_current_experiment
 from artemis.general.test_mode import set_test_mode
 
@@ -96,7 +100,7 @@ def test_run_and_show():
     with experiment_testing_context():
         experiment_record = experiment_test_function.run()
         assert_experiment_record_is_correct(experiment_record, show_figures=False)
-        experiment_record.show()
+        show_record(experiment_record)
 
 
 def test_get_latest():
@@ -104,7 +108,7 @@ def test_get_latest():
         record_1 = experiment_test_function.run()
         time.sleep(0.01)
         record_2 = experiment_test_function.run()
-        identifier = experiment_id_to_latest_record_id('experiment_test_function')
+        identifier = load_experiment('experiment_test_function').get_latest_record().get_identifier()
         assert identifier == record_2.get_identifier()
 
 
@@ -114,7 +118,7 @@ def test_get_latest_identifier():
         exp_rec = experiment_test_function.run()
         print get_experiment_info('experiment_test_function')
         assert_experiment_record_is_correct(exp_rec)
-        last_experiment_identifier = experiment_id_to_latest_record_id('experiment_test_function')
+        last_experiment_identifier = load_experiment('experiment_test_function').get_latest_record().get_identifier()
         assert last_experiment_identifier is not None, 'Experiment was run, this should not be none'
         same_exp_rec = load_experiment_record(last_experiment_identifier)
         assert_experiment_record_is_correct(same_exp_rec)
@@ -180,16 +184,16 @@ def test_variants():
         # Create unnamed variant
         e2=add_some_numbers.add_variant(b=4)
         assert e2.run().get_result()==5
-        assert e2.get_name() == 'add_some_numbers.b=4'
+        assert e2.get_id() == 'add_some_numbers.b=4'
 
         # Create array of variants
         e_list = [add_some_numbers.add_variant(b=i) for i in xrange(5, 8)]
-        assert [e.get_name() for e in e_list] == ['add_some_numbers.b=5', 'add_some_numbers.b=6', 'add_some_numbers.b=7']
+        assert [e.get_id() for e in e_list] == ['add_some_numbers.b=5', 'add_some_numbers.b=6', 'add_some_numbers.b=7']
         assert [e.run().get_result()==j for e, j in zip(e_list, range(6, 11))]
 
         # Create grid of variants
         e_grid = [add_some_numbers.add_variant(a=a, b=b) for a, b in itertools.product([2, 3], [4, 5, 6])]
-        assert [e.get_name() for e in e_grid] == ['add_some_numbers.a=2,b=4', 'add_some_numbers.a=2,b=5', 'add_some_numbers.a=2,b=6',
+        assert [e.get_id() for e in e_grid] == ['add_some_numbers.a=2,b=4', 'add_some_numbers.a=2,b=5', 'add_some_numbers.a=2,b=6',
                                                   'add_some_numbers.a=3,b=4', 'add_some_numbers.a=3,b=5', 'add_some_numbers.a=3,b=6']
         assert add_some_numbers.get_unnamed_variant(a=2, b=4).run().get_result()==6
         assert add_some_numbers.get_unnamed_variant(a=3, b=5).run().get_result()==8
