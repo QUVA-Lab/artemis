@@ -227,7 +227,6 @@ def test_get_variant_records_and_delete():
 
     with experiment_testing_context():
 
-        clear_experiment_records()
         for record in my_api_test.get_variant_records(flat=True):
             record.delete()
 
