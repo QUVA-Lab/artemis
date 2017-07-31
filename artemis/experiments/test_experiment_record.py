@@ -1,18 +1,16 @@
+import itertools
 import time
 import warnings
 
-import itertools
 import matplotlib.pyplot as plt
 import numpy as np
+from artemis.experiments.decorators import experiment_function
+from artemis.experiments.deprecated import start_experiment, end_current_experiment
 from artemis.experiments.experiment_record import \
     load_experiment_record, ExperimentRecord, record_experiment, \
     delete_experiment_with_id, get_current_experiment_dir, open_in_experiment_dir, \
-    ExpStatusOptions
-from artemis.experiments.experiment_record_view import show_record
-from artemis.experiments.experiments import get_experiment_info, load_experiment
-from artemis.experiments.experiment_management import experiment_testing_context
-from artemis.experiments.decorators import experiment_function
-from artemis.experiments.deprecated import start_experiment, end_current_experiment
+    ExpStatusOptions, clear_experiment_records
+from artemis.experiments.experiments import get_experiment_info, load_experiment, experiment_testing_context
 from artemis.general.test_mode import set_test_mode
 
 __author__ = 'peter'
@@ -90,26 +88,13 @@ def test_start_experiment():
         assert_experiment_record_is_correct(record, show_figures=False)
 
 
-def test_run_and_show():
-    """
-
-    This is nice because it no longer required that an experiment be run and shown in a
-    single session - each experiment just has a unique identifier that can be used to show
-    its results whenevs.
-    """
-    with experiment_testing_context():
-        experiment_record = experiment_test_function.run()
-        assert_experiment_record_is_correct(experiment_record, show_figures=False)
-        show_record(experiment_record)
-
-
 def test_get_latest():
     with experiment_testing_context():
         record_1 = experiment_test_function.run()
         time.sleep(0.01)
         record_2 = experiment_test_function.run()
-        identifier = load_experiment('experiment_test_function').get_latest_record().get_identifier()
-        assert identifier == record_2.get_identifier()
+        identifier = load_experiment('experiment_test_function').get_latest_record().get_id()
+        assert identifier == record_2.get_id()
 
 
 def test_get_latest_identifier():
@@ -118,7 +103,7 @@ def test_get_latest_identifier():
         exp_rec = experiment_test_function.run()
         print get_experiment_info('experiment_test_function')
         assert_experiment_record_is_correct(exp_rec)
-        last_experiment_identifier = load_experiment('experiment_test_function').get_latest_record().get_identifier()
+        last_experiment_identifier = load_experiment('experiment_test_function').get_latest_record().get_id()
         assert last_experiment_identifier is not None, 'Experiment was run, this should not be none'
         same_exp_rec = load_experiment_record(last_experiment_identifier)
         assert_experiment_record_is_correct(same_exp_rec)
@@ -195,25 +180,25 @@ def test_variants():
         e_grid = [add_some_numbers.add_variant(a=a, b=b) for a, b in itertools.product([2, 3], [4, 5, 6])]
         assert [e.get_id() for e in e_grid] == ['add_some_numbers.a=2,b=4', 'add_some_numbers.a=2,b=5', 'add_some_numbers.a=2,b=6',
                                                   'add_some_numbers.a=3,b=4', 'add_some_numbers.a=3,b=5', 'add_some_numbers.a=3,b=6']
-        assert add_some_numbers.get_unnamed_variant(a=2, b=4).run().get_result()==6
-        assert add_some_numbers.get_unnamed_variant(a=3, b=5).run().get_result()==8
+        assert add_some_numbers.get_variant(a=2, b=4).run().get_result()==6
+        assert add_some_numbers.get_variant(a=3, b=5).run().get_result()==8
 
         experiments = add_some_numbers.get_all_variants(include_roots=True, include_self=True)
         assert len(experiments)==13
 
 
+@experiment_function
+def my_api_test(a=1, b=3):
+    print 'aaa'
+    return a*b
+
+my_api_test.add_variant('a2b2', a=2, b=2)
+my_api_test.add_variant('a3b2', a=3, b=2)
+
+
 def test_experiment_api(try_browse=False):
 
     with experiment_testing_context():
-
-        @experiment_function
-        def my_api_test(a=1, b=3):
-            print 'aaa'
-            return a*b
-
-        my_api_test.add_variant('a2b2', a=2, b=2)
-        my_api_test.add_variant('a3b2', a=3, b=2)
-
         my_api_test.get_variant('a2b2').run()
         record = my_api_test.get_variant('a2b2').get_latest_record()
 
@@ -238,9 +223,25 @@ def test_figure_saving(show_them = False):
         plt.show()
 
 
-def test_compare_results():
+def test_get_variant_records_and_delete():
 
-    raise Exception('Need to do this!')
+    with experiment_testing_context():
+
+        clear_experiment_records()
+        for record in my_api_test.get_variant_records(flat=True):
+            record.delete()
+
+        assert len(my_api_test.get_variant_records(flat=True))==0
+
+        my_api_test.run()
+        my_api_test.get_variant('a2b2').run()
+
+        assert len(my_api_test.get_variant_records(flat=True))==2
+
+        for record in my_api_test.get_variant_records(flat=True):
+            record.delete()
+
+        assert len(my_api_test.get_variant_records(flat=True))==0
 
 
 if __name__ == '__main__':
@@ -248,7 +249,6 @@ if __name__ == '__main__':
     set_test_mode(True)
     test_get_latest_identifier()
     test_get_latest()
-    test_run_and_show()
     test_experiment_with()
     test_start_experiment()
     test_accessing_experiment_dir()
@@ -256,4 +256,4 @@ if __name__ == '__main__':
     test_variants()
     test_experiment_api(try_browse=False)
     test_figure_saving(show_them=False)
-    test_compare_results()
+    test_get_variant_records_and_delete()

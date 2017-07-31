@@ -1,15 +1,13 @@
-import re
 import shlex
 from collections import OrderedDict
 from functools import partial
-
 from artemis.experiments.deprecated import run_experiment_ignoring_errors
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
     select_experiment_records_from_list, interpret_numbers
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, NoSavedResultError
-from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, show_record, \
-    print_experiment_record_argtable, compare_results
+from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
+    print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string
 from artemis.experiments.experiments import GLOBAL_EXPERIMENT_LIBRARY, load_experiment
 from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.should_be_builtins import all_equal
@@ -29,22 +27,6 @@ def _warn_with_prompt(message= None, prompt = 'Press Enter to continue', use_pro
         print message
     if use_prompt:
         raw_input('({}) >> '.format(prompt))
-
-
-def find_experiment(*search_terms):
-    """
-    Find an experiment.  Invoke
-    :param search_term: A term that will be used to search for an experiment.
-    :return:
-    """
-
-    found_experiments = OrderedDict((name, ex) for name, ex in GLOBAL_EXPERIMENT_LIBRARY.iteritems() if all(re.search(term, name) for term in search_terms))
-    if len(found_experiments)==0:
-        raise Exception("None of the {} experiments matched the search: '{}'".format(len(GLOBAL_EXPERIMENT_LIBRARY), search_terms))
-    elif len(found_experiments)>1:
-        raise Exception("More than one experiment matched the search '{}', you need to be more specific.  Found: {}".format(search_terms, found_experiments.keys()))
-    else:
-        return found_experiments.values()[0]
 
 
 def browse_experiments(command=None, **kwargs):
@@ -135,7 +117,7 @@ experiment records.  You can specify records in the following ways:
 """
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = True, just_last_record = False,
-            view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True):
+            view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100):
 
         if run_args is None:
             run_args = {}
@@ -150,6 +132,7 @@ experiment records.  You can specify records in the following ways:
         self.view_mode = view_mode
         self._filter = None
         self.run_args = {} if run_args is None else run_args
+        self.truncate_result_to = truncate_result_to
 
     def reload_record_dict(self):
 
@@ -183,8 +166,8 @@ experiment records.  You can specify records in the following ways:
             'explist': self.explist,
             'sidebyside': self.side_by_side,
             'argtable': self.argtable,
-            'compare_results': self.compare_results,
-            'results': self.results,
+            'compare': self.compare,
+            'display': self.display,
             'delete': self.delete,
             'errortrace': self.errortrace,
             'q': self.quit,
@@ -198,7 +181,7 @@ experiment records.  You can specify records in the following ways:
             print "==================== Experiments ===================="
             self.exp_record_dict = all_experiments if self._filter is None else \
                 OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
-            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors)
+            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, truncate_result_to=self.truncate_result_to)
             if self._filter is not None:
                 print '[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments))
             print '-----------------------------------------------------'
@@ -241,7 +224,7 @@ experiment records.  You can specify records in the following ways:
                         raise
 
     @staticmethod
-    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False):
+    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False, truncate_result_to=100):
 
         headers = {
             'full': ['E#', 'R#', 'Name', 'Last Run' if just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result'],
@@ -260,8 +243,8 @@ experiment records.  You can specify records in the following ways:
                     experiment_record.info.get_field_text(ExpInfoFields.TIMESTAMP) if header in ('Last Run', 'All Runs') else \
                     experiment_record.info.get_field_text(ExpInfoFields.RUNTIME) if header=='Duration' else \
                     experiment_record.info.get_field_text(ExpInfoFields.STATUS) if header=='Status' else \
-                    experiment_record.get_invalid_arg_note() if header=='Valid' else \
-                    experiment_record.get_one_liner() if header=='Result' else \
+                    get_record_invalid_arg_string(experiment_record) if header=='Valid' else \
+                    get_oneline_result_string(experiment_record, truncate_to=truncate_result_to) if header=='Result' else \
                     '???'
             except:
                 if raise_display_errors:
@@ -310,36 +293,22 @@ experiment records.  You can specify records in the following ways:
         :param user_range:  A range specifying the record
         :param parallel_arg: -p to print logs side-by-side, and -s to print them in sequence.
         """
-        records = [load_experiment_record(rid) for rid in select_experiment_records(user_range, self.exp_record_dict, flat=True)]
-        if parallel_arg is None:
-            parallel_arg = '-p' if len(records)>1 else '-s'
-        if len(records)==0:
-            print '... No records to show ...'
-        else:
-            if parallel_arg == '-p':
-                print side_by_side([get_record_full_string(rec) for rec in records], max_linewidth=128)
-            elif parallel_arg == '-s':  #
-                for rec in records:
-                    print get_record_full_string(rec)
-            else:
-                raise Exception('Argument to show should either be -p (print logs in parallel) or -s (print logs in sequence)')
-        has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+        parallel_text = {'-p': True, '-s': False, None: None}[parallel_arg]
+        has_matplotlib_figures=show_experiment_records(records, parallel_text = parallel_text)
         if has_matplotlib_figures:
             from matplotlib import pyplot as plt
-            for rec in records:
-                rec.show_figures(hang=False)
             print '\n\n... Close all figures to return to experiment browser ...'
             plt.ioff()
             plt.show()
         else:
             _warn_with_prompt(use_prompt=not self.close_after)
 
-    def results(self, user_range = 'all'):
-        record_ids = select_experiment_records(user_range, self.exp_record_dict)
+    def display(self, user_range = 'all'):
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         with IndentPrint("Results:", show_line=True, show_end=True):
-            for erid in record_ids:
-                record = load_experiment_record(erid)
-                with IndentPrint(erid, show_line=True, show_end=True):
+            for record in records:
+                with IndentPrint(record.get_id(), show_line=True, show_end=True):
                     try:
                         result = record.get_result()
                         record.get_experiment().display_last(result, err_if_none=False)
@@ -351,22 +320,21 @@ experiment records.  You can specify records in the following ways:
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def errortrace(self, user_range):
-        record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         with IndentPrint("Error Traces:", show_line=True, show_end=True):
-            for erid in record_ids:
-                with IndentPrint(erid, show_line=True):
-                    record = load_experiment_record(erid)
+            for record in records:
+                with IndentPrint(record.get_id(), show_line=True):
                     print record.get_error_trace()
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def delete(self, user_range):
-        record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        print '{} out of {} Records will be deleted.'.format(len(record_ids), sum(len(recs) for recs in self.exp_record_dict.values()))
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+        print '{} out of {} Records will be deleted.'.format(len(records), sum(len(recs) for recs in self.exp_record_dict.values()))
         with IndentPrint():
-            print ExperimentRecordBrowser.get_record_table(record_ids, )
+            print ExperimentRecordBrowser.get_record_table(records, )
         response = raw_input('Type "yes" to continue. >')
         if response.lower() == 'yes':
-            clear_experiment_records(record_ids)
+            clear_experiment_records([record.get_id() for record in records])
             print 'Records deleted.'
         else:
             _warn_with_prompt('Records were not deleted.', use_prompt=not self.close_after)
@@ -384,20 +352,19 @@ experiment records.  You can specify records in the following ways:
         _warn_with_prompt('Experiment Selection "{}" includes {} out of {} experiments.'.format(user_range, len(exps_to_records), len(self.exp_record_dict)), use_prompt=not self.close_after)
 
     def selectrec(self, user_range):
-        record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         with IndentPrint():
-            print ExperimentRecordBrowser.get_record_table(record_ids)
-        _warn_with_prompt('Record Selection "{}" includes {} out of {} records.'.format(user_range, len(record_ids), sum(len(recs) for recs in self.exp_record_dict.values())), use_prompt=not self.close_after)
+            print ExperimentRecordBrowser.get_record_table(records)
+        _warn_with_prompt('Record Selection "{}" includes {} out of {} records.'.format(user_range, len(records), sum(len(recs) for recs in self.exp_record_dict.values())), use_prompt=not self.close_after)
 
     def side_by_side(self, user_range):
-        record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        records = [load_experiment_record(rid) for rid in record_ids]
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         print side_by_side([get_record_full_string(rec) for rec in records], max_linewidth=128)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def argtable(self, user_range):
-        record_ids = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        print_experiment_record_argtable(record_ids)
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+        print_experiment_record_argtable(records)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def records(self, ):
@@ -421,7 +388,8 @@ experiment records.  You can specify records in the following ways:
 
     def compare(self, user_range):
         experiment_ids = select_experiments(user_range, self.exp_record_dict)
-        compare_results(experiment_ids, error_if_no_result=True)
+        experiments = [load_experiment(eid) for eid in experiment_ids]
+        compare_experiment_results(experiments, error_if_no_result=True)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def explist(self, surround = ""):
@@ -477,11 +445,11 @@ class ExperimentRecordBrowser(object):
         return get_all_record_ids(experiment_ids= self.experiment_names, filters=self.filters)
 
     @staticmethod
-    def get_record_table(record_ids = None, headers = ('#', 'Identifier', 'Start Time', 'Duration', 'Status', 'Valid', 'Notes', 'Result'), raise_display_errors = False, result_truncation=100):
+    def get_record_table(records = None, headers = ('#', 'Identifier', 'Start Time', 'Duration', 'Status', 'Valid', 'Notes', 'Result'), raise_display_errors = False, result_truncation=100):
 
         d = {
             '#': lambda: i,
-            'Identifier': lambda: record_id,
+            'Identifier': lambda: experiment_record.get_id(),
             'Start Time': lambda: experiment_record.info.get_field_text(ExpInfoFields.TIMESTAMP, replacement_if_none='?'),
             'Duration': lambda: experiment_record.info.get_field_text(ExpInfoFields.RUNTIME, replacement_if_none='?'),
             'Status': lambda: experiment_record.info.get_field_text(ExpInfoFields.STATUS, replacement_if_none='?'),
@@ -503,8 +471,7 @@ class ExperimentRecordBrowser(object):
             return info
 
         rows = []
-        for i, record_id in enumerate(record_ids):
-            experiment_record = load_experiment_record(record_id)
+        for i, experiment_record in enumerate(records):
             rows.append(get_col_info(headers))
         assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n {}'.format(len(headers), [len(row) for row in rows])
         return tabulate(rows, headers=headers)
@@ -588,8 +555,8 @@ class ExperimentRecordBrowser(object):
         _warn_with_prompt('')
 
     def show(self, user_range):
-        for rid in self._select_records(user_range):
-            show_record(rid)
+        record_ids = self._select_records(user_range)
+        show_experiment_records([load_experiment_record(rid) for rid in record_ids])
         _warn_with_prompt('')
 
     def search(self, filter_text):

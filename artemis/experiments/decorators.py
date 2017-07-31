@@ -50,7 +50,7 @@ class ExperimentFunction(object):
         :param display_function: A function that takes the results (whatever your experiment returns) and displays them.
         :param comparison_function: A function that takes an OrderedDict<experiment_name, experiment_return_value>.
             You can optionally define this function to compare the results of different experiments.
-            You can use call this via the UI with the compare_results command.
+            You can use call this via the UI with the compare_experiment_results command.
         :param one_liner_function: A function that takes your results and returns a 1 line string summarizing them.
         :param info: Don't use this?
         :param is_root: True to make this a root experiment - so that it is not listed to be run itself.

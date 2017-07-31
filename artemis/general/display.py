@@ -41,9 +41,6 @@ def hold_numpy_printoptions(**kwargs):
     np.set_printoptions(**opts)
 
 
-
-
-
 def str_with_arrayopts(obj, float_format='.3g', threshold=8, **kwargs):
     """
     Print

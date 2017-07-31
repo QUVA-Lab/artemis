@@ -1,7 +1,10 @@
+import re
+from collections import OrderedDict
+
 from artemis.experiments.experiment_management import load_lastest_experiment_results
-from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, load_experiment_record
-from artemis.experiments.experiments import is_experiment_loadable, load_experiment
-from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions
+from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord
+from artemis.experiments.experiments import is_experiment_loadable, GLOBAL_EXPERIMENT_LIBRARY
+from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side
 from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value
 from artemis.general.tables import build_table
 from tabulate import tabulate
@@ -19,7 +22,7 @@ def get_record_result_string(record, func='deep', truncate_to = None, array_prin
             func = {
                 'deep': deepstr,
                 'str': str,
-                }
+                }[func]
         else:
             assert callable(func), 'func must be callable'
         try:
@@ -49,7 +52,7 @@ def get_record_full_string(record, show_info = True, show_logs = True, truncate_
     """
 
     assert show_result in (False, 'full', 'deep')
-    full_info_string = '{header} {rid} {header}\n'.format(header="=" * 10, rid=record.get_identifier())
+    full_info_string = '{header} {rid} {header}\n'.format(header="=" * 10, rid=record.get_id())
     if show_info:
         full_info_string += '{}\n'.format(record.info.get_text())
     if show_logs:
@@ -90,13 +93,6 @@ def get_record_invalid_arg_string(record):
     return notes
 
 
-def show_record(record, hang=False):
-    if isinstance(record, basestring):
-        record = load_experiment_record(record)
-    print get_record_full_string(record)
-    record.show_figures(hang=hang)
-
-
 def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g', array_print_threshold=8):
 
     one_liner = record.get_experiment().one_liner_function
@@ -106,7 +102,7 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
         array_float_format=array_float_format, oneline=True)
 
 
-def display_record(record):
+def display_experiment_record(record):
     result = record.get_result()
     display_func = record.get_experiment().display_function
     if display_func is None:
@@ -115,18 +111,17 @@ def display_record(record):
         display_func(result)
 
 
-def compare_results(experiment_ids, error_if_no_result = True):
-    comp_functions = [load_experiment(eid).comparison_function for eid in experiment_ids]
+def compare_experiment_results(experiments, error_if_no_result = True):
+    comp_functions = [ex.comparison_function for ex in experiments]
     assert all_equal(comp_functions), 'Experiments must have same comparison functions.'
     comp_function = comp_functions[0]
     assert comp_function is not None, 'Cannot compare results, because you have not specified any comparison function for this experiment.  Use @ExperimentFunction(comparison_function = my_func)'
-    results = load_lastest_experiment_results(experiment_ids)
+    results = load_lastest_experiment_results(experiments, error_if_no_result=error_if_no_result)
     comp_function(results)
 
 
-def print_experiment_record_argtable(record_identifiers):
+def print_experiment_record_argtable(records):
 
-    records = [load_experiment_record(ident) for ident in record_identifiers]
     # info_results = OrderedDict([(identifier, record.get_info()) for identifier, record in zip(record_identifiers, records)]])
 
     funtion_names = [record.info.get_field(ExpInfoFields.FUNCTION) for record in records]
@@ -135,8 +130,10 @@ def print_experiment_record_argtable(record_identifiers):
 
     common_args, different_args = separate_common_items(args)
 
-    def lookup_fcn(identifier, column):
-        index = record_identifiers.index(identifier)
+    record_ids = [record.get_id() for record in records]
+
+    def lookup_fcn(record_id, column):
+        index = record_ids.index(record_id)
         if column=='Function':
             return funtion_names[index]
         elif column=='Run Time':
@@ -151,9 +148,67 @@ def print_experiment_record_argtable(record_identifiers):
             bad_value(column)
 
     rows = build_table(lookup_fcn,
-        row_categories=record_identifiers,
+        row_categories=record_ids,
         column_categories=['Function', 'Run Time', 'Common Args', 'Different Args', 'Result'],
         prettify_labels=False
         )
 
     print tabulate(rows)
+
+
+def show_experiment_records(records, parallel_text=None, hang_notice = None, show_logs=True, truncate_logs=10000, truncate_result=10000, show_result ='deep', hang=True):
+    """
+    Show the console logs, figures, and results of a collection of experiments.
+
+    :param records:
+    :param parallel_text:
+    :param hang_notice:
+    :return:
+    """
+    if isinstance(records, ExperimentRecord):
+        records = [records]
+    if parallel_text is None:
+        parallel_text = len(records)>1
+    if len(records)==0:
+        print '... No records to show ...'
+    else:
+        if parallel_text:
+            print side_by_side([get_record_full_string(rec, show_logs=show_logs, show_result=show_result) for rec in records], max_linewidth=128)
+        else:  #
+            for rec in records:
+                print get_record_full_string(rec, show_logs=True, truncate_logs=truncate_logs, show_result=show_result, truncate_result=truncate_result)
+    has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
+    from matplotlib import pyplot as plt
+    if has_matplotlib_figures:
+        from artemis.plotting.saving_plots import interactive_matplotlib_context
+        for rec in records:
+            rec.show_figures(hang=False)
+        if hang_notice is not None:
+            print hang_notice
+
+        with interactive_matplotlib_context(not hang):
+            plt.show()
+
+    if any(rec.get_experiment().display_function is not None for rec in records):
+        from artemis.plotting.saving_plots import interactive_matplotlib_context
+        with interactive_matplotlib_context():
+            for rec in records:
+                display_experiment_record(rec)
+
+    return has_matplotlib_figures
+
+
+def find_experiment(*search_terms):
+    """
+    Find an experiment.  Invoke
+    :param search_term: A term that will be used to search for an experiment.
+    :return:
+    """
+
+    found_experiments = OrderedDict((name, ex) for name, ex in GLOBAL_EXPERIMENT_LIBRARY.iteritems() if all(re.search(term, name) for term in search_terms))
+    if len(found_experiments)==0:
+        raise Exception("None of the {} experiments matched the search: '{}'".format(len(GLOBAL_EXPERIMENT_LIBRARY), search_terms))
+    elif len(found_experiments)>1:
+        raise Exception("More than one experiment matched the search '{}', you need to be more specific.  Found: {}".format(search_terms, found_experiments.keys()))
+    else:
+        return found_experiments.values()[0]

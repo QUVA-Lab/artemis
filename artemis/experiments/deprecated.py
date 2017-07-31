@@ -1,7 +1,7 @@
 import traceback
 from collections import OrderedDict
 from functools import partial
-from artemis.experiments.experiment_record import GLOBAL_EXPERIMENT_LIBRARY, record_experiment
+from artemis.experiments.experiment_record import record_experiment
 from artemis.experiments.experiments import Experiment, GLOBAL_EXPERIMENT_LIBRARY
 
 

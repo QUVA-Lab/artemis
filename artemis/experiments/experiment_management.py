@@ -1,16 +1,11 @@
-import atexit
 import getpass
 from collections import OrderedDict
-from contextlib import contextmanager
 from importlib import import_module
 
-from artemis.experiments.experiment_record import ExperimentRecord, load_experiment_record, ExpInfoFields, \
-    ExpStatusOptions, ARTEMIS_LOGGER, get_all_record_ids, clear_experiment_records, \
-    record_id_to_experiment_id
-from artemis.experiments.experiment_record_view import get_record_full_string
+from artemis.experiments.experiment_record import load_experiment_record, ExpInfoFields, \
+    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id
 from artemis.experiments.experiments import load_experiment, GLOBAL_EXPERIMENT_LIBRARY
 from artemis.fileman.config_files import get_home_dir
-from artemis.general.display import side_by_side
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import separate_common_items, izip_equal, detect_duplicates
 
@@ -59,12 +54,12 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     return output
 
 
-def make_record_comparison_table(record_ids, args_to_show=None, results_extractor = None, print_table = False):
+def make_record_comparison_table(records, args_to_show=None, results_extractor = None, print_table = False):
     """
     Make a table comparing the arguments and results of different experiment records.  You can use the output
     of this function with the tabulate package to make a nice readable table.
 
-    :param record_ids: A list of record ids whose results to compare
+    :param records: A list of records whose results to compare
     :param args_to_show: A list of arguments to show.  If none, it will just show all arguments
         that differ between experiments.
     :param results_extractor: A dict<str->callable> where the callables take the result of the
@@ -91,7 +86,6 @@ def make_record_comparison_table(record_ids, args_to_show=None, results_extracto
         print tabulate.tabulate(rows, headers=headers, tablefmt=tablefmt)
     """
 
-    records = [rid if isinstance(rid, ExperimentRecord) else load_experiment_record(rid) for rid in record_ids]
     args = [rec.info.get_field(ExpInfoFields.ARGS) for rec in records]
     if args_to_show is None:
         common, separate = separate_common_items(args)
@@ -116,57 +110,18 @@ def make_record_comparison_table(record_ids, args_to_show=None, results_extracto
     if print_table:
         import tabulate
         print tabulate.tabulate(rows, headers=headers, tablefmt='simple')
-
-
     return headers, rows
 
 
-def show_experiment_records(record_ids, parallel_text=None, hang_notice = None, show_logs=10000, show_results ='deep'):
+def load_lastest_experiment_results(experiments, error_if_no_result = True):
     """
-    Show the console logs, figures, and results of a collection of experiments.
-
-    :param record_ids:
-    :param parallel_text:
-    :param hang_notice:
+    :param experiments:
+    :param error_if_no_result:
     :return:
     """
-    records = [load_experiment_record(rid) for rid in record_ids]
-    if parallel_text is None:
-        parallel_text = len(records)>1
-    if len(records)==0:
-        print '... No records to show ...'
-    else:
-        if parallel_text:
-            print side_by_side([get_record_full_string(rec, show_logs=show_logs, show_result=show_results) for rec in records], max_linewidth=128)
-        else:  #
-            for rec in records:
-                print get_record_full_string(rec, show_logs=show_logs, show_result=show_results)
-    has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
-    from matplotlib import pyplot as plt
-    if has_matplotlib_figures:
-        for rec in records:
-            rec.show_figures(hang=False)
-        if hang_notice is not None:
-            print hang_notice
-
-    for rec in records:
-        result = rec.get_result()
-    #
-        from artemis.plotting.saving_plots import interactive_matplotlib_context
-        with interactive_matplotlib_context():
-            if result is not None:
-                rec.get_experiment().display_last(result)
-    #
-    with interactive_matplotlib_context(False):
-        plt.show()
-
-    return has_matplotlib_figures
-
-
-def load_lastest_experiment_results(experiment_ids, error_if_no_result = True):
     results = OrderedDict()
-    for eid in experiment_ids:
-        record = load_experiment(eid).get_latest_record(err_if_none=error_if_no_result, only_completed=True)
+    for ex in experiments:
+        record = ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True)
 
         # record = load_latest_experiment_record(eid, filter_status=ExpStatusOptions.FINISHED)
         if record is None:
@@ -175,35 +130,10 @@ def load_lastest_experiment_results(experiment_ids, error_if_no_result = True):
             else:
                 ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(eid))
         else:
-            results[eid] = record.get_result()
+            results[ex.get_id()] = record.get_result()
     if len(results)==0:
         ARTEMIS_LOGGER.warn('None of your experiments had any results.  Your comparison function will probably show no meaningful result.')
     return results
-
-
-@contextmanager
-def experiment_testing_context(close_figures_at_end = True):
-    """
-    Use this context when testing the experiment/experiment_record infrastructure.
-    Should only really be used in test_experiment_record.py
-    """
-    ids = get_all_record_ids()
-    global keep_record_by_default
-    old_val = keep_record_by_default
-    keep_record_by_default = True
-    yield
-    keep_record_by_default = old_val
-
-    if close_figures_at_end:
-        from matplotlib import pyplot as plt
-        plt.close('all')
-
-    def clean_on_close():
-        new_ids = set(get_all_record_ids()).difference(ids)
-        clear_experiment_records(list(new_ids))
-
-    atexit.register(
-        clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally
 
 
 def select_experiments(user_range, exp_record_dict, return_dict=False):
@@ -261,7 +191,7 @@ def select_experiment_records(user_range, exp_record_dict, flat=True):
         otherwise a list<experiment_record_name>
     """
     filters = _filter_records(user_range, exp_record_dict)
-    filtered_dict = OrderedDict((k, [v for v, f in izip_equal(exp_record_dict[k], filters[k]) if f]) for k in exp_record_dict.keys())
+    filtered_dict = OrderedDict((k, [load_experiment_record(record_id) for record_id, f in izip_equal(exp_record_dict[k], filters[k]) if f]) for k in exp_record_dict.keys())
     if flat:
         return [record_id for records in filtered_dict.values() for record_id in records]
     else:

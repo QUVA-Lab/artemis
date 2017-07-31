@@ -1,2 +1,3 @@
 from decorators import experiment_function, experiment_root, ExperimentFunction
-from experiments import capture_created_experiments
+from experiments import capture_created_experiments, load_experiment
+from experiment_record import load_experiment_record

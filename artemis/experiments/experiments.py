@@ -1,5 +1,5 @@
+import atexit
 import inspect
-import multiprocessing
 import time
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -7,11 +7,9 @@ from datetime import datetime
 from functools import partial
 from getpass import getuser
 from uuid import getnode
-from artemis.experiments.experiment_management import load_lastest_experiment_results
 from artemis.experiments.experiment_record import ARTEMIS_LOGGER, \
-    ExpInfoFields, record_experiment, ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record
-from artemis.experiments.experiment_record_view import get_record_result_string
-from artemis.general.display import deepstr
+    ExpInfoFields, record_experiment, ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
+    get_all_record_ids, clear_experiment_records
 from artemis.general.functional import infer_derived_arg_values, get_partial_chain
 from artemis.general.test_mode import is_test_mode, set_test_mode
 
@@ -49,11 +47,11 @@ class Experiment(object):
 
     @property
     def one_liner_function(self):
-        return self._display_function
+        return self._one_liner_results
 
     @property
     def comparison_function(self):
-        return self._display_function
+        return self._comparison_function
 
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything.  You can also modify with arguments. """
@@ -112,7 +110,7 @@ class Experiment(object):
             try:
 
                 exp_rec.info.set_field(ExpInfoFields.NAME, self.name)
-                exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_identifier())
+                exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
                 exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
                 exp_rec.info.set_field(EIF.ARGS, self.get_args().items())
                 root_function = self.get_root_function()
@@ -226,9 +224,9 @@ class Experiment(object):
             records = [record for record in records if record.get_status()==ExpStatusOptions.FINISHED]
         return records
 
-    def browse(self):
+    def browse(self, **kwargs):
         from artemis.experiments.ui import browse_experiments
-        browse_experiments(root_experiment=self)
+        browse_experiments(root_experiment=self, **kwargs)
 
     # Above this line is the core api....
     # -----------------------------------
@@ -279,7 +277,7 @@ class Experiment(object):
         else:
             return records[-1]
 
-    def get_variant_records(self, only_completed=True, only_last=True, flat=False):
+    def get_variant_records(self, only_completed=False, only_last=False, flat=False):
         """
         :param only_last_finished:
         :param flat: Just return a list of records
@@ -353,3 +351,28 @@ def _kwargs_to_experiment_name(kwargs):
 
 
 keep_record_by_default = None
+
+
+@contextmanager
+def experiment_testing_context(close_figures_at_end = True):
+    """
+    Use this context when testing the experiment/experiment_record infrastructure.
+    Should only really be used in test_experiment_record.py
+    """
+    ids = get_all_record_ids()
+    global keep_record_by_default
+    old_val = keep_record_by_default
+    keep_record_by_default = True
+    yield
+    keep_record_by_default = old_val
+
+    if close_figures_at_end:
+        from matplotlib import pyplot as plt
+        plt.close('all')
+
+    def clean_on_close():
+        new_ids = set(get_all_record_ids()).difference(ids)
+        clear_experiment_records(list(new_ids))
+
+    atexit.register(
+        clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally

@@ -167,8 +167,6 @@ class ModelTestScore(object):
         self.scores = OrderedDict()
 
     def __getitem__(self, (data_subset, prediction_function_name, cost_name)):
-
-
         return self.scores[data_subset, prediction_function_name, cost_name]
 
     def __setitem__(self, (data_subset, prediction_function_name, cost_name), value):

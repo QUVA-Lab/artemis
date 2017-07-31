@@ -186,7 +186,7 @@ class ExperimentRecord(object):
 
     def __init__(self, experiment_directory):
         self._experiment_directory = experiment_directory
-        self.info = None
+        self._info = None
 
     @property
     def info(self):
@@ -197,7 +197,7 @@ class ExperimentRecord(object):
     def show_figures(self, hang=False):
         from artemis.plotting.saving_plots import show_saved_figure
         for i, loc in enumerate(self.get_figure_locs()):
-            show_saved_figure(loc, title='{} Fig {}'.format(self.get_identifier(), i+1))
+            show_saved_figure(loc, title='{} Fig {}'.format(self.get_id(), i + 1))
         if hang and len(self.get_figure_locs())>0:
             from matplotlib import pyplot as plt
             plt.show()
@@ -252,23 +252,25 @@ class ExperimentRecord(object):
     def has_result(self):
         return os.path.exists(os.path.join(self._experiment_directory, 'result.pkl'))
 
-    def get_result(self):
+    def get_result(self, err_if_none = True):
         result_loc = os.path.join(self._experiment_directory, 'result.pkl')
         if os.path.exists(result_loc):
             with open(result_loc) as f:
                 result = pickle.load(f)
             return result
+        elif err_if_none:
+            raise NoSavedResultError(self.get_id())
         else:
-            raise NoSavedResultError(self.get_identifier())
+            return None
 
     def save_result(self, result):
         file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
         make_file_dir(file_path)
         with open(file_path, 'w') as f:
             pickle.dump(result, f, protocol=2)
-            print 'Saving Result for Experiment "%s"' % (self.get_identifier(),)
+            print 'Saving Result for Experiment "%s"' % (self.get_id(),)
 
-    def get_identifier(self):
+    def get_id(self):
         root, identifier = os.path.split(self._experiment_directory)
         return identifier
 
@@ -276,13 +278,8 @@ class ExperimentRecord(object):
         from artemis.experiments.experiments import load_experiment
         return load_experiment(self.get_experiment_id())
 
-    def get_name(self):
-        # Deprecated
-        return self.get_experiment_id()
-        # return self.get_identifier()[27:]  # NOTE: THIS WILL HAVE TO CHANGE IF WE USE A DIFFERENT DATA FORMAT!
-
     def get_experiment_id(self):
-        return self.get_identifier()[27:]
+        return self.get_id()[27:]
 
     def get_dir(self):
         return self._experiment_directory
