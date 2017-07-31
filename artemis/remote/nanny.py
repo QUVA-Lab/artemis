@@ -71,7 +71,7 @@ class Nanny(object):
         self.managed_child_processes[cp.get_id()] = ManagedChildProcess(cp, monitor_for_termination,monitor_if_stuck_timeout)
 
     def get_child_processes(self):
-        return [mcp.get_process() for mcp in self.managed_child_processes]
+        return {id:mcp.get_process() for id,mcp in self.managed_child_processes.iteritems()}
 
     def execute_all_child_processes(self, time_out=1, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:True):
         '''
