@@ -58,13 +58,13 @@ def test_experiment_function_ui():
             existing_record.delete()
         assert len(my_experiment.get_variant_records(flat=True))==0
 
-        my_experiment.browse(raise_display_errors=True, command='run all')
+        my_experiment.browse(raise_display_errors=True, command='run all', close_after=True)
         assert len(my_experiment.get_variant_records())==2
 
-        my_experiment.browse(raise_display_errors=True, command='argtable all')
-        my_experiment.browse(raise_display_errors=True, command='compare all')
-        my_experiment.browse(raise_display_errors=True, command='display all')
-        my_experiment.browse(raise_display_errors=True, command='show all')
+        my_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
+        my_experiment.browse(raise_display_errors=True, command='compare all', close_after=True)
+        my_experiment.browse(raise_display_errors=True, command='display all', close_after=True)
+        my_experiment.browse(raise_display_errors=True, command='show all', close_after=True)
 
 
 if __name__ == '__main__':

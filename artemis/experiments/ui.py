@@ -117,7 +117,7 @@ experiment records.  You can specify records in the following ways:
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
 """
 
-    def __init__(self, root_experiment = None, catch_errors = False, close_after = True, just_last_record = False,
+    def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100):
 
         if run_args is None:
