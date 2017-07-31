@@ -517,14 +517,12 @@ def load_experiment_record(record_id):
     return ExperimentRecord(path)
 
 
-def clear_experiment_records(ids=None):
+def clear_experiment_records(ids):
     """
     Delete all experiments with ids in the list, or all experiments if ids is None.
     :param ids: A list of experiment ids, or None to remove all.
     """
     folder = get_experiment_dir()
-    if ids is None:
-        ids = os.listdir(folder)
     for exp_id in ids:
         exp_path = os.path.join(folder, exp_id)
         ExperimentRecord(exp_path).delete()
