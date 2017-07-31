@@ -9,10 +9,12 @@ import pickle
 from collections import namedtuple
 from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.plotting_backend import get_plotting_server_address
-from artemis.remote.child_processes import check_ssh_connection, ChildProcess, ParamikoPrintThread
+from artemis.remote.child_processes import ChildProcess
+from artemis.remote.remote_execution import ParamikoPrintThread
 from artemis.remote.file_system import check_config_file
 from artemis.remote.port_forwarding import forward_tunnel
-from artemis.remote.utils import get_local_ips, send_size, recv_size
+from artemis.remote.utils import get_local_ips, send_size, recv_size, check_ssh_connection
+
 _to_subprocess_queue = None
 _id_queue = None
 
