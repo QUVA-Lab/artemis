@@ -57,7 +57,7 @@ def str_with_arrayopts(obj, float_format='.3g', threshold=8, **kwargs):
         return str(obj)
 
 
-def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, indent ='  '):
+def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, indent ='  ', float_format = ''):
     """
     A recursive, readable print of a data structure.
     """
@@ -71,7 +71,7 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
     if isinstance(obj, np.ndarray):
         string_desc = arraystr(obj, print_threshold=array_print_threhold, summary_threshold=array_summary_threshold)
     elif isinstance(obj, (list, tuple, set, dict)):
-        kwargs = dict(memo=memo, array_print_threhold=array_print_threhold, array_summary_threshold=array_summary_threshold, indent=indent)
+        kwargs = dict(memo=memo, array_print_threhold=array_print_threhold, array_summary_threshold=array_summary_threshold, indent=indent, float_format=float_format)
 
         if isinstance(obj, (list, tuple)):
             keys, values = [str(i) for i in xrange(len(obj))], obj
@@ -87,6 +87,8 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
         elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
         string_desc = '<{type} at {id}>\n'.format(type = type(obj).__name__, id=hex(id(obj))) + indent_string('\n'.join(elements), indent=indent)
         return string_desc
+    elif isinstance(obj, float):
+        string_desc = '{{:{}}}'.format(float_format).format(obj)
     else:
         string_desc = str(obj)
     return string_desc

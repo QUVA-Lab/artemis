@@ -325,8 +325,13 @@ class InfoScorePairSequence(object):
         return [score.get_score(subset, prediction_function, score_measure) for _, score in self]
 
     def get_best_value(self, subset = 'test', prediction_function = None, score_measure = None, lower_is_better = False):
+
+        subset, prediction_function, score_measure = self._fill_fields(subset, prediction_function, score_measure)
         best_pair = self.get_best(subset, prediction_function, score_measure, lower_is_better=lower_is_better)
-        return best_pair.score[subset, prediction_function, score_measure]
+        try:
+            return best_pair.score[subset, prediction_function, score_measure]
+        except KeyError as err:
+            raise KeyError(str(err.message) + '.  Indices must be ({{{}}}, {{{}}}, {{{}}}'.format(self.get_data_subsets(), self.get_prediction_functions(), self.get_costs()))
 
     def get_best(self, subset = 'test', prediction_function = None, score_measure = None, lower_is_better = False):
         """
@@ -349,10 +354,16 @@ class InfoScorePairSequence(object):
         first_score = self._pairs[0].score
         if subset is None:
             subset = first_score.get_only_data_subset()
+        else:
+            assert subset in self.get_data_subsets(), 'Subset {} is not one of {}'.format(subset, self.get_data_subsets())
         if prediction_function is None:
             prediction_function = first_score.get_only_prediction_function()
+        else:
+            assert prediction_function in self.get_prediction_functions(), 'Prediction function {} is not one of {}'.format(prediction_function, self.get_prediction_functions())
         if score_measure is None:
             score_measure = first_score.get_only_cost()
+        else:
+            assert score_measure in self.get_costs(), 'Score function {} is not one of {}'.format(score_measure, self.get_costs())
         return subset, prediction_function, score_measure
 
     def __str__(self):
@@ -386,13 +397,13 @@ class InfoScorePairSequence(object):
         return '; '.join(entries)
 
     def get_data_subsets(self):
-        return remove_duplicates([s for s, _, _ in self.scores.keys()])
+        return self._pairs[0].score.get_data_subsets()
 
     def get_prediction_functions(self):
-        return remove_duplicates([f for _, f, _ in self.scores.keys()])
+        return self._pairs[0].score.get_prediction_functions()
 
     def get_costs(self):
-        return remove_duplicates([c for _, c, c in self.scores.keys()])
+        return self._pairs[0].score.get_costs()
 
 
 def plot_info_score_pairs(ispc, prediction_function = None, score_measure=None, name='', show=True):

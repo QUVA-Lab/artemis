@@ -249,6 +249,16 @@ class ExpandingDict(dict):
             return dict.__getitem__(self, key)
 
 
+class ExpandingOrderedDict(OrderedDict):
+
+    def __getitem__(self, key):
+        try:
+            return OrderedDict.__getitem__(self, key)
+        except KeyError:
+            self[key] = ExpandingDict()
+            return OrderedDict.__getitem__(self, key)
+
+
 def expand_struct(struct):
 
     expanded_struct = ExpandingDict()
