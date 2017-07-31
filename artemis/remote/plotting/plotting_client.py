@@ -9,7 +9,7 @@ import pickle
 from collections import namedtuple
 from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.plotting_backend import get_plotting_server_address
-from artemis.remote.child_processes import ChildProcess, PythonChildProcess
+from artemis.remote.child_processes import PythonChildProcess
 from artemis.remote.remote_execution import ParamikoPrintThread
 from artemis.remote.file_system import check_config_file
 from artemis.remote.port_forwarding import forward_tunnel
