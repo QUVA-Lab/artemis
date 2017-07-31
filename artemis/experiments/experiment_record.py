@@ -801,6 +801,7 @@ def experiment_id_to_latest_result(experiment_id):
 
 
 def load_latest_experiment_record(experiment_name, filter_status=None, actual_index=-1, handling_if_none = 'pass'):
+    assert isinstance(experiment_name, basestring), 'experiment_name should be a string, not {}'.format(experiment_name)
     experiment_record_identifier = experiment_id_to_latest_record_id(experiment_name, filter_status=filter_status, actual_index=actual_index, handling_if_none=handling_if_none)
     return None if experiment_record_identifier is None else load_experiment_record(experiment_record_identifier)
 
@@ -1097,6 +1098,9 @@ class Experiment(object):
         self._notes.append(str(note))
         return self
 
+    def __getitem__(self, *args, **kwargs):
+        return self.get_variant(*args, **kwargs)
+
     def get_variant(self, *args, **kwargs):
         """
         Get a variant on this experiment.
@@ -1320,6 +1324,9 @@ def make_record_comparison_table(record_ids, args_to_show=None, results_extracto
         results_extractor = {'Result': str}
     elif callable(results_extractor):
         results_extractor = {'Result': results_extractor}
+    elif isinstance(results_extractor, list):
+        assert all(len(r)==2 for r in results_extractor), 'If results extractor is a list, it must contain tuples of (result_name, function_to_get_result)'
+        results_extractor = OrderedDict(results_extractor)
     else:
         assert isinstance(results_extractor, dict)
 
