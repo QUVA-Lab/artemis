@@ -9,7 +9,7 @@ import pickle
 from collections import namedtuple
 from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.plotting_backend import get_plotting_server_address
-from artemis.remote.child_processes import ChildProcess
+from artemis.remote.child_processes import ChildProcess, PythonChildProcess
 from artemis.remote.remote_execution import ParamikoPrintThread
 from artemis.remote.file_system import check_config_file
 from artemis.remote.port_forwarding import forward_tunnel
@@ -84,7 +84,7 @@ def set_up_plotting_server():
         command =["python","-u", file_to_execute]
 
     # With the command set up, we can instantiate a child process and start it. Also we want to forward stdout and stderr from the remote process asynchronously.
-    cp = ChildProcess(ip_address=plotting_server_address, command=command, name="Plotting_Server", take_care_of_deconstruct=True)
+    cp = PythonChildProcess(ip_address=plotting_server_address, command=command, name="Plotting_Server", take_care_of_deconstruct=True)
     stdin, stdout, stderr = cp.execute_child_process()
     t2 = ParamikoPrintThread(source_pipe=stderr, target_pipe=sys.stderr,prefix="Plotting Server: ")
     t2.setDaemon(True)
