@@ -52,8 +52,6 @@ class ChildProcess(object):
             self.original_sigkill_handler = signal.getsignal(signal.SIGKILL)
             signal.signal(signal.SIGINT, lambda:self.deconstruct(signal.SIGINT,system_signal=True))
             signal.signal(signal.SIGTERM, lambda: self.deconstruct(signal.SIGTERM,system_signal=True))
-            # signal.signal(signal.SIGKILL, lambda: self.deconstruct(signal.SIGKILL,system_signal=True))
-
             atexit.register(self.deconstruct)
 
     def prepare_command(self,command):

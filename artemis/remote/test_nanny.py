@@ -1,6 +1,6 @@
 import pytest
-
 from artemis.config import get_artemis_config_value
+
 from artemis.remote.child_processes import PythonChildProcess
 from artemis.remote.nanny import Nanny
 from artemis.remote.utils import get_local_ips, get_remote_artemis_path
@@ -92,8 +92,24 @@ def test_output_monitor():
         assert check_text1 in out.getvalue() or check_text1 in err.getvalue()
 
 
+def test_iter_print():
+    for ip_address in ip_addresses:
+        nanny = Nanny()
+        command = ["python","-u", get_test_functions_path(ip_address), "--callback=iter_print"]
+        pyc = PythonChildProcess(name="P1",ip_address=ip_address,command=command)
+        nanny.register_child_process(pyc)
+        with captured_output() as (out, err):
+            nanny.execute_all_child_processes(time_out=1)
+        if pyc.is_local():
+            assert str(out.getvalue().strip()) == "\n".join(["P1: %i"%i for i in [0,2,4,6,8]])
+            assert str(err.getvalue().strip()) == "\n".join(["P1: %i"%i for i in [1,3,5,7,9]])
+        else:
+            assert "\r\n".join(["P1: %i" % i for i in range(10)]) == str(out.getvalue().strip())
+
+
 if __name__ == "__main__":
     test_simple_process()
     test_several_simple_processes(2)
     test_several_simple_processes(10)
     test_output_monitor()
+    test_iter_print()

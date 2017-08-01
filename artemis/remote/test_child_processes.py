@@ -103,7 +103,7 @@ def test_remote_graphics():
         assert stdout_out[-1].strip() == "Success", "Stdout not as expected. Received: %s"%stdout_out
 
         # Do not call decons
-        cp.deconstruct(signum=signal.SIGINT)
+        # cp.deconstruct(signum=signal.SIGINT)
 
 
 
@@ -111,10 +111,10 @@ def test_remote_graphics():
 
 
 if __name__ == "__main__":
-    # test_simple_pcp()
-    # test_simple_pcp_list()
-    # test_interrupt_process_gently()
-    # test_kill_process_gently()
-    # test_kill_process_strongly()
+    test_simple_pcp()
+    test_simple_pcp_list()
+    test_interrupt_process_gently()
+    test_kill_process_gently()
+    test_kill_process_strongly()
     test_remote_graphics()
     print("Tests finished")

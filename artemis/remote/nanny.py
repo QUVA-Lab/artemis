@@ -73,7 +73,7 @@ class Nanny(object):
     def get_child_processes(self):
         return {id:mcp.get_process() for id,mcp in self.managed_child_processes.iteritems()}
 
-    def execute_all_child_processes(self, time_out=1, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:True):
+    def execute_all_child_processes(self, time_out=1, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:False, blocking=True):
         '''
         Executes all child processes and starts managing communications. This method returns only when all child processes terminated.
         It might be the case that some child-processes hang or don't terminate. In this case, when one (the first) process
@@ -85,11 +85,15 @@ class Nanny(object):
         :return:
         '''
 
+        if blocking == False:
+            t0 = threading.Thread(target=self.execute_all_child_processes,args=(time_out,stdout_stopping_criterium, stderr_stopping_criterium,True))
+            t0.setDaemon(True)
+            t0.start()
+            return
+
         termination_request_event = threading.Event()
         stdout_threads = {}
         stderr_threads = {}
-
-
 
         name_max_lenght = max([len(mcp.name) for mcp in self.managed_child_processes.values()])
 
@@ -108,7 +112,6 @@ class Nanny(object):
                                              args=(stdout,sys.stdout,cp.name,termination_request_event,stdout_stopping_criterium, prefix, timeout))
             stdout_thread.setDaemon(True)
 
-            # stderr_stopping_criterium = lambda x: err_fun(cp.get_ip()) if terminate_at_error else None
             stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
                                              args=(stderr,sys.stderr,cp.name,termination_request_event,stderr_stopping_criterium, prefix, None))
             stderr_thread.setDaemon(True)
@@ -136,12 +139,11 @@ class Nanny(object):
             if cp.is_alive():
                 print("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip()))
                 cp.deconstruct(signal.SIGKILL)
-        time.sleep(1.0)
+        # time.sleep(1.0)
 
-        # This should return immediately, since the underlying pipes should have run dry. if it doesn't I messed up...:
-        for stdout_thread, stderr_thread in zip(stdout_threads.values(), stderr_threads.values()):
-            assert not stdout_thread.is_alive(), "This should not have happened"
-            assert not stderr_thread.is_alive(), "This should not have happened"
+        # for stdout_thread, stderr_thread in zip(stdout_threads.values(), stderr_threads.values()):
+        #     assert not stdout_thread.is_alive(), "This should not have happened"
+        #     assert not stderr_thread.is_alive(), "This should not have happened"
 
     def deconstruct(self, signum, frame=None):
         '''
@@ -184,9 +186,7 @@ class Nanny(object):
                 target_pipe.flush()
                 if timeout is not None:
                     line_printed_event.set()
-                if stopping_criterium is not None and stopping_criterium(line) and not "pydev debugger" in line and line.strip():
-                    target_pipe.write(source_pipe.read())
-                    target_pipe.flush()
+                if stopping_criterium is not None and stopping_criterium(line):
                     break
             if termination_request_event is not None:
                 termination_request_event.set() # The input pipe closed, this thread terminates and we would like everybody to terminate
