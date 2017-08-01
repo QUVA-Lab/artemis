@@ -434,10 +434,8 @@ class ExperimentRecord(object):
             current_args = dict(load_experiment(record_id_to_experiment_id(self.get_identifier())).get_args())
             validity = self.is_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
-                last_arg_str, this_arg_str = [
-                    ['{}:{}'.format(k, v) for k, v in argdict.iteritems()] if isinstance(argdict, dict) else
-                    ['{}:{}'.format(k, v) for k, v in argdict]
-                    for argdict in (last_run_args, current_args)]
+                last_arg_str = self.stringify_arguments(last_run_args)
+                this_arg_str = self.stringify_arguments(current_args)
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
                 notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
             elif validity is None:
@@ -447,6 +445,30 @@ class ExperimentRecord(object):
         else:
             notes = "<Experiment Not Currently Imported>"
         return notes
+
+    def stringify_arguments(self,args):
+        '''
+        Returns a list of strings of a dict, such that each list entry has the form 'k:v'. If a value of the dict is itself a dict, the nested structure is
+        unpacked such that the returned list has elements [k1:k11:a, k1:k12:b] etc.
+        :param args:
+        :return:
+        '''
+        def recursively_parse_dict(d):
+            res = []
+            for k,v in d.iteritems():
+                if isinstance(v,dict):
+                    sub_list = recursively_parse_dict(v)
+                else:
+                    sub_list = [v]
+                res.extend(['{}:{}'.format(k,s) for s in sub_list])
+            return res
+        if isinstance(args,dict):
+            res = recursively_parse_dict(args)
+        else:
+            #Todo: When is this branch executed? If I understand, the args are always given as a dict - as specified in line 1 of method _create_experiment_variant
+            res = ['{}:{}'.format(k, v) for k, v in args]
+        return res
+
 
     def is_valid(self, last_run_args=None, current_args=None):
         """
