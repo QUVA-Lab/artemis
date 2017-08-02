@@ -119,7 +119,6 @@ class Nanny(object):
             # True if in debug mode
             gettrace = getattr(sys, 'gettrace', None)
             timeout = mcp.monitor_if_stuck_timeout if not gettrace() else None # only set timeout if not in debug mode
-            print("Timeout for %s:%s"%(mcp.name,timeout))
 
             stdout_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
                                              args=(stdout,sys.stdout,mcp.name,termination_request_event,stdout_stopping_criterium, prefix, timeout))
@@ -186,7 +185,6 @@ class Nanny(object):
         :return:
         '''
         if timeout is not None:
-            print(prefix + " has its output monitored")
             line_printed_event = threading.Event()
             line_printed_event.clear()
             t = threading.Thread(target=self._output_monitoring_timer_thread,args=(process_name,line_printed_event,termination_request_event,timeout))
