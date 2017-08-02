@@ -1,3 +1,4 @@
+import atexit
 import signal
 import sys
 import threading
@@ -42,7 +43,7 @@ class ManagedChildProcess(object):
     def get_id(self):
         return self.cp.get_id()
 
-    def deconstruct(self,signum):
+    def deconstruct(self, signum=signal.SIGINT, system_signal=False):
         return self.cp.deconstruct(signum)
 
 class Nanny(object):
@@ -52,11 +53,11 @@ class Nanny(object):
     def __init__(self):
         self.managed_child_processes = {}
         self.stdout_threads = {}
-        self.original_sigint_handler = signal.getsignal(signal.SIGINT)
-        self.original_sigterm_handler = signal.getsignal(signal.SIGTERM)
-        signal.signal(signal.SIGINT, self.deconstruct)
-        signal.signal(signal.SIGTERM, self.deconstruct)
-        # atexit.register(self.deconstruct)
+        # self.original_sigint_handler = signal.getsignal(signal.SIGINT)
+        # self.original_sigterm_handler = signal.getsignal(signal.SIGTERM)
+        # signal.signal(signal.SIGINT, lambda signum, stack :self.deconstruct(signal.SIGINT,system_signal=True))
+        # signal.signal(signal.SIGTERM, lambda signum, stack :self.deconstruct(signal.SIGTERM,system_signal=True))
+        atexit.register(self.deconstruct)
 
     def register_child_process(self, cp, monitor_for_termination=True, monitor_if_stuck_timeout=None):
         '''
@@ -89,6 +90,15 @@ class Nanny(object):
             t0 = threading.Thread(target=self.execute_all_child_processes,args=(time_out,stdout_stopping_criterium, stderr_stopping_criterium,True))
             t0.setDaemon(True)
             t0.start()
+            all_cp_started = False
+            while not all_cp_started:
+                for cp in self.managed_child_processes.values():
+                    if not cp.get_process().cp_started:
+                        all_cp_started = False
+                        break
+                    else:
+                        all_cp_started = True
+                time.sleep(0.1)
             return
 
         termination_request_event = threading.Event()
@@ -110,11 +120,11 @@ class Nanny(object):
 
             stdout_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
                                              args=(stdout,sys.stdout,cp.name,termination_request_event,stdout_stopping_criterium, prefix, timeout))
-            stdout_thread.setDaemon(True)
+            # stdout_thread.setDaemon(True)
 
             stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
                                              args=(stderr,sys.stderr,cp.name,termination_request_event,stderr_stopping_criterium, prefix, None))
-            stderr_thread.setDaemon(True)
+            # stderr_thread.setDaemon(True)
             stdout_threads[cp.get_id()] = stdout_thread
             stderr_threads[cp.get_id()] = stderr_thread
 
@@ -133,8 +143,9 @@ class Nanny(object):
         for id,cp in self.managed_child_processes.iteritems():
             if cp.is_alive():
                 print("Child Process %s at %s did not terminate %s seconds after the first process in cluster terminated. Terminating now." %(cp.get_name(), cp.get_ip(), time_out))
-                cp.kill()
-
+                cp.deconstruct()
+                # cp.kill()
+        # time.sleep(1.0)
         for id,cp in self.managed_child_processes.iteritems():
             if cp.is_alive():
                 print("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip()))
@@ -145,24 +156,20 @@ class Nanny(object):
         #     assert not stdout_thread.is_alive(), "This should not have happened"
         #     assert not stderr_thread.is_alive(), "This should not have happened"
 
-    def deconstruct(self, signum, frame=None):
+    def deconstruct(self):
         '''
         This method is called when SIGINT or SIGTERM are called.
         This aggressively deconstructs the Nanny and all child processes. Then, the signal is passed back to the original signal handlers.
         :return:
         '''
-
         for cp in self.managed_child_processes.values():
             cp.kill()
-        time.sleep(1.0)
+        time.sleep(3.0)
         for cp in self.managed_child_processes.values():
             if cp.is_alive():
                 print("Child Process %s at %s still alive, force terminating now"% (cp.name, cp.get_ip()))
                 cp.kill(signal=signal.SIGTERM)
 
-        signal.signal(signal.SIGINT, self.original_sigint_handler)
-        signal.signal(signal.SIGTERM, self.original_sigterm_handler)
-        os.kill(os.getpid(), signum)
 
     def _monitor_and_forward_child_communication(self, source_pipe, target_pipe,process_name, termination_request_event=None, stopping_criterium=None, prefix="", timeout=None):
         '''
