@@ -37,6 +37,9 @@ class ManagedChildProcess(object):
     def get_ip(self):
         return self.cp.get_ip()
 
+    def get_id(self):
+        return self.cp.get_id()
+
     def execute(self):
         return self.cp.execute_child_process()
 
@@ -108,25 +111,25 @@ class Nanny(object):
         name_max_lenght = max([len(mcp.name) for mcp in self.managed_child_processes.values()])
 
         for i, id in enumerate(self.managed_child_processes.keys()):
-            cp =self.managed_child_processes[id]
-            stdin, stdout, stderr = cp.execute()
+            mcp =self.managed_child_processes[id]
+            stdin, stdout, stderr = mcp.execute()
 
-            prefix = cp.name.ljust(name_max_lenght)+": "
+            prefix = mcp.name.ljust(name_max_lenght)+": "
 
             # True if in debug mode
             gettrace = getattr(sys, 'gettrace', None)
             timeout = mcp.monitor_if_stuck_timeout if not gettrace() else None # only set timeout if not in debug mode
-
+            print("Timeout for %s:%s"%(mcp.name,timeout))
 
             stdout_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
-                                             args=(stdout,sys.stdout,cp.name,termination_request_event,stdout_stopping_criterium, prefix, timeout))
+                                             args=(stdout,sys.stdout,mcp.name,termination_request_event,stdout_stopping_criterium, prefix, timeout))
             # stdout_thread.setDaemon(True)
 
             stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
-                                             args=(stderr,sys.stderr,cp.name,termination_request_event,stderr_stopping_criterium, prefix, None))
+                                             args=(stderr,sys.stderr,mcp.name,termination_request_event,stderr_stopping_criterium, prefix, None))
             # stderr_thread.setDaemon(True)
-            stdout_threads[cp.get_id()] = stdout_thread
-            stderr_threads[cp.get_id()] = stderr_thread
+            stdout_threads[mcp.get_id()] = stdout_thread
+            stderr_threads[mcp.get_id()] = stderr_thread
 
             stdout_thread.start()
             stderr_thread.start()
@@ -136,6 +139,7 @@ class Nanny(object):
                 pass
         except KeyboardInterrupt:
             print("Nanny interrupted")
+            self.deconstruct()
             sys.exit(1)
 
         # Grace period for other threads to shutdown
@@ -182,6 +186,7 @@ class Nanny(object):
         :return:
         '''
         if timeout is not None:
+            print(prefix + " has its output monitored")
             line_printed_event = threading.Event()
             line_printed_event.clear()
             t = threading.Thread(target=self._output_monitoring_timer_thread,args=(process_name,line_printed_event,termination_request_event,timeout))
@@ -199,22 +204,23 @@ class Nanny(object):
                 termination_request_event.set() # The input pipe closed, this thread terminates and we would like everybody to terminate
 
     def _output_monitoring_timer_thread(self, process_name, line_printed_event,termination_request_event, timeout=1800): # 5min
-        while not termination_request_event.wait(0.1):
-            t_start = time.time()
-            line_printed_event.wait(timeout)
-            line_printed_event.clear()
-            t_end = time.time()
-            # print("Something was written, time since last line: %.3f"%(t_end-t_start))
-            if t_end-t_start > timeout:
-                if line_printed_event.is_set():
-                    continue
-                try:
-                    exp_name = get_current_experiment_name()
-                    curr_dir = get_current_experiment_dir()
-                    with open(os.path.join(curr_dir,"experiment_stuck"),"wb"):
-                        pass
-                except:
-                    exp_name=""
-                print("Timeout occurred after %.1f min, process %s%s stuck"%(timeout/60., process_name, " from experiment %s"%exp_name if exp_name != "" else ""))
-                termination_request_event.set()
-                break
+        timeout_wait_start = time.time()
+        while time.time() - timeout_wait_start <= timeout:
+            if line_printed_event.is_set():
+                line_printed_event.clear()
+                timeout_wait_start = time.time()
+            if termination_request_event.is_set():
+                return
+            time.sleep(1.0)
+        if termination_request_event.is_set():
+            return
+
+        try:
+            exp_name = get_current_experiment_name()
+            curr_dir = get_current_experiment_dir()
+            with open(os.path.join(curr_dir,"experiment_stuck"),"wb"):
+                pass
+        except:
+            exp_name=""
+        print("Timeout occurred after %.1f min, process %s%s stuck"%(timeout/60., process_name, " from experiment %s"%exp_name if exp_name != "" else ""))
+        termination_request_event.set()
