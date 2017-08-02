@@ -94,11 +94,23 @@ def get_record_invalid_arg_string(record):
 
 
 def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g', array_print_threshold=8):
+    """
+    Get a string that describes the result of the record in one line.  This can optionally be specified by
+    experiment.one_liner_function.
 
-    one_liner = record.get_experiment().one_liner_function
-    if one_liner is None:
-        one_liner = 'str'
-    return get_record_result_string(record, func=one_liner, truncate_to=truncate_to, array_print_threshold=array_print_threshold,
+    :param record: An ExperimentRecord.
+    :param truncate_to:
+    :param array_float_format:
+    :param array_print_threshold:
+    :return: A string with no newlines briefly describing the result of the record.
+    """
+    if not is_experiment_loadable(record.get_experiment_id):
+        one_liner_function=str
+    else:
+        one_liner_function = record.get_experiment().one_liner_function
+        if one_liner_function is None:
+            one_liner_function = str
+    return get_record_result_string(record, func=one_liner_function, truncate_to=truncate_to, array_print_threshold=array_print_threshold,
         array_float_format=array_float_format, oneline=True)
 
 

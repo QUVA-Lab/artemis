@@ -28,24 +28,3 @@ def test_matplotlib_dependency_is_soft():
 
 if __name__ == '__main__':
     test_matplotlib_dependency_is_soft()
-
-
-    # import contextlib
-    #
-    #
-    # @contextlib.contextmanager
-    # def aaa():
-    #     print 'aaa'
-    #     yield
-    #     print '/aaa'
-    #
-    # @contextlib.contextmanager
-    # def bbb():
-    #     print 'bbb'
-    #     yield
-    #     print '/bbb'
-    #
-    # contexts = contextlib.nested(*[aaa(), bbb()])
-    #
-    # with contexts:
-    #     print 'ccc'

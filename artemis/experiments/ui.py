@@ -8,7 +8,7 @@ from artemis.experiments.experiment_record import get_all_record_ids, clear_expe
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
     display_experiment_record
-from artemis.experiments.experiments import GLOBAL_EXPERIMENT_LIBRARY, load_experiment
+from artemis.experiments.experiments import GLOBAL_EXPERIMENT_LIBRARY, load_experiment, is_experiment_loadable
 from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.should_be_builtins import all_equal
 from tabulate import tabulate
@@ -397,7 +397,7 @@ experiment records.  You can specify records in the following ways:
         return self.QUIT
 
 
-def browse_experiment_records(names = None, filter_text = None):
+def browse_experiment_records(**kwargs):
     """
     Browse through experiment records.
 
@@ -406,7 +406,7 @@ def browse_experiment_records(names = None, filter_text = None):
     :return:
     """
 
-    experiment_record_browser = ExperimentRecordBrowser(experiment_names=names, filter_text=filter_text)
+    experiment_record_browser = ExperimentRecordBrowser(**kwargs)
     experiment_record_browser.launch()
 
 
@@ -453,7 +453,8 @@ class ExperimentRecordBrowser(object):
             'Args': lambda: experiment_record.info.get_field_text(ExpInfoFields.ARGS, replacement_if_none='?'),
             'Valid': lambda: get_record_invalid_arg_string(experiment_record),
             'Notes': lambda: experiment_record.info.get_field_text(ExpInfoFields.NOTES, replacement_if_none='?'),
-            'Result': lambda: experiment_record.get_experiment().get_oneline_result_string(truncate_to=result_truncation)
+            'Result': lambda: get_oneline_result_string(experiment_record, truncate_to=128)
+            # experiment_record.get_experiment().get_oneline_result_string(truncate_to=result_truncation) if is_experiment_loadable(experiment_record.get_experiment_id()) else '<Experiment not loaded>'
             }
 
         def get_col_info(headers):
@@ -493,7 +494,7 @@ class ExperimentRecordBrowser(object):
 
             print "=============== Experiment Records =================="
             # print tabulate([[i]+e.get_row() for i, e in enumerate(record_infos)], headers=['#']+_ExperimentInfo.get_headers())
-            print self.get_record_table(self.record_ids, raise_display_errors = self.raise_display_errors)
+            print self.get_record_table([load_experiment_record(rid) for rid in self.record_ids], raise_display_errors = self.raise_display_errors)
             print '-----------------------------------------------------'
 
             if self.experiment_names is not None or len(self.filters) != 0:

@@ -86,10 +86,6 @@ def get_config_sections(config_filename):
     return sections
 
 
-# def get_config_options(config_filename, section):
-
-
-
 def get_home_dir():
     # This function exists because of some weirdness when running remotely.
     home_dir = os.path.expanduser('~')
