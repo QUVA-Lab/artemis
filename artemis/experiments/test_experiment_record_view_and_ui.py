@@ -68,7 +68,5 @@ def test_experiment_function_ui():
 
 
 if __name__ == '__main__':
-    # test_experiments_function_additions()
+    test_experiments_function_additions()
     test_experiment_function_ui()
-    #
-    # my_experiment.browse()
