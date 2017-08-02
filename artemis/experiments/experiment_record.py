@@ -45,6 +45,7 @@ If you want even the variants of this experiment to be roots for other experimen
 
 To run your experiment (if not a root) and all non-root variants (and sub variants, and so on) of an experiment, run:
 
+
     my_experiment.run_all()
 
 If your experiment takes a long time to run, you may not want to run it every time you want to see the plots of
@@ -74,8 +75,10 @@ import shutil
 import tempfile
 import traceback
 from collections import OrderedDict
-from contextlib import contextmanager
+from contextlib import contextmanager, nested
 from datetime import datetime
+
+import sys
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
@@ -346,6 +349,20 @@ _CURRENT_EXPERIMENT_RECORD = None
 
 
 @contextmanager
+def hold_current_experiment_record(experiment_record):
+    global _CURRENT_EXPERIMENT_RECORD
+    assert _CURRENT_EXPERIMENT_RECORD is None, "It seems that you are trying to start an experiment withinin an experiment.  This is not allowed!"
+    _CURRENT_EXPERIMENT_RECORD = experiment_record
+    yield
+    _CURRENT_EXPERIMENT_RECORD = None
+
+
+
+def is_matplotlib_imported():
+    return 'matplotlib' in sys.modules
+
+
+@contextmanager
 def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True, show_figs=None,
                       save_figs=True, saved_figure_ext='.fig.pkl', use_temp_dir=False, date=None):
     """
@@ -376,21 +393,42 @@ def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True,
         experiment_directory = get_local_experiment_path(identifier)
 
     make_dir(experiment_directory)
-    from artemis.plotting.manage_plotting import WhatToDoOnShow
-    global _CURRENT_EXPERIMENT_RECORD  # Register
-    _CURRENT_EXPERIMENT_RECORD = ExperimentRecord(experiment_directory)
-    capture_context = CaptureStdOut(log_file_path=os.path.join(experiment_directory, 'output.txt'),
-                                    print_to_console=print_to_console)
-    show_context = WhatToDoOnShow(show_figs)
-    if save_figs:
-        from artemis.plotting.saving_plots import SaveFiguresOnShow
-        save_figs_context = SaveFiguresOnShow(path=os.path.join(experiment_directory, 'fig-%T-%L' + saved_figure_ext))
-        with capture_context, show_context, save_figs_context:
-            yield _CURRENT_EXPERIMENT_RECORD
-    else:
-        with capture_context, show_context:
-            yield _CURRENT_EXPERIMENT_RECORD
-    _CURRENT_EXPERIMENT_RECORD = None  # Deregister
+    # global _CURRENT_EXPERIMENT_RECORD  # Register
+    # _CURRENT_EXPERIMENT_RECORD = ExperimentRecord(experiment_directory)
+
+    this_record = ExperimentRecord(experiment_directory)
+
+    # Create context that sets the current experiment record
+    contexts = [hold_current_experiment_record(this_record)]
+
+    # Add the context which captures stdout (print statements) and logs them.
+    contexts.append(CaptureStdOut(log_file_path=os.path.join(experiment_directory, 'output.txt'), print_to_console=print_to_console))
+
+    if is_matplotlib_imported():
+        from artemis.plotting.manage_plotting import WhatToDoOnShow
+        # Add context that modifies how matplotlib figures are shown.
+        contexts.append(WhatToDoOnShow(show_figs))
+        if save_figs:
+            from artemis.plotting.saving_plots import SaveFiguresOnShow
+            # Add context that saves figures when show is called.
+            contexts.append(SaveFiguresOnShow(path=os.path.join(experiment_directory, 'fig-%T-%L' + saved_figure_ext)))
+
+    with nested(*contexts):
+        yield this_record
+
+
+
+
+    # show_context = WhatToDoOnShow(show_figs)
+    # if save_figs:
+    #     from artemis.plotting.saving_plots import SaveFiguresOnShow
+    #     save_figs_context = SaveFiguresOnShow(path=os.path.join(experiment_directory, 'fig-%T-%L' + saved_figure_ext))
+    #     with capture_context, show_context, save_figs_context:
+    #         yield _CURRENT_EXPERIMENT_RECORD
+    # else:
+    #     with capture_context, show_context:
+    #         yield _CURRENT_EXPERIMENT_RECORD
+    # _CURRENT_EXPERIMENT_RECORD = None  # Deregister
 
 
 def get_current_experiment_record():

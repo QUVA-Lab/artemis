@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from artemis.experiments.decorators import experiment_function
 from artemis.experiments.deprecated import start_experiment, end_current_experiment
+from artemis.experiments.experiment_management import run_multiple_experiments
 from artemis.experiments.experiment_record import \
     load_experiment_record, ExperimentRecord, record_experiment, \
     delete_experiment_with_id, get_current_experiment_dir, open_in_experiment_dir, \
@@ -243,16 +244,44 @@ def test_get_variant_records_and_delete():
         assert len(my_api_test.get_variant_records(flat=True))==0
 
 
-if __name__ == '__main__':
+def test_experiments_play_well_with_debug():
 
-    set_test_mode(True)
-    test_get_latest_identifier()
-    test_get_latest()
-    test_experiment_with()
-    test_start_experiment()
-    test_accessing_experiment_dir()
-    test_saving_result()
-    test_variants()
-    test_experiment_api(try_browse=False)
-    test_figure_saving(show_them=False)
-    test_get_variant_records_and_delete()
+    with experiment_testing_context():
+
+        @experiment_function
+        def my_simple_test():
+            plt.show._needmain=False  # pyplot does this internally whenever a breakpoint is reached.
+            return 1
+
+        my_simple_test.run()
+
+
+def test_run_multiple_experiments():
+
+    with experiment_testing_context():
+
+        experiments = my_api_test.get_all_variants()
+        assert len(experiments)==3
+
+        # records = run_multiple_experiments(experiments)
+        # assert [record.get_result() for record in records] == [3, 4, 6]
+
+        records = run_multiple_experiments(experiments, parallel=True)
+        assert [record.get_result() for record in records] == [3, 4, 6]
+
+
+if __name__ == '__main__':
+    #
+    # set_test_mode(True)
+    # test_get_latest_identifier()
+    # test_get_latest()
+    # test_experiment_with()
+    # test_start_experiment()
+    # test_accessing_experiment_dir()
+    # test_saving_result()
+    # test_variants()
+    # test_experiment_api(try_browse=False)
+    # test_figure_saving(show_them=False)
+    # test_get_variant_records_and_delete()
+    # test_experiments_play_well_with_debug()
+    test_run_multiple_experiments()

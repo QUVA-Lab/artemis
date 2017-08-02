@@ -1,9 +1,8 @@
 import shlex
 from collections import OrderedDict
 from functools import partial
-from artemis.experiments.deprecated import run_experiment_ignoring_errors
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers
+    select_experiment_records_from_list, interpret_numbers, run_experiment_ignoring_errors
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, NoSavedResultError
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \

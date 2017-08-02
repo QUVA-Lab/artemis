@@ -1,6 +1,10 @@
 import getpass
+import traceback
 from collections import OrderedDict
+from functools import partial
 from importlib import import_module
+
+import multiprocessing
 
 from artemis.experiments.experiment_record import load_experiment_record, ExpInfoFields, \
     ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id
@@ -320,3 +324,48 @@ def interpret_numbers(user_range):
         return numbers
     else:
         return None
+
+
+def run_experiment(name, exp_dict=GLOBAL_EXPERIMENT_LIBRARY, **experiment_record_kwargs):
+    """
+    Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
+    You can run the experiment agin later by calling show_experiment(location_string):
+
+    :param name: The name for the experiment (must reference something in exp_dict)
+    :param exp_dict: A dict<str:func> where funcs is a function with no arguments that run the experiment.
+    :param experiment_record_kwargs: Passed to ExperimentRecord.
+
+    :return: A location_string, uniquely identifying the experiment.
+    """
+    experiment = exp_dict[name]
+    return experiment.run(**experiment_record_kwargs)
+
+
+def run_experiment_ignoring_errors(name, **kwargs):
+    try:
+        return run_experiment(name, **kwargs)
+    except Exception as err:
+        traceback.print_exc()
+
+
+def run_multiple_experiments(experiments, parallel = False, cpu_count=None, raise_exceptions=True, run_args = {}):
+    """
+
+    :param experiments: A collection of experiments
+    :param parallel: True to run in parallel, with multiprocessing
+    :param cpu_count: If parallel, number of CPUs to use (defaults to all)
+    :param raise_exceptions: Terminate exectution when one experiment fails.
+    :param run_args: Other args to pass to Experiment.run()
+    :return: A collection of experiment records.
+    """
+
+    if parallel:
+        experiment_identifiers = [ex.get_id() for ex in experiments]
+        if cpu_count is None:
+            cpu_count = multiprocessing.cpu_count()
+        func = run_experiment if raise_exceptions else run_experiment_ignoring_errors
+        p = multiprocessing.Pool(processes=cpu_count)
+        records = p.map(partial(func, **run_args), experiment_identifiers)
+    else:
+        records = [ex.run(raise_exceptions=raise_exceptions, display_results=False, **run_args) for ex in experiments]
+    return records

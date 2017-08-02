@@ -244,7 +244,7 @@ class Experiment(object):
             records = [record for record in records if record.is_valid()]
         return len(records)>0
 
-    def get_all_variants(self, include_roots=False, include_self=False):
+    def get_all_variants(self, include_roots=False, include_self=True):
         """
         Return a list of variants of this experiment
         :param include_roots: Include "root" experiments

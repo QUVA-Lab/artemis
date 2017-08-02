@@ -1,6 +1,6 @@
-import traceback
 from collections import OrderedDict
 from functools import partial
+
 from artemis.experiments.experiment_record import record_experiment
 from artemis.experiments.experiments import Experiment, GLOBAL_EXPERIMENT_LIBRARY
 
@@ -95,23 +95,3 @@ class _ExperimentConstructor(object):
 ExperimentLibrary = _ExpLibClass()
 
 
-def run_experiment(name, exp_dict=GLOBAL_EXPERIMENT_LIBRARY, **experiment_record_kwargs):
-    """
-    Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
-    You can run the experiment agin later by calling show_experiment(location_string):
-
-    :param name: The name for the experiment (must reference something in exp_dict)
-    :param exp_dict: A dict<str:func> where funcs is a function with no arguments that run the experiment.
-    :param experiment_record_kwargs: Passed to ExperimentRecord.
-
-    :return: A location_string, uniquely identifying the experiment.
-    """
-    experiment = exp_dict[name]
-    return experiment.run(**experiment_record_kwargs)
-
-
-def run_experiment_ignoring_errors(name, **kwargs):
-    try:
-        run_experiment(name, **kwargs)
-    except Exception as err:
-        traceback.print_exc()
