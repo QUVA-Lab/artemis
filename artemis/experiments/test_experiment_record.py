@@ -4,6 +4,8 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
+
 from artemis.experiments.decorators import experiment_function
 from artemis.experiments.deprecated import start_experiment, end_current_experiment
 from artemis.experiments.experiment_management import run_multiple_experiments
@@ -263,25 +265,48 @@ def test_run_multiple_experiments():
         experiments = my_api_test.get_all_variants()
         assert len(experiments)==3
 
-        # records = run_multiple_experiments(experiments)
-        # assert [record.get_result() for record in records] == [3, 4, 6]
+        records = run_multiple_experiments(experiments)
+        assert [record.get_result() for record in records] == [3, 4, 6]
 
         records = run_multiple_experiments(experiments, parallel=True)
         assert [record.get_result() for record in records] == [3, 4, 6]
 
 
+def test_parallel_run_errors():
+
+    with experiment_testing_context():
+
+        @experiment_function
+        def my_error_causing_test(a=1):
+            raise Exception('nononono')
+
+        my_error_causing_test.add_variant(a=2)
+
+        variants = my_error_causing_test.get_all_variants()
+
+        assert len(variants)==2
+
+        run_multiple_experiments(variants, parallel=True, raise_exceptions=False)
+
+        with pytest.raises(Exception) as err:
+            run_multiple_experiments(variants, parallel=True, raise_exceptions=True)
+
+        assert err.value.message == 'nononono'
+
+
 if __name__ == '__main__':
-    #
-    # set_test_mode(True)
-    # test_get_latest_identifier()
-    # test_get_latest()
-    # test_experiment_with()
-    # test_start_experiment()
-    # test_accessing_experiment_dir()
-    # test_saving_result()
-    # test_variants()
-    # test_experiment_api(try_browse=False)
-    # test_figure_saving(show_them=False)
-    # test_get_variant_records_and_delete()
-    # test_experiments_play_well_with_debug()
+
+    set_test_mode(True)
+    test_get_latest_identifier()
+    test_get_latest()
+    test_experiment_with()
+    test_start_experiment()
+    test_accessing_experiment_dir()
+    test_saving_result()
+    test_variants()
+    test_experiment_api(try_browse=False)
+    test_figure_saving(show_them=False)
+    test_get_variant_records_and_delete()
+    test_experiments_play_well_with_debug()
     test_run_multiple_experiments()
+    test_parallel_run_errors()

@@ -2,7 +2,7 @@ import shlex
 from collections import OrderedDict
 from functools import partial
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers, run_experiment_ignoring_errors
+    select_experiment_records_from_list, interpret_numbers, run_experiment_ignoring_errors, run_multiple_experiments
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, NoSavedResultError
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
@@ -26,7 +26,7 @@ def _warn_with_prompt(message= None, prompt = 'Press Enter to continue', use_pro
     if message is not None:
         print message
     if use_prompt:
-        raw_input('({}) >> '.format(prompt))
+        return raw_input('({}) >> '.format(prompt))
 
 
 def browse_experiments(command=None, **kwargs):
@@ -267,18 +267,21 @@ experiment records.  You can specify records in the following ways:
         table = tabulate(rows, headers=headers)
         return table
 
-    def run(self, user_range, mode='-s'):
+    def run(self, user_range, mode='-s', raise_exceptions = ''):
         assert mode in ('-s', '-e') or mode.startswith('-p')
         ids = select_experiments(user_range, self.exp_record_dict)
-        if len(ids)>1 and mode.startswith('-p'):
-            import multiprocessing
-            cpu_count = int(mode[2:]) if len(mode)>2 else multiprocessing.cpu_count()
-            p = multiprocessing.Pool(processes=cpu_count)
-            p.map(partial(run_experiment_ignoring_errors, **self.run_args), ids)
-        else:
-            for experiment_identifier in ids:
-                load_experiment(experiment_identifier).run(raise_exceptions=mode=='-e', display_results = False, **self.run_args )
-        _warn_with_prompt('Finished running {} experiment{}.'.format(len(ids), '' if len(ids)==1 else 's'), use_prompt=not self.close_after)
+        run_multiple_experiments(
+            experiments=[load_experiment(eid) for eid in ids],
+            parallel=len(ids)>1 and mode.startswith('-p'),
+            raise_exceptions = raise_exceptions=='-e',
+            run_args=self.run_args
+            )
+
+        result = _warn_with_prompt('Finished running {} experiment{}.'.format(len(ids), '' if len(ids)==1 else 's'),
+                use_prompt=not self.close_after,
+                prompt='Press Enter to Continue, or "q" then Enter to Quit >>')
+        if result=='q':
+            quit()
 
     def test(self, user_range):
         ids = select_experiments(user_range, self.exp_record_dict)

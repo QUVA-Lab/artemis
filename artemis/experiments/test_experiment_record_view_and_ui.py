@@ -58,7 +58,7 @@ def test_experiment_function_ui():
             existing_record.delete()
         assert len(my_experiment.get_variant_records(flat=True))==0
 
-        my_experiment.browse(raise_display_errors=True, command='run all', close_after=True)
+        my_experiment.browse(raise_display_errors=True, command='run all -p', close_after=True)
         assert len(my_experiment.get_variant_records())==2
 
         my_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
@@ -70,3 +70,5 @@ def test_experiment_function_ui():
 if __name__ == '__main__':
     # test_experiments_function_additions()
     test_experiment_function_ui()
+    #
+    # my_experiment.browse()

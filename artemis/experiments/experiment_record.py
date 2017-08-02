@@ -197,6 +197,9 @@ class ExperimentRecord(object):
             self._info = ExperimentRecordInfo(os.path.join(self._experiment_directory, 'info.pkl'))
         return self._info
 
+    def __reduce__(self):
+        return self.__class__, (self._experiment_directory, )
+
     def show_figures(self, hang=False):
         from artemis.plotting.saving_plots import show_saved_figure
         for i, loc in enumerate(self.get_figure_locs()):

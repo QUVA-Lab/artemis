@@ -365,7 +365,6 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, rais
             cpu_count = multiprocessing.cpu_count()
         func = run_experiment if raise_exceptions else run_experiment_ignoring_errors
         p = multiprocessing.Pool(processes=cpu_count)
-        records = p.map(partial(func, **run_args), experiment_identifiers)
+        return p.map(partial(func, **run_args), experiment_identifiers)
     else:
-        records = [ex.run(raise_exceptions=raise_exceptions, display_results=False, **run_args) for ex in experiments]
-    return records
+        return [ex.run(raise_exceptions=raise_exceptions, display_results=False, **run_args) for ex in experiments]
