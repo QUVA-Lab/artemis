@@ -1,4 +1,5 @@
-from artemis.general.nested_structures import flatten_struct, get_meta_object, NestedType
+from artemis.general.nested_structures import flatten_struct, get_meta_object, NestedType, \
+    seqstruct_to_structseq, structseq_to_seqstruct
 import numpy as np
 from pytest import raises
 
@@ -66,7 +67,25 @@ def test_nested_type():
         nested_type.expand_from_leaves(swapped_leaves)
 
 
+def test_seqstruct_to_structseq_and_inverse():
+
+    a = [{'x': np.random.randn(2), 'y': [i, 'aaa']} for i in xrange(4)]
+    b = seqstruct_to_structseq(a, as_arrays=True)
+
+    assert b['x'].shape==(4, 2)
+    assert np.array_equal(b['x'][2], a[2]['x'])
+    assert np.array_equal(b['y'][0], np.arange(4))
+    assert np.array_equal(b['y'][1], ['aaa']*4)
+
+    c = structseq_to_seqstruct(b)
+    assert np.array_equal(a[2]['x'], c[2]['x'])
+    assert np.array_equal(a[3]['x'], c[3]['x'])
+    assert np.array_equal(a[3]['y'][0], c[3]['y'][0])
+    assert np.array_equal(a[3]['y'][1], c[3]['y'][1])
+
+
 if __name__ == '__main__':
     test_flatten_struct()
     test_get_meta_object()
     test_nested_type()
+    test_seqstruct_to_structseq_and_inverse()

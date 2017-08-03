@@ -43,7 +43,7 @@ def find_pareto_ixs(cost_arrays):
     :param cost_arrays: A collection of nd-arrays representing a grid of costs for different indices.
     :return: A tuple of indices which can be used to index the pareto-efficient points.
     """
-    assert all_equal(*[c.shape for c in cost_arrays])
+    assert all_equal([c.shape for c in cost_arrays])
     flat_ixs, = np.nonzero(is_pareto_efficient(np.reshape(cost_arrays, (len(cost_arrays), -1)).T), )
     ixs = np.unravel_index(flat_ixs, dims=cost_arrays[0].shape)
     return ixs

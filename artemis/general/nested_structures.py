@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+import itertools
 import numpy as np
 
 __author__ = 'peter'
@@ -147,16 +148,17 @@ class NestedType(object):
     def __eq__(self, other):
         return self.meta_object == other.meta_object
 
-    def get_leaves(self, data_object):
+    def get_leaves(self, data_object, check_types = True):
         """
         :param data_object: Given a nested object, get the "leaf" values in Depth-First Order
         :return: A list of leaf values.
         """
-        assert self.is_type_for(data_object)
+        if check_types:
+            assert self.is_type_for(data_object)
         return get_leaf_values(data_object)
 
-    def expand_from_leaves(self, leaves, check_types = True):
-        return _fill_meta_object(self.meta_object, (x for x in leaves), check_types=check_types)
+    def expand_from_leaves(self, leaves, check_types = True, assert_fully_used=True):
+        return _fill_meta_object(self.meta_object, (x for x in leaves), check_types=check_types, assert_fully_used=assert_fully_used)
 
     @staticmethod
     def from_data(data_object, containers = _primitive_containers):
@@ -247,6 +249,16 @@ class ExpandingDict(dict):
             return dict.__getitem__(self, key)
 
 
+class ExpandingOrderedDict(OrderedDict):
+
+    def __getitem__(self, key):
+        try:
+            return OrderedDict.__getitem__(self, key)
+        except KeyError:
+            self[key] = ExpandingDict()
+            return OrderedDict.__getitem__(self, key)
+
+
 def expand_struct(struct):
 
     expanded_struct = ExpandingDict()
@@ -255,3 +267,42 @@ def expand_struct(struct):
         exec('expanded_struct%s = struct["%s"]' % (k, k))
 
     return expanded_struct
+
+
+def seqstruct_to_structseq(seqstruct, as_arrays=False):
+    """
+    Turn a sequence of identically-structured nested objects into a nested object of sequences.
+    :param seqstruct: A sequence (list or tuple) of nested objects with similar format
+    :param as_arrays: Turn the output sequences into numpy arrays
+    :return: A nested object with sequences
+
+    For example, if you go:
+        signal_seqs = seqstruct_to_structseq(seq_signals)
+    Then
+        frame_number = 5
+        seq_signals[frame_number]['inputs']['camera'] == signal_seqs['inputs']['camera'][frame_number]
+    """
+    if len(seqstruct)==0:
+        return []
+
+    nested_type = NestedType.from_data(seqstruct[0])
+    leaf_data = [nested_type.get_leaves(s) for s in seqstruct]
+    batch_leaf_data = [np.array(d) for d in zip(*leaf_data)] if as_arrays else zip(*leaf_data)
+    structseq = nested_type.expand_from_leaves(leaves = batch_leaf_data, check_types=False)
+    return structseq
+
+
+def structseq_to_seqstruct(structseq):
+    """
+    Turn a nested object of sequences into a sequence of identically-structured nested objects.
+
+    This is the inverse of seqstruct_to_structseq
+
+    :param structseq: A nested object with sequences
+    :return: A sequence (list or tuple) of nested objects with similar format
+    """
+    nested_type = NestedType.from_data(structseq)
+    leaf_data = nested_type.get_leaves(structseq, check_types=False)
+    sequence = zip(*leaf_data)
+    seqstruct = [nested_type.expand_from_leaves(s, check_types=False) for s in sequence]
+    return seqstruct

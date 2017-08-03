@@ -72,6 +72,20 @@ def get_config_value(config_filename, section, option, default_generator = None,
     return value
 
 
+def _get_config_object(config_filename):
+    config_path = get_config_path(config_filename)
+    assert os.path.exists(config_path), '"{}" does not exist!'.format(config_path)
+    config = ConfigParser()
+    config.read(config_path)
+    return config
+
+
+def get_config_sections(config_filename):
+
+    sections = _get_config_object(config_filename).sections()
+    return sections
+
+
 def get_home_dir():
     # This function exists because of some weirdness when running remotely.
     home_dir = os.path.expanduser('~')
