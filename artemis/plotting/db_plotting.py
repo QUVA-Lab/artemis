@@ -41,12 +41,12 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     :param data: Any data.  Hopefully, we at dbplot will be able to figure out a plot for it.
     :param name: A name uniquely identifying this plot.
     :param plot_type: A specialized constructor to be used the first time when plotting.  You can also pass
-            certain string to give hints as to what kind of plot you want (can resolve cases where the given data could be
-            plotted in multiple ways):
-            'line': Plots a line plot
-            'img': An image plot
-            'colour': A colour image plot
-            'pic': A picture (no scale bars, axis labels, etc).
+        certain string to give hints as to what kind of plot you want (can resolve cases where the given data could be
+        plotted in multiple ways):
+        'line': Plots a line plot
+        'img': An image plot
+        'colour': A colour image plot
+        'pic': A picture (no scale bars, axis labels, etc).
     :param axis: A string identifying which axis to plot on.  By default, it is the same as "name".  Only use this
         argument if you indend to make multiple dbplots share the same axis.
     :param plot_mode: Influences how the data should be used to choose the plot type:
