@@ -124,6 +124,7 @@ class ExpStatusOptions(Enum):
 
 
 class ExperimentRecordInfo(object):
+
     def __init__(self, file_path, write_text_version=True):
         before, ext = os.path.splitext(file_path)
         assert ext == '.pkl', 'Your file-path must be a pickle'
@@ -184,6 +185,10 @@ class NoSavedResultError(Exception):
 
 
 class ExperimentRecord(object):
+    """
+    A Record of a run of an Experiment.  This object allows you to access data stored in the directory that was created
+    for that run of the experiment.  Experiment Records are stored in ``~/artemis/experiments/``.
+    """
 
     ERROR_FILE_NAME = 'errortrace.txt'
 
@@ -193,6 +198,9 @@ class ExperimentRecord(object):
 
     @property
     def info(self):
+        """
+        :return: An ExperimentRecordInfo object, containing info about the experiment (name, runtime, etc)
+        """
         if self._info is None:
             self._info = ExperimentRecordInfo(os.path.join(self._experiment_directory, 'info.pkl'))
         return self._info
@@ -201,6 +209,10 @@ class ExperimentRecord(object):
         return self.__class__, (self._experiment_directory, )
 
     def show_figures(self, hang=False):
+        """
+        Show all figures that were saved during the run of the experiment.
+        :param hang: If True, and figures were saved matplotlib figures, hang execution until they are closed.
+        """
         from artemis.plotting.saving_plots import show_saved_figure
         for i, loc in enumerate(self.get_figure_locs()):
             show_saved_figure(loc, title='{} Fig {}'.format(self.get_id(), i + 1))
@@ -209,6 +221,9 @@ class ExperimentRecord(object):
             plt.show()
 
     def get_log(self):
+        """
+        :return: The stdout generated during the run of this experiment.
+        """
         log_file_path = os.path.join(self._experiment_directory, 'output.txt')
         assert os.path.exists(log_file_path), 'No output file found.  Maybe "%s" is not an experiment directory?' % (
         self._experiment_directory,)
@@ -277,10 +292,19 @@ class ExperimentRecord(object):
             print 'Saving Result for Experiment "%s"' % (self.get_id(),)
 
     def get_id(self):
+        """
+        Get the id of this experiment record.  Generally in format '<datetime>-<experiment_name>'
+        :return:
+        """
         root, identifier = os.path.split(self._experiment_directory)
         return identifier
 
     def get_experiment(self):
+        """
+        Load the experiment associated with this record.
+        Note that this will raise an ExperimentNotFoundError if the experiment has not been imported.
+        :return: An Experiment object
+        """
         from artemis.experiments.experiments import load_experiment
         return load_experiment(self.get_experiment_id())
 
@@ -291,6 +315,10 @@ class ExperimentRecord(object):
         return self._experiment_directory
 
     def get_args(self):
+        """
+        Get the arguments with which this record was run.
+        :return: A list of 2-tuples of (arg_name, arg_value)
+        """
         return self.info.get_field(ExpInfoFields.ARGS)
 
     def get_status(self):
@@ -310,6 +338,9 @@ class ExperimentRecord(object):
         return figs
 
     def delete(self):
+        """
+        Delete this experiment record from disk.
+        """
         shutil.rmtree(self._experiment_directory)
 
     def is_valid(self, last_run_args=None, current_args=None):
@@ -358,7 +389,6 @@ def hold_current_experiment_record(experiment_record):
     _CURRENT_EXPERIMENT_RECORD = experiment_record
     yield
     _CURRENT_EXPERIMENT_RECORD = None
-
 
 
 def is_matplotlib_imported():

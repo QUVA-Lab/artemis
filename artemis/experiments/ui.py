@@ -279,7 +279,7 @@ experiment records.  You can specify records in the following ways:
 
         result = _warn_with_prompt('Finished running {} experiment{}.'.format(len(ids), '' if len(ids)==1 else 's'),
                 use_prompt=not self.close_after,
-                prompt='Press Enter to Continue, or "q" then Enter to Quit >>')
+                prompt='Press Enter to Continue, or "q" then Enter to Quit')
         if result=='q':
             quit()
 

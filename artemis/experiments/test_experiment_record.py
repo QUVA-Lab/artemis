@@ -290,6 +290,7 @@ def test_parallel_run_errors():
 
         with pytest.raises(Exception) as err:
             run_multiple_experiments(variants, parallel=True, raise_exceptions=True)
+        print "^^^ Dont't worry, the above is not actually an error, we were just asserting that we caught the error."
 
         assert err.value.message == 'nononono'
 

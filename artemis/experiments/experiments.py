@@ -80,13 +80,13 @@ class Experiment(object):
         :param show_figs: Show figures (as well as saving to file)
         :param test_mode: Run in "test_mode".  This sets the global "test_mode" flag when running the experiment.  This
             flag can be used to, for example, shorten a training session to verify that the code runs.  Can be:
-                True: Run in test mode
-                False: Don't run in test mode:
-                None: Keep the current state of the global "is_test_mode()" flag.
+            True: Run in test mode
+            False: Don't run in test mode:
+            None: Keep the current state of the global "is_test_mode()" flag.
         :param keep_record: Keep the folder that results are saved into.
-                True: Results are saved into a folder
-                False: Results folder is deleted at the end.
-                None: If "test_mode" is true, then delete results at end, otherwise save them.
+            True: Results are saved into a folder
+            False: Results folder is deleted at the end.
+            None: If "test_mode" is true, then delete results at end, otherwise save them.
         :param raise_exceptions: True to raise any exception that occurs when running the experiment.  False to catch it,
             print the error, and move on.
         :param experiment_record_kwargs: Passed to the "record_experiment" context.
@@ -165,10 +165,12 @@ class Experiment(object):
         self.variants[name] = ex
         return ex
 
-    def add_variant(self, *args, **kwargs):
+    def add_variant(self, variant_name = None, **kwargs):
         """
         Add a variant to this experiment, and register it on the list of experiments.
         There are two ways you can do this:
+
+        .. code-block:: python
 
             # Name the experiment explicitely, then list the named arguments
             my_experiment_function.add_variant('big_a', a=10000)
@@ -176,16 +178,20 @@ class Experiment(object):
 
             # Allow the experiment to be named automatically, and just list the named arguments
             my_experiment_function.add_variant(a=10000)
-            assert my_experiment_function.get_name()=='my_experiment_function.a==10000'
+            assert my_experiment_function.get_name()=='my_experiment_function.a=10000'
 
+        :param variant_name: Optionally, the name of the experiment
+        :param kwargs: The named arguments which will differ from the base experiment.
         :return: The experiment.
         """
-        return self._create_experiment_variant(args, kwargs, is_root=False)
+        return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=False)
 
-    def add_root_variant(self, *args, **kwargs):
+    def add_root_variant(self, variant_name=None, **kwargs):
         """
         Add a variant to this experiment, but do NOT register it on the list of experiments.
         There are two ways you can do this:
+
+        .. code-block:: python
 
             # Name the experiment explicitely, then list the named arguments
             my_experiment_function.add_root_variant('big_a', a=10000)
@@ -193,30 +199,31 @@ class Experiment(object):
 
             # Allow the experiment to be named automatically, and just list the named arguments
             my_experiment_function.add_root_variant(a=10000)
-            assert my_experiment_function.get_name()=='my_experiment_function.a==10000'
+            assert my_experiment_function.get_name()=='my_experiment_function.a=10000'
 
+        :param variant_name: Optionally, the name of the experiment
+        :param kwargs: The named arguments which will differ from the base experiment.
         :return: The experiment.
         """
-        return self._create_experiment_variant(args, kwargs, is_root=True)
+        return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=True)
 
     def get_id(self):
         return self.name
 
-    def get_variant(self, *args, **kwargs):
+    def get_variant(self, variant_name=None, **kwargs):
         """
         Get a variant on this experiment.
-        :param name: A the name of the variant
-        :param path: Optionally, a list of names of subvariants (to call up a nested experiment)
-        :return:
+
+        :param variant_name: The name of the variant, if it has one
+        :param kwargs: Otherwise, the named arguments which were used to define the variant.
+        :return: An Experiment object
         """
-        if len(args)==0:
-            name = _kwargs_to_experiment_name(kwargs)
+        if variant_name is None:
+            variant_name = _kwargs_to_experiment_name(kwargs)
         else:
-            assert len(args)==1, 'You can only provide 1 unnamed argument to get_variant: the variant name.'
-            name, = args
-            assert len(kwargs)==0, 'If you provide a variant name ({}), there is no need to specify the keyword arguments. ({})'.format(name, kwargs)
-        assert name in self.variants, "No variant '{}' exists.  Existing variants: {}".format(name, self.variants.keys())
-        return self.variants[name]
+            assert len(kwargs)==0, 'If you provide a variant name ({}), there is no need to specify the keyword arguments. ({})'.format(variant_name, kwargs)
+        assert variant_name in self.variants, "No variant '{}' exists.  Existing variants: {}".format(variant_name, self.variants.keys())
+        return self.variants[variant_name]
 
     def get_records(self, only_completed=False):
         records = [load_experiment_record(rid) for rid in experiment_id_to_record_ids(self.name)]
@@ -263,10 +270,11 @@ class Experiment(object):
 
     def get_latest_record(self, only_completed=False, err_if_none = True):
         """
+        Return the ExperimentRecord from the latest run of this Experiment.
 
         :param only_completed: Only search among records of that have run to completion.
+        :param err_if_none: If True, raise an error if no record exists.  Otherwise, just return None in this case.
         :return: An ExperimentRecord object
-        Convenience function
         """
         records = self.get_records(only_completed=only_completed)
         if len(records)==0:
@@ -279,10 +287,13 @@ class Experiment(object):
 
     def get_variant_records(self, only_completed=False, only_last=False, flat=False):
         """
-        :param only_last_finished:
+        Get the collection of records associated with all variants of this Experiment.
+
+        :param only_completed: Only search among records of that have run to completion.
+        :param only_last: Just return the most recent record.
         :param flat: Just return a list of records
-        :return: if not flat (default) An OrderedDict<experiment_id: experiment_record
-        Convenience function
+        :return: if not flat (default) An OrderedDict<experiment_id: ExperimentRecord>.
+            otherwise, if flat: a list<ExperimentRecord>
         """
         variants = self.get_all_variants(include_self=True)
 
@@ -316,8 +327,22 @@ def clear_all_experiments():
 def capture_created_experiments():
     """
     A convenient way to cross-breed experiments.  If you define experiments in this block, you can capture them for
-    later use (for instance by modifying them)
-    :return:
+    later use (for instance by modifying them). e.g.:
+
+    .. code-block:: python
+
+        @experiment_function
+        def add_two_numbers(a=1, b=2):
+            return a+b
+
+        with capture_created_experiments() as exps:
+            add_two_numbers.add_variant(a=2)
+            add_two_numbers.add_variant(a=3)
+
+        for ex in exps:
+            ex.add_variant(b=4)
+
+    :rtype: Generator[:class:`Experiment`]
     """
     current_len = len(GLOBAL_EXPERIMENT_LIBRARY)
     new_experiments = []

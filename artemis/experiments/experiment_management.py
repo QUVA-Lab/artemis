@@ -1,17 +1,16 @@
 import getpass
+import multiprocessing
 import traceback
 from collections import OrderedDict
 from functools import partial
 from importlib import import_module
-
-import multiprocessing
 
 from artemis.experiments.experiment_record import load_experiment_record, ExpInfoFields, \
     ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id
 from artemis.experiments.experiments import load_experiment, GLOBAL_EXPERIMENT_LIBRARY
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.should_be_builtins import separate_common_items, izip_equal, detect_duplicates
+from artemis.general.should_be_builtins import izip_equal, detect_duplicates
 
 
 def pull_experiments(user, ip, experiment_names, include_variants=True):
@@ -26,8 +25,6 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     """
     import pexpect
     import sys
-    # subprocess.call("rsync -a -m --include='**/*-demo_pdnn_revision*/*' --include='*/' --exclude='*' petered@146.50.28.7:~/.artemis/experiments/ ~/.artemis/experiments/", shell=True)
-
 
     if isinstance(experiment_names, basestring):
         experiment_names = [experiment_names]
@@ -51,70 +48,7 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     else:
         child.sendline(password)
     output = child.read()
-    # try:
-    # output = subprocess.call(command, shell=True)
-    # except subprocess.CalledProcessError as e:
-    #     raise Exception('rsync call threw an error: \n {}'.format(e.output))
     return output
-
-
-def make_record_comparison_table(records, args_to_show=None, results_extractor = None, print_table = False):
-    """
-    Make a table comparing the arguments and results of different experiment records.  You can use the output
-    of this function with the tabulate package to make a nice readable table.
-
-    :param records: A list of records whose results to compare
-    :param args_to_show: A list of arguments to show.  If none, it will just show all arguments
-        that differ between experiments.
-    :param results_extractor: A dict<str->callable> where the callables take the result of the
-        experiment as an argument and return an entry in the table.
-    :param print_table: Optionally, import tabulate and print the table here and now.
-    :return: headers, rows
-        headers is a list of of headers for the top of the table
-        rows is a list of lists filling in the information.
-
-    example usage:
-
-        headers, rows = make_record_comparison_table(
-            record_ids = [experiment_id_to_latest_record_id(eid) for eid in [
-                'demo_fast_weight_mlp.multilayer_baseline.1epoch.version=mlp',
-                'demo_fast_weight_mlp.multilayer_baseline.1epoch.full-gd.n_steps=1',
-                'demo_fast_weight_mlp.multilayer_baseline.1epoch.full-gd.n_steps=20',
-                ]],
-            results_extractor={
-                'Test': lambda result: result.get_best('test').score.get_score('test'),
-                'Train': lambda result: result.get_best('test').score.get_score('train'),
-                }
-             )
-        import tabulate
-        print tabulate.tabulate(rows, headers=headers, tablefmt=tablefmt)
-    """
-
-    args = [rec.info.get_field(ExpInfoFields.ARGS) for rec in records]
-    if args_to_show is None:
-        common, separate = separate_common_items(args)
-        args_to_show = [k for k, v in separate[0]]
-
-    if results_extractor is None:
-        results_extractor = {'Result': str}
-    elif callable(results_extractor):
-        results_extractor = {'Result': results_extractor}
-    else:
-        assert isinstance(results_extractor, dict)
-
-    headers = args_to_show + results_extractor.keys()
-
-    rows = []
-    for record, record_args in izip_equal(records, args):
-        arg_dict = dict(record_args)
-        args_vals = [arg_dict[k] for k in args_to_show]
-        results = record.get_result()
-        rows.append(args_vals+[f(results) for f in results_extractor.values()])
-
-    if print_table:
-        import tabulate
-        print tabulate.tabulate(rows, headers=headers, tablefmt='simple')
-    return headers, rows
 
 
 def load_lastest_experiment_results(experiments, error_if_no_result = True):
@@ -126,13 +60,11 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
     results = OrderedDict()
     for ex in experiments:
         record = ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True)
-
-        # record = load_latest_experiment_record(eid, filter_status=ExpStatusOptions.FINISHED)
         if record is None:
             if error_if_no_result:
-                raise Exception("Experiment {} had no result.  Run this experiment to completion before trying to compare its results.".format(eid))
+                raise Exception("Experiment {} had no result.  Run this experiment to completion before trying to compare its results.".format(ex.get_id()))
             else:
-                ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(eid))
+                ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(ex.get_id()))
         else:
             results[ex.get_id()] = record.get_result()
     if len(results)==0:
@@ -350,6 +282,7 @@ def run_experiment_ignoring_errors(name, **kwargs):
 
 def run_multiple_experiments(experiments, parallel = False, cpu_count=None, raise_exceptions=True, run_args = {}):
     """
+    Run multiple experiments, optionally in parallel with multiprocessing.
 
     :param experiments: A collection of experiments
     :param parallel: True to run in parallel, with multiprocessing
