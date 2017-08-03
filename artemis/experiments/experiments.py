@@ -368,6 +368,7 @@ def load_experiment(experiment_id):
 
 
 def is_experiment_loadable(experiment_id):
+    assert isinstance(experiment_id, basestring), 'Expected a string for experiment_id, not {}'.format(experiment_id)
     return experiment_id in GLOBAL_EXPERIMENT_LIBRARY
 
 
