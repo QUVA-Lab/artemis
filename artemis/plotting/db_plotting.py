@@ -41,12 +41,12 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     :param data: Any data.  Hopefully, we at dbplot will be able to figure out a plot for it.
     :param name: A name uniquely identifying this plot.
     :param plot_type: A specialized constructor to be used the first time when plotting.  You can also pass
-        certain string to give hints as to what kind of plot you want (can resolve cases where the given data could be
-        plotted in multiple ways):
-        'line': Plots a line plot
-        'img': An image plot
-        'colour': A colour image plot
-        'pic': A picture (no scale bars, axis labels, etc).
+            certain string to give hints as to what kind of plot you want (can resolve cases where the given data could be
+            plotted in multiple ways):
+            'line': Plots a line plot
+            'img': An image plot
+            'colour': A colour image plot
+            'pic': A picture (no scale bars, axis labels, etc).
     :param axis: A string identifying which axis to plot on.  By default, it is the same as "name".  Only use this
         argument if you indend to make multiple dbplots share the same axis.
     :param plot_mode: Influences how the data should be used to choose the plot type:
@@ -59,8 +59,8 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     :param title: Title of the plot (will default to name if not included)
     :param fig: Name of the figure - use this when you want to create multiple figures.
     :param grid: Turn the grid on
-    :param wait_for_display_sec: In server mode, you can choose to wait maximally wait_for_display_sec seconds before this call returns. In case plotting
-    is finished earlier, the call returns earlier. Setting wait_for_display_sec to a negative number will cause the call to block until the plot has been displayed.
+    :param wait_for_display_sec: In server mode, you can choose to wait maximally wait_for_display_sec seconds before this
+        call returns. In case plotting is finished earlier, the call returns earlier. Setting wait_for_display_sec to a negative number will cause the call to block until the plot has been displayed.
     """
     if is_server_plotting_on():
         # Redirect the function call to the plotting server.  The flag gets turned on in a configuration file.  It is
@@ -74,7 +74,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
         _DBPLOT_FIGURES[None] = fig
         fig = None
-    elif fig not in _DBPLOT_FIGURES:
+    elif fig not in _DBPLOT_FIGURES or not plt.fignum_exists(_DBPLOT_FIGURES[fig].figure.number):  # Second condition handles closed figures.
         _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
         if fig is not None:
             _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)

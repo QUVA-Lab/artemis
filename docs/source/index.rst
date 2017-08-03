@@ -1,9 +1,4 @@
-.. Artemis documentation master file, created by
-   sphinx-quickstart on Thu Aug  3 08:05:45 2017.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Artemis documentation!
+Artemis Documentation
 ===================================
 
 
@@ -13,6 +8,7 @@ Artemis documentation!
 
    experiments
    experiment-api
+   plotting
 
 
 Artemis is a collection of tools that make it easier to run experiments in Python. These include:
@@ -23,8 +19,4 @@ Artemis is a collection of tools that make it easier to run experiments in Pytho
 * A system for downloading/caching files, to a local directory, so the same code can work on different machines.
 
 
-Contents
-==================
-
-* :doc:`experiments`
-
+To install Artemis, see `Artemis on Github <https://github.com/QUVA-Lab/artemis/>`_
