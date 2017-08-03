@@ -36,7 +36,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
            fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, grid=False,
            wait_for_display_sec=0, cornertext = None):
     """
-    Plot arbitrary data.  This program tries to figure out what type of plot to use.
+    Plot arbitrary data and continue execution.  This program tries to figure out what type of plot to use.
 
     :param data: Any data.  Hopefully, we at dbplot will be able to figure out a plot for it.
     :param name: A name uniquely identifying this plot.
