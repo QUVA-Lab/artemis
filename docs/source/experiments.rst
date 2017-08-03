@@ -3,6 +3,7 @@
 Artemis Experiments Documentation
 ===================================
 
+The Artemis Experiment Framework helps you to keep track of your experiments and their results.  It is an alternative to [Sacred](http://sacred.readthedocs.io/en/latest/).  The goal of this framework is to make it easy to create, run, and review the results of many experiments.
 
 For details on the Experiment API, see :doc:`experiment-api`.
 
@@ -15,8 +16,6 @@ A Basic Example
 
 Using this module, you can turn your main function into an "Experiment", which, when run, stores all console output, plots,
 and computed results to disk (in ~/.artemis/experiments)
-
-For a simple demo, see artemis/fileman/demo_experiments.py
 
 Any function that can be called alone with no arguments can be turned into an experiment using the @experiment_function
 decorator:
