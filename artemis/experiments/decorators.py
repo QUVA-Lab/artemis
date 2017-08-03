@@ -11,7 +11,6 @@ def experiment_function(f):
         def demo_my_experiment(a=1, b=2, c=3):
             ...
 
-
     This turns your function demo_my_experiment into an experiment.  It can still be called as a normal function, but
     it now has can also be called with the methods of an Experiment object (eg. demo_my_experiment.run()).
 

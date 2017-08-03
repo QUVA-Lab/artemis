@@ -394,21 +394,6 @@ def selective_sum(x, ixs):
     # return sum(x[al*i+(ix, )+al*(x.ndim-i-1)].sum() for i, ix in enumerate(ixs)) - x[ixs].sum()
 
 
-
-
-
-class BoxSummer(object):
-
-    def __init__(self, x):
-        integral = x
-        for i in xrange(x.ndim):
-            integral = np.cumsum(integral, axis=i)
-        self.integral = integral
-
-    def box_sum(self, ixs):
-        assert len(ixs) == self.integral.ndim
-
-
 def conv_fanout(input_len, kernel_len, conv_mode):
     """
     Note: this is horrific and must be simplified.

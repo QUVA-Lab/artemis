@@ -1,5 +1,5 @@
 import numpy as np
-from artemis.experiments.decorators import experiment_function
+from artemis.experiments import experiment_function
 from matplotlib import pyplot as plt
 
 __author__ = 'peter'

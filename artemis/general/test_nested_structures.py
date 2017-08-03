@@ -85,7 +85,7 @@ def test_seqstruct_to_structseq_and_inverse():
 
 
 if __name__ == '__main__':
-    # test_flatten_struct()
-    # test_get_meta_object()
-    # test_nested_type()
+    test_flatten_struct()
+    test_get_meta_object()
+    test_nested_type()
     test_seqstruct_to_structseq_and_inverse()
