@@ -104,7 +104,7 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
     :param array_print_threshold:
     :return: A string with no newlines briefly describing the result of the record.
     """
-    if not is_experiment_loadable(record.get_experiment_id):
+    if not is_experiment_loadable(record.get_experiment_id()):
         one_liner_function=str
     else:
         one_liner_function = record.get_experiment().one_liner_function
