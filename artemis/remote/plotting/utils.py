@@ -64,7 +64,6 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
             break
 
         if len(return_objects) > 0:
-            # print("Received {} return objects".format(len(return_objects)))
             owned_items = []
             for client, plot_id in return_objects:
                 if client == client_address:
@@ -77,7 +76,6 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
                 send_size(sock=connection, data=message)
         else:
             return_lock.release()
-            # print("no return value to send :)")
             time.sleep(0.01)
 
 ClientMessage = namedtuple('ClientMessage', ['dbplot_message', 'client_address'])
@@ -98,5 +96,4 @@ def handle_input_connection(connection, client_address, input_queue):
         recv_message = recv_size(connection)
         if not input_queue: break
         input_queue.put(ClientMessage(recv_message, client_address))
-        # input_queue.put({"plot":recv_message,"client":client_address}, block=False)
     connection.close()

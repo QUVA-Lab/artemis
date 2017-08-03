@@ -8,7 +8,6 @@ from artemis.remote.utils import get_local_ips, get_ssh_connection
 
 
 
-
 def execute_command(ip_address, command, blocking=True):
     '''
     This method spawns a child-process (either locally or remote, depending on the ip_address). Then it executes the given command and handles communication.

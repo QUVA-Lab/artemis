@@ -56,10 +56,6 @@ class Nanny(object):
     def __init__(self):
         self.managed_child_processes = {}
         self.stdout_threads = {}
-        # self.original_sigint_handler = signal.getsignal(signal.SIGINT)
-        # self.original_sigterm_handler = signal.getsignal(signal.SIGTERM)
-        # signal.signal(signal.SIGINT, lambda signum, stack :self.deconstruct(signal.SIGINT,system_signal=True))
-        # signal.signal(signal.SIGTERM, lambda signum, stack :self.deconstruct(signal.SIGTERM,system_signal=True))
         atexit.register(self.deconstruct)
 
     def register_child_process(self, cp, monitor_for_termination=True, monitor_if_stuck_timeout=None):
@@ -122,11 +118,9 @@ class Nanny(object):
 
             stdout_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
                                              args=(stdout,sys.stdout,mcp.name,termination_request_event,stdout_stopping_criterium, prefix, timeout))
-            # stdout_thread.setDaemon(True)
 
             stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
                                              args=(stderr,sys.stderr,mcp.name,termination_request_event,stderr_stopping_criterium, prefix, None))
-            # stderr_thread.setDaemon(True)
             stdout_threads[mcp.get_id()] = stdout_thread
             stderr_threads[mcp.get_id()] = stderr_thread
 
@@ -147,17 +141,11 @@ class Nanny(object):
             if cp.is_alive():
                 print("Child Process %s at %s did not terminate %s seconds after the first process in cluster terminated. Terminating now." %(cp.get_name(), cp.get_ip(), time_out))
                 cp.deconstruct()
-                # cp.kill()
-        # time.sleep(1.0)
         for id,cp in self.managed_child_processes.iteritems():
             if cp.is_alive():
                 print("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip()))
                 cp.deconstruct(signal.SIGKILL)
-        # time.sleep(1.0)
 
-        # for stdout_thread, stderr_thread in zip(stdout_threads.values(), stderr_threads.values()):
-        #     assert not stdout_thread.is_alive(), "This should not have happened"
-        #     assert not stderr_thread.is_alive(), "This should not have happened"
 
     def deconstruct(self):
         '''

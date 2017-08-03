@@ -53,6 +53,7 @@ def write_port_to_file(port):
         # print("port.info file already exists. This might either mean that you are running another plotting server in the background and want to start a second one.\nIn this case ignore "
         #       "this message. Otherwise a previously run plotting server crashed without cleaning up afterwards. \nIn this case, please manually delete the file at {}".format(port_file_path),
         #       file = sys.stderr)
+        # Keep for later development
         pass
     with open(port_file_path, 'wb') as f:
         pickle.dump(port,f)
@@ -72,7 +73,6 @@ def save_current_figure(path=""):
     else:
         save_path = get_local_path('output/{file_name}.png'.format(file_name=file_name))
     save_figure(fig,path=save_path)
-    # print("Current figure saved to {}".format(save_path))
 
 
 class GracefulKiller:
@@ -111,8 +111,6 @@ def run_plotting_server(address, port, client_address, client_port):
     t0.setDaemon(True)
     t0.start()
 
-    # If killed, save the current figure
-    # atexit.register(save_current_figure)
 
     # Received exp_dir on first db_plot_message?
     exp_dir_received = False

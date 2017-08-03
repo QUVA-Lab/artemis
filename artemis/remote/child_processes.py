@@ -47,11 +47,6 @@ class ChildProcess(object):
         self.cp_started = False
         self.take_care_of_deconstruct = take_care_of_deconstruct
         if self.take_care_of_deconstruct:
-            # self.original_sigint_handler = signal.getsignal(signal.SIGINT)
-            # self.original_sigterm_handler = signal.getsignal(signal.SIGTERM)
-            # self.original_sigkill_handler = signal.getsignal(signal.SIGKILL)
-            # signal.signal(signal.SIGINT, lambda:self.deconstruct(signal.SIGINT,system_signal=True))
-            # signal.signal(signal.SIGTERM, lambda: self.deconstruct(signal.SIGTERM,system_signal=True))
             atexit.register(self.deconstruct)
 
     def prepare_command(self,command):
@@ -75,7 +70,6 @@ class ChildProcess(object):
         kills itself if alive, then closes remote connection if applicable
         :return:
         '''
-        # print("Deconstructing {}".format(self.name))
         if self.cp_started:
             if signum == signal.SIGKILL:
                 self.kill(signum=signum)
@@ -93,13 +87,6 @@ class ChildProcess(object):
                     # grace perior exceeded, terminating
                     self.kill(signum=signal.SIGTERM)
 
-
-        # signal.signal(signal.SIGKILL, self.original_sigkill_handler)
-        # if self.take_care_of_deconstruct:
-        #     signal.signal(signal.SIGINT, self.original_sigint_handler)
-        #     signal.signal(signal.SIGTERM, self.original_sigterm_handler)
-        # if system_signal:
-        #     os.kill(os.getpid(), signum)
 
     def is_local(self):
         return self.local_process

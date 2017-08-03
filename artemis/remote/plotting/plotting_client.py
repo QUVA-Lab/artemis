@@ -39,7 +39,6 @@ def dbplot_remotetly(arg_locals):
 
     # The data is being prepared and sent to the remote plotting server
     unique_plot_id = str(uuid.uuid4())
-    # data_to_send = {"plot_id":unique_plot_id, "dbplot_args":arg_locals}
     data_to_send = DBPlotMessage(plot_id = unique_plot_id, dbplot_args=arg_locals)
     serialized_command = pickle.dumps(data_to_send, protocol=2)
     _to_subprocess_queue.put(serialized_command)
@@ -103,23 +102,11 @@ def set_up_plotting_server():
         print("The Plotting Server did not respond for 10 seconds. It probably crashed")
         sys.exit(1)
 
-    # stdin, stdout, stderr = plotting_server_process.execute_child_process()
-    # t2 = ParamikoPrintThread(source_pipe=stderr, target_pipe=sys.stderr,prefix="Plotting Server: ")
-    # t2.setDaemon(True)
-    # t2.start()
-    # The remote server is implemented such that it will scan available ports and choose one. This port then needs to be communicated to this client
-    # Therefore we assume here, that the first line on stdout from the remote server is the port number for subsequent communication. Also, this call blocks until the parameter server
-    # is ready to accept communication
-    # str_port = stdout.readline()
     try:
         port = int(server_message.dbplot_message)
     except ValueError:
         print("There was an incorrect string on the remote server's stdout. Make sure the server first communicates a port number. Received:\n {}".format(str_port))
         sys.exit(0)
-    # All subsequent communication forwarded asynchronously
-    # t1 = ParamikoPrintThread(source_pipe=stdout, target_pipe=sys.stdout,prefix="Plotting Server: ")
-    # t1.setDaemon(True)
-    # t1.start()
 
     # In the remote setting we don't want to rely on the user correctly specifying their firewalls. Therefore we need to set up port forwarding through ssh:
     # Also, we have the ssh session open already, so why not reuse it.
