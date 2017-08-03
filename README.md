@@ -9,18 +9,13 @@ Artemis is a collection of tools that make it easier to run experiments in Pytho
 - A framework for defining experiments and logging their results (text output and figures) so that they can be reviewed later and replicated easily.
 - A system for downloading/caching files, to a local directory, so the same code can work on different machines.
 
-## Tutorials
+## Tutorials and demos
 
-- [A simple example showing how you can use Artemis to organize your Machine Learning experiments](https://github.com/QUVA-Lab/artemis/blob/master/artemis/examples/demo_mnist_logreg.py)
+- [An example demonstrating Artemis's Experiment framework on a simple MNIST classification task](https://github.com/QUVA-Lab/artemis/blob/master/artemis/examples/demo_mnist_logreg.py)
 - [Step-by-step tutorial on using Artemis to organize your Experiments](https://rawgit.com/petered/data/master/gists/experiment_tutorial.html)
-
-## Quick Demos
-
-**Live Plotting**: [/artemis/plotting/demo_dbplot.py](/artemis/plotting/demo_dbplot.py)  
-
-**Recording Experiment Results**:  [artemis/experiments/demo_experiments.py](/artemis/experiments/demo_experiments.py)  
-
-**A demo repo showing how to use Artemis from your code**: [https://github.com/QUVA-Lab/demo_repo](https://github.com/QUVA-Lab/demo_repo)
+- [A demo of showing how to make various kinds of live updating plots.](/artemis/plotting/demo_dbplot.py)  
+- [A demo repo showing how to use Artemis from your code](https://github.com/QUVA-Lab/demo_repo)
+- [A guide on using Artemis for remote plotting](https://github.com/QUVA-Lab/artemis/blob/master/artemis/remote/README.md)
 
 
 ## Installation
