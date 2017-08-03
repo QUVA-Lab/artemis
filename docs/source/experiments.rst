@@ -63,7 +63,7 @@ This will give us an output that looks something like this::
     Enter command or experiment # to run (h for help) >>
 
 
-This indicates that we have a saved record of out experiment (created when we called ``multiply_3_numbers.run()``), but
+This indicates that we have a saved record of our experiment (created when we called ``multiply_3_numbers.run()``), but
 none of the variant ``higher-ab``.  In the UI, we can run this variant by entering ``run 1``::
 
     Enter command or experiment # to run (h for help) >> run 1
