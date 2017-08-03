@@ -26,7 +26,7 @@ decorator:
     def multiply_3_numbers(a=1, b=2, c=3):
         return a*b*c
 
-This turns the function into an Experiment object, which, in addition to still being a callable function, has methods ``run()``, ``add_variant(...)`` and ``get_variant()``.
+This turns the function into an Experiment object, which, in addition to still being a callable function, has methods ``run()``, ``add_variant(...)`` and ``get_variant()``.   It's important to give this function a unique name (rather than ``main()``, or something) because this name is used to link the experiment to the records that it has produced.
 
 If we want to run our experiment, and save all text outputs and plots to disk, we can call the ``run`` method:
 
