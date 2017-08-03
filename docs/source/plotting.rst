@@ -74,3 +74,13 @@ Plotting Demos
 * `A demo repo showing how to use Artemis from your code <https://github.com/QUVA-Lab/demo_repo)>`_
 * `A guide on using Artemis for remote plotting <https://github.com/QUVA-Lab/artemis/blob/master/artemis/remote/README.md)>`_
 
+
+######################
+Browser-Plotting
+######################
+
+After installing, you should have a file ``~/.artemisrc``.
+
+To use the web backend, edit the ``backend`` field to ``matplotlib-web``.
+
+To try it you can run the commands described above for dbplot.
