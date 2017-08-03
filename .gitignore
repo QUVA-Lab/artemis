@@ -70,4 +70,5 @@ venv/
 
 # Files
 /Data
-/docs
+/docs/build
+
