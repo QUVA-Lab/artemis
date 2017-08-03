@@ -3,11 +3,9 @@
 Artemis Experiments Documentation
 ===================================
 
-The Artemis Experiment Framework helps you to keep track of your experiments and their results.  It is an alternative to `Sacred <http://sacred.readthedocs.io/en/latest/>`_.  The goal of this framework is to make it easy to create, run, and review the results of many experiments.
+The Artemis Experiment Framework helps you to keep track of your experiments and their results.  It is an alternative to `Sacred <http://sacred.readthedocs.io/en/latest/>`_, with the goal of being more intuitive to use. 
 
-For details on the Experiment API, see :doc:`experiment-api`.
-
-
+For details on the Experiment API, see :doc:`experiment-api`.  For a in introduction to the framework, read on...
 
 ######################
 A Basic Example
