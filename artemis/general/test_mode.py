@@ -1,4 +1,6 @@
 import sys
+from contextlib import contextmanager
+
 __author__ = 'peter'
 
 """
@@ -24,12 +26,13 @@ def set_test_mode(state):
     _TEST_MODE = state
 
 
-class UseTestContext(object):
+@contextmanager
+def hold_test_mode(test_mode = True):
     """
     Execute a block of code in test mode.  That is, any call to "is_test_mode" within that
     block will return True.  Usage:
 
-    with TestMode():
+    with hold_test_mode():
         if is_test_mode():
             dataset = get_my_big_dataset(n_samples = 10)  # Shorten the dataset just to run test
             n_epochs = 2
@@ -37,6 +40,17 @@ class UseTestContext(object):
             dataset = get_my_big_dataset()
             n_epochs = 20
         ...
+    """
+
+    old_test_mode = _TEST_MODE
+    set_test_mode(test_mode)
+    yield
+    set_test_mode(old_test_mode)
+
+
+class UseTestContext(object):
+    """
+    DEPRECATED.... use hold_test_mode
     """
 
     def __init__(self, new_test_mode=True):

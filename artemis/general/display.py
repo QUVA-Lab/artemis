@@ -4,24 +4,91 @@ from StringIO import StringIO
 from contextlib import contextmanager
 
 from artemis.fileman.local_dir import make_file_dir
-
-__author__ = 'peter'
+from artemis.general.should_be_builtins import izip_equal
 import numpy as np
 
+__author__ = 'peter'
 
-def deeprint(obj, memo=None):
-    """
-    Consise - print.
 
-    TODO: Extend this to make a proper deep-print of any object.
+def arraystr(arr, print_threshold, summary_threshold):
     """
-    if isinstance(obj, np.ndarray):
-        string = '<%s with shape=%s, dtype=%s at %s%s>' % (obj.__class__.__name__, obj.shape, obj.dtype, hex(id(obj)),
-            ', value = '+str(obj) if obj.size<8 else ''
-            )
+    :param arr: A string summary of an array.
+    :param print_threshold:
+    :param summary_threshold:
+    :return:
+    """
+    if arr.size<print_threshold:
+        return '<{type} with shape={shape}, dtype={dtype}, value={value}, at {id}>'.format(
+            type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, value=str(arr).replace('\n', ','), id=hex(id(arr)))
+    elif arr.size<summary_threshold:
+        return '<{type} with shape={shape}, dtype={dtype}, in=[{min:.3g}, {max:.3g}], at {id}>'.format(
+            type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, min = arr.min(), max=arr.max(), id=hex(id(arr)))
     else:
-        string = str(obj)
-    return string
+        return '<{type} with shape={shape}, dtype={dtype}, at {id}>'.format(
+            type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, id=hex(id(arr)))
+
+
+@contextmanager
+def hold_numpy_printoptions(**kwargs):
+    """
+    Temporarily set the numpy print options.
+    See https://docs.scipy.org/doc/numpy/reference/generated/numpy.set_printoptions.html
+    :param kwargs: Print options (see link)
+    """
+    opts = np.get_printoptions()
+    np.set_printoptions(**kwargs)
+    yield
+    np.set_printoptions(**opts)
+
+
+def str_with_arrayopts(obj, float_format='.3g', threshold=8, **kwargs):
+    """
+    Print
+    :param obj:
+    :param float_format:
+    :param threshold:
+    :param kwargs:
+    :return:
+    """
+    with hold_numpy_printoptions(formatter = {'float': float_format}, threshold=threshold, **kwargs):
+        return str(obj)
+
+
+def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, indent ='  ', float_format = ''):
+    """
+    A recursive, readable print of a data structure.
+    """
+    if memo is None:
+        memo = set()
+
+    if id(obj) in memo:
+        return "<{type} at {loc}> already listed".format(type=type(obj).__name__, loc=hex(id(obj)))
+    memo.add(id(obj))
+
+    if isinstance(obj, np.ndarray):
+        string_desc = arraystr(obj, print_threshold=array_print_threhold, summary_threshold=array_summary_threshold)
+    elif isinstance(obj, (list, tuple, set, dict)):
+        kwargs = dict(memo=memo, array_print_threhold=array_print_threhold, array_summary_threshold=array_summary_threshold, indent=indent, float_format=float_format)
+
+        if isinstance(obj, (list, tuple)):
+            keys, values = [str(i) for i in xrange(len(obj))], obj
+        elif isinstance(obj, dict):
+            keys, values = obj.keys(), obj.values()
+        elif isinstance(obj, set):
+            keys, values = ['- ']*len(obj), obj
+        else:
+            raise Exception('Should never be here')
+
+        max_indent = max(len(k) for k in keys)
+
+        elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
+        string_desc = '<{type} at {id}>\n'.format(type = type(obj).__name__, id=hex(id(obj))) + indent_string('\n'.join(elements), indent=indent)
+        return string_desc
+    elif isinstance(obj, float):
+        string_desc = '{{:{}}}'.format(float_format).format(obj)
+    else:
+        string_desc = str(obj)
+    return string_desc
 
 
 _ORIGINAL_STDOUT = sys.stdout
@@ -84,6 +151,13 @@ class CaptureStdOut(object):
         return getattr(self.terminal, item)
 
 
+def indent_string(str, indent = '  ', include_first = True):
+    if include_first:
+        return indent + str.replace('\n', '\n'+indent)
+    else:
+        return str.replace('\n', '\n'+indent)
+
+
 class IndentPrint(object):
     """
     Indent all print statements
@@ -107,7 +181,7 @@ class IndentPrint(object):
         if message=='\n':
             new_message = '\n'
         else:
-            new_message = self.indent + message.replace('\n', '\n'+self.indent)
+            new_message = indent_string(message, self.indent)
         self.old_stdout.write(new_message)
 
     def close(self):
@@ -119,18 +193,27 @@ class IndentPrint(object):
             print '```'
 
 
+class DocumentWrapper(textwrap.TextWrapper):
+
+    def wrap(self, text):
+        split_text = text.split('\n')
+        lines = [line for para in split_text for line in textwrap.TextWrapper.wrap(self, para)]
+        return lines
+
+
 def side_by_side(multiline_strings, gap=4, max_linewidth=None):
     """
     Return a string that displays two multiline strings side-by-side.
-    :param multiline_strings:
-    :param gap:
-    :param max_linewidth:
-    :return:
+    :param multiline_strings: A list of multi-line strings (ie strings with newlines)
+    :param gap: The gap (in spaces) to make between side-by-side display of the strings
+    :param max_linewidth: Maximum width of the strings
+    :return: A single string which shows all the above strings side-by-side.
     """
     if max_linewidth is not None:
-        multiline_strings = [textwrap.fill(s, width=max_linewidth, replace_whitespace=False) for s in multiline_strings]
-
-    lineses = [s.split('\n') for s in multiline_strings]
+        w = DocumentWrapper(width=max_linewidth, replace_whitespace=False)
+        lineses = [w.wrap(mlstring) for mlstring in multiline_strings]
+    else:
+        lineses = [s.split('\n') for s in multiline_strings]
     longests = [max(len(line) for line in lines) for lines in lineses]
 
     spacer = ' '*gap
@@ -141,3 +224,20 @@ def side_by_side(multiline_strings, gap=4, max_linewidth=None):
         new_lines.append(spacer.join(final_line))
     return '\n'.join(new_lines)
 
+
+def truncate_string(string, truncation, message = ''):
+    """
+    Truncate a string to a given length.  Optionally add a message at the end
+    explaining the truncation
+    :param string: A string
+    :param truncation: An int
+    :param message: A message, e.g. '...<truncated>'
+    :return: A new string no longer than truncation
+    """
+    if truncation is None:
+        return string
+    assert isinstance(truncation, int)
+    if len(string)>truncation:
+        return string[:truncation-len(message)]+message
+    else:
+        return string

@@ -5,7 +5,7 @@ from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, fre
     dbplot_hang
 from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPointPlot, _USE_SERVER
 import pytest
-
+from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
 __author__ = 'peter'
@@ -167,6 +167,17 @@ def test_cornertext():
     dbplot(np.random.randn(5, 5), 'a', cornertext='three')
 
 
+def test_close_and_open():
+
+    for _ in xrange(20):
+        dbplot(np.random.randn(5), 'a')
+
+    plt.close(plt.gcf())
+
+    for _ in xrange(20):
+        dbplot(np.random.randn(5), 'b')
+
+
 if __name__ == '__main__':
     test_cornertext()
     test_trajectory_plot()
@@ -182,3 +193,4 @@ if __name__ == '__main__':
     test_particular_plot()
     test_dbplot()
     test_custom_axes_placement()
+    test_close_and_open()

@@ -1,6 +1,9 @@
 from collections import OrderedDict
 from functools import partial
-from artemis.experiments.experiment_record import GLOBAL_EXPERIMENT_LIBRARY, Experiment, record_experiment
+
+from artemis.experiments.experiment_record import record_experiment
+from artemis.experiments.experiments import Experiment, GLOBAL_EXPERIMENT_LIBRARY
+
 
 # ALTERNATE INTERFACES.
 # We keep these for backwards compatibility and to show how else we could organize the experiment API.
@@ -90,3 +93,5 @@ class _ExperimentConstructor(object):
 
 
 ExperimentLibrary = _ExpLibClass()
+
+

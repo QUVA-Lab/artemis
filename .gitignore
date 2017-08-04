@@ -69,4 +69,6 @@ venv/
 *.DS_Store
 
 # Files
-Data
+/Data
+/docs/build
+

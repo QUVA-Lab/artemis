@@ -2,7 +2,7 @@
 from collections import OrderedDict
 
 import numpy as np
-from artemis.general.mymath import softmax
+from artemis.general.mymath import softmax, cosine_distance
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
 from artemis.ml.datasets.datasets import DataSet
@@ -48,6 +48,7 @@ def evaluate_predictor(predictor, test_set, evaluation_function):
 def get_evaluation_function(name):
     return {
         'mse': mean_squared_error,
+        'mean_cosine_distance': lambda a, b: cosine_distance(a, b, axis=1).mean(),
         'mean_squared_error': mean_squared_error,
         'mean_l1_error': mean_l1_error,
         'percent_argmax_correct': percent_argmax_correct,
@@ -166,8 +167,6 @@ class ModelTestScore(object):
         self.scores = OrderedDict()
 
     def __getitem__(self, (data_subset, prediction_function_name, cost_name)):
-
-
         return self.scores[data_subset, prediction_function_name, cost_name]
 
     def __setitem__(self, (data_subset, prediction_function_name, cost_name), value):
@@ -324,8 +323,13 @@ class InfoScorePairSequence(object):
         return [score.get_score(subset, prediction_function, score_measure) for _, score in self]
 
     def get_best_value(self, subset = 'test', prediction_function = None, score_measure = None, lower_is_better = False):
+
+        subset, prediction_function, score_measure = self._fill_fields(subset, prediction_function, score_measure)
         best_pair = self.get_best(subset, prediction_function, score_measure, lower_is_better=lower_is_better)
-        return best_pair.score[subset, prediction_function, score_measure]
+        try:
+            return best_pair.score[subset, prediction_function, score_measure]
+        except KeyError as err:
+            raise KeyError(str(err.message) + '.  Indices must be ({{{}}}, {{{}}}, {{{}}}'.format(self.get_data_subsets(), self.get_prediction_functions(), self.get_costs()))
 
     def get_best(self, subset = 'test', prediction_function = None, score_measure = None, lower_is_better = False):
         """
@@ -348,10 +352,16 @@ class InfoScorePairSequence(object):
         first_score = self._pairs[0].score
         if subset is None:
             subset = first_score.get_only_data_subset()
+        else:
+            assert subset in self.get_data_subsets(), 'Subset {} is not one of {}'.format(subset, self.get_data_subsets())
         if prediction_function is None:
             prediction_function = first_score.get_only_prediction_function()
+        else:
+            assert prediction_function in self.get_prediction_functions(), 'Prediction function {} is not one of {}'.format(prediction_function, self.get_prediction_functions())
         if score_measure is None:
             score_measure = first_score.get_only_cost()
+        else:
+            assert score_measure in self.get_costs(), 'Score function {} is not one of {}'.format(score_measure, self.get_costs())
         return subset, prediction_function, score_measure
 
     def __str__(self):
@@ -385,13 +395,13 @@ class InfoScorePairSequence(object):
         return '; '.join(entries)
 
     def get_data_subsets(self):
-        return remove_duplicates([s for s, _, _ in self.scores.keys()])
+        return self._pairs[0].score.get_data_subsets()
 
     def get_prediction_functions(self):
-        return remove_duplicates([f for _, f, _ in self.scores.keys()])
+        return self._pairs[0].score.get_prediction_functions()
 
     def get_costs(self):
-        return remove_duplicates([c for _, c, c in self.scores.keys()])
+        return self._pairs[0].score.get_costs()
 
 
 def plot_info_score_pairs(ispc, prediction_function = None, score_measure=None, name='', show=True):
@@ -619,10 +629,14 @@ class ParameterSchedule(object):
             new_learning_rate = learning_rate_scheduler.get_new_value(epoch=14)
             assert new_learning_rate == 0.01
 
-        :param schedule: A dict<epoch: value> where the epoch is a number indicating the training progress and the value
-            indicates the value that the parameter should take.
-            OR A function which takes the epoch and returns a parameter value.
+        :param schedule: Can be:
+            - A dict<epoch: value> where the epoch is a number indicating the training progress and the value
+              indicates the value that the parameter should take.
+            - A function which takes the epoch and returns a parameter value.
+            - A number or array, in which case the value remains constant
         """
+        if isinstance(schedule, (int, float, np.ndarray)):
+            schedule = {0: schedule}
         if isinstance(schedule, dict):
             assert all(isinstance(num, (int, float)) for num in schedule.keys())
             self._reverse_sorted_schedule_checkpoints = sorted(schedule.keys(), reverse=True)

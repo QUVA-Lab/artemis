@@ -1,3 +1,5 @@
+import numpy as np
+
 __author__ = 'peter'
 
 
@@ -15,3 +17,9 @@ def array_info(arr):
         max = arr.max(),
         addr = hex(id(arr))
         )
+
+
+def argtopk(x, k, axis=-1):
+    return np.take(np.argpartition(-x, axis=axis, kth=k), np.arange(k), axis=axis)
+
+
