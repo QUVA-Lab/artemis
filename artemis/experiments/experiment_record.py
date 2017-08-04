@@ -283,7 +283,7 @@ class ExperimentRecord(object):
         if last_run_args is None:
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
         if current_args is None:
-            current_args = dict(self.get_experiment().get_args().get_args())
+            current_args = dict(self.get_experiment().get_args())
         try:
             return compute_fixed_hash(last_run_args, try_objects=True) == compute_fixed_hash(current_args, try_objects=True)
         except NotImplementedError:  # Happens when we have unhashable arguments
@@ -429,7 +429,10 @@ def delete_experiment_with_id(experiment_identifier):
 
 
 def get_experiment_dir():
-    return get_local_path('experiments')
+    path = get_local_path('experiments')
+    if not os.path.exists(path):
+        make_dir(path)
+    return path
 
 
 def get_local_experiment_path(identifier):
