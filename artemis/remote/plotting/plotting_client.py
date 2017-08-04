@@ -9,17 +9,21 @@ import pickle
 from collections import namedtuple
 from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.plotting_backend import get_plotting_server_address
-from artemis.remote.child_processes import check_ssh_connection, ChildProcess, ParamikoPrintThread
+from artemis.remote.child_processes import PythonChildProcess
+from artemis.remote.nanny import Nanny
 from artemis.remote.file_system import check_config_file
 from artemis.remote.port_forwarding import forward_tunnel
-from artemis.remote.utils import get_local_ips, send_size, recv_size
+from artemis.remote.utils import get_local_ips, send_size, recv_size, check_ssh_connection
+
 _to_subprocess_queue = None
 _id_queue = None
+_nanny = None
+comm_terminate_event = threading.Event()
 
 DBPlotMessage = namedtuple('DBPlotMessage', ['plot_id', 'dbplot_args'])
 
 
-def dbplot_remotetly(arg_locals):
+def dbplot_remotely(arg_locals):
     """
     This method should be called from dbplot immedeatly, in case we should plot remotely.
     arg_locals con
@@ -36,7 +40,6 @@ def dbplot_remotetly(arg_locals):
 
     # The data is being prepared and sent to the remote plotting server
     unique_plot_id = str(uuid.uuid4())
-    # data_to_send = {"plot_id":unique_plot_id, "dbplot_args":arg_locals}
     data_to_send = DBPlotMessage(plot_id = unique_plot_id, dbplot_args=arg_locals)
     serialized_command = pickle.dumps(data_to_send, protocol=2)
     _to_subprocess_queue.put(serialized_command)
@@ -60,6 +63,17 @@ def dbplot_remotetly(arg_locals):
         except Queue.Empty:
             pass
 
+def deconstruct_plotting_server():
+    global _nanny
+    global _to_subprocess_queue
+    global _id_queue
+
+    if _nanny:
+        _nanny.deconstruct()
+
+    _to_subprocess_queue = None
+    _id_queue = None
+    _nanny = None
 
 def set_up_plotting_server():
     """
@@ -82,24 +96,25 @@ def set_up_plotting_server():
         command =["python","-u", file_to_execute]
 
     # With the command set up, we can instantiate a child process and start it. Also we want to forward stdout and stderr from the remote process asynchronously.
-    cp = ChildProcess(ip_address=plotting_server_address, command=command, name="Plotting_Server", take_care_of_deconstruct=True)
-    stdin, stdout, stderr = cp.execute_child_process()
-    t2 = ParamikoPrintThread(source_pipe=stderr, target_pipe=sys.stderr,prefix="Plotting Server: ")
-    t2.setDaemon(True)
-    t2.start()
-    # The remote server is implemented such that it will scan available ports and choose one. This port then needs to be communicated to this client
-    # Therefore we assume here, that the first line on stdout from the remote server is the port number for subsequent communication. Also, this call blocks until the parameter server
-    # is ready to accept communication
-    str_port = stdout.readline()
+    global _nanny
+    _nanny = Nanny()
+    cp = PythonChildProcess(ip_address=plotting_server_address, command=command, name="Plotting_Server",set_up_port_for_structured_back_communication=True)
+    _nanny.register_child_process(cp,monitor_for_termination=False,monitor_if_stuck_timeout=None,)
+    _nanny.execute_all_child_processes(blocking=False)
+    back_comm_queue = cp.get_queue_from_cp()
     try:
-        port = int(str_port)
+        is_debug_mode = getattr(sys, 'gettrace', None)
+        timeout = None if is_debug_mode() else 10
+        server_message = back_comm_queue.get(block=True,timeout=timeout)
+    except Queue.Empty:
+        print("The Plotting Server did not respond for 10 seconds. It probably crashed")
+        sys.exit(1)
+
+    try:
+        port = int(server_message.dbplot_message)
     except ValueError:
         print("There was an incorrect string on the remote server's stdout. Make sure the server first communicates a port number. Received:\n {}".format(str_port))
         sys.exit(0)
-    # All subsequent communication forwarded asynchronously
-    t1 = ParamikoPrintThread(source_pipe=stdout, target_pipe=sys.stdout,prefix="Plotting Server: ")
-    t1.setDaemon(True)
-    t1.start()
 
     # In the remote setting we don't want to rely on the user correctly specifying their firewalls. Therefore we need to set up port forwarding through ssh:
     # Also, we have the ssh session open already, so why not reuse it.

@@ -11,6 +11,8 @@ from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
+if is_server_plotting_on():
+    from artemis.remote.plotting.plotting_client import deconstruct_plotting_server
 
 __author__ = 'peter'
 
@@ -66,8 +68,8 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         # Redirect the function call to the plotting server.  The flag gets turned on in a configuration file.  It is
         # turned off when this file is run ON the plotting server, from the first line in plotting_server.py
         arg_locals = locals().copy()
-        from artemis.remote.plotting.plotting_client import dbplot_remotetly
-        dbplot_remotetly(arg_locals=arg_locals)
+        from artemis.remote.plotting.plotting_client import dbplot_remotely
+        dbplot_remotely(arg_locals=arg_locals)
         return
 
     if isinstance(fig, plt.Figure):
@@ -188,9 +190,12 @@ _default_layout = 'grid'
 
 
 def reset_dbplot():
-    for fig_name, plot_window in _DBPLOT_FIGURES.items():
-        plt.close(plot_window.figure)
-        del _DBPLOT_FIGURES[fig_name]
+    if is_server_plotting_on():
+        deconstruct_plotting_server()
+    else:
+        for fig_name, plot_window in _DBPLOT_FIGURES.items():
+            plt.close(plot_window.figure)
+            del _DBPLOT_FIGURES[fig_name]
 
 
 def set_dbplot_figure_size(width, height):
