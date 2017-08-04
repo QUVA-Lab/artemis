@@ -3,13 +3,13 @@ import logging
 import os
 import pickle
 import shutil
+import sys
 import tempfile
 import traceback
 from collections import OrderedDict
 from contextlib import contextmanager, nested
 from datetime import datetime
 
-import sys
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
@@ -274,30 +274,6 @@ class ExperimentRecord(object):
         """
         shutil.rmtree(self._experiment_directory)
 
-    def stringify_arguments(self,args):
-        '''
-        Returns a list of strings of a dict, such that each list entry has the form 'k:v'. If a value of the dict is itself a dict, the nested structure is
-        unpacked such that the returned list has elements [k1:k11:a, k1:k12:b] etc.
-        :param args:
-        :return:
-        '''
-        def recursively_parse_dict(d):
-            res = []
-            for k,v in d.iteritems():
-                if isinstance(v,dict):
-                    sub_list = recursively_parse_dict(v)
-                else:
-                    sub_list = [v]
-                res.extend(['{}:{}'.format(k,s) for s in sub_list])
-            return res
-        if isinstance(args,dict):
-            res = recursively_parse_dict(args)
-        else:
-            #Todo: When is this branch executed? If I understand, the args are always given as a dict - as specified in line 1 of method _create_experiment_variant
-            res = ['{}:{}'.format(k, v) for k, v in args]
-        return res
-
-
     def is_valid(self, last_run_args=None, current_args=None):
         """
         :return: True if the experiment arguments have not changed
@@ -307,7 +283,7 @@ class ExperimentRecord(object):
         if last_run_args is None:
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
         if current_args is None:
-            current_args = dict(self.get_experiment().get_args().get_args())
+            current_args = dict(self.get_experiment().get_args())
         try:
             return compute_fixed_hash(last_run_args, try_objects=True) == compute_fixed_hash(current_args, try_objects=True)
         except NotImplementedError:  # Happens when we have unhashable arguments
