@@ -104,7 +104,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
                 'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
                 'trajectory': lambda: Moving2DPointPlot(axes_update_mode='expand'),
                 'trajectory+': lambda: Moving2DPointPlot(axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
-                'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
+                'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20), ),
                 'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
                 }[plot_type]()
         elif plot_type is None:
