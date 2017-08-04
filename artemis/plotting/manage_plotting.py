@@ -94,25 +94,23 @@ def WhatToDoOnShow(state):
 class ShowContext(object):
 
     def __init__(self, callback, clear_others = False):
-        self.callback = callback
-        self.clear_others = clear_others
+
+        def show_wrapper(*args, **kwargs):
+            if 'block' in kwargs and kwargs['block'] is False:
+                _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
+            else:
+                callback(*args, **kwargs)
+                if not clear_others:
+                    self.old(*args, **kwargs)
+
+        self.show_wrapper = show_wrapper
 
     def __enter__(self):
         self.old = plt.show
-        plt.show = self._show
+        plt.show = self.show_wrapper
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         plt.show = self.old
-
-    def _show(self, *args, **kwargs):
-        if 'block' in kwargs and kwargs['block'] is False:
-            # This is treated a special case.  We treat plt.show(block=False) as a separate function.
-            # It gets called by plt.pause() so we could get an infinite loop if we didn't do this.
-            _ORIGINAL_SHOW_CALLBACK(*args, **kwargs)
-        else:
-            self.callback(*args, **kwargs)
-            if not self.clear_others:
-                self.old(*args, **kwargs)
 
 
 class DrawContext(object):

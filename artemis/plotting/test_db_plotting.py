@@ -1,11 +1,13 @@
 from functools import partial
+import time
+
 import numpy as np
 from artemis.plotting.demo_dbplot import demo_dbplot
 from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot, \
     dbplot_hang
 from artemis.plotting.plotting_backend import LinePlot, HistogramPlot, MovingPointPlot, _USE_SERVER
 import pytest
-
+from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
 __author__ = 'peter'
@@ -120,7 +122,7 @@ def test_two_plots_in_the_same_axis_version_2():
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='hist', plot_type='line')
 
 
-@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we curently do not have an interpretation of freeze_all_dbplots")
+@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we currently do not have an interpretation of freeze_all_dbplots")
 def test_freeze_dbplot():
     reset_dbplot()
     def random_walk():
@@ -167,18 +169,60 @@ def test_cornertext():
     dbplot(np.random.randn(5, 5), 'a', cornertext='three')
 
 
+def test_close_and_open():
+
+    for _ in xrange(20):
+        dbplot(np.random.randn(5), 'a')
+
+    plt.close(plt.gcf())
+
+    for _ in xrange(20):
+        dbplot(np.random.randn(5), 'b')
+
+
 if __name__ == '__main__':
-    test_cornertext()
-    test_trajectory_plot()
-    test_demo_dbplot()
-    test_freeze_dbplot()
-    test_two_plots_in_the_same_axis_version_1()
-    test_two_plots_in_the_same_axis_version_2()
-    test_moving_point_multiple_points()
-    test_list_of_images()
-    test_multiple_figures()
-    test_same_object()
-    test_history_plot_updating()
-    test_particular_plot()
-    test_dbplot()
-    test_custom_axes_placement()
+    if _USE_SERVER:
+        test_cornertext()
+        time.sleep(2.)
+        test_trajectory_plot()
+        time.sleep(2.)
+        test_demo_dbplot()
+        time.sleep(2.)
+        test_two_plots_in_the_same_axis_version_1()
+        time.sleep(2.)
+        test_two_plots_in_the_same_axis_version_2()
+        time.sleep(2.)
+        test_moving_point_multiple_points()
+        time.sleep(2.)
+        test_list_of_images()
+        time.sleep(2.)
+        test_multiple_figures()
+        time.sleep(2.)
+        test_same_object()
+        time.sleep(2.)
+        test_history_plot_updating()
+        time.sleep(2.)
+        test_particular_plot()
+        time.sleep(2.)
+        test_dbplot()
+        time.sleep(2.)
+        test_custom_axes_placement()
+        time.sleep(2.)
+        test_close_and_open()
+        time.sleep(2.)
+    else:
+        test_cornertext()
+        test_trajectory_plot()
+        test_demo_dbplot()
+        test_freeze_dbplot()
+        test_two_plots_in_the_same_axis_version_1()
+        test_two_plots_in_the_same_axis_version_2()
+        test_moving_point_multiple_points()
+        test_list_of_images()
+        test_multiple_figures()
+        test_same_object()
+        test_history_plot_updating()
+        test_particular_plot()
+        test_dbplot()
+        test_custom_axes_placement()
+        test_close_and_open()

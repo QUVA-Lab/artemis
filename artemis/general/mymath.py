@@ -358,3 +358,63 @@ def geosum(rate, t_end, t_start=0):
     e.g. geosum(0.5, t_end=4, t_start=2) = 0.5**2 + 0.5**3 + 0.5**4 = 0.375
     """
     return np.where(rate==1, np.array(t_end-t_start+1, copy=False).astype(float), np.array(rate**(t_end+1)-rate**t_start)/(rate-1))
+
+
+def selective_sum(x, ixs):
+    """
+    :param x: An nd array
+    :param ixs: A tuple of length x.ndim indexing each of the dimensions.
+    :return: A scalar sum of all array elements selected by any of the dimensions.
+
+    This is best explained by example:
+
+        a = np.array([[ 0,  1,  2,  3],
+        ...           [ 4,  5,  6,  7],
+        ...           [ 8,  9, 10, 11],
+        ...           [12, 13, 14, 15]])
+
+    If we want to add all elements rows 1, and 2, as well as the column, then we go:
+        s = selective_sum(a, [(1,3), 2])
+
+    And we can verify that:
+        s == 4+5+6+7 + 12+13+14+15 + 2+10 == 88
+
+    If you don't want to select coluns
+    """
+    assert x.ndim==len(ixs), 'The dimension of x must match the length of ixs'
+    al = (slice(None), )
+    selection_mask = np.zeros(x.shape, dtype='bool')
+    for i, ix in enumerate(ixs):
+        selection_mask[al*i+(ix, )+al*(x.ndim-i-1)] = True
+    return (x*selection_mask).sum()
+
+    # Note, we'd like to do this more efficiently, but it gets a little complicated.
+    # (we have to add the individual indexes, but subtract the double-counted regions, and then subtract the triple-counted
+    # regions, and so on....)
+    # return sum(x[al*i+(ix, )+al*(x.ndim-i-1)].sum() for i, ix in enumerate(ixs)) - x[ixs].sum()
+
+
+def conv_fanout(input_len, kernel_len, conv_mode):
+    """
+    Note: this is horrific and must be simplified.
+    :param input_len:
+    :param kernel_len:
+    :param conv_mode:
+    :return:
+    """
+    left_pad = kernel_len / 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
+    right_pad = (kernel_len-1) / 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
+    full_range = np.arange(left_pad + input_len + right_pad)
+    max_fanout = np.minimum(kernel_len, np.maximum(input_len-kernel_len+1+2*left_pad, 1))
+    fanout_over_full_range = np.minimum(max_fanout, np.minimum(full_range+1, full_range[::-1]+1))
+    fanout = fanout_over_full_range[left_pad:len(full_range)-right_pad]
+    return fanout
+
+
+def conv2_fanout_map(input_shape, kernel_shape, conv_mode):
+    size_y, size_x = input_shape
+    k_size_y, k_size_x = kernel_shape
+    y_fanout = conv_fanout(input_len = size_y, kernel_len=k_size_y, conv_mode=conv_mode)
+    x_fanout = conv_fanout(input_len = size_x, kernel_len=k_size_x, conv_mode=conv_mode)
+    fanout_map = y_fanout[:, None] * x_fanout
+    return fanout_map

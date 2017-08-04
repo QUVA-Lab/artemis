@@ -8,20 +8,21 @@ import signal
 import sys
 import threading
 import time
-from collections import namedtuple
 from datetime import datetime
 
 import os
 from matplotlib import pyplot as plt
+import warnings
+import matplotlib
+warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
+#sys.path.extend([os.path.dirname(os.path.dirname(os.path.dirname(__file__)))])
 from artemis.fileman.local_dir import get_local_path, format_filename
 from artemis.plotting.plotting_backend import set_server_plotting
 from artemis.plotting.db_plotting import dbplot, hold_dbplots, set_dbplot_figure_size
 from artemis.plotting.saving_plots import save_figure
 from artemis.remote.plotting.utils import _queue_get_all_no_wait, handle_socket_accepts
-from artemis.remote.utils import get_socket, recv_size, send_size
-
-sys.path.extend([os.path.dirname(os.path.dirname(__file__))])
+from artemis.remote.utils import get_socket, one_time_send_to
 
 
 def send_port_if_running_and_join():
@@ -33,7 +34,7 @@ def send_port_if_running_and_join():
         print("Your dbplot call is attached to an existing plotting server. \nAll stdout and stderr of this existing plotting server "
               "is forwarded to the process that first created this plotting server. \nIn the future we might try to hijack this and provide you "
               "with these data streams")
-        print("Use with care, this functionallity might have unexpected side issues")
+        print("Use with care, this functionality might have unexpected side issues")
         try:
             while(True):
                 time.sleep(20)
@@ -49,22 +50,22 @@ def write_port_to_file(port):
     atexit.register(remove_port_file)
     port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
     if os.path.exists(port_file_path):
-        print("port.info file already exists. This might either mean that you are running another plotting server in the background and want to start a second one.\nIn this case ignore "
-              "this message. Otherwise a previously run plotting server crashed without cleaning up afterwards. \nIn this case, please manually delete the file at {}".format(port_file_path),
-              file = sys.stderr)
+        # print("port.info file already exists. This might either mean that you are running another plotting server in the background and want to start a second one.\nIn this case ignore "
+        #       "this message. Otherwise a previously run plotting server crashed without cleaning up afterwards. \nIn this case, please manually delete the file at {}".format(port_file_path),
+        #       file = sys.stderr)
+        # Keep for later development
+        pass
     with open(port_file_path, 'wb') as f:
         pickle.dump(port,f)
 
 
 def remove_port_file():
-    print("Removing port file")
     port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
     if os.path.exists(port_file_path):
         os.remove(port_file_path)
 
 
 def save_current_figure(path=""):
-    print("Attempting to save figure")
     fig = plt.gcf()
     file_name = format_filename(file_string = '%T', current_time = datetime.now())
     if path != "":
@@ -72,7 +73,6 @@ def save_current_figure(path=""):
     else:
         save_path = get_local_path('output/{file_name}.png'.format(file_name=file_name))
     save_figure(fig,path=save_path)
-    print("Current figure saved to {}".format(save_path))
 
 
 class GracefulKiller:
@@ -81,11 +81,10 @@ class GracefulKiller:
         signal.signal(signal.SIGINT, self.exit_gracefully)
 
     def exit_gracefully(self, signum, frame):
-        print("SIGINT caught")
         self.kill_now = True
 
 
-def run_plotting_server(address, port):
+def run_plotting_server(address, port, client_address, client_port):
     """
     Address and port to listen on.
     :param address:
@@ -99,8 +98,7 @@ def run_plotting_server(address, port):
     max_number_clients = 100
     max_plot_batch_size = 2000
     sock.listen(max_number_clients)
-    print(port)
-    print("Plotting Server is listening")
+    one_time_send_to(address=client_address,port=client_port,message=str(port))
 
     # We want to save and rescue the current plot in case the plotting server receives a signal.SIGINT (2)
     killer = GracefulKiller()
@@ -113,8 +111,6 @@ def run_plotting_server(address, port):
     t0.setDaemon(True)
     t0.start()
 
-    # If killed, save the current figure
-    # atexit.register(save_current_figure)
 
     # Received exp_dir on first db_plot_message?
     exp_dir_received = False
@@ -123,6 +119,7 @@ def run_plotting_server(address, port):
     set_dbplot_figure_size(9,10)
     while True:
         if killer.kill_now:
+            sock.close() # will cause handle_socket_accepts thread to terminate
             # The server has received a signal.SIGINT (2), so we stop receiving plots and terminate
             break
         # Retrieve data points that might have come in in the mean-time:
@@ -161,9 +158,12 @@ def run_plotting_server(address, port):
 
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--reuse', action="store_true", help='set if you want to merge plots on this server into one shared memory')
+    parser.add_argument('--address',type=str,default="",help='This is the address of the  plotting client that started the server.')
+    parser.add_argument('--port',type=int,default=-1,help='This is the port on which the plotting client that started the server listens for the port of the plotting server.')
     args = parser.parse_args()
     set_server_plotting(False)  # This causes dbplot to configure correctly
     if args.reuse is True:
@@ -171,4 +171,4 @@ if __name__ == "__main__":
         # actually sets up the server, and who joins the existing server
         send_port_if_running_and_join()
 
-    run_plotting_server("0.0.0.0",7000) # We listen to the whole internet and start with port 7000
+    run_plotting_server("0.0.0.0",7100, args.address, args.port) # We listen to the whole internet and start with port 7000

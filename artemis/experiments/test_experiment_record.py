@@ -1,21 +1,26 @@
+import itertools
 import time
 import warnings
 
-import itertools
 import matplotlib.pyplot as plt
 import numpy as np
-from artemis.experiments.experiment_record import \
-    experiment_id_to_latest_record_id, get_experiment_info, load_experiment_record, ExperimentRecord, record_experiment, \
-    delete_experiment_with_id, get_current_experiment_dir, experiment_function, open_in_experiment_dir, \
-    experiment_testing_context, ExpInfoFields, ExpStatusOptions
+import pytest
+
+from artemis.experiments.decorators import experiment_function
 from artemis.experiments.deprecated import start_experiment, end_current_experiment
+from artemis.experiments.experiment_management import run_multiple_experiments
+from artemis.experiments.experiment_record import \
+    load_experiment_record, ExperimentRecord, record_experiment, \
+    delete_experiment_with_id, get_current_experiment_dir, open_in_experiment_dir, \
+    ExpStatusOptions, clear_experiment_records
+from artemis.experiments.experiments import get_experiment_info, load_experiment, experiment_testing_context
 from artemis.general.test_mode import set_test_mode
 
 __author__ = 'peter'
 
 """
 The experiment interface.  Currently, this can be used in many ways.  We'd like to
-converge on just using the interface demonstrated in test_get_latest_identifier.  So
+converge on just using the interface demonstrated in test_experiment_api.  So
 use that if you're looking for an example.
 """
 
@@ -86,26 +91,13 @@ def test_start_experiment():
         assert_experiment_record_is_correct(record, show_figures=False)
 
 
-def test_run_and_show():
-    """
-
-    This is nice because it no longer required that an experiment be run and shown in a
-    single session - each experiment just has a unique identifier that can be used to show
-    its results whenevs.
-    """
-    with experiment_testing_context():
-        experiment_record = experiment_test_function.run()
-        assert_experiment_record_is_correct(experiment_record, show_figures=False)
-        experiment_record.show()
-
-
 def test_get_latest():
     with experiment_testing_context():
         record_1 = experiment_test_function.run()
         time.sleep(0.01)
         record_2 = experiment_test_function.run()
-        identifier = experiment_id_to_latest_record_id('experiment_test_function')
-        assert identifier == record_2.get_identifier()
+        identifier = load_experiment('experiment_test_function').get_latest_record().get_id()
+        assert identifier == record_2.get_id()
 
 
 def test_get_latest_identifier():
@@ -114,7 +106,7 @@ def test_get_latest_identifier():
         exp_rec = experiment_test_function.run()
         print get_experiment_info('experiment_test_function')
         assert_experiment_record_is_correct(exp_rec)
-        last_experiment_identifier = experiment_id_to_latest_record_id('experiment_test_function')
+        last_experiment_identifier = load_experiment('experiment_test_function').get_latest_record().get_id()
         assert last_experiment_identifier is not None, 'Experiment was run, this should not be none'
         same_exp_rec = load_experiment_record(last_experiment_identifier)
         assert_experiment_record_is_correct(same_exp_rec)
@@ -180,36 +172,36 @@ def test_variants():
         # Create unnamed variant
         e2=add_some_numbers.add_variant(b=4)
         assert e2.run().get_result()==5
-        assert e2.get_name() == 'add_some_numbers.b=4'
+        assert e2.get_id() == 'add_some_numbers.b=4'
 
         # Create array of variants
         e_list = [add_some_numbers.add_variant(b=i) for i in xrange(5, 8)]
-        assert [e.get_name() for e in e_list] == ['add_some_numbers.b=5', 'add_some_numbers.b=6', 'add_some_numbers.b=7']
+        assert [e.get_id() for e in e_list] == ['add_some_numbers.b=5', 'add_some_numbers.b=6', 'add_some_numbers.b=7']
         assert [e.run().get_result()==j for e, j in zip(e_list, range(6, 11))]
 
         # Create grid of variants
         e_grid = [add_some_numbers.add_variant(a=a, b=b) for a, b in itertools.product([2, 3], [4, 5, 6])]
-        assert [e.get_name() for e in e_grid] == ['add_some_numbers.a=2,b=4', 'add_some_numbers.a=2,b=5', 'add_some_numbers.a=2,b=6',
+        assert [e.get_id() for e in e_grid] == ['add_some_numbers.a=2,b=4', 'add_some_numbers.a=2,b=5', 'add_some_numbers.a=2,b=6',
                                                   'add_some_numbers.a=3,b=4', 'add_some_numbers.a=3,b=5', 'add_some_numbers.a=3,b=6']
-        assert add_some_numbers.get_unnamed_variant(a=2, b=4).run().get_result()==6
-        assert add_some_numbers.get_unnamed_variant(a=3, b=5).run().get_result()==8
+        assert add_some_numbers.get_variant(a=2, b=4).run().get_result()==6
+        assert add_some_numbers.get_variant(a=3, b=5).run().get_result()==8
 
         experiments = add_some_numbers.get_all_variants(include_roots=True, include_self=True)
         assert len(experiments)==13
 
 
+@experiment_function
+def my_api_test(a=1, b=3):
+    print 'aaa'
+    return a*b
+
+my_api_test.add_variant('a2b2', a=2, b=2)
+my_api_test.add_variant('a3b2', a=3, b=2)
+
+
 def test_experiment_api(try_browse=False):
 
     with experiment_testing_context():
-
-        @experiment_function
-        def my_api_test(a=1, b=3):
-            print 'aaa'
-            return a*b
-
-        my_api_test.add_variant('a2b2', a=2, b=2)
-        my_api_test.add_variant('a3b2', a=3, b=2)
-
         my_api_test.get_variant('a2b2').run()
         record = my_api_test.get_variant('a2b2').get_latest_record()
 
@@ -234,12 +226,80 @@ def test_figure_saving(show_them = False):
         plt.show()
 
 
+def test_get_variant_records_and_delete():
+
+    with experiment_testing_context():
+
+        for record in my_api_test.get_variant_records(flat=True):
+            record.delete()
+
+        assert len(my_api_test.get_variant_records(flat=True))==0
+
+        my_api_test.run()
+        my_api_test.get_variant('a2b2').run()
+
+        assert len(my_api_test.get_variant_records(flat=True))==2
+
+        for record in my_api_test.get_variant_records(flat=True):
+            record.delete()
+
+        assert len(my_api_test.get_variant_records(flat=True))==0
+
+
+def test_experiments_play_well_with_debug():
+
+    with experiment_testing_context():
+
+        @experiment_function
+        def my_simple_test():
+            plt.show._needmain=False  # pyplot does this internally whenever a breakpoint is reached.
+            return 1
+
+        my_simple_test.run()
+
+
+def test_run_multiple_experiments():
+
+    with experiment_testing_context():
+
+        experiments = my_api_test.get_all_variants()
+        assert len(experiments)==3
+
+        records = run_multiple_experiments(experiments)
+        assert [record.get_result() for record in records] == [3, 4, 6]
+
+        records = run_multiple_experiments(experiments, parallel=True)
+        assert [record.get_result() for record in records] == [3, 4, 6]
+
+
+def test_parallel_run_errors():
+
+    with experiment_testing_context():
+
+        @experiment_function
+        def my_error_causing_test(a=1):
+            raise Exception('nononono')
+
+        my_error_causing_test.add_variant(a=2)
+
+        variants = my_error_causing_test.get_all_variants()
+
+        assert len(variants)==2
+
+        run_multiple_experiments(variants, parallel=True, raise_exceptions=False)
+
+        with pytest.raises(Exception) as err:
+            run_multiple_experiments(variants, parallel=True, raise_exceptions=True)
+        print "^^^ Dont't worry, the above is not actually an error, we were just asserting that we caught the error."
+
+        assert err.value.message == 'nononono'
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
     test_get_latest_identifier()
     test_get_latest()
-    test_run_and_show()
     test_experiment_with()
     test_start_experiment()
     test_accessing_experiment_dir()
@@ -247,3 +307,7 @@ if __name__ == '__main__':
     test_variants()
     test_experiment_api(try_browse=False)
     test_figure_saving(show_them=False)
+    test_get_variant_records_and_delete()
+    test_experiments_play_well_with_debug()
+    test_run_multiple_experiments()
+    test_parallel_run_errors()

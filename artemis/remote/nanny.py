@@ -1,3 +1,4 @@
+import atexit
 import signal
 import sys
 import threading
@@ -36,13 +37,16 @@ class ManagedChildProcess(object):
     def get_ip(self):
         return self.cp.get_ip()
 
+    def get_id(self):
+        return self.cp.get_id()
+
     def execute(self):
         return self.cp.execute_child_process()
 
     def get_id(self):
         return self.cp.get_id()
 
-    def deconstruct(self,signum):
+    def deconstruct(self, signum=signal.SIGINT, system_signal=False):
         return self.cp.deconstruct(signum)
 
 class Nanny(object):
@@ -52,11 +56,7 @@ class Nanny(object):
     def __init__(self):
         self.managed_child_processes = {}
         self.stdout_threads = {}
-        self.original_sigint_handler = signal.getsignal(signal.SIGINT)
-        self.original_sigterm_handler = signal.getsignal(signal.SIGTERM)
-        signal.signal(signal.SIGINT, self.deconstruct)
-        signal.signal(signal.SIGTERM, self.deconstruct)
-        # atexit.register(self.deconstruct)
+        atexit.register(self.deconstruct)
 
     def register_child_process(self, cp, monitor_for_termination=True, monitor_if_stuck_timeout=None):
         '''
@@ -89,6 +89,15 @@ class Nanny(object):
             t0 = threading.Thread(target=self.execute_all_child_processes,args=(time_out,stdout_stopping_criterium, stderr_stopping_criterium,True))
             t0.setDaemon(True)
             t0.start()
+            all_cp_started = False
+            while not all_cp_started:
+                for cp in self.managed_child_processes.values():
+                    if not cp.get_process().cp_started:
+                        all_cp_started = False
+                        break
+                    else:
+                        all_cp_started = True
+                time.sleep(0.1)
             return
 
         termination_request_event = threading.Event()
@@ -98,25 +107,22 @@ class Nanny(object):
         name_max_lenght = max([len(mcp.name) for mcp in self.managed_child_processes.values()])
 
         for i, id in enumerate(self.managed_child_processes.keys()):
-            cp =self.managed_child_processes[id]
-            stdin, stdout, stderr = cp.execute()
+            mcp =self.managed_child_processes[id]
+            stdin, stdout, stderr = mcp.execute()
 
-            prefix = cp.name.ljust(name_max_lenght)+": "
+            prefix = mcp.name.ljust(name_max_lenght)+": "
 
             # True if in debug mode
             gettrace = getattr(sys, 'gettrace', None)
             timeout = mcp.monitor_if_stuck_timeout if not gettrace() else None # only set timeout if not in debug mode
 
-
             stdout_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
-                                             args=(stdout,sys.stdout,cp.name,termination_request_event,stdout_stopping_criterium, prefix, timeout))
-            stdout_thread.setDaemon(True)
+                                             args=(stdout,sys.stdout,mcp.name,termination_request_event,stdout_stopping_criterium, prefix, timeout))
 
             stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
-                                             args=(stderr,sys.stderr,cp.name,termination_request_event,stderr_stopping_criterium, prefix, None))
-            stderr_thread.setDaemon(True)
-            stdout_threads[cp.get_id()] = stdout_thread
-            stderr_threads[cp.get_id()] = stderr_thread
+                                             args=(stderr,sys.stderr,mcp.name,termination_request_event,stderr_stopping_criterium, prefix, None))
+            stdout_threads[mcp.get_id()] = stdout_thread
+            stderr_threads[mcp.get_id()] = stderr_thread
 
             stdout_thread.start()
             stderr_thread.start()
@@ -126,6 +132,7 @@ class Nanny(object):
                 pass
         except KeyboardInterrupt:
             print("Nanny interrupted")
+            self.deconstruct()
             sys.exit(1)
 
         # Grace period for other threads to shutdown
@@ -133,36 +140,27 @@ class Nanny(object):
         for id,cp in self.managed_child_processes.iteritems():
             if cp.is_alive():
                 print("Child Process %s at %s did not terminate %s seconds after the first process in cluster terminated. Terminating now." %(cp.get_name(), cp.get_ip(), time_out))
-                cp.kill()
-
+                cp.deconstruct()
         for id,cp in self.managed_child_processes.iteritems():
             if cp.is_alive():
                 print("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip()))
                 cp.deconstruct(signal.SIGKILL)
-        # time.sleep(1.0)
 
-        # for stdout_thread, stderr_thread in zip(stdout_threads.values(), stderr_threads.values()):
-        #     assert not stdout_thread.is_alive(), "This should not have happened"
-        #     assert not stderr_thread.is_alive(), "This should not have happened"
 
-    def deconstruct(self, signum, frame=None):
+    def deconstruct(self):
         '''
         This method is called when SIGINT or SIGTERM are called.
         This aggressively deconstructs the Nanny and all child processes. Then, the signal is passed back to the original signal handlers.
         :return:
         '''
-
         for cp in self.managed_child_processes.values():
             cp.kill()
-        time.sleep(1.0)
+        time.sleep(3.0)
         for cp in self.managed_child_processes.values():
             if cp.is_alive():
                 print("Child Process %s at %s still alive, force terminating now"% (cp.name, cp.get_ip()))
                 cp.kill(signal=signal.SIGTERM)
 
-        signal.signal(signal.SIGINT, self.original_sigint_handler)
-        signal.signal(signal.SIGTERM, self.original_sigterm_handler)
-        os.kill(os.getpid(), signum)
 
     def _monitor_and_forward_child_communication(self, source_pipe, target_pipe,process_name, termination_request_event=None, stopping_criterium=None, prefix="", timeout=None):
         '''
@@ -192,22 +190,23 @@ class Nanny(object):
                 termination_request_event.set() # The input pipe closed, this thread terminates and we would like everybody to terminate
 
     def _output_monitoring_timer_thread(self, process_name, line_printed_event,termination_request_event, timeout=1800): # 5min
-        while not termination_request_event.wait(0.1):
-            t_start = time.time()
-            line_printed_event.wait(timeout)
-            line_printed_event.clear()
-            t_end = time.time()
-            # print("Something was written, time since last line: %.3f"%(t_end-t_start))
-            if t_end-t_start > timeout:
-                if line_printed_event.is_set():
-                    continue
-                try:
-                    exp_name = get_current_experiment_name()
-                    curr_dir = get_current_experiment_dir()
-                    with open(os.path.join(curr_dir,"experiment_stuck"),"wb"):
-                        pass
-                except:
-                    exp_name=""
-                print("Timeout occurred after %.1f min, process %s%s stuck"%(timeout/60., process_name, " from experiment %s"%exp_name if exp_name != "" else ""))
-                termination_request_event.set()
-                break
+        timeout_wait_start = time.time()
+        while time.time() - timeout_wait_start <= timeout:
+            if line_printed_event.is_set():
+                line_printed_event.clear()
+                timeout_wait_start = time.time()
+            if termination_request_event.is_set():
+                return
+            time.sleep(1.0)
+        if termination_request_event.is_set():
+            return
+
+        try:
+            exp_name = get_current_experiment_name()
+            curr_dir = get_current_experiment_dir()
+            with open(os.path.join(curr_dir,"experiment_stuck"),"wb"):
+                pass
+        except:
+            exp_name=""
+        print("Timeout occurred after %.1f min, process %s%s stuck"%(timeout/60., process_name, " from experiment %s"%exp_name if exp_name != "" else ""))
+        termination_request_event.set()

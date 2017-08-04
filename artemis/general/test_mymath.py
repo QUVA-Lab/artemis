@@ -1,7 +1,7 @@
 import pytest
 
 from artemis.general.mymath import softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel, \
-    align_curves, angle_between, fixed_diff, decaying_cumsum, geosum
+    align_curves, angle_between, fixed_diff, decaying_cumsum, geosum, selective_sum, conv_fanout, conv2_fanout_map
 import numpy as np
 __author__ = 'peter'
 
@@ -209,6 +209,52 @@ def test_geosum():
     assert geosum(1, t_end=4, t_start=2) == 1**2+1**3+1**4 == 3
 
 
+def test_selective_sum():
+    a = np.arange(16).reshape(4, 4)
+    assert selective_sum(a, [(1, 3), 2]) == 4 + 5 + 6 + 7 + 12 + 13 + 14 + 15 + 2 + 10 == 88
+    assert selective_sum(a, [(1, 3), (2, )]) == 4 + 5 + 6 + 7 + 12 + 13 + 14 + 15 + 2 + 10 == 88
+    assert selective_sum(a, [(1, 3), ()]) == a[[1,3], :].sum()
+
+
+def test_fanout_map():
+
+    m = conv_fanout(input_len=5, kernel_len=3, conv_mode='same')
+    assert np.array_equal(m, [2, 3, 3, 3, 2])
+
+    m = conv_fanout(input_len=5, kernel_len=3, conv_mode=1)
+    assert np.array_equal(m, [2, 3, 3, 3, 2])
+
+    m = conv_fanout(input_len=5, kernel_len=2, conv_mode='same')
+    assert np.array_equal(m, [2, 2, 2, 2, 1])
+
+    m = conv_fanout(input_len=5, kernel_len=1, conv_mode='same')
+    assert np.array_equal(m, [1, 1, 1, 1, 1])
+
+    m = conv_fanout(input_len=5, kernel_len=3, conv_mode='valid')
+    assert np.array_equal(m, [1, 2, 3, 2, 1])
+
+    m = conv_fanout(input_len=5, kernel_len=2, conv_mode='valid')
+    assert np.array_equal(m, [1, 2, 2, 2, 1])
+
+    m = conv_fanout(input_len=5, kernel_len=1, conv_mode='valid')
+    assert np.array_equal(m, [1, 1, 1, 1, 1])
+
+    m = conv_fanout(input_len=6, kernel_len=4, conv_mode=1)
+    assert np.array_equal(m, [2, 3, 4, 4, 3, 2])
+
+
+def test_conv2_fanout_map():
+
+    m = conv2_fanout_map(input_shape=(5, 5), kernel_shape=(3, 3), conv_mode='same')
+    assert np.array_equal(m, np.array([
+        [4, 6, 6, 6, 4],
+        [6, 9, 9, 9, 6],
+        [6, 9, 9, 9, 6],
+        [6, 9, 9, 9, 6],
+        [4, 6, 6, 6, 4],
+        ]))
+
+
 if __name__ == '__main__':
     test_decaying_cumsum()
     test_fixed_diff()
@@ -224,3 +270,6 @@ if __name__ == '__main__':
     test_cummean()
     test_softmax()
     test_geosum()
+    test_selective_sum()
+    test_fanout_map()
+    test_conv2_fanout_map()

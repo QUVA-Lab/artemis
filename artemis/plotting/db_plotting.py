@@ -11,6 +11,8 @@ from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
 from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
+if is_server_plotting_on():
+    from artemis.remote.plotting.plotting_client import deconstruct_plotting_server
 
 __author__ = 'peter'
 
@@ -36,7 +38,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
            fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, grid=False,
            wait_for_display_sec=0, cornertext = None):
     """
-    Plot arbitrary data.  This program tries to figure out what type of plot to use.
+    Plot arbitrary data and continue execution.  This program tries to figure out what type of plot to use.
 
     :param data: Any data.  Hopefully, we at dbplot will be able to figure out a plot for it.
     :param name: A name uniquely identifying this plot.
@@ -59,22 +61,22 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     :param title: Title of the plot (will default to name if not included)
     :param fig: Name of the figure - use this when you want to create multiple figures.
     :param grid: Turn the grid on
-    :param wait_for_display_sec: In server mode, you can choose to wait maximally wait_for_display_sec seconds before this call returns. In case plotting
-    is finished earlier, the call returns earlier. Setting wait_for_display_sec to a negative number will cause the call to block until the plot has been displayed.
+    :param wait_for_display_sec: In server mode, you can choose to wait maximally wait_for_display_sec seconds before this
+        call returns. In case plotting is finished earlier, the call returns earlier. Setting wait_for_display_sec to a negative number will cause the call to block until the plot has been displayed.
     """
     if is_server_plotting_on():
         # Redirect the function call to the plotting server.  The flag gets turned on in a configuration file.  It is
         # turned off when this file is run ON the plotting server, from the first line in plotting_server.py
         arg_locals = locals().copy()
-        from artemis.remote.plotting.plotting_client import dbplot_remotetly
-        dbplot_remotetly(arg_locals=arg_locals)
+        from artemis.remote.plotting.plotting_client import dbplot_remotely
+        dbplot_remotely(arg_locals=arg_locals)
         return
 
     if isinstance(fig, plt.Figure):
         assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
         _DBPLOT_FIGURES[None] = fig
         fig = None
-    elif fig not in _DBPLOT_FIGURES:
+    elif fig not in _DBPLOT_FIGURES or not plt.fignum_exists(_DBPLOT_FIGURES[fig].figure.number):  # Second condition handles closed figures.
         _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
         if fig is not None:
             _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
@@ -188,9 +190,12 @@ _default_layout = 'grid'
 
 
 def reset_dbplot():
-    for fig_name, plot_window in _DBPLOT_FIGURES.items():
-        plt.close(plot_window.figure)
-        del _DBPLOT_FIGURES[fig_name]
+    if is_server_plotting_on():
+        deconstruct_plotting_server()
+    else:
+        for fig_name, plot_window in _DBPLOT_FIGURES.items():
+            plt.close(plot_window.figure)
+            del _DBPLOT_FIGURES[fig_name]
 
 
 def set_dbplot_figure_size(width, height):

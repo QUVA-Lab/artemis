@@ -4,7 +4,29 @@ import contextlib
 
 __author__ = 'peter'
 
-all_equal = lambda *args: all(a == args[0] for a in args[1:])
+all_equal_deprecated = lambda *args: all(a == args[0] for a in args[1:])
+
+
+def all_equal(elements):
+    """
+    :param elements: A collection of things
+    :return: True if all things are equal, otherwise False.  (Note that an empty list of elements returns true, just as all([]) is True
+    """
+    element_iterator = iter(elements)
+    try:
+        first = element_iterator.next() # Will throw exception
+    except StopIteration:
+        return True
+    return all(a == first for a in element_iterator)
+
+
+def all_equal_length(collection_if_collections):
+    """
+    :param collection_if_collections: A collection of collections
+    :return: True if all collections have equal length, otherwise False
+    """
+    return all_equal([len(c) for c in collection_if_collections])
+
 
 def is_lambda(v):
     '''
@@ -259,7 +281,7 @@ def remove_common_prefix(list_of_lists, max_elements=None):
         if max_elements is not None and count >= max_elements:
             break
 
-        if all_equal(*[parts[0] for parts in list_of_lists]):
+        if all_equal_deprecated(*[parts[0] for parts in list_of_lists]):
             list_of_lists = [parts[1:] for parts in list_of_lists]
         else:
             break
