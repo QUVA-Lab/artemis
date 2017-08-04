@@ -11,18 +11,19 @@ from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.plotting_backend import get_plotting_server_address
 from artemis.remote.child_processes import PythonChildProcess
 from artemis.remote.nanny import Nanny
-from artemis.remote.remote_execution import ParamikoPrintThread
 from artemis.remote.file_system import check_config_file
 from artemis.remote.port_forwarding import forward_tunnel
 from artemis.remote.utils import get_local_ips, send_size, recv_size, check_ssh_connection
 
 _to_subprocess_queue = None
 _id_queue = None
-nanny = None
+_nanny = None
+comm_terminate_event = threading.Event()
+
 DBPlotMessage = namedtuple('DBPlotMessage', ['plot_id', 'dbplot_args'])
 
 
-def dbplot_remotetly(arg_locals):
+def dbplot_remotely(arg_locals):
     """
     This method should be called from dbplot immedeatly, in case we should plot remotely.
     arg_locals con
@@ -63,9 +64,16 @@ def dbplot_remotetly(arg_locals):
             pass
 
 def deconstruct_plotting_server():
-    global nanny
-    if nanny:
-        nanny.deconstruct()
+    global _nanny
+    global _to_subprocess_queue
+    global _id_queue
+
+    if _nanny:
+        _nanny.deconstruct()
+
+    _to_subprocess_queue = None
+    _id_queue = None
+    _nanny = None
 
 def set_up_plotting_server():
     """
@@ -88,11 +96,11 @@ def set_up_plotting_server():
         command =["python","-u", file_to_execute]
 
     # With the command set up, we can instantiate a child process and start it. Also we want to forward stdout and stderr from the remote process asynchronously.
-    global nanny
-    nanny = Nanny()
+    global _nanny
+    _nanny = Nanny()
     cp = PythonChildProcess(ip_address=plotting_server_address, command=command, name="Plotting_Server",set_up_port_for_structured_back_communication=True)
-    nanny.register_child_process(cp,monitor_for_termination=False,monitor_if_stuck_timeout=None,)
-    nanny.execute_all_child_processes(blocking=False)
+    _nanny.register_child_process(cp,monitor_for_termination=False,monitor_if_stuck_timeout=None,)
+    _nanny.execute_all_child_processes(blocking=False)
     back_comm_queue = cp.get_queue_from_cp()
     try:
         is_debug_mode = getattr(sys, 'gettrace', None)
