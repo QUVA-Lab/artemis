@@ -5,6 +5,7 @@ from artemis.experiments.experiment_management import load_lastest_experiment_re
 from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord
 from artemis.experiments.experiments import is_experiment_loadable, GLOBAL_EXPERIMENT_LIBRARY
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side
+from artemis.general.nested_structures import flatten_struct
 from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value, izip_equal
 from artemis.general.tables import build_table
 from tabulate import tabulate
@@ -67,21 +68,21 @@ def get_record_full_string(record, show_info = True, show_logs = True, truncate_
     return full_info_string
 
 
-def get_record_invalid_arg_string(record):
+def get_record_invalid_arg_string(record, recursive=True):
     """
     Return a string identifying ig the arguments for this experiment are still valid.
     :return:
     """
     experiment_id = record.get_experiment_id()
     if is_experiment_loadable(experiment_id):
-        last_run_args = dict(record.info.get_field(ExpInfoFields.ARGS))
-        current_args = dict(record.get_experiment().get_args())
+        last_run_args = OrderedDict(record.info.get_field(ExpInfoFields.ARGS))
+        current_args = OrderedDict(record.get_experiment().get_args())
+        if recursive:
+            last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
+            current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
         validity = record.is_valid(last_run_args=last_run_args, current_args=current_args)
         if validity is False:
-            last_arg_str, this_arg_str = [
-                ['{}:{}'.format(k, v) for k, v in argdict.iteritems()] if isinstance(argdict, dict) else
-                ['{}:{}'.format(k, v) for k, v in argdict]
-                for argdict in (last_run_args, current_args)]
+            last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.iteritems()] for argdict in (last_run_args, current_args)]
             common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
             notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
         elif validity is None:

@@ -1,7 +1,7 @@
-from artemis.experiments.decorators import ExperimentFunction
+from artemis.experiments.decorators import ExperimentFunction, experiment_function
 from artemis.experiments.experiment_record_view import display_experiment_record, compare_experiment_results, \
-    get_oneline_result_string, print_experiment_record_argtable, show_experiment_records
-from artemis.experiments.experiments import experiment_testing_context
+    get_oneline_result_string, print_experiment_record_argtable, show_experiment_records, get_record_invalid_arg_string
+from artemis.experiments.experiments import experiment_testing_context, clear_all_experiments
 from artemis.general.display import CaptureStdOut
 
 
@@ -67,6 +67,33 @@ def test_experiment_function_ui():
         my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all', close_after=True)
 
 
+def test_invalid_arg_text():
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_function
+        def my_invalid_arg_test(a=1, b={'c': 3, 'd': 4}):
+            return a+b['c']+b['d']
+
+        record = my_invalid_arg_test.run()
+        assert get_record_invalid_arg_string(record, recursive=True) == 'Yes'
+        clear_all_experiments()
+
+        @experiment_function
+        def my_invalid_arg_test(a=2, b={'c': 3, 'd': 4}):
+            return a+b['c']+b['d']
+
+        assert get_record_invalid_arg_string(record, recursive=True) == 'No: Args changed!: {a:1}->{a:2}'
+        clear_all_experiments()
+
+        @experiment_function
+        def my_invalid_arg_test(a=2, b={'c': 5, 'd': 4}):
+            return a+b['c']+b['d']
+
+        assert get_record_invalid_arg_string(record, recursive=True) == "No: Args changed!: {a:1,b['c']:3}->{a:2,b['c']:5}"
+
+
 if __name__ == '__main__':
     test_experiments_function_additions()
     test_experiment_function_ui()
+    test_invalid_arg_text()

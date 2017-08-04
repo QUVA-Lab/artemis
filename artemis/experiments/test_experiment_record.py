@@ -13,7 +13,8 @@ from artemis.experiments.experiment_record import \
     load_experiment_record, ExperimentRecord, record_experiment, \
     delete_experiment_with_id, get_current_experiment_dir, open_in_experiment_dir, \
     ExpStatusOptions, clear_experiment_records
-from artemis.experiments.experiments import get_experiment_info, load_experiment, experiment_testing_context
+from artemis.experiments.experiments import get_experiment_info, load_experiment, experiment_testing_context, \
+    clear_all_experiments
 from artemis.general.test_mode import set_test_mode
 
 __author__ = 'peter'
@@ -295,6 +296,36 @@ def test_parallel_run_errors():
         assert err.value.message == 'nononono'
 
 
+def test_invalid_arg_detection():
+    """
+    Check that we notice when an experiment is redefined with new args.
+    """
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_function
+        def my_experiment_gfdsbhtds(a=1):
+            return a+1
+
+        rec = my_experiment_gfdsbhtds.run()
+
+        assert rec.is_valid()
+        clear_all_experiments()
+
+        @experiment_function
+        def my_experiment_gfdsbhtds(a=1):
+            return a+1
+
+        assert rec.is_valid()  # Assert that the args still match
+        clear_all_experiments()
+
+        @experiment_function
+        def my_experiment_gfdsbhtds(a=2):  # CHANGE IN ARGS!
+            return a+1
+
+        assert not rec.is_valid()
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
@@ -311,3 +342,4 @@ if __name__ == '__main__':
     test_experiments_play_well_with_debug()
     test_run_multiple_experiments()
     test_parallel_run_errors()
+    test_invalid_arg_detection()

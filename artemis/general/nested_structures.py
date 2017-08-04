@@ -7,7 +7,7 @@ __author__ = 'peter'
 
 
 def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, bool), custom_handlers = {},
-        break_into_objects = True, detect_duplicates = True, memo = None):
+        break_into_objects = True, detect_duplicates = True, first_dict_is_namespace=False, memo = None):
     """
     Given some nested struct, return a list<*(str, primative)>, where primative
     is some some kind of object that you don't break down any further, and str is a
@@ -36,11 +36,12 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
         handler = custom_handlers[custom_handlers.keys()[[isinstance(struct, t) for t in custom_handlers].index(True)]]
         return [(None, handler(struct))]
     elif isinstance(struct, dict):
-        return sum([
-            [("[%s]%s" % (("'%s'" % key if isinstance(key, str) else key), subkey if subkey is not None else ''), v)
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)]
+        return [
+            (("[{}]{}").format(("'{}'".format(key) if isinstance(key, basestring) else key), subkey if subkey is not None else ''), v) if not first_dict_is_namespace else
+             (("{}{}").format(key, subkey if subkey is not None else ''), v)
                 for key, value in struct.iteritems()
-            ], [])
+                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
+            ]
     elif isinstance(struct, (list, tuple)):
         # for i, value in enumerate(struct):
         return sum([
@@ -63,35 +64,36 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
 _primitive_containers = (list, tuple, dict, set)
 
 
-def flatten_nested_object(data_object, containers = _primitive_containers, include_classes = False):
-    """
-    Given a data object, walk through the object and return a dict of contained objects.
-    It's best to see the tests to understand this function.
-
-    Don't try any fancy circular references here - it's not going to go well for you.
-
-    :param data_object:
-    :return: An OrderedDict containing, in depth-first-order, the list of objects and containers.
-    """
-    directory_listing = OrderedDict()
-    if include_classes:
-        directory_listing['__class__'] = type(data_object)
-    if data_object in containers:
-        if isinstance(data_object, (list, tuple)):
-            directory_listing[None] = type(data_object)
-            for i, x in enumerate(data_object):
-                sub_obj = flatten_nested_object(data_object)
-                for k, v in sub_obj.iteritems():
-                    directory_listing[(i, )+k] = v
-        elif isinstance(data_object, dict):
-            for key, val in data_object.iteritems():
-                sub_obj = flatten_nested_object(val)
-                for k, v in sub_obj.iteritems():
-                    directory_listing[(key, )+k] = v
-        else:
-            raise Exception('Unidentified container type: {}'.format(type(data_object)))
-    else:
-        directory_listing[()] = data_object
+# def flatten_nested_object(data_object, containers = _primitive_containers, include_classes = False):
+#     """
+#     Given a data object, walk through the object and return a dict of contained objects.
+#     It's best to see the tests to understand this function.
+#
+#     Don't try any fancy circular references here - it's not going to go well for you.
+#
+#     :param data_object:
+#     :return: An OrderedDict containing, in depth-first-order, the list of objects and containers.
+#     """
+#     directory_listing = OrderedDict()
+#     if include_classes:
+#         directory_listing['__class__'] = type(data_object)
+#     if data_object in containers:
+#         if isinstance(data_object, (list, tuple)):
+#             directory_listing[None] = type(data_object)
+#             for i, x in enumerate(data_object):
+#                 sub_obj = flatten_nested_object(data_object)
+#                 for k, v in sub_obj.iteritems():
+#                     directory_listing[(i, )+k] = v
+#         elif isinstance(data_object, dict):
+#             for key, val in data_object.iteritems():
+#                 sub_obj = flatten_nested_object(val)
+#                 for k, v in sub_obj.iteritems():
+#                     directory_listing[(key, )+k] = v
+#         else:
+#             raise Exception('Unidentified container type: {}'.format(type(data_object)))
+#     else:
+#         directory_listing[()] = data_object
+#     return directory_listing
 
 
 def get_meta_object(data_object, containers = _primitive_containers):
