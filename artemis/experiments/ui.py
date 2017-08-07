@@ -13,13 +13,11 @@ from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.should_be_builtins import all_equal
 from tabulate import tabulate
 
-
-def _setup_input_memory():
-    try:
-        import readline  # Makes raw_input behave like interactive shell.
-        # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
-    except:
-        pass  # readline not available
+try:
+    import readline  # Makes raw_input behave like interactive shell.
+    # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
+except:
+    pass  # readline not available
 
 
 def _warn_with_prompt(message= None, prompt = 'Press Enter to continue', use_prompt=True):
@@ -298,7 +296,7 @@ experiment records.  You can specify records in the following ways:
         """
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         parallel_text = {'-p': True, '-s': False, None: None}[parallel_arg]
-        has_matplotlib_figures=show_experiment_records(records, parallel_text = parallel_text)
+        has_matplotlib_figures=show_experiment_records(records, parallel_text = parallel_text, truncate_logs=None)
         if has_matplotlib_figures:
             from matplotlib import pyplot as plt
             print '\n\n... Close all figures to return to experiment browser ...'
