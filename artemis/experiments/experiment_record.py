@@ -429,7 +429,10 @@ def delete_experiment_with_id(experiment_identifier):
 
 
 def get_experiment_dir():
-    return get_local_path('experiments')
+    path = get_local_path('experiments')
+    if not os.path.exists(path):
+        make_dir(path)
+    return path
 
 
 def get_local_experiment_path(identifier):

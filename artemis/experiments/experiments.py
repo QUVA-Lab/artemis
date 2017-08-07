@@ -352,6 +352,7 @@ def capture_created_experiments():
 
 
 def _register_experiment(experiment):
+    assert experiment.name not in GLOBAL_EXPERIMENT_LIBRARY, 'You have already registered an experiment named {} in {}'.format(experiment.name, inspect.getmodule(experiment.get_root_function()).__name__)
     GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
@@ -376,11 +377,23 @@ def _kwargs_to_experiment_name(kwargs):
     return ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
 
 
+@contextmanager
+def hold_global_experiment_libary(new_lib = None):
+    if new_lib is None:
+        new_lib = {}
+
+    global GLOBAL_EXPERIMENT_LIBRARY
+    oldlib = GLOBAL_EXPERIMENT_LIBRARY
+    GLOBAL_EXPERIMENT_LIBRARY = new_lib
+    yield GLOBAL_EXPERIMENT_LIBRARY
+    GLOBAL_EXPERIMENT_LIBRARY = oldlib
+
+
 keep_record_by_default = None
 
 
 @contextmanager
-def experiment_testing_context(close_figures_at_end = True):
+def experiment_testing_context(close_figures_at_end = True, new_experiment_lib = False):
     """
     Use this context when testing the experiment/experiment_record infrastructure.
     Should only really be used in test_experiment_record.py
@@ -389,7 +402,11 @@ def experiment_testing_context(close_figures_at_end = True):
     global keep_record_by_default
     old_val = keep_record_by_default
     keep_record_by_default = True
-    yield
+    if new_experiment_lib:
+        with hold_global_experiment_libary():
+            yield
+    else:
+        yield
     keep_record_by_default = old_val
 
     if close_figures_at_end:
