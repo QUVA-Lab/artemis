@@ -48,7 +48,7 @@ def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _co
     if _hasher is None:
         _hasher = hashlib.md5()
 
-    kwargs = dict(hasher=_hasher, try_objects=try_objects, memo=_memo, count=_count)
+    kwargs = dict(_hasher=_hasher, try_objects=try_objects, _memo=_memo, _count=_count)
 
     _hasher.update(obj.__class__.__name__)
     if isinstance(obj, np.ndarray):
