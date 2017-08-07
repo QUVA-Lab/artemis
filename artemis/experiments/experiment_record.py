@@ -3,13 +3,13 @@ import logging
 import os
 import pickle
 import shutil
+import sys
 import tempfile
 import traceback
 from collections import OrderedDict
 from contextlib import contextmanager, nested
 from datetime import datetime
 
-import sys
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
