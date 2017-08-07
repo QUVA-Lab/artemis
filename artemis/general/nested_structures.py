@@ -25,14 +25,15 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
     if memo is None:
         memo = {}
 
+    if isinstance(struct, primatives):
+        return [(None, struct)]
+
     if id(struct) in memo:
         return [(None, memo[id(struct)])]
     elif detect_duplicates:
         memo[id(struct)] = 'Already Seen object at %s' % hex(id(struct))
 
-    if isinstance(struct, primatives):
-        return [(None, struct)]
-    elif isinstance(struct, tuple(custom_handlers.keys())):
+    if isinstance(struct, tuple(custom_handlers.keys())):
         handler = custom_handlers[custom_handlers.keys()[[isinstance(struct, t) for t in custom_handlers].index(True)]]
         return [(None, handler(struct))]
     elif isinstance(struct, dict):
