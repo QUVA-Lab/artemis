@@ -298,7 +298,7 @@ experiment records.  You can specify records in the following ways:
         """
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         parallel_text = {'-p': True, '-s': False, None: None}[parallel_arg]
-        has_matplotlib_figures=show_experiment_records(records, parallel_text = parallel_text)
+        has_matplotlib_figures=show_experiment_records(records, parallel_text = parallel_text, truncate_logs=None)
         if has_matplotlib_figures:
             from matplotlib import pyplot as plt
             print '\n\n... Close all figures to return to experiment browser ...'
