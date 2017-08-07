@@ -304,7 +304,7 @@ def test_invalid_arg_detection():
     with experiment_testing_context(new_experiment_lib=True):
 
         @experiment_function
-        def my_experiment_gfdsbhtds(a=1):
+        def my_experiment_gfdsbhtds(a=1, b=[2, 3.], c={'a': 5, 'b': [6, 7]}):
             return a+1
 
         rec = my_experiment_gfdsbhtds.run()
@@ -313,33 +313,59 @@ def test_invalid_arg_detection():
         clear_all_experiments()
 
         @experiment_function
-        def my_experiment_gfdsbhtds(a=1):
+        def my_experiment_gfdsbhtds(a=1, b=[2, 3.], c={'a': 5, 'b': [6, 7]}):
             return a+1
 
         assert rec.is_valid()  # Assert that the args still match
         clear_all_experiments()
 
         @experiment_function
-        def my_experiment_gfdsbhtds(a=2):  # CHANGE IN ARGS!
+        def my_experiment_gfdsbhtds(a=1, b=[2, 3.], c={'a': 5, 'b': [6, 8]}):  # CHANGE IN ARGS!
             return a+1
 
         assert not rec.is_valid()
 
 
+def test_invalid_arg_detection_2():
+    """
+    Check that we notice when an experiment is redefined with new args.
+    """
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        a = {"a%s"%i for i in range(100)}
+
+        @experiment_function
+        def my_experiment_gfdsbhtds(a=a):
+            return None
+
+        rec = my_experiment_gfdsbhtds.run()
+
+        assert rec.is_valid() is True
+        clear_all_experiments()
+
+        @experiment_function
+        def my_experiment_gfdsbhtds(a=a):
+            return None
+
+        assert rec.is_valid() is True  # Assert that the args still match
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
-    test_get_latest_identifier()
-    test_get_latest()
-    test_experiment_with()
-    test_start_experiment()
-    test_accessing_experiment_dir()
-    test_saving_result()
-    test_variants()
-    test_experiment_api(try_browse=False)
-    test_figure_saving(show_them=False)
-    test_get_variant_records_and_delete()
-    test_experiments_play_well_with_debug()
-    test_run_multiple_experiments()
-    test_parallel_run_errors()
-    test_invalid_arg_detection()
+    # test_get_latest_identifier()
+    # test_get_latest()
+    # test_experiment_with()
+    # test_start_experiment()
+    # test_accessing_experiment_dir()
+    # test_saving_result()
+    # test_variants()
+    # test_experiment_api(try_browse=False)
+    # test_figure_saving(show_them=False)
+    # test_get_variant_records_and_delete()
+    # test_experiments_play_well_with_debug()
+    # test_run_multiple_experiments()
+    # test_parallel_run_errors()
+    # test_invalid_arg_detection()
+    test_invalid_arg_detection_2()

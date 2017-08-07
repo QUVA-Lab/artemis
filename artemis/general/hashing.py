@@ -39,6 +39,11 @@ def compute_fixed_hash(obj, hasher = None, try_objects=False):
         hasher.update(str(len(obj)))  # Necessary to distinguish ([a, b], c) from ([a, b, c])
         for el in obj:
             compute_fixed_hash(el, hasher=hasher)
+    elif isinstance(obj, set):
+        hasher.update(str(len(obj)))
+        hasher.update(obj.__class__.__name__)
+        for el in sorted(obj):
+            compute_fixed_hash(el, hasher=hasher)
     elif isinstance(obj, dict):
         hasher.update(str(len(obj)))  # Necessary to distinguish ([a, b], c) from ([a, b, c])
         keys = obj.keys() if isinstance(obj, OrderedDict) else sorted(obj.keys())
