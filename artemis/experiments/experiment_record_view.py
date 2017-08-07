@@ -77,16 +77,16 @@ def get_record_invalid_arg_string(record, recursive=True):
     if is_experiment_loadable(experiment_id):
         last_run_args = OrderedDict(record.info.get_field(ExpInfoFields.ARGS))
         current_args = OrderedDict(record.get_experiment().get_args())
-        if recursive:
-            last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
-            current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
         validity = record.is_valid(last_run_args=last_run_args, current_args=current_args)
         if validity is False:
+            if recursive:
+                last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
+                current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
             last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.iteritems()] for argdict in (last_run_args, current_args)]
             common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
             notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
         elif validity is None:
-            notes = "Cannot Determine."
+            notes = "Cannot Determine: Unhashable Args"
         else:
             notes = "Yes"
     else:

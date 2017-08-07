@@ -93,7 +93,46 @@ def test_invalid_arg_text():
         assert get_record_invalid_arg_string(record, recursive=True) == "No: Args changed!: {a:1,b['d']:4}->{a:2,b['d']:2}"
 
 
+class MyArgumentObject(object):
+
+    def __init__(self, a=1):
+        self.a=a
+
+
+def test_invalid_arg_text_when_object_arg():
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_function
+        def my_unhashable_arg_test(a=MyArgumentObject(a=3)):
+            return a.a+2
+
+        record = my_unhashable_arg_test.run()
+        assert record.get_result() == 5
+
+        assert get_record_invalid_arg_string(record, recursive=True) == 'Yes'
+
+        # ---------------------
+        clear_all_experiments()
+
+        @experiment_function
+        def my_unhashable_arg_test(a=MyArgumentObject(a=3)):
+            return a.a+2
+
+        assert get_record_invalid_arg_string(record, recursive=True) == 'Yes'
+
+        # ---------------------
+        clear_all_experiments()
+
+        @experiment_function
+        def my_unhashable_arg_test(a=MyArgumentObject(a=4)):
+            return a.a+2
+
+        assert get_record_invalid_arg_string(record, recursive=True) == 'No: Args changed!: {a.a:3}->{a.a:4}'
+
+
 if __name__ == '__main__':
     test_experiments_function_additions()
     test_experiment_function_ui()
     test_invalid_arg_text()
+    test_invalid_arg_text_when_object_arg()
