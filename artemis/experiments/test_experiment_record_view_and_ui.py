@@ -87,10 +87,10 @@ def test_invalid_arg_text():
         clear_all_experiments()
 
         @experiment_function
-        def my_invalid_arg_test(a=2, b={'c': 5, 'd': 4}):
+        def my_invalid_arg_test(a=2, b={'c': 3, 'd': 2}):
             return a+b['c']+b['d']
 
-        assert get_record_invalid_arg_string(record, recursive=True) == "No: Args changed!: {a:1,b['c']:3}->{a:2,b['c']:5}"
+        assert get_record_invalid_arg_string(record, recursive=True) == "No: Args changed!: {a:1,b['d']:4}->{a:2,b['d']:2}"
 
 
 if __name__ == '__main__':
