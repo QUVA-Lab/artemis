@@ -13,8 +13,6 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
     is some some kind of object that you don't break down any further, and str is a
     string representation of how you would access that propery from the root object.
 
-    Don't try any fancy circular references here, it's not going to go well for you.
-
     :param struct: Something, anything.
     :param primatives: A list of classes that will not be broken into.
     :param custum_handlers: A dict<type:func> where func has the form data = func(obj).  These
@@ -39,25 +37,23 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
     elif isinstance(struct, dict):
         return [
             (("[{}]{}").format(("'{}'".format(key) if isinstance(key, basestring) else key), subkey if subkey is not None else ''), v) if not first_dict_is_namespace else
-             (("{}{}").format(key, subkey if subkey is not None else ''), v)
-                for key, value in struct.iteritems()
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
+            (("{}{}").format(key, subkey if subkey is not None else ''), v)
+            for key in (struct.keys() if isinstance(struct, OrderedDict) else sorted(struct.keys()))
+            for subkey, v in flatten_struct(struct[key], custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
             ]
     elif isinstance(struct, (list, tuple)):
         # for i, value in enumerate(struct):
-        return sum([
-            [("[%s]%s" % (i, subkey if subkey is not None else ''), v)
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)]
-                for i, value in enumerate(struct)
-            ], [])
+        return [("[%s]%s" % (i, subkey if subkey is not None else ''), v)
+            for i, value in enumerate(struct)
+            for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
+            ]
     elif struct is None or not hasattr(struct, '__dict__'):
         return []
     elif break_into_objects:  # It's some kind of object, lets break it down.
-        return sum([
-            [(".%s%s" % (key, subkey if subkey is not None else ''), v)
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)]
-                for key, value in struct.__dict__.iteritems()
-            ], [])
+        return [(".%s%s" % (key, subkey if subkey is not None else ''), v)
+            for key in sorted(struct.__dict__.keys())
+            for subkey, v in flatten_struct(struct.__dict__[key], custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
+            ]
     else:
         return [(None, memo[id(struct)])]
 
