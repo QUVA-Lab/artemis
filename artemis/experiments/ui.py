@@ -13,13 +13,11 @@ from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.should_be_builtins import all_equal
 from tabulate import tabulate
 
-
-def _setup_input_memory():
-    try:
-        import readline  # Makes raw_input behave like interactive shell.
-        # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
-    except:
-        pass  # readline not available
+try:
+    import readline  # Makes raw_input behave like interactive shell.
+    # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
+except:
+    pass  # readline not available
 
 
 def _warn_with_prompt(message= None, prompt = 'Press Enter to continue', use_prompt=True):
