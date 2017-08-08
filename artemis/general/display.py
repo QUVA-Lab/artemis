@@ -241,3 +241,25 @@ def truncate_string(string, truncation, message = ''):
         return string[:truncation-len(message)]+message
     else:
         return string
+
+
+def surround_with_header(string, width, char='-'):
+    """
+    Surround the string by a header.  The result has length min(len(string)+2, width)
+    :param string: A string
+    :param width: Width of the entire header
+    :param char: Character to repeat
+    :return: A header, whose length will be
+    """
+    left = (width-len(string)-1)/2
+    right = (width-len(string)-2)/2
+    return char*left+' '+string+' '+char*right
+
+
+def section_with_header(header, content, width=50, top_char=None, header_char='-', bottom_char=None):
+
+    string = '' if top_char is None else top_char*width+'\n'
+    string += surround_with_header(header, width=width, char=header_char) + '\n'+content+'\n'
+    if bottom_char is not None:
+        string += bottom_char*width
+    return string
