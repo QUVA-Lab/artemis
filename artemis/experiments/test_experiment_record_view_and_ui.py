@@ -1,5 +1,4 @@
 import pytest
-
 from artemis.experiments.decorators import ExperimentFunction, experiment_function
 from artemis.experiments.experiment_record_view import display_experiment_record, compare_experiment_results, \
     get_oneline_result_string, print_experiment_record_argtable, show_experiment_records, get_record_invalid_arg_string
@@ -36,6 +35,10 @@ my_xxxyyy_test_experiment.add_variant(b=17)
 def test_experiments_function_additions():
 
     with experiment_testing_context():
+
+        for rec in my_xxxyyy_test_experiment.get_variant_records(flat=True):
+            rec.delete()
+
         r1=my_xxxyyy_test_experiment.run()
         r2=my_xxxyyy_test_experiment.get_variant('a2').run()
         with pytest.raises(Exception):
@@ -54,7 +57,7 @@ def test_experiments_function_additions():
         assert cap.read() == '3aaa\n'
 
         with CaptureStdOut() as cap:
-            compare_experiment_results([my_xxxyyy_test_experiment, my_xxxyyy_test_experiment.get_variant('a2')])
+            compare_experiment_results([my_xxxyyy_test_experiment, my_xxxyyy_test_experiment.get_variant('a2'), my_xxxyyy_test_experiment.get_variant(b=17)])
         assert cap.read() == 'my_xxxyyy_test_experiment: 3, my_xxxyyy_test_experiment.a2: 4\n'
 
         print '='*100+'\n ARGTABLE \n'+'='*100
@@ -69,10 +72,14 @@ def test_experiment_function_ui():
     with experiment_testing_context():
         for existing_record in my_xxxyyy_test_experiment.get_variant_records(flat=True):
             existing_record.delete()
+
         assert len(my_xxxyyy_test_experiment.get_variant_records(flat=True)) == 0
 
-        my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='run all -p', close_after=True)
-        assert len(my_xxxyyy_test_experiment.get_variant_records()) == 2
+        my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='run all', close_after=True)
+        assert len(my_xxxyyy_test_experiment.get_variant_records()) == 3
+
+        import time
+        time.sleep(0.1)
 
         my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
         my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='compare all', close_after=True)
@@ -146,6 +153,6 @@ def test_invalid_arg_text_when_object_arg():
 
 if __name__ == '__main__':
     test_experiments_function_additions()
-    # test_experiment_function_ui()
-    # test_invalid_arg_text()
-    # test_invalid_arg_text_when_object_arg()
+    test_experiment_function_ui()
+    test_invalid_arg_text()
+    test_invalid_arg_text_when_object_arg()

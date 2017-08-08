@@ -52,6 +52,7 @@ class ExpStatusOptions(Enum):
     ERROR = 'Error'
     STOPPED = 'Stopped by User'
     FINISHED = 'Ran Succesfully'
+    CORRUPT = 'Corrupt'
 
 
 class ExperimentRecordInfo(object):
@@ -253,7 +254,10 @@ class ExperimentRecord(object):
         return self.info.get_field(ExpInfoFields.ARGS)
 
     def get_status(self):
-        return self.info.get_field(ExpInfoFields.STATUS)
+        try:
+            return self.info.get_field(ExpInfoFields.STATUS)
+        except KeyError:
+            return ExpStatusOptions.CORRUPT
 
     def load_figures(self):
         """
@@ -274,7 +278,7 @@ class ExperimentRecord(object):
         """
         shutil.rmtree(self._experiment_directory)
 
-    def is_valid(self, last_run_args=None, current_args=None):
+    def args_valid(self, last_run_args=None, current_args=None):
         """
         :return: True if the experiment arguments have not changed
             False if they have changed
@@ -318,8 +322,10 @@ def hold_current_experiment_record(experiment_record):
     global _CURRENT_EXPERIMENT_RECORD
     assert _CURRENT_EXPERIMENT_RECORD is None, "It seems that you are trying to start an experiment withinin an experiment.  This is not allowed!"
     _CURRENT_EXPERIMENT_RECORD = experiment_record
-    yield
-    _CURRENT_EXPERIMENT_RECORD = None
+    try:
+        yield
+    finally:
+        _CURRENT_EXPERIMENT_RECORD = None
 
 
 def is_matplotlib_imported():
@@ -360,10 +366,11 @@ def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True,
     this_record = ExperimentRecord(experiment_directory)
 
     # Create context that sets the current experiment record
-    contexts = [hold_current_experiment_record(this_record)]
-
-    # Add the context which captures stdout (print statements) and logs them.
-    contexts.append(CaptureStdOut(log_file_path=os.path.join(experiment_directory, 'output.txt'), print_to_console=print_to_console))
+    # and the context which captures stdout (print statements) and logs them.
+    contexts = [
+        hold_current_experiment_record(this_record),
+        CaptureStdOut(log_file_path=os.path.join(experiment_directory, 'output.txt'), print_to_console=print_to_console)
+        ]
 
     if is_matplotlib_imported():
         from artemis.plotting.manage_plotting import WhatToDoOnShow

@@ -384,7 +384,7 @@ experiment records.  You can specify records in the following ways:
     def compare(self, user_range):
         experiment_ids = select_experiments(user_range, self.exp_record_dict)
         experiments = [load_experiment(eid) for eid in experiment_ids]
-        compare_experiment_results(experiments, error_if_no_result=True)
+        compare_experiment_results(experiments, error_if_no_result=False)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def explist(self, surround = ""):

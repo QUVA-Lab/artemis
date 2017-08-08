@@ -62,17 +62,14 @@ def get_record_full_string(record, show_info = True, show_logs = True, truncate_
         log = record.get_log()
         if truncate_logs is not None and len(log)>truncate_logs:
             log = log[:truncate_logs-100] + '\n\n ... LOG TRUNCATED TO {} CHARACTERS ... \n\n'.format(truncate_logs) + log[-100:]
-        # full_info_string += '{subborder} Logs {subborder}\n{log}\n'.format(subborder='-' * 20, log=log)
         full_info_string += section_with_header('Logs', log, width=header_width)
 
     error_trace = record.get_error_trace()
     if show_exceptions and error_trace is not None:
-        # full_info_string += '{subborder} Error Trace {subborder}\n{trace}\n'.format(subborder='-' * 20, trace=record.get_error_trace())
         full_info_string += section_with_header('Error Trace', record.get_error_trace(), width=header_width)
 
     if show_result:
         result_str = get_record_result_string(record, truncate_to=truncate_result, func=show_result)
-        # full_info_string += '{subborder} Result {subborder}\n{result}\n'.format(subborder='-' * 20, result=result_str)
         full_info_string += section_with_header('Result', result_str, width=header_width, bottom_char='=' if include_bottom_border else None)
 
     return full_info_string
@@ -88,7 +85,7 @@ def get_record_invalid_arg_string(record, recursive=True):
         if record.info.has_field(ExpInfoFields.ARGS):
             last_run_args = OrderedDict(record.info.get_field(ExpInfoFields.ARGS))
             current_args = OrderedDict(record.get_experiment().get_args())
-            validity = record.is_valid(last_run_args=last_run_args, current_args=current_args)
+            validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
                 if recursive:
                     last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
@@ -105,6 +102,7 @@ def get_record_invalid_arg_string(record, recursive=True):
     else:
         notes = "<Experiment Not Currently Imported>"
     return notes
+
 
 def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g', array_print_threshold=8):
     """
@@ -136,7 +134,7 @@ def display_experiment_record(record):
         display_func(result)
 
 
-def compare_experiment_results(experiments, error_if_no_result = True):
+def compare_experiment_results(experiments, error_if_no_result = False):
     comp_functions = [ex.comparison_function for ex in experiments]
     assert all_equal(comp_functions), 'Experiments must have same comparison functions.'
     comp_function = comp_functions[0]
@@ -146,9 +144,9 @@ def compare_experiment_results(experiments, error_if_no_result = True):
 
 
 def print_experiment_record_argtable(records):
-
-    # info_results = OrderedDict([(identifier, record.get_info()) for identifier, record in zip(record_identifiers, records)]])
-
+    """
+    Print a table comparing experiment arguments and their results.
+    """
     funtion_names = [record.info.get_field(ExpInfoFields.FUNCTION) for record in records]
     args = [record.info.get_field(ExpInfoFields.ARGS) for record in records]
     results = [record.get_result(err_if_none=False) for record in records]
