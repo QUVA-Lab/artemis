@@ -100,7 +100,7 @@ def get_record_invalid_arg_string(record, recursive=True):
         else:
             notes = "Cannot Determine: Inconsistent Experiment Record"
     else:
-        notes = "<Experiment Not Currently Imported>"
+        notes = "Cannot Determine: Experiment Not Imported"
     return notes
 
 
