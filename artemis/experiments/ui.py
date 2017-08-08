@@ -395,7 +395,7 @@ experiment records.  You can specify records in the following ways:
         return self.QUIT
 
 
-def browse_experiment_records(**kwargs):
+def browse_experiment_records(*args, **kwargs):
     """
     Browse through experiment records.
 
@@ -404,7 +404,7 @@ def browse_experiment_records(**kwargs):
     :return:
     """
 
-    experiment_record_browser = ExperimentRecordBrowser(**kwargs)
+    experiment_record_browser = ExperimentRecordBrowser(*args, **kwargs)
     experiment_record_browser.launch()
 
 
