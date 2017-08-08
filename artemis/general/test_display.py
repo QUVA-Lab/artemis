@@ -1,6 +1,7 @@
 import textwrap
 
-from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper, deepstr
+from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper, deepstr, \
+    surround_with_header
 import numpy as np
 
 _desired = """
@@ -93,8 +94,25 @@ def test_deepstr():
     # For now, no assertions, because string contains IDS which will always change.  We can come up with some way to do this later with regular experessions if needed.
 
 
+def test_surround_with_header():
+
+    a = surround_with_header('abcd', width=40)
+    assert len(a)==40
+    b = surround_with_header('abcde', width=40)
+    assert len(b)==40
+
+    a = surround_with_header('abcd', width=41)
+    assert len(a)==41
+    b = surround_with_header('abcde', width=41)
+    assert len(b)==41
+
+    a = surround_with_header('abcd', width=2)
+    assert len(a)==6
+
+
 if __name__ == '__main__':
     test_indent_print()
     test_side_by_side()
     test_document_wrapper()
     test_deepstr()
+    test_surround_with_header()

@@ -1,7 +1,7 @@
 import itertools
 import time
 import warnings
-
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -309,21 +309,21 @@ def test_invalid_arg_detection():
 
         rec = my_experiment_gfdsbhtds.run()
 
-        assert rec.is_valid()
+        assert rec.args_valid()
         clear_all_experiments()
 
         @experiment_function
         def my_experiment_gfdsbhtds(a=1, b=[2, 3.], c={'a': 5, 'b': [6, 7]}):
             return a+1
 
-        assert rec.is_valid()  # Assert that the args still match
+        assert rec.args_valid()  # Assert that the args still match
         clear_all_experiments()
 
         @experiment_function
         def my_experiment_gfdsbhtds(a=1, b=[2, 3.], c={'a': 5, 'b': [6, 8]}):  # CHANGE IN ARGS!
             return a+1
 
-        assert not rec.is_valid()
+        assert not rec.args_valid()
 
 
 def test_invalid_arg_detection_2():
@@ -341,14 +341,50 @@ def test_invalid_arg_detection_2():
 
         rec = my_experiment_gfdsbhtds.run()
 
-        assert rec.is_valid() is True
+        assert rec.args_valid() is True
         clear_all_experiments()
 
         @experiment_function
         def my_experiment_gfdsbhtds(a=a):
             return None
 
-        assert rec.is_valid() is True  # Assert that the args still match
+        assert rec.args_valid() is True  # Assert that the args still match
+
+
+def test_experiment_errors():
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        class MyManualException(Exception):
+            pass
+
+        @experiment_function
+        def my_experiment_fdsgbdn():
+            raise MyManualException()
+
+        with pytest.raises(MyManualException):
+            my_experiment_fdsgbdn.run()
+        with pytest.raises(MyManualException):
+            my_experiment_fdsgbdn.run()
+
+        assert my_experiment_fdsgbdn.get_latest_record().get_status() == ExpStatusOptions.ERROR
+
+        # Previously this caused an error because simple context managers didn't catch errors
+
+
+def test_experiment_corrupt_detection():
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_function
+        def my_experiment_bfdsssdvs(a=1):
+            return a+2
+
+        r = my_experiment_bfdsssdvs.run()
+        assert r.get_status() == ExpStatusOptions.FINISHED
+        os.remove(os.path.join(r.get_dir(), 'info.pkl'))  # Manually remove the info file
+        r = my_experiment_bfdsssdvs.get_latest_record()
+        assert r.get_status() == ExpStatusOptions.CORRUPT
 
 
 if __name__ == '__main__':
@@ -369,3 +405,5 @@ if __name__ == '__main__':
     test_parallel_run_errors()
     test_invalid_arg_detection()
     test_invalid_arg_detection_2()
+    test_experiment_errors()
+    test_experiment_corrupt_detection()
