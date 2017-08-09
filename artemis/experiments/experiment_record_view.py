@@ -83,8 +83,8 @@ def get_record_invalid_arg_string(record, recursive=True):
     experiment_id = record.get_experiment_id()
     if is_experiment_loadable(experiment_id):
         if record.info.has_field(ExpInfoFields.ARGS):
-            last_run_args = OrderedDict(record.info.get_field(ExpInfoFields.ARGS))
-            current_args = OrderedDict(record.get_experiment().get_args())
+            last_run_args = record.get_args()
+            current_args = record.get_experiment().get_args()
             validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
                 if recursive:
@@ -199,8 +199,8 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
         strings = [get_record_full_string(rec, show_logs=show_logs, show_result=show_result, truncate_logs=truncate_logs,
                     truncate_result=truncate_result, header_width=header_width, include_bottom_border=False) for rec in records]
     has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
-    from matplotlib import pyplot as plt
     if has_matplotlib_figures:
+        from matplotlib import pyplot as plt
         from artemis.plotting.saving_plots import interactive_matplotlib_context
         for rec in records:
             rec.show_figures(hang=False)
@@ -220,11 +220,11 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
                     # strings[i] += '{subborder} Result Display {subborder}\n{out} \n{border}'.format(subborder='-'*20, out=cap.read(), border='='*50)
                     strings[i] += section_with_header('Result Display', cap.read(), width=header_width, bottom_char='=')
 
-        if parallel_text:
-            print side_by_side(strings, max_linewidth=128)
-        else:
-            for string in strings:
-                print string
+    if parallel_text:
+        print side_by_side(strings, max_linewidth=128)
+    else:
+        for string in strings:
+            print string
 
     return has_matplotlib_figures
 

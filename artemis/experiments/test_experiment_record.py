@@ -2,8 +2,11 @@ import itertools
 import time
 import warnings
 import os
+from collections import OrderedDict
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
 import pytest
 
 from artemis.experiments.decorators import experiment_function
@@ -11,8 +14,9 @@ from artemis.experiments.deprecated import start_experiment, end_current_experim
 from artemis.experiments.experiment_management import run_multiple_experiments
 from artemis.experiments.experiment_record import \
     load_experiment_record, ExperimentRecord, record_experiment, \
-    delete_experiment_with_id, get_current_experiment_dir, open_in_experiment_dir, \
-    ExpStatusOptions, clear_experiment_records
+    delete_experiment_with_id, get_current_record_dir, open_in_record_dir, \
+    ExpStatusOptions, clear_experiment_records, get_current_experiment_id, get_current_experiment_record, \
+    get_current_record_id, has_experiment_record, experiment_id_to_record_ids
 from artemis.experiments.experiments import get_experiment_info, load_experiment, experiment_testing_context, \
     clear_all_experiments
 from artemis.general.test_mode import set_test_mode
@@ -121,8 +125,8 @@ def test_accessing_experiment_dir():
         def access_dir_test():
             print '123'
             print 'abc'
-            dir = get_current_experiment_dir()
-            with open_in_experiment_dir('my_test_file.txt', 'w') as f:
+            dir = get_current_record_dir()
+            with open_in_record_dir('my_test_file.txt', 'w') as f:
                 f.write('Experiment Directory is: {}'.format(dir))
 
         record = access_dir_test.run()
@@ -208,7 +212,7 @@ def test_experiment_api(try_browse=False):
 
         assert record.get_log() == 'aaa\n'
         assert record.get_result() == 4
-        assert record.get_args() == [('a', 2), ('b', 2)]
+        assert record.get_args() == OrderedDict([('a', 2), ('b', 2)])
         assert record.get_status() == ExpStatusOptions.FINISHED
 
     if try_browse:
@@ -387,6 +391,52 @@ def test_experiment_corrupt_detection():
         assert r.get_status() == ExpStatusOptions.CORRUPT
 
 
+def test_current_experiment_access_functions():
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_function
+        def my_experiment_dfgsdgfdaf(a=1):
+
+            assert a==4, 'Only meant to run aaa variant.'
+            experiment_id = get_current_experiment_id()
+
+            rec = get_current_experiment_record()
+
+            record_id = get_current_record_id()
+
+            assert record_id.endswith('-'+experiment_id)
+
+            assert experiment_id == 'my_experiment_dfgsdgfdaf.aaa'
+            loc = get_current_record_dir()
+
+            _, record_dir = os.path.split(loc)
+
+            assert record_dir == record_id
+            assert os.path.isdir(loc)
+            assert loc.endswith(record_id)
+
+            with open_in_record_dir('somefile.pkl', 'w') as f:
+                pickle.dump([1, 2, 3], f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            assert os.path.exists(os.path.join(loc, 'somefile.pkl'))
+
+            with open_in_record_dir('somefile.pkl') as f:
+                assert pickle.load(f) == [1, 2, 3]
+
+            exp = rec.get_experiment()
+            assert exp.get_id() == experiment_id
+            assert exp.get_args() == rec.get_args() == OrderedDict([('a', 4)])
+            assert rec.get_dir() == loc
+            assert has_experiment_record(experiment_id)
+            assert record_id in experiment_id_to_record_ids(experiment_id)
+            return a+2
+
+        v = my_experiment_dfgsdgfdaf.add_variant('aaa', a=4)
+
+        v.run()
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
@@ -407,3 +457,4 @@ if __name__ == '__main__':
     test_invalid_arg_detection_2()
     test_experiment_errors()
     test_experiment_corrupt_detection()
+    test_current_experiment_access_functions()

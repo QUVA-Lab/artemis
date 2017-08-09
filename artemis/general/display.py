@@ -113,16 +113,22 @@ class CaptureStdOut(object):
         else:
             self.log = StringIO()
         self._log_file_path = log_file_path
-        self.terminal = _ORIGINAL_STDOUT
+        self.old_stdout = _ORIGINAL_STDOUT
 
     def __enter__(self):
+
+        self.old_stdout = sys.stdout
+        self.old_stderr = sys.stderr
+
         sys.stdout = self
         sys.stderr = self
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        sys.stdout = _ORIGINAL_STDOUT
-        sys.stderr = _ORIGINAL_STDERR
+        sys.stdout.flush()
+        sys.stderr.flush()
+        sys.stdout = self.old_stdout
+        sys.stderr = self.old_stderr
         self.close()
 
     def get_log_file_path(self):
@@ -131,7 +137,7 @@ class CaptureStdOut(object):
 
     def write(self, message):
         if self._print_to_console:
-            self.terminal.write(message)
+            self.old_stdout.write(message)
         self.log.write(message)
         self.log.flush()
 
@@ -148,7 +154,7 @@ class CaptureStdOut(object):
             return txt
 
     def __getattr__(self, item):
-        return getattr(self.terminal, item)
+        return getattr(self.old_stdout, item)
 
 
 def indent_string(str, indent = '  ', include_first = True):
@@ -263,3 +269,27 @@ def section_with_header(header, content, width=50, top_char=None, header_char='-
     if bottom_char is not None:
         string += bottom_char*width
     return string
+
+
+@contextmanager
+def assert_things_are_printed(things, min_len=None):
+    """
+    Make sure that the things in theings are preinted.
+    :param things:
+    :param min_len:
+    :return:
+    """
+
+    if isinstance(things, basestring):
+        things = [things]
+
+    with CaptureStdOut() as cap:
+        yield
+
+    printed_text = cap.read()
+
+    if min_len is not None:
+        assert len(printed_text) >= min_len, 'Printed text length {} was under the minimum length of {}'.format(len(printed_text), min_len)
+
+    for thing in things:
+        assert thing in printed_text, '"{}" was not printed'.format(thing)
