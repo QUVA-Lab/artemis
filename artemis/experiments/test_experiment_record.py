@@ -14,7 +14,7 @@ from artemis.experiments.deprecated import start_experiment, end_current_experim
 from artemis.experiments.experiment_management import run_multiple_experiments
 from artemis.experiments.experiment_record import \
     load_experiment_record, ExperimentRecord, record_experiment, \
-    delete_experiment_with_id, get_current_experiment_dir, open_in_experiment_dir, \
+    delete_experiment_with_id, get_current_record_dir, open_in_record_dir, \
     ExpStatusOptions, clear_experiment_records, get_current_experiment_id, get_current_experiment_record, \
     get_current_record_id, has_experiment_record, experiment_id_to_record_ids
 from artemis.experiments.experiments import get_experiment_info, load_experiment, experiment_testing_context, \
@@ -125,8 +125,8 @@ def test_accessing_experiment_dir():
         def access_dir_test():
             print '123'
             print 'abc'
-            dir = get_current_experiment_dir()
-            with open_in_experiment_dir('my_test_file.txt', 'w') as f:
+            dir = get_current_record_dir()
+            with open_in_record_dir('my_test_file.txt', 'w') as f:
                 f.write('Experiment Directory is: {}'.format(dir))
 
         record = access_dir_test.run()
@@ -408,7 +408,7 @@ def test_current_experiment_access_functions():
             assert record_id.endswith('-'+experiment_id)
 
             assert experiment_id == 'my_experiment_dfgsdgfdaf.aaa'
-            loc = get_current_experiment_dir()
+            loc = get_current_record_dir()
 
             _, record_dir = os.path.split(loc)
 
@@ -416,12 +416,12 @@ def test_current_experiment_access_functions():
             assert os.path.isdir(loc)
             assert loc.endswith(record_id)
 
-            with open_in_experiment_dir('somefile.pkl', 'w') as f:
+            with open_in_record_dir('somefile.pkl', 'w') as f:
                 pickle.dump([1, 2, 3], f, protocol=pickle.HIGHEST_PROTOCOL)
 
             assert os.path.exists(os.path.join(loc, 'somefile.pkl'))
 
-            with open_in_experiment_dir('somefile.pkl') as f:
+            with open_in_record_dir('somefile.pkl') as f:
                 assert pickle.load(f) == [1, 2, 3]
 
             exp = rec.get_experiment()

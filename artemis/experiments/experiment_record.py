@@ -405,18 +405,18 @@ def get_current_record_id():
     return get_current_experiment_record().get_id()
 
 
-def get_current_experiment_dir():
+def get_current_record_dir():
     """
     The directory in which the results of the current experiment are recorded.
     """
     return get_current_experiment_record().get_dir()
 
 
-def open_in_experiment_dir(filename, *args, **kwargs):
+def open_in_record_dir(filename, *args, **kwargs):
     """
     Open a file in the given experiment directory.  Usage:
 
-    with open_in_experiment_dir('myfile.txt', 'w') as f:
+    with open_in_record_dir('myfile.txt', 'w') as f:
         f.write('blahblahblah')
 
     :param filename: The name of the file, relative to your experiment directory,
@@ -535,6 +535,6 @@ def save_figure_in_record(name, fig=None, default_ext='.pkl'):
     from artemis.plotting.saving_plots import save_figure
     if fig is None:
         fig = plt.gcf()
-    save_path = os.path.join(get_current_experiment_dir(), name)
+    save_path = os.path.join(get_current_record_dir(), name)
     save_figure(fig, path=save_path, default_ext=default_ext)
     return save_path

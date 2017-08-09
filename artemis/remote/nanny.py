@@ -6,7 +6,7 @@ import time
 
 import os
 
-from artemis.experiments.experiment_record import get_current_experiment_id, get_current_experiment_dir
+from artemis.experiments.experiment_record import get_current_experiment_id, get_current_record_dir
 
 
 class ManagedChildProcess(object):
@@ -203,7 +203,7 @@ class Nanny(object):
 
         try:
             exp_name = get_current_experiment_id()
-            curr_dir = get_current_experiment_dir()
+            curr_dir = get_current_record_dir()
             with open(os.path.join(curr_dir,"experiment_stuck"),"wb"):
                 pass
         except:
