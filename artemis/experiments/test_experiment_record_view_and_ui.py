@@ -81,20 +81,20 @@ def test_experiment_function_ui():
         import time
         time.sleep(0.1)
 
-        # with assert_things_are_printed(min_len=1200, things=['Common Args', 'Different Args', 'Result', 'a=1, b=2', 'a=2, b=2', 'a=1, b=17']):
-        #     my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
-        #
-        # with assert_things_are_printed(min_len=600, things=['my_xxxyyy_test_experiment: 3', 'my_xxxyyy_test_experiment.a2: 4']):
-        #     my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='compare all', close_after=True)
-        #
-        # with assert_things_are_printed(things = ['Results', 'my_xxxyyy_test_experiment.a2'], min_len=800):
-        #     my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='display all', close_after=True)
-        #
-        # with assert_things_are_printed(min_len=10000, things=['3aaa', 'Result', 'Logs', 'Ran Succesfully', 'Traceback']):
-        #     my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all', close_after=True)
+        with assert_things_are_printed(min_len=1200, things=['Common Args', 'Different Args', 'Result', 'a=1, b=2', 'a=2, b=2', 'a=1, b=17']):
+            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
 
-        # with assert_things_are_printed(min_len=10000, things=['3aaa', 'Result', 'Logs', 'Ran Succesfully', 'Traceback']):
-        my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show 0', close_after=True)
+        with assert_things_are_printed(min_len=600, things=['my_xxxyyy_test_experiment: 3', 'my_xxxyyy_test_experiment.a2: 4']):
+            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='compare all', close_after=True)
+
+        with assert_things_are_printed(things = ['Results', 'my_xxxyyy_test_experiment.a2'], min_len=800):
+            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='display all', close_after=True)
+
+        with assert_things_are_printed(min_len=10000, things=['3aaa', '4aaa', 'Result', 'Logs', 'Ran Succesfully', 'Traceback']):
+            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all', close_after=True)
+
+        with assert_things_are_printed(min_len=1700, things=['3aaa', 'Result', 'Logs', 'Ran Succesfully']):
+            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show 0', close_after=True)
 
 
 def test_invalid_arg_text():
@@ -161,8 +161,26 @@ def test_invalid_arg_text_when_object_arg():
         assert get_record_invalid_arg_string(record, recursive=True) == 'No: Args changed!: {a.a:3}->{a.a:4}'
 
 
+def test_simple_experiment_show():
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_function
+        def my_simdfsfdsgfs(a=1):
+
+            print 'xxxxx'
+            print 'yyyyy'
+            return a+2
+
+        rec = my_simdfsfdsgfs.run()
+
+        with assert_things_are_printed(things=['my_simdfsfdsgfs', 'xxxxx\nyyyyy\n']):
+            show_experiment_records(rec)
+
+
 if __name__ == '__main__':
-    # test_experiments_function_additions()
+    test_experiments_function_additions()
     test_experiment_function_ui()
-    # test_invalid_arg_text()
-    # test_invalid_arg_text_when_object_arg()
+    test_invalid_arg_text()
+    test_invalid_arg_text_when_object_arg()
+    test_simple_experiment_show()
