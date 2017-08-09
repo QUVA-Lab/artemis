@@ -249,9 +249,9 @@ class ExperimentRecord(object):
     def get_args(self):
         """
         Get the arguments with which this record was run.
-        :return: A list of 2-tuples of (arg_name, arg_value)
+        :return: An OrderedDict((arg_name -> arg_value))
         """
-        return self.info.get_field(ExpInfoFields.ARGS)
+        return OrderedDict(self.info.get_field(ExpInfoFields.ARGS))
 
     def get_status(self):
         try:
@@ -284,7 +284,7 @@ class ExperimentRecord(object):
             False if they have changed
             None if it cannot be determined because arguments are not hashable objects.
         """
-        if last_run_args is None:
+        if last_run_args is None:  # Cast to dict (from OrderedDict) because different arg order shouldn't matter
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
         if current_args is None:
             current_args = dict(self.get_experiment().get_args())
@@ -395,14 +395,14 @@ def get_current_experiment_id():
     """
     :return: A string identifying the current experiment
     """
-    return get_current_experiment_record().get_identifier()
+    return get_current_experiment_record().get_experiment_id()
 
 
-def get_current_experiment_name():
+def get_current_record_id():
     """
-    :return: A string containing the name of the current experiment
+    :return: A string identifying the current experiment
     """
-    return get_current_experiment_record().get_name()
+    return get_current_experiment_record().get_id()
 
 
 def get_current_experiment_dir():

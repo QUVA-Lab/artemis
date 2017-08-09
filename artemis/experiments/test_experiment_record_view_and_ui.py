@@ -3,7 +3,7 @@ from artemis.experiments.decorators import ExperimentFunction, experiment_functi
 from artemis.experiments.experiment_record_view import display_experiment_record, compare_experiment_results, \
     get_oneline_result_string, print_experiment_record_argtable, show_experiment_records, get_record_invalid_arg_string
 from artemis.experiments.experiments import experiment_testing_context, clear_all_experiments
-from artemis.general.display import CaptureStdOut
+from artemis.general.display import CaptureStdOut, assert_things_are_printed
 
 
 def display_it(result):
@@ -81,10 +81,20 @@ def test_experiment_function_ui():
         import time
         time.sleep(0.1)
 
-        my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
-        my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='compare all', close_after=True)
-        my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='display all', close_after=True)
-        my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all', close_after=True)
+        # with assert_things_are_printed(min_len=1200, things=['Common Args', 'Different Args', 'Result', 'a=1, b=2', 'a=2, b=2', 'a=1, b=17']):
+        #     my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
+        #
+        # with assert_things_are_printed(min_len=600, things=['my_xxxyyy_test_experiment: 3', 'my_xxxyyy_test_experiment.a2: 4']):
+        #     my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='compare all', close_after=True)
+        #
+        # with assert_things_are_printed(things = ['Results', 'my_xxxyyy_test_experiment.a2'], min_len=800):
+        #     my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='display all', close_after=True)
+        #
+        # with assert_things_are_printed(min_len=10000, things=['3aaa', 'Result', 'Logs', 'Ran Succesfully', 'Traceback']):
+        #     my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all', close_after=True)
+
+        # with assert_things_are_printed(min_len=10000, things=['3aaa', 'Result', 'Logs', 'Ran Succesfully', 'Traceback']):
+        my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show 0', close_after=True)
 
 
 def test_invalid_arg_text():
@@ -152,7 +162,7 @@ def test_invalid_arg_text_when_object_arg():
 
 
 if __name__ == '__main__':
-    test_experiments_function_additions()
+    # test_experiments_function_additions()
     test_experiment_function_ui()
-    test_invalid_arg_text()
-    test_invalid_arg_text_when_object_arg()
+    # test_invalid_arg_text()
+    # test_invalid_arg_text_when_object_arg()

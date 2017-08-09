@@ -110,9 +110,22 @@ def test_surround_with_header():
     assert len(a)==6
 
 
+def test_nested_capture():
+
+    with CaptureStdOut() as cap1:
+        print 'a'
+        with CaptureStdOut() as cap2:
+            print 'b'
+        print 'c'
+
+    assert cap2.read()=='b\n'
+    assert cap1.read()=='a\nb\nc\n'
+
+
 if __name__ == '__main__':
     test_indent_print()
     test_side_by_side()
     test_document_wrapper()
     test_deepstr()
     test_surround_with_header()
+    test_nested_capture()

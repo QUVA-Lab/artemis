@@ -83,8 +83,8 @@ def get_record_invalid_arg_string(record, recursive=True):
     experiment_id = record.get_experiment_id()
     if is_experiment_loadable(experiment_id):
         if record.info.has_field(ExpInfoFields.ARGS):
-            last_run_args = OrderedDict(record.info.get_field(ExpInfoFields.ARGS))
-            current_args = OrderedDict(record.get_experiment().get_args())
+            last_run_args = record.get_args()
+            current_args = record.get_experiment().get_args()
             validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
                 if recursive:
