@@ -161,8 +161,26 @@ def test_invalid_arg_text_when_object_arg():
         assert get_record_invalid_arg_string(record, recursive=True) == 'No: Args changed!: {a.a:3}->{a.a:4}'
 
 
+def test_simple_experiment_show():
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_function
+        def my_simdfsfdsgfs(a=1):
+
+            print 'xxxxx'
+            print 'yyyyy'
+            return a+2
+
+        rec = my_simdfsfdsgfs.run()
+
+        with assert_things_are_printed(things=['my_simdfsfdsgfs', 'xxxxx\nyyyyy\n']):
+            show_experiment_records(rec)
+
+
 if __name__ == '__main__':
     test_experiments_function_additions()
     test_experiment_function_ui()
     test_invalid_arg_text()
     test_invalid_arg_text_when_object_arg()
+    test_simple_experiment_show()
