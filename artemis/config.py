@@ -7,6 +7,9 @@ backend = matplotlib
 update_period = 0.5
 mode = safe
 default_fig_size = (12, 8)
+
+[experiments]
+experiment_directory = ~/.artemis/experiments 
 """
 
 _CONFIG_FILE_NAME = '.artemisrc'
@@ -27,3 +30,4 @@ def get_artemis_config_value(section, option, default_generator = None, write_de
     """
     config_filename = check_or_create_artemis_config()
     return get_config_value(config_filename, section=section, option=option, default_generator=default_generator, write_default=write_default, read_method = read_method)
+
