@@ -248,7 +248,7 @@ class Experiment(object):
         """
         records = self.get_records(only_completed=completed)
         if valid:
-            records = [record for record in records if record.is_valid()]
+            records = [record for record in records if record.args_valid()]
         return len(records)>0
 
     def get_all_variants(self, include_roots=False, include_self=True):
@@ -283,7 +283,7 @@ class Experiment(object):
             else:
                 return None
         else:
-            return records[-1]
+            return sorted(records, key=lambda x: x.get_id())[-1]
 
     def get_variant_records(self, only_completed=False, only_last=False, flat=False):
         """

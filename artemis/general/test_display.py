@@ -1,7 +1,7 @@
 import textwrap
 
 from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper, deepstr, \
-    str_with_arrayopts
+    str_with_arrayopts, surround_with_header
 import numpy as np
 
 _desired = """
@@ -104,9 +104,39 @@ def test_str_with_arrayopts():
     assert str_with_arrayopts(b, float_format='.3g', threshold=5) == '[[1 1.33 1.67 2 2.33]\n [2.67 3 3.33 3.67 4]\n [4.33 4.67 5 5.33 5.67]]'
 
 
+def test_surround_with_header():
+
+    a = surround_with_header('abcd', width=40)
+    assert len(a)==40
+    b = surround_with_header('abcde', width=40)
+    assert len(b)==40
+
+    a = surround_with_header('abcd', width=41)
+    assert len(a)==41
+    b = surround_with_header('abcde', width=41)
+    assert len(b)==41
+
+    a = surround_with_header('abcd', width=2)
+    assert len(a)==6
+
+
+def test_nested_capture():
+
+    with CaptureStdOut() as cap1:
+        print 'a'
+        with CaptureStdOut() as cap2:
+            print 'b'
+        print 'c'
+
+    assert cap2.read()=='b\n'
+    assert cap1.read()=='a\nb\nc\n'
+
+
 if __name__ == '__main__':
     test_indent_print()
     test_side_by_side()
     test_document_wrapper()
     test_deepstr()
     test_str_with_arrayopts()
+    test_surround_with_header()
+    test_nested_capture()

@@ -14,12 +14,14 @@ For examples of how to use artemis, read the [Artemis Documentation](http://arte
 ## Installation
 To use artemis from within your project, use the following to install Artemis and its dependencies: (You probably want to do this in a virtualenv with the latest version of pip - run `virtualenv venv; source venv/bin/activate; pip install --upgrade pip;` to make one and enter it).
 
-**Option 1: (Recommended) Install as source (allows you to edit Artemis).**
+**Option 1: (Recommended, unless you have Anaconda) Install as source (allows you to edit Artemis).**
 
 ```
 pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis 
 ```
 This will install it in `(virtual env or system python root)/src/artemis`.  You can edit the code and submit pull requests to our git repo.  To install with the optional [remote plotting](https://github.com/QUVA-Lab/artemis/blob/master/artemis/remote/README.md) mode enabled, add the `[remote_plotting]` option, as in: `pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis[remote_plotting]`
+
+(Note, this doesn't work if you have Anaconda installed, as it does not work with the `-e` option).  Use Option 2 in this case instead.
 
 
 **Option 2: Simple install:**

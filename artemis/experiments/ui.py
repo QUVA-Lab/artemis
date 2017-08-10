@@ -13,13 +13,11 @@ from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.should_be_builtins import all_equal
 from tabulate import tabulate
 
-
-def _setup_input_memory():
-    try:
-        import readline  # Makes raw_input behave like interactive shell.
-        # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
-    except:
-        pass  # readline not available
+try:
+    import readline  # Makes raw_input behave like interactive shell.
+    # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
+except:
+    pass  # readline not available
 
 
 def _warn_with_prompt(message= None, prompt = 'Press Enter to continue', use_prompt=True):
@@ -386,7 +384,7 @@ experiment records.  You can specify records in the following ways:
     def compare(self, user_range):
         experiment_ids = select_experiments(user_range, self.exp_record_dict)
         experiments = [load_experiment(eid) for eid in experiment_ids]
-        compare_experiment_results(experiments, error_if_no_result=True)
+        compare_experiment_results(experiments, error_if_no_result=False)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def explist(self, surround = ""):
@@ -397,7 +395,7 @@ experiment records.  You can specify records in the following ways:
         return self.QUIT
 
 
-def browse_experiment_records(**kwargs):
+def browse_experiment_records(*args, **kwargs):
     """
     Browse through experiment records.
 
@@ -406,7 +404,7 @@ def browse_experiment_records(**kwargs):
     :return:
     """
 
-    experiment_record_browser = ExperimentRecordBrowser(**kwargs)
+    experiment_record_browser = ExperimentRecordBrowser(*args, **kwargs)
     experiment_record_browser.launch()
 
 
