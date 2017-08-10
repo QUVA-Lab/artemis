@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import Queue
 import atexit
+import inspect
 import shlex
 import signal
 import subprocess
@@ -11,6 +12,10 @@ import time
 import uuid
 
 import os
+
+import pickle
+
+from artemis.general.functional import infer_arg_values, get_partial_chain, infer_function_and_derived_arg_values
 from artemis.remote.plotting.utils import handle_socket_accepts
 
 from artemis.config import get_artemis_config_value
@@ -200,13 +205,21 @@ class ChildProcess(object):
                 return self.get_pid() in stdout.read()
 
 
+_function_command_template = """
+from {module_loc} import {function_name}
+import pickle
+
+kwargs = pickle.loads(\'{pickled_kwargs}\')
+
+{function_name}(**kwargs)
+"""
 
 
 class PythonChildProcess(ChildProcess):
     '''
     This ChildProcess is designed to spawn python processes.
     '''
-    def __init__(self,*args,**kwargs):
+    def __init__(self, ip_address, command, **kwargs):
         '''
         Creates a PythonChildProcess
         :param ip_address: The command will be executed at this ip_address
@@ -217,7 +230,19 @@ class PythonChildProcess(ChildProcess):
         The child process is responsible for reading these values out and communicating to it. If set, this child process will expose a queue on that address with get_queue_from_cp()
         :return:
         '''
-        super(PythonChildProcess,self).__init__(*args,**kwargs)
+
+        if callable(command):
+            # filename = inspect.getmodule(command).__file__
+            root_function, kwargs = infer_function_and_derived_arg_values(command)
+            command = _function_command_template.format(
+                module_loc = inspect.getmodule(command).__name__,
+                function_name = root_function.__name__,
+                pickled_kwargs = pickle.dumps(kwargs, protocol=pickle.HIGHEST_PROTOCOL)
+                )
+        # else:
+        #     assert isinstance(command, basestring)
+
+        super(PythonChildProcess,self).__init__(ip_address=ip_address, command=command,**kwargs)
 
     def listen_on_port(self):
         '''

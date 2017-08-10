@@ -50,7 +50,7 @@ def str_with_arrayopts(obj, float_format='.3g', threshold=8, **kwargs):
     :param kwargs:
     :return:
     """
-    with hold_numpy_printoptions(formatter = {'float': float_format}, threshold=threshold, **kwargs):
+    with hold_numpy_printoptions(formatter = {'float': lambda x: '{{:{}}}'.format(float_format).format(x)}, threshold=threshold, **kwargs):
         return str(obj)
 
 
