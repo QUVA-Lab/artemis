@@ -40,7 +40,7 @@ def test_get_config_value():
     value = get_config_value(config_filename='.testconfigrc', section='opts', option='setting2')
     assert value == 'bob'
 
-    value = get_config_value(config_filename='.testconfigrc', section='opts', option='setting2', use_hashed_config=False)
+    value = get_config_value(config_filename='.testconfigrc', section='opts', option='setting2', use_cashed_config=False)
     assert value == 'blah'
 
     value = get_config_value(config_filename='.testconfigrc', section='opts', option='setting2')
@@ -51,7 +51,7 @@ def test_get_config_value():
         _ = get_config_value(config_filename='.testconfigrc', section='schmapts', option='setting3')
 
     with raises(NoSectionError):
-        _ = get_config_value(config_filename='.testconfigrc', section='schmapts', option='setting2',use_hashed_config=False)
+        _ = get_config_value(config_filename='.testconfigrc', section='schmapts', option='setting2', use_cashed_config=False)
 
     value = get_config_value(config_filename='.testconfigrc', section='schmapts', option='setting2')
     assert value == 'bob'

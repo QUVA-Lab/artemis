@@ -29,5 +29,5 @@ def get_artemis_config_value(section, option, default_generator = None, write_de
     See docstring for get_config_value
     """
     config_filename = check_or_create_artemis_config()
-    return get_config_value(config_filename, section=section, option=option, default_generator=default_generator, write_default=write_default, read_method = read_method)
+    return get_config_value(config_filename, section=section, option=option, default_generator=default_generator, write_default=write_default, read_method=read_method)
 
