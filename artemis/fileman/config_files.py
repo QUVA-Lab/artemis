@@ -63,7 +63,7 @@ def get_config_value(config_filename, section, option, default_generator=None, w
                 default_used = True
 
     if default_used and write_default:
-        config = _get_config_object(config_path, use_cashed_config=False)
+        config = _get_config_object(config_path)
         if not config.has_section(section):
             config.add_section(section)
         config.set(section, option, value)
@@ -85,7 +85,7 @@ def _get_config_object(config_path, use_cashed_config=True):
         If set to False, will re-read the config file from disk. If a ConfigParser was previously created, it will not be replaced!
     :return:
     '''
-    if config_path not in _CONFIG_OBJECTS or use_cashed_config:  # Need to load from file.
+    if config_path not in _CONFIG_OBJECTS or not use_cashed_config:
         config = ConfigParser()
         if not os.path.exists(config_path):
             with open(config_path,'w') as f:

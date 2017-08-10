@@ -56,7 +56,6 @@ def test_get_config_value():
     value = get_config_value(config_filename='.testconfigrc', section='schmapts', option='setting2')
     assert value == 'bob'
 
-
     os.remove(config_path)
 
 
