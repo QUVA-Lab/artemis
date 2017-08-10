@@ -10,6 +10,7 @@ from collections import OrderedDict
 from contextlib import contextmanager, nested
 from datetime import datetime
 
+from artemis.config import get_artemis_config_value
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
@@ -436,7 +437,7 @@ def delete_experiment_with_id(experiment_identifier):
 
 
 def get_experiment_dir():
-    path = get_local_path('experiments')
+    path = os.path.expanduser(get_artemis_config_value(section="experiments",option="experiment_directory", write_default=True, default_generator=lambda: get_local_path('experiments')))
     if not os.path.exists(path):
         make_dir(path)
     return path
