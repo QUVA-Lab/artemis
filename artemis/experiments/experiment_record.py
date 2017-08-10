@@ -437,7 +437,7 @@ def delete_experiment_with_id(experiment_identifier):
 
 
 def get_experiment_dir():
-    path = os.path.expanduser(get_artemis_config_value(section="experiments",option="experiment_directory", default_generator="~/.artemis/experiments"))
+    path = os.path.expanduser(get_artemis_config_value(section="experiments",option="experiment_directory", default_generator=lambda: get_local_path('experiments')))
     if not os.path.exists(path):
         make_dir(path)
     return path
