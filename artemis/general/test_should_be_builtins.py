@@ -1,5 +1,5 @@
 from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items, remove_duplicates, \
-    detect_duplicates, remove_common_prefix, all_equal
+    detect_duplicates, remove_common_prefix, all_equal, get_absolute_module
 
 __author__ = 'peter'
 
@@ -50,6 +50,13 @@ def test_all_equal():
     assert not all_equal([2, 2, 3])
     assert all_equal([])
 
+
+def test_get_absolute_module():
+
+    assert get_absolute_module(test_get_absolute_module) == 'artemis.general.test_should_be_builtins'
+    print get_absolute_module(1)
+
+
 if __name__ == '__main__':
     test_separate_common_items()
     test_reducemap()
@@ -58,3 +65,4 @@ if __name__ == '__main__':
     test_detect_duplicates()
     test_remove_common_prefix()
     test_all_equal()
+    test_get_absolute_module()

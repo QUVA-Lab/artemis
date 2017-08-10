@@ -1,7 +1,7 @@
 import logging
 import os
 from functools import partial
-from artemis.fileman.local_dir import get_local_path, make_file_dir
+from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.functional import infer_arg_values
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.test_mode import is_test_mode
@@ -15,7 +15,7 @@ __author__ = 'peter'
 
 MEMO_WRITE_ENABLED = True
 MEMO_READ_ENABLED = True
-MEMO_DIR = get_local_path('memoize_to_disk')
+MEMO_DIR = get_artemis_data_path('memoize_to_disk')
 
 
 def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle = False):

@@ -5,7 +5,7 @@ import time
 import os
 
 from artemis.config import get_artemis_config_value
-from artemis.remote.child_processes import PythonChildProcess
+from artemis.remote.child_processes import PythonChildProcess, RemotePythonProcess
 from artemis.remote.remote_execution import ParamikoPrintThread, execute_command
 from artemis.remote.utils import get_local_ips, get_remote_artemis_path
 from functools import partial
@@ -121,16 +121,38 @@ def test_remote_child_function():
         stdout_out = stdout.readlines()
 
 
+def my_func(a, b):
+    print 'hello hello hello'
+    time.sleep(0.01)
+    return a+b
 
 
+def test_remote_python_process():
+
+    # from artemis.remote.test_child_processes import my_func  # Need it referenced by absolute path to pickle it.
+
+    p = RemotePythonProcess(
+        function=partial(my_func, a=1, b=2),
+        ip_address='localhost',
+        )
+
+    stdin , stdout, stderr = p.execute_child_process()
+    time.sleep(.1)  # That autta be enough
+
+    errtext = stderr.read()
+    assert errtext == '', errtext
+
+    assert stdout.read() == 'hello hello hello\n'
+    assert p.get_return_value()==3
 
 
 if __name__ == "__main__":
-    # test_simple_pcp()
-    # test_simple_pcp_list()
-    # test_interrupt_process_gently()
-    # test_kill_process_gently()
-    # test_kill_process_strongly()
-    # test_remote_graphics()
+    test_simple_pcp()
+    test_simple_pcp_list()
+    test_interrupt_process_gently()
+    test_kill_process_gently()
+    test_kill_process_strongly()
+    test_remote_graphics()
     test_remote_child_function()
+    test_remote_python_process()
     print("Tests finished")

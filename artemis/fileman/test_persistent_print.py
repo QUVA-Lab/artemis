@@ -1,4 +1,4 @@
-from artemis.fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_artemis_data_path
 import os
 from artemis.fileman.persistent_print import capture_print, read_print, new_log_file, stop_capturing_print
 from artemis.general.display import CaptureStdOut
@@ -21,7 +21,7 @@ def test_proper_persistent_print_usage():
 
 def test_proper_persistent_print_file_logging():
 
-    log_file_path = get_local_path('tests/test_log.txt')
+    log_file_path = get_artemis_data_path('tests/test_log.txt')
     with CaptureStdOut(log_file_path) as ps:
         print 'fff'
         print 'ggg'
@@ -49,7 +49,7 @@ def test_persistent_print():
     print 'ddd'
     assert read_print()  == 'ccc\nddd\n'
 
-    os.remove(get_local_path(test_log_path))
+    os.remove(get_artemis_data_path(test_log_path))
 
 
 def test_new_log_file():
@@ -60,7 +60,7 @@ def test_new_log_file():
     print 'fff'
     stop_capturing_print()
 
-    local_log_loc = get_local_path(log_file_loc)
+    local_log_loc = get_artemis_data_path(log_file_loc)
     with open(local_log_loc) as f:
         text = f.read()
 

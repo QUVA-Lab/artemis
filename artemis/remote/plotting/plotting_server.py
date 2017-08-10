@@ -17,7 +17,7 @@ import matplotlib
 warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
 #sys.path.extend([os.path.dirname(os.path.dirname(os.path.dirname(__file__)))])
-from artemis.fileman.local_dir import get_local_path, format_filename
+from artemis.fileman.local_dir import get_artemis_data_path, format_filename
 from artemis.plotting.plotting_backend import set_server_plotting
 from artemis.plotting.db_plotting import dbplot, hold_dbplots, set_dbplot_figure_size
 from artemis.plotting.saving_plots import save_figure
@@ -26,7 +26,7 @@ from artemis.remote.utils import get_socket, one_time_send_to
 
 
 def send_port_if_running_and_join():
-    port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
+    port_file_path = get_artemis_data_path("tmp/plot_server/port.info", make_local_dir=True)
     if os.path.exists(port_file_path):
         with open(port_file_path, 'r') as f:
             port = pickle.load(f)
@@ -48,7 +48,7 @@ def send_port_if_running_and_join():
 
 def write_port_to_file(port):
     atexit.register(remove_port_file)
-    port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
+    port_file_path = get_artemis_data_path("tmp/plot_server/port.info", make_local_dir=True)
     if os.path.exists(port_file_path):
         # print("port.info file already exists. This might either mean that you are running another plotting server in the background and want to start a second one.\nIn this case ignore "
         #       "this message. Otherwise a previously run plotting server crashed without cleaning up afterwards. \nIn this case, please manually delete the file at {}".format(port_file_path),
@@ -60,7 +60,7 @@ def write_port_to_file(port):
 
 
 def remove_port_file():
-    port_file_path = get_local_path("tmp/plot_server/port.info", make_local_dir=True)
+    port_file_path = get_artemis_data_path("tmp/plot_server/port.info", make_local_dir=True)
     if os.path.exists(port_file_path):
         os.remove(port_file_path)
 
@@ -71,7 +71,7 @@ def save_current_figure(path=""):
     if path != "":
         save_path = os.path.join(path,"%s.pdf"%file_name)
     else:
-        save_path = get_local_path('output/{file_name}.png'.format(file_name=file_name))
+        save_path = get_artemis_data_path('output/{file_name}.png'.format(file_name=file_name))
     save_figure(fig,path=save_path)
 
 
