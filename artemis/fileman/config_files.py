@@ -76,6 +76,7 @@ def get_config_value(config_filename, section, option, default_generator=None, w
         value = read_method(value)
     return value
 
+
 def _get_config_object(config_path, use_cashed_config=True):
     '''
     Returns a ConfigParser for the config file at the given path. If no file exists, an empty config file is created.
@@ -84,7 +85,7 @@ def _get_config_object(config_path, use_cashed_config=True):
         If set to False, will re-read the config file from disk. If a ConfigParser was previously created, it will not be replaced!
     :return:
     '''
-    if config_path not in _CONFIG_OBJECTS:
+    if config_path not in _CONFIG_OBJECTS or not use_cashed_config:
         config = ConfigParser()
         if not os.path.exists(config_path):
             with open(config_path,'w') as f:
@@ -94,15 +95,7 @@ def _get_config_object(config_path, use_cashed_config=True):
         if use_cashed_config:
             _CONFIG_OBJECTS[config_path] = config
     else:
-        if use_cashed_config:
-            config = _CONFIG_OBJECTS[config_path]
-        else:
-            config = ConfigParser()
-            if not os.path.exists(config_path):
-                with open(config_path, 'w') as f:
-                    config.write(f)
-            else:
-                config.read(config_path)
+        config = _CONFIG_OBJECTS[config_path]
     return config
 
 
