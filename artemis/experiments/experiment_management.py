@@ -7,10 +7,10 @@ from importlib import import_module
 
 from artemis.experiments.experiment_record import load_experiment_record, ExpInfoFields, \
     ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id
-from artemis.experiments.experiments import load_experiment, GLOBAL_EXPERIMENT_LIBRARY
+from artemis.experiments.experiments import load_experiment, GLOBAL_EXPERIMENT_LIBRARY, get_global_experiment_library
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.should_be_builtins import izip_equal, detect_duplicates
+from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
 
 
 def pull_experiments(user, ip, experiment_names, include_variants=True):
@@ -59,6 +59,11 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
     """
     results = OrderedDict()
     for ex in experiments:
+
+        ex = load_experiment(ex) if isinstance(ex, basestring) else ex
+
+        name = experiments[ex.get_id()] if isinstance(experiments, dict) else ex if isinstance(ex, basestring) else ex.get_id()
+
         record = ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True)
         if record is None:
             if error_if_no_result:
@@ -66,7 +71,7 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
             else:
                 ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(ex.get_id()))
         else:
-            results[ex.get_id()] = record.get_result()
+            results[name] = record.get_result()
     if len(results)==0:
         ARTEMIS_LOGGER.warn('None of your experiments had any results.  Your comparison function will probably show no meaningful result.')
     return results
@@ -301,3 +306,54 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, rais
         return p.map(partial(func, **run_args), experiment_identifiers)
     else:
         return [ex.run(raise_exceptions=raise_exceptions, display_results=False, **run_args) for ex in experiments]
+
+#
+# def split_experiment_name(name, root=None):
+#     """
+#     Split the name of an experiment up into component strings identifying the variants.
+#
+#     Here we assume that the experiment has been loaded.
+#
+#     e.g.
+#
+#         assert split_experiment_name('demo_my_example.sgd.k=0.04') == ('demo_my_example', 'sgd', 'k=0.04')
+#
+#     :param name: A string indicating the expeirment name
+#     :return: A tuple containing the split components.
+#     """
+#
+#     unresolved_name = name
+#     ancestory = []
+#
+#     if '.' not in name:
+#         return name
+#
+#     root = name[name.index('.')]
+#
+#
+#
+#     while '.' in unresolved_name:
+#         endpoint = None
+#         while True:
+#             potential_split = unresolved_name[:endpoint].rfind('.')
+#             assert potential_split != -1
+#             if unresolved_name[:potential_split] in get_global_experiment_library():
+#                 ancestory.append(unresolved_name[potential_split+1:])
+#                 unresolved_name = unresolved_name[:potential_split]
+#             else:
+#                 endpoint = potential_split
+#     ancestory.append(unresolved_name)
+#     return tuple(ancestory[::-1])
+
+
+def remove_common_results_prefix(results_dict):
+    """
+    Remove the common prefix for the results you are comparing.
+    :param results_dict:
+    :return:
+    """
+    assert isinstance(dict, OrderedDict), 'Expecting an OrderedDict of <experiment_name -> result>'
+
+    split_keys = [k.split('.') for k in results_dict.keys()]
+    trimmed_keys = remove_common_prefix(split_keys)
+    return OrderedDict((k, v) for k, v in izip_equal(trimmed_keys, results_dict.values()))

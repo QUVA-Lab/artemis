@@ -389,6 +389,10 @@ def hold_global_experiment_libary(new_lib = None):
     GLOBAL_EXPERIMENT_LIBRARY = oldlib
 
 
+def get_global_experiment_library():
+    return GLOBAL_EXPERIMENT_LIBRARY
+
+
 keep_record_by_default = None
 
 
