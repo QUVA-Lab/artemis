@@ -131,6 +131,8 @@ def test_remote_python_process():
 
     # from artemis.remote.test_child_processes import my_func  # Need it referenced by absolute path to pickle it.
 
+    in_debug_mode = sys.gettrace() is not None
+
     p = RemotePythonProcess(
         function=partial(my_func, a=1, b=2),
         ip_address='localhost',
@@ -140,8 +142,10 @@ def test_remote_python_process():
     time.sleep(.1)  # That autta be enough
 
     errtext = stderr.read()
-    assert errtext == '', errtext
-
+    if in_debug_mode:
+        assert errtext.startswith('pydev debugger: ')
+    else:
+        assert errtext == '', errtext
     assert stdout.read() == 'hello hello hello\n'
     assert p.get_return_value()==3
 

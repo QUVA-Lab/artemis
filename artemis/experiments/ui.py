@@ -9,7 +9,9 @@ from artemis.experiments.experiment_record_view import get_record_full_string, g
     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
     display_experiment_record
 from artemis.experiments.experiments import GLOBAL_EXPERIMENT_LIBRARY, load_experiment, is_experiment_loadable
+from artemis.fileman.disk_memoize import memoize_to_disk, memoize_to_disk_with_settings
 from artemis.general.display import IndentPrint, side_by_side
+from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal
 from tabulate import tabulate
 
@@ -20,11 +22,15 @@ except:
     pass  # readline not available
 
 
-def _warn_with_prompt(message= None, prompt = 'Press Enter to continue', use_prompt=True):
+def _warn_with_prompt(message= None, prompt = 'Press Enter to continue or q then Enter to quit', use_prompt=True):
     if message is not None:
         print message
     if use_prompt:
-        return raw_input('({}) >> '.format(prompt))
+        out = raw_input('({}) >> '.format(prompt))
+        if out=='q':
+            quit()
+        else:
+            return out
 
 
 def browse_experiments(command=None, **kwargs):
@@ -133,9 +139,7 @@ experiment records.  You can specify records in the following ways:
         self.truncate_result_to = truncate_result_to
 
     def reload_record_dict(self):
-
         names = GLOBAL_EXPERIMENT_LIBRARY.keys()
-
         if self.root_experiment is not None:
             # We could just go [ex.name for ex in self.root_experiment.get_all_variants(include_self=True)]
             # but we want to preserve the order in which experiments were created
@@ -207,7 +211,11 @@ experiment records.  You can specify records in the following ways:
                     elif cmd == 'r':  # Refresh
                         continue
                     else:
-                        response = raw_input('Unrecognised command: "{}".  Type "h" for help or Enter to continue. >'.format(cmd))
+                        edit_distances = [levenshtein_distance(cmd, other_cmd) for other_cmd in func_dict.keys()]
+                        min_distance = min(edit_distances)
+                        closest = func_dict.keys()[edit_distances.index(min_distance)]
+                        suggestion = ' Did you mean "{}"?.  '.format(closest) if min_distance<=2 else ''
+                        response = raw_input('Unrecognised command: "{}". {}Type "h" for help or Enter to continue. >'.format(cmd, suggestion, closest))
                         if response.lower()=='h':
                             self.help()
                         out = None
@@ -242,7 +250,7 @@ experiment records.  You can specify records in the following ways:
                     experiment_record.info.get_field_text(ExpInfoFields.RUNTIME) if header=='Duration' else \
                     experiment_record.info.get_field_text(ExpInfoFields.STATUS) if header=='Status' else \
                     get_record_invalid_arg_string(experiment_record) if header=='Valid' else \
-                    get_oneline_result_string(experiment_record, truncate_to=truncate_result_to) if header=='Result' else \
+                    memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string)(experiment_record.get_id(), truncate_to=truncate_result_to) if header=='Result' else \
                     '???'
             except:
                 if raise_display_errors:

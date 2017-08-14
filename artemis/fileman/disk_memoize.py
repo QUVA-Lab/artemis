@@ -18,7 +18,7 @@ MEMO_READ_ENABLED = True
 MEMO_DIR = get_artemis_data_path('memoize_to_disk')
 
 
-def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle = False):
+def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle = False, suppress_info = False):
     """
     Save (memoize) computed results to disk, so that the same function, called with the
     same arguments, does not need to be recomputed.  This is useful if you have a long-running
@@ -73,17 +73,19 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
             if local_cache:
                 # local_cache_signature = get_local_cache_signature(args, kwargs)
                 if filepath in cached_local_results:
-                    LOGGER.info('Reading disk-memo from local cache for function %s' % (fcn.__name__, ))
+                    if not suppress_info:
+                        LOGGER.info('Reading disk-memo from local cache for function %s' % (fcn.__name__, ))
                     return cached_local_results[filepath]
             if os.path.exists(filepath):
                 with open(filepath) as f:
                     try:
-                        LOGGER.info('Reading memo for function %s' % (fcn.__name__, ))
+                        if not suppress_info:
+                            LOGGER.info('Reading memo for function %s' % (fcn.__name__, ))
                         result = pickle.load(f)
                     except (ValueError, ImportError) as err:
-                        if isinstance(err, ValueError):
+                        if isinstance(err, ValueError) and not suppress_info:
                             LOGGER.warn('Memo-file "%s" was corrupt.  (%s: %s).  Recomputing.' % (filepath, err.__class__.__name__, str(err)))
-                        elif isinstance(err, ImportError):
+                        elif isinstance(err, ImportError) and not suppress_info:
                             LOGGER.warn('Memo-file "{}" was tried to reference an old class and got ImportError: {}.  Recomputing.'.format(filepath, str(err)))
                         result_computed = True
                         result = fcn(*args, **kwargs)
@@ -101,7 +103,8 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
                 filepath = get_function_hash_filename(fcn, full_args)
                 make_file_dir(filepath)
                 with open(filepath, 'w') as f:
-                    LOGGER.info('Writing disk-memo for function %s' % (fcn.__name__, ))
+                    if not suppress_info:
+                        LOGGER.info('Writing disk-memo for function %s' % (fcn.__name__, ))
                     pickle.dump(result, f, protocol=2)
 
         return result

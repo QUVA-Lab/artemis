@@ -1,9 +1,12 @@
 import pytest
+from asn1crypto._ordereddict import OrderedDict
+
 from artemis.experiments.decorators import ExperimentFunction, experiment_function
 from artemis.experiments.experiment_record_view import display_experiment_record, compare_experiment_results, \
     get_oneline_result_string, print_experiment_record_argtable, show_experiment_records, get_record_invalid_arg_string
-from artemis.experiments.experiments import experiment_testing_context, clear_all_experiments
+from artemis.experiments.experiments import experiment_testing_context, clear_all_experiments, load_experiment
 from artemis.general.display import CaptureStdOut, assert_things_are_printed
+from artemis.general.should_be_builtins import remove_common_prefix, izip_equal
 
 
 def display_it(result):
@@ -176,6 +179,66 @@ def test_simple_experiment_show():
 
         with assert_things_are_printed(things=['my_simdfsfdsgfs', 'xxxxx\nyyyyy\n']):
             show_experiment_records(rec)
+
+
+def split_experiment_name(name):
+    """
+    Split the name of an experiment up into component strings identifying the variants.
+
+    Here we assume that the experiment has been loaded.
+
+    e.g.
+
+        assert split_experiment_name('demo_my_example.sgd.k=0.04') == ('demo_my_example', 'sgd', 'k=0.04')
+
+    :param name: A string indicating the expeirment name
+    :return: A tuple containing the split components.
+    """
+
+    if '.' not in name:
+        return (name, )
+
+    dot_ix = name.index('.')
+    root = name[:dot_ix]
+    ex = load_experiment(name)
+
+    unresolved_name = name
+    ancestory = []
+
+    while '.' in unresolved_name:
+
+        potential_parent = unresolved_name.rfind('.')
+        if potential_parent in
+
+    name_list = [root]
+
+    while '.' in name[dot_ix+1:]:
+
+        while '.' in name[next_dot_ix+1:]:
+            next_dot_ix = name[next_dot_ix+1:].index('.')
+
+            if name_list[dot_ix+1:next_dot_ix] in ex.get_variants():
+                name_list.append(name_list[dot_ix+1:next_dot_ix])
+                break
+
+        dot_ix = next_dot_ix
+
+    name_list.append(name[dot_ix+1:])
+
+    return tuple(name)
+
+
+def remove_common_results_prefix(results_dict):
+    """
+    Remove the common prefix for the results you are comparing.
+    :param results_dict:
+    :return:
+    """
+    assert isinstance(dict, OrderedDict), 'Expecting an OrderedDict of <experiment_name -> result>'
+
+    split_keys = [split_experiment_name(k) for k in results_dict.keys()]
+    trimmed_keys = remove_common_prefix(split_keys)
+    return OrderedDict((k, v) for k, v in izip_equal(trimmed_keys, results_dict.values()))
 
 
 if __name__ == '__main__':

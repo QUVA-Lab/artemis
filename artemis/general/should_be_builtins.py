@@ -279,7 +279,6 @@ def remove_common_prefix(list_of_lists, max_elements=None):
 
     count = 0
     while max(len(parts) for parts in list_of_lists)>1:
-
         if max_elements is not None and count >= max_elements:
             break
 
@@ -289,6 +288,13 @@ def remove_common_prefix(list_of_lists, max_elements=None):
             break
         count += 1
     return list_of_lists
+
+
+def remove_common_string_prefix(list_of_strings, separator = '', max_elements = None):
+
+    list_of_lists = [list(string) for string in list_of_strings] if separator=='' else [string.split(separator) for string in list_of_strings]
+    shortened_list_of_lists = remove_common_prefix(list_of_lists, max_elements=max_elements)
+    return [separator.join(strlist) for strlist in shortened_list_of_lists]
 
 
 def get_absolute_module(obj):

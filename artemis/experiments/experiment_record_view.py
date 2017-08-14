@@ -2,7 +2,8 @@ import re
 from collections import OrderedDict
 
 from artemis.experiments.experiment_management import load_lastest_experiment_results
-from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, ExpStatusOptions
+from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, ExpStatusOptions, \
+    load_experiment_record
 from artemis.experiments.experiments import is_experiment_loadable, GLOBAL_EXPERIMENT_LIBRARY
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, CaptureStdOut, \
     surround_with_header, section_with_header
@@ -115,6 +116,8 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
     :param array_print_threshold:
     :return: A string with no newlines briefly describing the result of the record.
     """
+    if isinstance(record, basestring):
+        record = load_experiment_record(record)
     if not is_experiment_loadable(record.get_experiment_id()):
         one_liner_function=str
     else:
@@ -140,6 +143,7 @@ def compare_experiment_results(experiments, error_if_no_result = False):
     comp_function = comp_functions[0]
     assert comp_function is not None, 'Cannot compare results, because you have not specified any comparison function for this experiment.  Use @ExperimentFunction(comparison_function = my_func)'
     results = load_lastest_experiment_results(experiments, error_if_no_result=error_if_no_result)
+    assert len(results), 'Experments {} had no saved results!'.format([e.get_id() for e in experiments])
     comp_function(results)
 
 

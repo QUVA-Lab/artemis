@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from artemis.remote.utils import one_time_send_to
 import sys
 import pickle

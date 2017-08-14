@@ -13,6 +13,8 @@ import uuid
 import os
 import pickle
 
+import StringIO
+
 from artemis.general.should_be_builtins import file_path_to_absolute_module
 from artemis.remote import remote_function_run_script
 from artemis.remote.plotting.utils import handle_socket_accepts
@@ -281,14 +283,20 @@ def listen_on_port(port=7000):
 
 
 class RemotePythonProcess(ChildProcess):
+    """
+    Launch a python child process.
+    """
 
     def __init__(self, function, ip_address, set_up_port_for_structured_back_communication=True, **kwargs):
         if ip_address=='localhost':
             ip_address="127.0.0.1"
 
-        pickled_function = pickle_dump_without_main_refs(function)
+        pickled_function = pickle_dumps_without_main_refs(function)
 
         remote_run_script_path = inspect.getfile(remote_function_run_script)
+        if remote_run_script_path.endswith('pyc'):
+            remote_run_script_path = remote_run_script_path[:-1]
+
         self.return_value_queue, return_port = listen_on_port(7000)
         all_local_ips = get_local_ips()
         return_address = "127.0.0.1" if ip_address in all_local_ips else all_local_ips[-1]
@@ -302,7 +310,7 @@ class RemotePythonProcess(ChildProcess):
         return out
 
 
-def pickle_dump_without_main_refs(obj):
+def pickle_dumps_without_main_refs(obj):
     """
     Yeah this is horrible, but it allows you to pickle an object in the main module so that it can be reloaded in another
     module.
@@ -312,5 +320,10 @@ def pickle_dump_without_main_refs(obj):
     currently_run_file = sys.argv[0]
     module_path = file_path_to_absolute_module(currently_run_file)
     pickle_str = pickle.dumps(obj, protocol=0)
-    pickle_str = pickle_str.replace('__main__', module_path)
+    pickle_str = pickle_str.replace('__main__', module_path)  # Hack!
     return pickle_str
+
+
+def pickle_dump_without_main_refs(obj, file_obj):
+    string = pickle_dumps_without_main_refs(obj)
+    file_obj.write(string)
