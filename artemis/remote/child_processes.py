@@ -300,7 +300,7 @@ class RemotePythonProcess(ChildProcess):
         self.return_value_queue, return_port = listen_on_port(7000)
         all_local_ips = get_local_ips()
         return_address = "127.0.0.1" if ip_address in all_local_ips else all_local_ips[-1]
-        command = ['python', '-u', remote_run_script_path, pickled_function, return_address, str(return_port)]
+        command = [sys.executable, '-u', remote_run_script_path, pickled_function, return_address, str(return_port)]
         super(RemotePythonProcess, self).__init__(ip_address=ip_address, command=command, set_up_port_for_structured_back_communication=set_up_port_for_structured_back_communication,  **kwargs)
 
     def get_return_value(self, timeout=1):
