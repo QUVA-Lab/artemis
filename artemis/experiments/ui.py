@@ -307,12 +307,15 @@ experiment records.  You can specify records in the following ways:
         else:
             _warn_with_prompt(use_prompt=not self.close_after)
 
-    def display(self, user_range = 'all'):
+    def display(self, user_range = 'all', skip_if_single = True):
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        with IndentPrint("Results:", show_line=True, show_end=True):
-            for record in records:
-                with IndentPrint(record.get_id(), show_line=True, show_end=True):
-                    display_experiment_record(record)
+        if len(records)==1 and skip_if_single:
+            display_experiment_record(records[0])
+        else:
+            with IndentPrint("Results:", show_line=True, show_end=True):
+                for record in records:
+                    with IndentPrint(record.get_id(), show_line=True, show_end=True):
+                        display_experiment_record(record)
 
         _warn_with_prompt(use_prompt=not self.close_after)
 
