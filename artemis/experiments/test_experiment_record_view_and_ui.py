@@ -1,13 +1,11 @@
 import pytest
-from asn1crypto._ordereddict import OrderedDict
-
+from collections import OrderedDict
 from artemis.experiments.decorators import ExperimentFunction, experiment_function
 from artemis.experiments.experiment_record_view import display_experiment_record, compare_experiment_results, \
     get_oneline_result_string, print_experiment_record_argtable, show_experiment_records, get_record_invalid_arg_string
 from artemis.experiments.experiment_management import split_experiment_name
 from artemis.experiments.experiments import experiment_testing_context, clear_all_experiments
 from artemis.general.display import CaptureStdOut, assert_things_are_printed
-from artemis.general.should_be_builtins import remove_common_prefix, izip_equal
 
 
 def display_it(result):
@@ -182,29 +180,9 @@ def test_simple_experiment_show():
             show_experiment_records(rec)
 
 
-def test_split_experiment_name():
-
-    with experiment_testing_context(new_experiment_lib=True):
-
-        @experiment_function
-        def aaa(a=1):
-
-            print 'xxxxx'
-            print 'yyyyy'
-            return a+2
-
-        ex = aaa.add_variant('bbb', a=2)
-        ex = ex.add_variant(a=0.3)
-        ex=ex.add_variant('ccc', a=0.4)
-
-        assert ex.get_id() == 'aaa.bbb.a=0.3.ccc'
-        assert split_experiment_name('aaa.bbb.a=0.3.ccc') == ('aaa', 'bbb', 'a=0.3', 'ccc')
-
-
 if __name__ == '__main__':
-    # test_experiments_function_additions()
-    # test_experiment_function_ui()
-    # test_invalid_arg_text()
-    # test_invalid_arg_text_when_object_arg()
-    # test_simple_experiment_show()
-    test_split_experiment_name()
+    test_experiments_function_additions()
+    test_experiment_function_ui()
+    test_invalid_arg_text()
+    test_invalid_arg_text_when_object_arg()
+    test_simple_experiment_show()

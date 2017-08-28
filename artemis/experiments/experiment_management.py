@@ -314,10 +314,9 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, rais
 def remove_common_results_prefix(results_dict):
     """
     Remove the common prefix for the results you are comparing.
-    :param results_dict: An OerderedDict of experiment Results
-    :return: A new ordereddict with the prefixes removed
+    :param results_dict:
+    :return:
     """
-    # TODO: Fix this so that we don't just split on ".", (which isn't necessarily a separator), but actually splits on experiments.
     assert isinstance(dict, OrderedDict), 'Expecting an OrderedDict of <experiment_name -> result>'
 
     split_keys = [k.split('.') for k in results_dict.keys()]
