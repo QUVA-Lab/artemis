@@ -8,7 +8,8 @@ from artemis.experiments.experiment_record import get_all_record_ids, clear_expe
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
     display_experiment_record
-from artemis.experiments.experiments import GLOBAL_EXPERIMENT_LIBRARY, load_experiment, is_experiment_loadable
+from artemis.experiments.experiments import load_experiment, is_experiment_loadable, \
+    get_global_experiment_library
 from artemis.fileman.disk_memoize import memoize_to_disk, memoize_to_disk_with_settings
 from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.mymath import levenshtein_distance
@@ -139,7 +140,7 @@ experiment records.  You can specify records in the following ways:
         self.truncate_result_to = truncate_result_to
 
     def reload_record_dict(self):
-        names = GLOBAL_EXPERIMENT_LIBRARY.keys()
+        names = get_global_experiment_library().keys()
         if self.root_experiment is not None:
             # We could just go [ex.name for ex in self.root_experiment.get_all_variants(include_self=True)]
             # but we want to preserve the order in which experiments were created
