@@ -13,8 +13,6 @@ _LOGGER.setLevel(logging.INFO)
 def debug_section(name):
     parent_frame = inspect.currentframe().f_back.f_back
     parent_loc = parent_frame.f_code.co_filename
-    # _LOGGER.info('Launching {name} @ <a href="{loc}">{loc}:{line}</a>'.format(name=name, loc=parent_loc, line=parent_frame.f_lineno))
-    # _LOGGER.info('Launching {name} @ {loc}:{line}'.format(name=name, loc=parent_loc, line=parent_frame.f_lineno))
     _LOGGER.info('Launching {name} @ File "{loc}", line {line}'.format(name=name, loc=parent_loc, line=parent_frame.f_lineno))
     start_time = time.time()
     with IndentPrint():

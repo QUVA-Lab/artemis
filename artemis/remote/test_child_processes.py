@@ -129,8 +129,6 @@ def my_func(a, b):
 
 def test_remote_python_process():
 
-    # from artemis.remote.test_child_processes import my_func  # Need it referenced by absolute path to pickle it.
-
     in_debug_mode = sys.gettrace() is not None
 
     p = RemotePythonProcess(
