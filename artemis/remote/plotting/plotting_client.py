@@ -87,13 +87,15 @@ def set_up_plotting_server():
     file_to_execute = os.path.join(os.path.dirname(__file__), 'plotting_server.py')
     file_to_execute = file_to_execute.replace(os.path.expanduser("~"),"~",1)
     plotting_server_address = get_plotting_server_address()
-    if plotting_server_address not in get_local_ips():
+    if plotting_server_address == "":
+        plotting_server_address = "127.0.0.1"
+    if plotting_server_address in get_local_ips():
+        command = ["python", "-u", file_to_execute]
+    else:
         check_config_file(plotting_server_address) # Make sure all things are set
         check_ssh_connection(plotting_server_address) # Make sure the SSH-connection works
         command =["export DISPLAY=:0.0;", "python","-u", file_to_execute]
         # TODO: Setting DISPLAY to :0.0 is a heuristic at the moment. I don't understand yet how these DISPLAY variables are set.
-    else:
-        command =["python","-u", file_to_execute]
 
     # With the command set up, we can instantiate a child process and start it. Also we want to forward stdout and stderr from the remote process asynchronously.
     global _nanny

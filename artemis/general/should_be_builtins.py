@@ -329,3 +329,7 @@ def file_path_to_absolute_module(file_path):
             break
     path = '.'.join(module_path[::-1])
     return path
+
+
+def assert_option(choice, possiblilties):
+    assert choice in possiblilties, '"{}" was not in the list of possible choices: {}'.format(choice, possiblilties)

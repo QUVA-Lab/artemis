@@ -155,7 +155,7 @@ class Nanny(object):
         '''
         for cp in self.managed_child_processes.values():
             cp.kill()
-        # time.sleep(3.0)
+        time.sleep(1.0)
         for cp in self.managed_child_processes.values():
             if cp.is_alive():
                 print("Child Process %s at %s still alive, force terminating now"% (cp.name, cp.get_ip()))
