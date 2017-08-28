@@ -122,7 +122,8 @@ experiment records.  You can specify records in the following ways:
 """
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
-            view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100):
+            view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
+            cache_result_string = True):
 
         if run_args is None:
             run_args = {}
@@ -138,6 +139,7 @@ experiment records.  You can specify records in the following ways:
         self._filter = None
         self.run_args = {} if run_args is None else run_args
         self.truncate_result_to = truncate_result_to
+        self.cache_result_string = cache_result_string
 
     def reload_record_dict(self):
         names = get_global_experiment_library().keys()
@@ -184,7 +186,9 @@ experiment records.  You can specify records in the following ways:
             print "==================== Experiments ===================="
             self.exp_record_dict = all_experiments if self._filter is None else \
                 OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
-            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, truncate_result_to=self.truncate_result_to)
+            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record,
+                view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, truncate_result_to=self.truncate_result_to,
+                cache_result_string = self.cache_result_string)
             if self._filter is not None:
                 print '[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments))
             print '-----------------------------------------------------'
@@ -231,7 +235,7 @@ experiment records.  You can specify records in the following ways:
                         raise
 
     @staticmethod
-    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False, truncate_result_to=100):
+    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False, truncate_result_to=100, cache_result_string = True):
 
         headers = {
             'full': ['E#', 'R#', 'Name', 'Last Run' if just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result'],
@@ -239,6 +243,9 @@ experiment records.  You can specify records in the following ways:
             }[view_mode]
 
         rows = []
+
+        if cache_result_string:
+            get_oneline_result_string = memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string)
 
         def get_field(header):
             try:
@@ -251,7 +258,7 @@ experiment records.  You can specify records in the following ways:
                     experiment_record.info.get_field_text(ExpInfoFields.RUNTIME) if header=='Duration' else \
                     experiment_record.info.get_field_text(ExpInfoFields.STATUS) if header=='Status' else \
                     get_record_invalid_arg_string(experiment_record) if header=='Valid' else \
-                    memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string)(experiment_record.get_id(), truncate_to=truncate_result_to) if header=='Result' else \
+                    get_oneline_result_string(experiment_record.get_id(), truncate_to=truncate_result_to) if header=='Result' else \
                     '???'
             except:
                 if raise_display_errors:
