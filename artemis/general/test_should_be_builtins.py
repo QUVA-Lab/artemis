@@ -54,7 +54,6 @@ def test_all_equal():
 def test_get_absolute_module():
 
     assert get_absolute_module(test_get_absolute_module) == 'artemis.general.test_should_be_builtins'
-    print get_absolute_module(1)
 
 
 if __name__ == '__main__':
