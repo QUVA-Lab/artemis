@@ -33,5 +33,5 @@ def get_remote_machine_info(machine_name):
     if len(machines)==0:
         raise Exception('No machines are specified!, You can add machines to ~/.artemisrc, as \n{}'.format(EXAMPLE_MACHINE))
     if machine_name not in machines:
-        raise Exception("Could not file '{}' in the list of machines: {}.  You can add it to ~/.artemisrc".format(machine_name, machines.keys()))
+        raise Exception("Could not find '{}' in the list of machines: {}.  You can add it to ~/.artemisrc".format(machine_name, machines.keys()))
     return machines[machine_name]

@@ -46,7 +46,6 @@ def get_config_value(config_filename, section, option, default_generator=None, w
     if write_default:
         assert default_generator is not None, "If you set write_default true, you must provide a function that can generate the default."
 
-
     if not os.path.exists(config_path):
         assert default_generator is not None, 'No config file "%s" exists, and you do not have any default value.' % (config_path, )
         value = default_generator()
@@ -100,7 +99,8 @@ def _get_config_object(config_path, use_cashed_config=True):
 
 
 def get_config_sections(config_filename):
-    sections = _get_config_object(config_filename).sections()
+    config_path = get_config_path(config_filename)
+    sections = _get_config_object(config_path).sections()
     return sections
 
 
