@@ -10,7 +10,7 @@ class CallStatus(object):
         self.start_time = time.time()
         self.call_count = 0
         self.print_time = print_time
-        self.last_print_time = -float('inf')
+        self.last_print_time = self.start_time
 
     def update(self):
         current_time = time.time()
@@ -22,6 +22,15 @@ class CallStatus(object):
 
 
 def report_call_timing(name, print_time=2):
+    """
+    Print a periodic report of the number of times this function is called per second.
+
+    This can be useful when trying to assess frequently a loop is running in your code.
+
+    :param name: A "name" for this timer - a unique name which identifies what you're trying to time.
+    :param print_time: How often (in seconds) you'd like to print an update.
+    :return:
+    """
 
     if name not in _call_counts:
         _call_counts[name] = CallStatus(name, print_time=print_time)
