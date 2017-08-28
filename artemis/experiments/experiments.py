@@ -311,7 +311,7 @@ class Experiment(object):
                 return exp_record_dict
 
 
-GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()
+_GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()
 
 
 class ExperimentNotFoundError(Exception):
@@ -320,7 +320,7 @@ class ExperimentNotFoundError(Exception):
 
 
 def clear_all_experiments():
-    GLOBAL_EXPERIMENT_LIBRARY.clear()
+    _GLOBAL_EXPERIMENT_LIBRARY.clear()
 
 
 @contextmanager
@@ -344,16 +344,16 @@ def capture_created_experiments():
 
     :rtype: Generator[:class:`Experiment`]
     """
-    current_len = len(GLOBAL_EXPERIMENT_LIBRARY)
+    current_len = len(_GLOBAL_EXPERIMENT_LIBRARY)
     new_experiments = []
     yield new_experiments
-    for ex in GLOBAL_EXPERIMENT_LIBRARY.values()[current_len:]:
+    for ex in _GLOBAL_EXPERIMENT_LIBRARY.values()[current_len:]:
         new_experiments.append(ex)
 
 
 def _register_experiment(experiment):
-    assert experiment.name not in GLOBAL_EXPERIMENT_LIBRARY, 'You have already registered an experiment named {} in {}'.format(experiment.name, inspect.getmodule(experiment.get_root_function()).__name__)
-    GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
+    assert experiment.name not in _GLOBAL_EXPERIMENT_LIBRARY, 'You have already registered an experiment named {} in {}'.format(experiment.name, inspect.getmodule(experiment.get_root_function()).__name__)
+    _GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
 def get_experiment_info(name):
@@ -363,14 +363,14 @@ def get_experiment_info(name):
 
 def load_experiment(experiment_id):
     try:
-        return GLOBAL_EXPERIMENT_LIBRARY[experiment_id]
+        return _GLOBAL_EXPERIMENT_LIBRARY[experiment_id]
     except KeyError:
         raise ExperimentNotFoundError(experiment_id)
 
 
 def is_experiment_loadable(experiment_id):
     assert isinstance(experiment_id, basestring), 'Expected a string for experiment_id, not {}'.format(experiment_id)
-    return experiment_id in GLOBAL_EXPERIMENT_LIBRARY
+    return experiment_id in _GLOBAL_EXPERIMENT_LIBRARY
 
 
 def _kwargs_to_experiment_name(kwargs):
@@ -382,11 +382,15 @@ def hold_global_experiment_libary(new_lib = None):
     if new_lib is None:
         new_lib = {}
 
-    global GLOBAL_EXPERIMENT_LIBRARY
-    oldlib = GLOBAL_EXPERIMENT_LIBRARY
-    GLOBAL_EXPERIMENT_LIBRARY = new_lib
-    yield GLOBAL_EXPERIMENT_LIBRARY
-    GLOBAL_EXPERIMENT_LIBRARY = oldlib
+    global _GLOBAL_EXPERIMENT_LIBRARY
+    oldlib = _GLOBAL_EXPERIMENT_LIBRARY
+    _GLOBAL_EXPERIMENT_LIBRARY = new_lib
+    yield _GLOBAL_EXPERIMENT_LIBRARY
+    _GLOBAL_EXPERIMENT_LIBRARY = oldlib
+
+
+def get_global_experiment_library():
+    return _GLOBAL_EXPERIMENT_LIBRARY
 
 
 keep_record_by_default = None
@@ -417,5 +421,4 @@ def experiment_testing_context(close_figures_at_end = True, new_experiment_lib =
         new_ids = set(get_all_record_ids()).difference(ids)
         clear_experiment_records(list(new_ids))
 
-    atexit.register(
-        clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally
+    atexit.register(clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally

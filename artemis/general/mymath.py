@@ -309,6 +309,9 @@ def fixed_diff(x, axis=-1, initial_value = 0.):
     :param initial_value: The initial value agains which to diff the first element along the axis.
     :return: An array of the same shape, representing the difference in x along the axis.
     """
+
+    x = np.array(x, copy=False)
+
     if axis<0:
         axis = x.ndim+axis
 
@@ -418,3 +421,26 @@ def conv2_fanout_map(input_shape, kernel_shape, conv_mode):
     x_fanout = conv_fanout(input_len = size_x, kernel_len=k_size_x, conv_mode=conv_mode)
     fanout_map = y_fanout[:, None] * x_fanout
     return fanout_map
+
+
+def levenshtein_distance(s1, s2):
+    """
+    The Levenshtein Distance (a type of edit distance) between strings
+
+    Thank you to Salvador Dali here: https://stackoverflow.com/a/32558749/851699
+    :param s1: A string
+    :param s2: Another String
+    :return: An integer distance.
+    """
+    if len(s1) > len(s2):
+        s1, s2 = s2, s1
+    distances = range(len(s1) + 1)
+    for i2, c2 in enumerate(s2):
+        distances_ = [i2+1]
+        for i1, c1 in enumerate(s1):
+            if c1 == c2:
+                distances_.append(distances[i1])
+            else:
+                distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
+        distances = distances_
+    return distances[-1]

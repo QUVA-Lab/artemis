@@ -23,6 +23,25 @@ def get_partial_chain(f):
     return get_partial_chain(f.func) + [f] if isinstance(f, partial) else [f]
 
 
+def infer_function_and_derived_arg_values(f):
+    """
+    Given a function f, which may be a partial version of some other function, going down to some root, standard python
+    function, get the full set of arguments that this final function will end up being called with.  This function will
+    raise an AssertionError if not arguments are defined by the partial chain.
+
+    :param f: A function, or partial function
+    :return: root_func, kwargs     ... where:
+        root_func is the root function.
+        kwargs is An OrderedDict(arg_name->arg_value)
+    """
+    partial_chain = get_partial_chain(f)
+    root, partials = partial_chain[0], partial_chain[1:]
+    assert all(len(pf.args)==0 for pf in partials), "We don't handle unnamed arguments for now.  Add this functionality if necessary"
+    overrides = dict((argname, argval) for pf in partials for argname, argval in pf.keywords.iteritems())  # Note that later updates on the same args go into the dict
+    full_arg_list = infer_arg_values(root, **overrides)
+    return root, full_arg_list
+
+
 def infer_derived_arg_values(f):
     """
     Given a function f, which may be a partial version of some other function, going down to some root, standard python
@@ -40,11 +59,7 @@ def infer_derived_arg_values(f):
     :param f: A function, or partial function
     :return: An OrderedDict(arg_name->arg_value)
     """
-    partial_chain = get_partial_chain(f)
-    root, partials = partial_chain[0], partial_chain[1:]
-    assert all(len(pf.args)==0 for pf in partials), "We don't handle unnamed arguments for now.  Add this functionality if necessary"
-    overrides = dict((argname, argval) for pf in partials for argname, argval in pf.keywords.iteritems())  # Note that later updates on the same args go into the dict
-    full_arg_list = infer_arg_values(root, **overrides)
+    _, full_arg_list = infer_function_and_derived_arg_values(f)
     return full_arg_list
 
 

@@ -174,6 +174,7 @@ def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True
     if clip_y:
         set_same_ylims(new_subplots)
 
+    assert len(new_subplots)>0, "No new plots have been created in this block... Why did you create the block at all?"
     if show_y in (True, 'once'):
         new_subplots[0].tick_params(axis='y', labelleft='on')
     new_subplots[0].set_ylabel(ylabel)
@@ -197,6 +198,7 @@ def vstack_plots(spacing=0, sharex=True, sharey = False, show_x = 'once', show_y
     if clip_y:
         set_same_ylims(new_subplots)
 
+    assert len(new_subplots)>0, "No new plots have been created in this block... Why did you create the block at all?"
     if show_x in (True, 'once'):
         new_subplots[-1].tick_params(axis='x', labelbottom='on')
     new_subplots[-1].set_xlabel(xlabel)

@@ -5,9 +5,10 @@ import time
 import os
 
 from artemis.config import get_artemis_config_value
-from artemis.remote.child_processes import PythonChildProcess
+from artemis.remote.child_processes import PythonChildProcess, RemotePythonProcess
 from artemis.remote.remote_execution import ParamikoPrintThread, execute_command
 from artemis.remote.utils import get_local_ips, get_remote_artemis_path
+from functools import partial
 
 ip_addresses = [get_artemis_config_value(section="tests", option="remote_server",default_generator=lambda: "127.0.0.1")]
 # ip_addresses=["127.0.0.1"]
@@ -105,9 +106,46 @@ def test_remote_graphics():
         # Do not call decons
         # cp.deconstruct(signum=signal.SIGINT)
 
+def remote_test_func(a, b):
+    print 'a+b={}'.format(a+b)
+    return a+b
 
 
+def test_remote_child_function():
 
+    for ip_address in ip_addresses:
+        pyc = PythonChildProcess(ip_address=ip_address,command=partial(remote_test_func, a=1, b=2))
+        (stdin, stdout, stderr) = pyc.execute_child_process()
+        stderr_out =stderr.readlines()
+        stderr_out = [line.strip() for line in stderr_out if "pydev debugger" not in line]
+        stdout_out = stdout.readlines()
+
+
+def my_func(a, b):
+    print 'hello hello hello'
+    time.sleep(0.01)
+    return a+b
+
+
+def test_remote_python_process():
+
+    in_debug_mode = sys.gettrace() is not None
+
+    p = RemotePythonProcess(
+        function=partial(my_func, a=1, b=2),
+        ip_address='localhost',
+        )
+
+    stdin , stdout, stderr = p.execute_child_process()
+    time.sleep(.1)  # That autta be enough
+
+    errtext = stderr.read()
+    if in_debug_mode:
+        assert errtext.startswith('pydev debugger: ')
+    else:
+        assert errtext == '', errtext
+    assert stdout.read() == 'hello hello hello\n'
+    assert p.get_return_value()==3
 
 
 if __name__ == "__main__":
@@ -117,4 +155,6 @@ if __name__ == "__main__":
     test_kill_process_gently()
     test_kill_process_strongly()
     test_remote_graphics()
+    test_remote_child_function()
+    test_remote_python_process()
     print("Tests finished")

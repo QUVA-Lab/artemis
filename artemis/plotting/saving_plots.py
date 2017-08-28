@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 import pickle
-from artemis.fileman.local_dir import make_file_dir, format_filename, get_local_path
+from artemis.fileman.local_dir import make_file_dir, format_filename, get_artemis_data_path
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.manage_plotting import ShowContext
 import os
@@ -67,7 +67,7 @@ def show_saved_figure(relative_loc, title=None):
     fig_path, ext = os.path.splitext(relative_loc)
     if title is None:
         _, title = os.path.split(fig_path)
-    abs_loc = get_local_path(relative_loc)
+    abs_loc = get_artemis_data_path(relative_loc)
     assert os.path.exists(abs_loc), '"%s" did not exist.  That is odd.' % (abs_loc, )
     if ext in ('.jpg', '.png', '.tif'):
         try:

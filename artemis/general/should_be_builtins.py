@@ -1,6 +1,8 @@
-from collections import OrderedDict, Counter
+import inspect
+from collections import OrderedDict
 import itertools
-import contextlib
+
+import os
 
 __author__ = 'peter'
 
@@ -277,7 +279,6 @@ def remove_common_prefix(list_of_lists, max_elements=None):
 
     count = 0
     while max(len(parts) for parts in list_of_lists)>1:
-
         if max_elements is not None and count >= max_elements:
             break
 
@@ -287,6 +288,47 @@ def remove_common_prefix(list_of_lists, max_elements=None):
             break
         count += 1
     return list_of_lists
+
+
+def remove_common_string_prefix(list_of_strings, separator = '', max_elements = None):
+
+    list_of_lists = [list(string) for string in list_of_strings] if separator=='' else [string.split(separator) for string in list_of_strings]
+    shortened_list_of_lists = remove_common_prefix(list_of_lists, max_elements=max_elements)
+    return [separator.join(strlist) for strlist in shortened_list_of_lists]
+
+
+def get_absolute_module(obj):
+    """
+    Get the abolulte path to the module for the given object.
+
+        e.g. assert get_absolute_module(get_absolute_module) == 'artemis.general.should_be_builtins'
+
+    :param obj: A python module, class, method, function, traceback, frame, or code object
+    :return: A string representing the import path.
+    """
+    file_path = inspect.getfile(obj)
+    return file_path_to_absolute_module(file_path)
+
+
+def file_path_to_absolute_module(file_path):
+    """
+    Given a file path, return an import path.
+    :param file_path: A file path.
+    :return:
+    """
+    assert os.path.exists(file_path)
+    file_loc, ext = os.path.splitext(file_path)
+    assert ext in ('.py', '.pyc')
+    directory, module = os.path.split(file_loc)
+    module_path = [module]
+    while True:
+        if os.path.exists(os.path.join(directory, '__init__.py')):
+            directory, package = os.path.split(directory)
+            module_path.append(package)
+        else:
+            break
+    path = '.'.join(module_path[::-1])
+    return path
 
 
 def assert_option(choice, possiblilties):

@@ -4,7 +4,7 @@ import thread
 import SimpleHTTPServer
 import SocketServer
 
-from artemis.fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.plotting.manage_plotting import set_show_callback, set_draw_callback
 import os
 from matplotlib import pyplot as plt
@@ -31,7 +31,7 @@ def _make_plot_html(plot_directory, update_period=1.):
 
     raw_html = html_template.replace('{update_period}', '%s' % update_period)
 
-    # dest = get_local_path(os.path.join(plot_directory, 'index.html'), make_local_dir=True)
+    # dest = get_artemis_data_path(os.path.join(plot_directory, 'index.html'), make_local_dir=True)
     dest = os.path.join(plot_directory, 'index.html')
     with open(dest, 'w') as f:
         f.write(raw_html)
@@ -88,7 +88,7 @@ class TimedFigureSaver(object):
 
 
 def setup_web_plotting(update_period = 1.):
-    plot_directory = get_local_path(relative_path="tmp/web_backend/%s/" % (str(uuid.uuid4()),),make_local_dir=True)  # Temporary directory
+    plot_directory = get_artemis_data_path(relative_path="tmp/web_backend/%s/" % (str(uuid.uuid4()),), make_local_dir=True)  # Temporary directory
     atexit.register(clean_up,plot_dir=plot_directory)
     _start_plotting_server(plot_directory=plot_directory, update_period=update_period)
     set_draw_callback(TimedFigureSaver(os.path.join(plot_directory, 'artemis_figure.png'), update_period=update_period))

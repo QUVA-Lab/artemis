@@ -16,10 +16,15 @@ ARTEMIS_LOGGER = logging.getLogger('artemis')
 def one_time_send_to(address, port, message):
     '''
     Send message to given address at port. This method is not intended to be used repeatedly at the same port as it does not maintain a socket connection
-    :param port:
-    :param message: A
-    :return:
+
+    :param address: A string IP address to send to.
+    :param port: An integer port number, or a string which can be mapped to an integeer
+    :param message: A string to send
     '''
+
+    if isinstance(port, basestring):
+        port = int(port)
+
     server_address = (address, port)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -28,6 +33,7 @@ def one_time_send_to(address, port, message):
         raise
 
     send_size(sock,message)
+
 
 def get_socket(address,port):
     '''

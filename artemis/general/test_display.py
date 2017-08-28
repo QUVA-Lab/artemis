@@ -1,7 +1,7 @@
 import textwrap
 
 from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper, deepstr, \
-    surround_with_header
+    str_with_arrayopts, surround_with_header
 import numpy as np
 
 _desired = """
@@ -94,6 +94,16 @@ def test_deepstr():
     # For now, no assertions, because string contains IDS which will always change.  We can come up with some way to do this later with regular experessions if needed.
 
 
+def test_str_with_arrayopts():
+
+    a = np.arange(1, 6, 1./3)
+    assert str_with_arrayopts(a, float_format='.3g', threshold=None) == '[1 1.33 1.67 2 2.33 2.67 3 3.33 3.67 4 4.33 4.67 5 5.33 5.67]'
+    assert str_with_arrayopts(a, float_format='.3g', threshold=5) == '[1 1.33 1.67 ..., 5 5.33 5.67]'  # Yeah there's a minimum of 3 on each end.
+
+    b = a.reshape(3, 5)
+    assert str_with_arrayopts(b, float_format='.3g', threshold=5) == '[[1 1.33 1.67 2 2.33]\n [2.67 3 3.33 3.67 4]\n [4.33 4.67 5 5.33 5.67]]'
+
+
 def test_surround_with_header():
 
     a = surround_with_header('abcd', width=40)
@@ -127,5 +137,6 @@ if __name__ == '__main__':
     test_side_by_side()
     test_document_wrapper()
     test_deepstr()
+    test_str_with_arrayopts()
     test_surround_with_header()
     test_nested_capture()

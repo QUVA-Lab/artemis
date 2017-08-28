@@ -2,7 +2,7 @@ from collections import OrderedDict
 from functools import partial
 
 from artemis.experiments.experiment_record import record_experiment
-from artemis.experiments.experiments import Experiment, GLOBAL_EXPERIMENT_LIBRARY
+from artemis.experiments.experiments import Experiment, get_global_experiment_library
 
 
 # ALTERNATE INTERFACES.
@@ -32,9 +32,9 @@ def register_experiment(name, function, description = None, conclusion = None, v
         assert current_version is not None
         function = partial(function, **versions[current_version])
 
-    assert name not in GLOBAL_EXPERIMENT_LIBRARY, 'An experiment with name "%s" has already been registered!' % (name, )
+    assert name not in get_global_experiment_library(), 'An experiment with name "%s" has already been registered!' % (name, )
     experiment = Experiment(name = name, function=function, info=info, **kwargs)
-    GLOBAL_EXPERIMENT_LIBRARY[name] = experiment
+    get_global_experiment_library()[name] = experiment
     return experiment
 
 
@@ -64,16 +64,16 @@ class _ExpLibClass(object):
         assert isinstance(experiment, Experiment), "Your experiment must be an experiment!"
         if experiment.name is None:
             experiment.name = experiment_name
-        assert experiment_name not in GLOBAL_EXPERIMENT_LIBRARY, "Experiment %s is already in the library" % (experiment_name, )
+        assert experiment_name not in get_global_experiment_library(), "Experiment %s is already in the library" % (experiment_name, )
         self.__dict__[experiment_name] = experiment
-        GLOBAL_EXPERIMENT_LIBRARY[experiment_name] = experiment
+        get_global_experiment_library()[experiment_name] = experiment
 
     def get_experiments(self):
-        return GLOBAL_EXPERIMENT_LIBRARY
+        return get_global_experiment_library()
 
     def __getattr__(self, name):
-        if name in GLOBAL_EXPERIMENT_LIBRARY:
-            return GLOBAL_EXPERIMENT_LIBRARY[name]
+        if name in get_global_experiment_library():
+            return get_global_experiment_library()[name]
         else:
             return _ExperimentConstructor(name)
 
@@ -84,7 +84,7 @@ class _ExperimentConstructor(object):
         self.name = name
 
     def __call__(self, **kwargs):
-        if self.name in GLOBAL_EXPERIMENT_LIBRARY:
+        if self.name in get_global_experiment_library():
             raise Exception("You tried to run create experiment '%s', but it already exists in the library.  Give it another name!" % (self.name, ))
         return register_experiment(name = self.name, **kwargs)
 

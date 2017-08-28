@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 from artemis.fileman.file_getter import get_temp_file, get_file_and_cache
 from artemis.fileman.images2gif import readGif
-from artemis.fileman.local_dir import get_local_path, make_file_dir
+from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.image_ops import get_dark_edge_slice, resize_image
 
 
@@ -163,7 +163,7 @@ def smart_file(location, use_cache = False, make_dir = False):
         else:
             local_path = get_temp_file(location)
     else:
-        local_path = get_local_path(location)
+        local_path = get_artemis_data_path(location)
         if make_dir:
             make_file_dir(local_path)
 

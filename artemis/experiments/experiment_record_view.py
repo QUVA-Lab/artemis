@@ -1,15 +1,17 @@
 import re
 from collections import OrderedDict
 
+from tabulate import tabulate
+
 from artemis.experiments.experiment_management import load_lastest_experiment_results
-from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, ExpStatusOptions
-from artemis.experiments.experiments import is_experiment_loadable, GLOBAL_EXPERIMENT_LIBRARY
+from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, \
+    load_experiment_record
+from artemis.experiments.experiments import is_experiment_loadable, get_global_experiment_library
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, CaptureStdOut, \
     surround_with_header, section_with_header
 from artemis.general.nested_structures import flatten_struct
 from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value, izip_equal
 from artemis.general.tables import build_table
-from tabulate import tabulate
 
 
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False):
@@ -115,6 +117,8 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
     :param array_print_threshold:
     :return: A string with no newlines briefly describing the result of the record.
     """
+    if isinstance(record, basestring):
+        record = load_experiment_record(record)
     if not is_experiment_loadable(record.get_experiment_id()):
         one_liner_function=str
     else:
@@ -140,6 +144,7 @@ def compare_experiment_results(experiments, error_if_no_result = False):
     comp_function = comp_functions[0]
     assert comp_function is not None, 'Cannot compare results, because you have not specified any comparison function for this experiment.  Use @ExperimentFunction(comparison_function = my_func)'
     results = load_lastest_experiment_results(experiments, error_if_no_result=error_if_no_result)
+    assert len(results), 'Experments {} had no saved results!'.format([e.get_id() for e in experiments])
     comp_function(results)
 
 
@@ -235,10 +240,10 @@ def find_experiment(*search_terms):
     :param search_term: A term that will be used to search for an experiment.
     :return:
     """
-
-    found_experiments = OrderedDict((name, ex) for name, ex in GLOBAL_EXPERIMENT_LIBRARY.iteritems() if all(re.search(term, name) for term in search_terms))
+    global_lib = get_global_experiment_library()
+    found_experiments = OrderedDict((name, ex) for name, ex in global_lib.iteritems() if all(re.search(term, name) for term in search_terms))
     if len(found_experiments)==0:
-        raise Exception("None of the {} experiments matched the search: '{}'".format(len(GLOBAL_EXPERIMENT_LIBRARY), search_terms))
+        raise Exception("None of the {} experiments matched the search: '{}'".format(len(global_lib), search_terms))
     elif len(found_experiments)>1:
         raise Exception("More than one experiment matched the search '{}', you need to be more specific.  Found: {}".format(search_terms, found_experiments.keys()))
     else:

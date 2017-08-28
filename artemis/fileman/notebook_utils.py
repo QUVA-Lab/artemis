@@ -1,6 +1,6 @@
 from datetime import datetime
 import sys
-from artemis.fileman.local_dir import get_local_path, get_relative_path
+from artemis.fileman.local_dir import get_artemis_data_path, get_relative_path
 import os
 
 __author__ = 'peter'
@@ -48,9 +48,9 @@ def get_relative_link_from_relative_path(relative_path):
     :param relative_path: Relative path (from within Data folder)
     :return: A string representing the relative link to get to that file.
     """
-    true_local_data_dir = get_local_path()
+    true_local_data_dir = get_artemis_data_path()
 
-    local_path = get_local_path(relative_path)
+    local_path = get_artemis_data_path(relative_path)
     launcher = 'tree' if os.path.isdir(local_path) else 'files'
 
     if not os.path.lexists(SERVER_RELATIVE_DATA_DIR):
