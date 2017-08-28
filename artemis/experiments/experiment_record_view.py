@@ -184,8 +184,7 @@ def print_experiment_record_argtable(records):
     print tabulate(rows)
 
 
-def show_experiment_records(records, parallel_text=None, hang_notice = None, show_logs=True, truncate_logs=None,
-        truncate_result=10000, header_width=100, show_result ='deep', hang=True):
+def show_experiment_records(records, parallel_text=None, hang_notice = None, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
     """
     Show the console logs, figures, and results of a collection of experiments.
 

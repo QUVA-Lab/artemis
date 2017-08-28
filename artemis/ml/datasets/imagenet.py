@@ -1,3 +1,4 @@
+import json
 from itertools import izip
 from artemis.fileman.file_getter import get_file, unzip_gz
 from artemis.fileman.smart_io import smart_load
@@ -38,6 +39,15 @@ def get_imagenet_images(indices):
     files = [get_file('data/imagenet/%s%s' % (code_url_pairs[index][0], os.path.splitext(code_url_pairs[index][1])[1]), code_url_pairs[index][1]) for index in indices]
     return [smart_load(f) for f in files]
 
+
+def get_imagenet_label_names():
+
+    url = 'https://gist.githubusercontent.com/yrevar/942d3a0ac09ec9e5eb3a/raw/596b27d23537e5a1b5751d2b0481ef172f58b539/imagenet1000_clsid_to_human.txt'
+    with open(get_file('data/imagenet/labels.json', url=url)) as f:
+        label_items = f.read()
+
+    labels = [line[line.index(':')+1:].lstrip(' \'').rstrip('}, \'') for line in label_items.split('\n')]
+    return labels
 
 if __name__ == '__main__':
     # Downloads 4 random images out of the first 1000.  You may get 404 errors, etc.  So just run again and again til this works.
