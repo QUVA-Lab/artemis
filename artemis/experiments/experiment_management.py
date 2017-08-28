@@ -310,51 +310,14 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, rais
     else:
         return [ex.run(raise_exceptions=raise_exceptions, display_results=False, **run_args) for ex in experiments]
 
-#
-# def split_experiment_name(name, root=None):
-#     """
-#     Split the name of an experiment up into component strings identifying the variants.
-#
-#     Here we assume that the experiment has been loaded.
-#
-#     e.g.
-#
-#         assert split_experiment_name('demo_my_example.sgd.k=0.04') == ('demo_my_example', 'sgd', 'k=0.04')
-#
-#     :param name: A string indicating the expeirment name
-#     :return: A tuple containing the split components.
-#     """
-#
-#     unresolved_name = name
-#     ancestory = []
-#
-#     if '.' not in name:
-#         return name
-#
-#     root = name[name.index('.')]
-#
-#
-#
-#     while '.' in unresolved_name:
-#         endpoint = None
-#         while True:
-#             potential_split = unresolved_name[:endpoint].rfind('.')
-#             assert potential_split != -1
-#             if unresolved_name[:potential_split] in get_global_experiment_library():
-#                 ancestory.append(unresolved_name[potential_split+1:])
-#                 unresolved_name = unresolved_name[:potential_split]
-#             else:
-#                 endpoint = potential_split
-#     ancestory.append(unresolved_name)
-#     return tuple(ancestory[::-1])
-
 
 def remove_common_results_prefix(results_dict):
     """
     Remove the common prefix for the results you are comparing.
-    :param results_dict:
-    :return:
+    :param results_dict: An OerderedDict of experiment Results
+    :return: A new ordereddict with the prefixes removed
     """
+    # TODO: Fix this so that we don't just split on ".", (which isn't necessarily a separator), but actually splits on experiments.
     assert isinstance(dict, OrderedDict), 'Expecting an OrderedDict of <experiment_name -> result>'
 
     split_keys = [k.split('.') for k in results_dict.keys()]
