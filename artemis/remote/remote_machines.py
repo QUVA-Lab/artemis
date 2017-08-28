@@ -22,7 +22,7 @@ def get_configured_machines():
     return machines
 
 
-EXAMPLE_MACHINE = """remote:my_machine1
+EXAMPLE_MACHINE = """[remote:my_machine1]
 ip=123.456.789.01
 username=pluto
 """
