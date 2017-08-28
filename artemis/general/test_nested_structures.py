@@ -1,5 +1,5 @@
 from artemis.general.nested_structures import flatten_struct, get_meta_object, NestedType, \
-    seqstruct_to_structseq, structseq_to_seqstruct
+    seqstruct_to_structseq, structseq_to_seqstruct, nested_map
 import numpy as np
 from pytest import raises
 
@@ -84,8 +84,17 @@ def test_seqstruct_to_structseq_and_inverse():
     assert np.array_equal(a[3]['y'][1], c[3]['y'][1])
 
 
+def test_nested_map():
+    func = lambda x: x*2 if isinstance(x, (int, float)) else x+'  Not!' if isinstance(x, basestring) else x
+    assert nested_map(func, 2)==4
+    assert nested_map(func, 'God is dead.')=='God is dead.  Not!'
+    assert nested_map(func, (1, 2, 3)) == (2, 4, 6)
+    assert nested_map(func, [1, 2, None, {'a': 3, 'b': 'It works!'}]) == [2, 4, None, {'a': 6, 'b': 'It works!  Not!'}]
+
+
 if __name__ == '__main__':
     test_flatten_struct()
     test_get_meta_object()
     test_nested_type()
     test_seqstruct_to_structseq_and_inverse()
+    test_nested_map()

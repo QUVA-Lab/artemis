@@ -287,3 +287,7 @@ def remove_common_prefix(list_of_lists, max_elements=None):
             break
         count += 1
     return list_of_lists
+
+
+def assert_option(choice, possiblilties):
+    assert choice in possiblilties, '"{}" was not in the list of possible choices: {}'.format(choice, possiblilties)

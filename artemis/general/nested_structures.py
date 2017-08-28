@@ -199,6 +199,23 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
     return filled_object
 
 
+def nested_map(func, nested_obj, check_types=False):
+    """
+    An equivalent of pythons built-in map, but for nested objects.  This function crawls the object and applies func
+    to the leaf nodes.
+
+    :param func: A function of the form new_leaf_val = func(old_leaf_val)
+    :param nested_obj: A nested object e.g. [1, 2, {'a': 3, 'b': (3, 4)}, 5]
+    :param check_types: Assert that the new leaf types match the old leaf types (False by default)
+    :return: A nested objectect with the same structure, but func applied to every value.
+    """
+    nested_type = NestedType.from_data(nested_obj)
+    leaf_values = nested_type.get_leaves(nested_obj)
+    new_leaf_values = [func(v) for v in leaf_values]
+    new_nested_obj = nested_type.expand_from_leaves(new_leaf_values, check_types=check_types)
+    return new_nested_obj
+
+
 def get_nested_value(data_object, key_chain):
     if len(key_chain)>0:
         return get_nested_value(data_object[key_chain[0]], key_chain=key_chain[1:])
