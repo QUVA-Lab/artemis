@@ -1,20 +1,20 @@
 import shlex
 from collections import OrderedDict
-from functools import partial
+
+from tabulate import tabulate
+
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers, run_experiment_ignoring_errors, run_multiple_experiments
+    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
-    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, NoSavedResultError
+    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
     display_experiment_record
-from artemis.experiments.experiments import load_experiment, is_experiment_loadable, \
-    get_global_experiment_library
-from artemis.fileman.disk_memoize import memoize_to_disk, memoize_to_disk_with_settings
+from artemis.experiments.experiments import load_experiment, get_global_experiment_library
+from artemis.fileman.disk_memoize import memoize_to_disk_with_settings
 from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal
-from tabulate import tabulate
 
 try:
     import readline  # Makes raw_input behave like interactive shell.
@@ -123,7 +123,7 @@ experiment records.  You can specify records in the following ways:
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = True):
+            cache_result_string = False):
 
         if run_args is None:
             run_args = {}
@@ -244,8 +244,7 @@ experiment records.  You can specify records in the following ways:
 
         rows = []
 
-        if cache_result_string:
-            get_oneline_result_string = memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string)
+        oneliner_func = memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string) if cache_result_string else get_oneline_result_string
 
         def get_field(header):
             try:
@@ -258,7 +257,7 @@ experiment records.  You can specify records in the following ways:
                     experiment_record.info.get_field_text(ExpInfoFields.RUNTIME) if header=='Duration' else \
                     experiment_record.info.get_field_text(ExpInfoFields.STATUS) if header=='Status' else \
                     get_record_invalid_arg_string(experiment_record) if header=='Valid' else \
-                    get_oneline_result_string(experiment_record.get_id(), truncate_to=truncate_result_to) if header=='Result' else \
+                    oneliner_func(experiment_record.get_id(), truncate_to=truncate_result_to) if header=='Result' else \
                     '???'
             except:
                 if raise_display_errors:
