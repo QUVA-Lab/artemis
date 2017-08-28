@@ -1,7 +1,7 @@
 numpy
 scipy
 matplotlib
-bokeh
+# bokeh
 pytest
 pillow
 tabulate

@@ -1,16 +1,16 @@
 import shutil
 from artemis.fileman.file_getter import get_file_in_archive
-from artemis.fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_artemis_data_path
 import os
 __author__ = 'peter'
 
 
 def test_unpack_tar_gz():
 
-    if os.path.exists(get_local_path('tests/test_tar_zip')):
-        shutil.rmtree(get_local_path('tests/test_tar_zip'))
-    if os.path.exists(get_local_path('tests/test_tar_zip.tar.gz')):
-        os.remove(get_local_path('tests/test_tar_zip.tar.gz'))
+    if os.path.exists(get_artemis_data_path('tests/test_tar_zip')):
+        shutil.rmtree(get_artemis_data_path('tests/test_tar_zip'))
+    if os.path.exists(get_artemis_data_path('tests/test_tar_zip.tar.gz')):
+        os.remove(get_artemis_data_path('tests/test_tar_zip.tar.gz'))
 
     for _ in xrange(2):  # (Second time to check caching)
 
@@ -28,10 +28,10 @@ def test_unpack_tar_gz():
 
 def test_unpack_zip():
 
-    if os.path.exists(get_local_path('tests/test_zip_zip')):
-        shutil.rmtree(get_local_path('tests/test_zip_zip'))
-    if os.path.exists(get_local_path('tests/test_zip_zip.zip')):
-        os.remove(get_local_path('tests/test_zip_zip.zip'))
+    if os.path.exists(get_artemis_data_path('tests/test_zip_zip')):
+        shutil.rmtree(get_artemis_data_path('tests/test_zip_zip'))
+    if os.path.exists(get_artemis_data_path('tests/test_zip_zip.zip')):
+        os.remove(get_artemis_data_path('tests/test_zip_zip.zip'))
 
     for _ in xrange(2):  # (Second time to check caching)
 

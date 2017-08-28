@@ -7,7 +7,7 @@ import paramiko
 from artemis.config import get_artemis_config_value
 
 from artemis.fileman.config_files import get_config_value
-from artemis.remote.child_processes import get_ssh_connection
+from artemis.remote.utils import get_ssh_connection
 
 
 def check_config_file(ip_address,file_path=".artemisrc"):

@@ -248,7 +248,7 @@ class Experiment(object):
         """
         records = self.get_records(only_completed=completed)
         if valid:
-            records = [record for record in records if record.is_valid()]
+            records = [record for record in records if record.args_valid()]
         return len(records)>0
 
     def get_all_variants(self, include_roots=False, include_self=True):
@@ -283,7 +283,7 @@ class Experiment(object):
             else:
                 return None
         else:
-            return records[-1]
+            return sorted(records, key=lambda x: x.get_id())[-1]
 
     def get_variant_records(self, only_completed=False, only_last=False, flat=False):
         """
@@ -311,7 +311,7 @@ class Experiment(object):
                 return exp_record_dict
 
 
-GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()
+_GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()
 
 
 class ExperimentNotFoundError(Exception):
@@ -320,7 +320,7 @@ class ExperimentNotFoundError(Exception):
 
 
 def clear_all_experiments():
-    GLOBAL_EXPERIMENT_LIBRARY.clear()
+    _GLOBAL_EXPERIMENT_LIBRARY.clear()
 
 
 @contextmanager
@@ -344,15 +344,16 @@ def capture_created_experiments():
 
     :rtype: Generator[:class:`Experiment`]
     """
-    current_len = len(GLOBAL_EXPERIMENT_LIBRARY)
+    current_len = len(_GLOBAL_EXPERIMENT_LIBRARY)
     new_experiments = []
     yield new_experiments
-    for ex in GLOBAL_EXPERIMENT_LIBRARY.values()[current_len:]:
+    for ex in _GLOBAL_EXPERIMENT_LIBRARY.values()[current_len:]:
         new_experiments.append(ex)
 
 
 def _register_experiment(experiment):
-    GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
+    assert experiment.name not in _GLOBAL_EXPERIMENT_LIBRARY, 'You have already registered an experiment named {} in {}'.format(experiment.name, inspect.getmodule(experiment.get_root_function()).__name__)
+    _GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
 def get_experiment_info(name):
@@ -362,25 +363,41 @@ def get_experiment_info(name):
 
 def load_experiment(experiment_id):
     try:
-        return GLOBAL_EXPERIMENT_LIBRARY[experiment_id]
+        return _GLOBAL_EXPERIMENT_LIBRARY[experiment_id]
     except KeyError:
         raise ExperimentNotFoundError(experiment_id)
 
 
 def is_experiment_loadable(experiment_id):
     assert isinstance(experiment_id, basestring), 'Expected a string for experiment_id, not {}'.format(experiment_id)
-    return experiment_id in GLOBAL_EXPERIMENT_LIBRARY
+    return experiment_id in _GLOBAL_EXPERIMENT_LIBRARY
 
 
 def _kwargs_to_experiment_name(kwargs):
     return ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
 
 
+@contextmanager
+def hold_global_experiment_libary(new_lib = None):
+    if new_lib is None:
+        new_lib = {}
+
+    global _GLOBAL_EXPERIMENT_LIBRARY
+    oldlib = _GLOBAL_EXPERIMENT_LIBRARY
+    _GLOBAL_EXPERIMENT_LIBRARY = new_lib
+    yield _GLOBAL_EXPERIMENT_LIBRARY
+    _GLOBAL_EXPERIMENT_LIBRARY = oldlib
+
+
+def get_global_experiment_library():
+    return _GLOBAL_EXPERIMENT_LIBRARY
+
+
 keep_record_by_default = None
 
 
 @contextmanager
-def experiment_testing_context(close_figures_at_end = True):
+def experiment_testing_context(close_figures_at_end = True, new_experiment_lib = False):
     """
     Use this context when testing the experiment/experiment_record infrastructure.
     Should only really be used in test_experiment_record.py
@@ -389,7 +406,11 @@ def experiment_testing_context(close_figures_at_end = True):
     global keep_record_by_default
     old_val = keep_record_by_default
     keep_record_by_default = True
-    yield
+    if new_experiment_lib:
+        with hold_global_experiment_libary():
+            yield
+    else:
+        yield
     keep_record_by_default = old_val
 
     if close_figures_at_end:
@@ -400,5 +421,4 @@ def experiment_testing_context(close_figures_at_end = True):
         new_ids = set(get_all_record_ids()).difference(ids)
         clear_experiment_records(list(new_ids))
 
-    atexit.register(
-        clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally
+    atexit.register(clean_on_close)  # We register this on exit to avoid race conditions with system commands when we open figures externally

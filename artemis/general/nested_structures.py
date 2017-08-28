@@ -7,13 +7,11 @@ __author__ = 'peter'
 
 
 def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, bool), custom_handlers = {},
-        break_into_objects = True, detect_duplicates = True, memo = None):
+        break_into_objects = True, detect_duplicates = True, first_dict_is_namespace=False, memo = None):
     """
     Given some nested struct, return a list<*(str, primative)>, where primative
     is some some kind of object that you don't break down any further, and str is a
     string representation of how you would access that propery from the root object.
-
-    Don't try any fancy circular references here, it's not going to go well for you.
 
     :param struct: Something, anything.
     :param primatives: A list of classes that will not be broken into.
@@ -25,73 +23,42 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
     if memo is None:
         memo = {}
 
+    if isinstance(struct, primatives):
+        return [(None, struct)]
+
     if id(struct) in memo:
         return [(None, memo[id(struct)])]
     elif detect_duplicates:
         memo[id(struct)] = 'Already Seen object at %s' % hex(id(struct))
 
-    if isinstance(struct, primatives):
-        return [(None, struct)]
-    elif isinstance(struct, tuple(custom_handlers.keys())):
+    if isinstance(struct, tuple(custom_handlers.keys())):
         handler = custom_handlers[custom_handlers.keys()[[isinstance(struct, t) for t in custom_handlers].index(True)]]
         return [(None, handler(struct))]
     elif isinstance(struct, dict):
-        return sum([
-            [("[%s]%s" % (("'%s'" % key if isinstance(key, str) else key), subkey if subkey is not None else ''), v)
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)]
-                for key, value in struct.iteritems()
-            ], [])
+        return [
+            (("[{}]{}").format(("'{}'".format(key) if isinstance(key, basestring) else key), subkey if subkey is not None else ''), v) if not first_dict_is_namespace else
+            (("{}{}").format(key, subkey if subkey is not None else ''), v)
+            for key in (struct.keys() if isinstance(struct, OrderedDict) else sorted(struct.keys()))
+            for subkey, v in flatten_struct(struct[key], custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
+            ]
     elif isinstance(struct, (list, tuple)):
         # for i, value in enumerate(struct):
-        return sum([
-            [("[%s]%s" % (i, subkey if subkey is not None else ''), v)
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)]
-                for i, value in enumerate(struct)
-            ], [])
+        return [("[%s]%s" % (i, subkey if subkey is not None else ''), v)
+            for i, value in enumerate(struct)
+            for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
+            ]
     elif struct is None or not hasattr(struct, '__dict__'):
         return []
     elif break_into_objects:  # It's some kind of object, lets break it down.
-        return sum([
-            [(".%s%s" % (key, subkey if subkey is not None else ''), v)
-                for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)]
-                for key, value in struct.__dict__.iteritems()
-            ], [])
+        return [(".%s%s" % (key, subkey if subkey is not None else ''), v)
+            for key in sorted(struct.__dict__.keys())
+            for subkey, v in flatten_struct(struct.__dict__[key], custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
+            ]
     else:
         return [(None, memo[id(struct)])]
 
 
 _primitive_containers = (list, tuple, dict, set)
-
-
-def flatten_nested_object(data_object, containers = _primitive_containers, include_classes = False):
-    """
-    Given a data object, walk through the object and return a dict of contained objects.
-    It's best to see the tests to understand this function.
-
-    Don't try any fancy circular references here - it's not going to go well for you.
-
-    :param data_object:
-    :return: An OrderedDict containing, in depth-first-order, the list of objects and containers.
-    """
-    directory_listing = OrderedDict()
-    if include_classes:
-        directory_listing['__class__'] = type(data_object)
-    if data_object in containers:
-        if isinstance(data_object, (list, tuple)):
-            directory_listing[None] = type(data_object)
-            for i, x in enumerate(data_object):
-                sub_obj = flatten_nested_object(data_object)
-                for k, v in sub_obj.iteritems():
-                    directory_listing[(i, )+k] = v
-        elif isinstance(data_object, dict):
-            for key, val in data_object.iteritems():
-                sub_obj = flatten_nested_object(val)
-                for k, v in sub_obj.iteritems():
-                    directory_listing[(key, )+k] = v
-        else:
-            raise Exception('Unidentified container type: {}'.format(type(data_object)))
-    else:
-        directory_listing[()] = data_object
 
 
 def get_meta_object(data_object, containers = _primitive_containers):
@@ -230,6 +197,23 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
         except StopIteration:
             pass
     return filled_object
+
+
+def nested_map(func, nested_obj, check_types=False):
+    """
+    An equivalent of pythons built-in map, but for nested objects.  This function crawls the object and applies func
+    to the leaf nodes.
+
+    :param func: A function of the form new_leaf_val = func(old_leaf_val)
+    :param nested_obj: A nested object e.g. [1, 2, {'a': 3, 'b': (3, 4)}, 5]
+    :param check_types: Assert that the new leaf types match the old leaf types (False by default)
+    :return: A nested objectect with the same structure, but func applied to every value.
+    """
+    nested_type = NestedType.from_data(nested_obj)
+    leaf_values = nested_type.get_leaves(nested_obj)
+    new_leaf_values = [func(v) for v in leaf_values]
+    new_nested_obj = nested_type.expand_from_leaves(new_leaf_values, check_types=check_types)
+    return new_nested_obj
 
 
 def get_nested_value(data_object, key_chain):

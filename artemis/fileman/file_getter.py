@@ -5,7 +5,7 @@ from StringIO import StringIO
 import gzip
 import tarfile
 from zipfile import ZipFile
-from artemis.fileman.local_dir import get_local_path, make_dir, make_file_dir
+from artemis.fileman.local_dir import get_artemis_data_path, make_dir, make_file_dir
 from artemis.general.should_be_builtins import bad_value
 import shutil
 import os
@@ -16,7 +16,7 @@ __author__ = 'peter'
 def get_file(relative_name, url = None, data_transformation = None):
 
     relative_folder, file_name = os.path.split(relative_name)
-    local_folder = get_local_path(relative_folder)
+    local_folder = get_artemis_data_path(relative_folder)
 
     try:  # Best way to see if folder exists already - avoids race condition between processes
         os.makedirs(local_folder)
@@ -67,7 +67,7 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None, fo
     :return: The full path to the extracted folder on your system.
     """
 
-    local_folder_path = get_local_path(relative_path)
+    local_folder_path = get_artemis_data_path(relative_path)
 
     assert archive_type in ('.tar.gz', '.zip', None)
 
@@ -125,7 +125,7 @@ def get_file_and_cache(url, data_transformation = None, enable_cache_write = Tru
         hasher = hashlib.md5()
         hasher.update(url)
         code = hasher.hexdigest()
-        local_cache_path = os.path.join(get_local_path('caches'), code+ext)
+        local_cache_path = os.path.join(get_artemis_data_path('caches'), code + ext)
 
     if enable_cache_read and os.path.exists(local_cache_path):
         return local_cache_path

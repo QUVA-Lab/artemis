@@ -40,7 +40,7 @@ def get_imagenet_images(indices):
     return [smart_load(f) for f in files]
 
 
-def get_imagenet_labels():
+def get_imagenet_label_names():
 
     url = 'https://gist.githubusercontent.com/yrevar/942d3a0ac09ec9e5eb3a/raw/596b27d23537e5a1b5751d2b0481ef172f58b539/imagenet1000_clsid_to_human.txt'
     with open(get_file('data/imagenet/labels.json', url=url)) as f:

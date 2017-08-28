@@ -23,7 +23,7 @@ def get_default_local_path():
 LOCAL_DIR = get_artemis_config_value(section='fileman', option='data_dir', default_generator = get_default_local_path, write_default = True)
 
 
-def get_local_path(relative_path = '', make_local_dir = False):
+def get_artemis_data_path(relative_path ='', make_local_dir = False):
     """
     Get the full local path of a file relative to the Data folder.  If the relative path starts with a "/", we consider
     it to be a local path already.  TODO: Make this Windows-friendly
@@ -41,7 +41,11 @@ def get_local_path(relative_path = '', make_local_dir = False):
         make_file_dir(file_path)
     return file_path
 
-def get_local_dir(relative_path = '', create_dir_if_not_exist=True):
+
+get_local_path = get_artemis_data_path  # Deprecated: Here for backwards compatibility
+
+
+def get_artemis_data_subdir(relative_path ='', create_dir_if_not_exist=True):
     """
     Get the full path of a directory relative to the Data folder. If the relative path starts with a "/", we consider
     it to be a local path already.
@@ -51,7 +55,11 @@ def get_local_dir(relative_path = '', create_dir_if_not_exist=True):
     """
     if not relative_path.endswith("/"):
         relative_path += "/"
-    return get_local_path(relative_path=relative_path, make_local_dir=create_dir_if_not_exist)
+    return get_artemis_data_path(relative_path=relative_path, make_local_dir=create_dir_if_not_exist)
+
+
+get_local_dir = get_artemis_data_subdir  # Backwards compatibility
+
 
 def get_relative_path(local_path, base_path = LOCAL_DIR):
     assert local_path.startswith(base_path), '"%s" is not contained within the data directory "%s"' % (local_path, base_path)
@@ -98,7 +106,7 @@ def format_filename(file_string, current_time = 'now', base_name = None, directo
     :param rel_dir: Optionally, a directory to prepend to the file_string, relative to the local storage folder (if any).
         This can also contain placeholders
     :param local__dir: Optionally, the local folder on this machine where you store your data.  This defaults to the
-        directory returned by get_local_path
+        directory returned by get_artemis_data_path
     :param ext: Optionally, an extension to append to the filename.
     :param allow_partial_formatting: If True, the placeholders (%T, %N) are allowed to pass through if no values are
         specified.  This may be useful if one placeholder is not yet known at the time the rest of the info is specified.
