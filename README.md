@@ -14,7 +14,14 @@ For examples of how to use artemis, read the [Artemis Documentation](http://arte
 ## Installation
 To use artemis from within your project, use the following to install Artemis and its dependencies: (You probably want to do this in a virtualenv with the latest version of pip - run `virtualenv venv; source venv/bin/activate; pip install --upgrade pip;` to make one and enter it).
 
-**Option 1: (Recommended, unless you have Anaconda) Install as source (allows you to edit Artemis).**
+
+**Option 1: Simple install:**
+
+```
+pip install artemis-ml
+```
+
+**Option 1: (Install from source - allows you to edit Artemis (Note - this does not work if you have Anaconda installed)).**
 
 ```
 pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis 
@@ -24,11 +31,6 @@ This will install it in `(virtual env or system python root)/src/artemis`.  You 
 (Note, this doesn't work if you have Anaconda installed, as it does not work with the `-e` option).  Use Option 2 in this case instead.
 
 
-**Option 2: Simple install:**
-
-```
-pip install artemis-ml
-```
 
 **Verifying that it works**
 
