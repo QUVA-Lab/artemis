@@ -5,7 +5,7 @@ import shutil
 
 from artemis.config import get_artemis_config_value
 from artemis.fileman.config_files import get_config_value
-from artemis.fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.plotting.plotting_backend import get_plotting_server_address
 from artemis.remote.file_system import rsync, simple_rsync, check_config_file
 from artemis.remote.utils import get_local_ips
@@ -19,7 +19,7 @@ def test_rsync():
     options = ["-r"]
     username = get_artemis_config_value(section=ip_address, option="username")
 
-    from_path = get_local_path(relative_path="tmp/tests/", make_local_dir=True)
+    from_path = get_artemis_data_path(relative_path="tmp/tests/", make_local_dir=True)
     with open(os.path.join(from_path, "test1"), "wb"):
         pass
     with open(os.path.join(from_path, "test2"), "wb"):
@@ -32,7 +32,7 @@ def test_rsync():
 
 @pytest.mark.skipif(is_local, reason ="No sense for local ip")
 def test_simple_rsync():
-    from_path = get_local_path(relative_path="tmp/tests/", make_local_dir=True)
+    from_path = get_artemis_data_path(relative_path="tmp/tests/", make_local_dir=True)
     with open(os.path.join(from_path, "test1"), "wb"):
         pass
     with open(os.path.join(from_path, "test2"), "wb"):

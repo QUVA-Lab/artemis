@@ -1,32 +1,37 @@
 import shlex
 from collections import OrderedDict
-from functools import partial
+
+from tabulate import tabulate
+
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers, run_experiment_ignoring_errors, run_multiple_experiments
+    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
-    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, NoSavedResultError
+    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
     display_experiment_record
-from artemis.experiments.experiments import GLOBAL_EXPERIMENT_LIBRARY, load_experiment, is_experiment_loadable
+from artemis.experiments.experiments import load_experiment, get_global_experiment_library
+from artemis.fileman.disk_memoize import memoize_to_disk_with_settings
 from artemis.general.display import IndentPrint, side_by_side
+from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal
-from tabulate import tabulate
+
+try:
+    import readline  # Makes raw_input behave like interactive shell.
+    # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
+except:
+    pass  # readline not available
 
 
-def _setup_input_memory():
-    try:
-        import readline  # Makes raw_input behave like interactive shell.
-        # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
-    except:
-        pass  # readline not available
-
-
-def _warn_with_prompt(message= None, prompt = 'Press Enter to continue', use_prompt=True):
+def _warn_with_prompt(message= None, prompt = 'Press Enter to continue or q then Enter to quit', use_prompt=True):
     if message is not None:
         print message
     if use_prompt:
-        return raw_input('({}) >> '.format(prompt))
+        out = raw_input('({}) >> '.format(prompt))
+        if out=='q':
+            quit()
+        else:
+            return out
 
 
 def browse_experiments(command=None, **kwargs):
@@ -117,7 +122,8 @@ experiment records.  You can specify records in the following ways:
 """
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
-            view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100):
+            view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
+            cache_result_string = False):
 
         if run_args is None:
             run_args = {}
@@ -133,11 +139,10 @@ experiment records.  You can specify records in the following ways:
         self._filter = None
         self.run_args = {} if run_args is None else run_args
         self.truncate_result_to = truncate_result_to
+        self.cache_result_string = cache_result_string
 
     def reload_record_dict(self):
-
-        names = GLOBAL_EXPERIMENT_LIBRARY.keys()
-
+        names = get_global_experiment_library().keys()
         if self.root_experiment is not None:
             # We could just go [ex.name for ex in self.root_experiment.get_all_variants(include_self=True)]
             # but we want to preserve the order in which experiments were created
@@ -181,7 +186,9 @@ experiment records.  You can specify records in the following ways:
             print "==================== Experiments ===================="
             self.exp_record_dict = all_experiments if self._filter is None else \
                 OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
-            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, truncate_result_to=self.truncate_result_to)
+            print self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record,
+                view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, truncate_result_to=self.truncate_result_to,
+                cache_result_string = self.cache_result_string)
             if self._filter is not None:
                 print '[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments))
             print '-----------------------------------------------------'
@@ -209,7 +216,11 @@ experiment records.  You can specify records in the following ways:
                     elif cmd == 'r':  # Refresh
                         continue
                     else:
-                        response = raw_input('Unrecognised command: "{}".  Type "h" for help or Enter to continue. >'.format(cmd))
+                        edit_distances = [levenshtein_distance(cmd, other_cmd) for other_cmd in func_dict.keys()]
+                        min_distance = min(edit_distances)
+                        closest = func_dict.keys()[edit_distances.index(min_distance)]
+                        suggestion = ' Did you mean "{}"?.  '.format(closest) if min_distance<=2 else ''
+                        response = raw_input('Unrecognised command: "{}". {}Type "h" for help or Enter to continue. >'.format(cmd, suggestion, closest))
                         if response.lower()=='h':
                             self.help()
                         out = None
@@ -224,7 +235,7 @@ experiment records.  You can specify records in the following ways:
                         raise
 
     @staticmethod
-    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False, truncate_result_to=100):
+    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False, truncate_result_to=100, cache_result_string = True):
 
         headers = {
             'full': ['E#', 'R#', 'Name', 'Last Run' if just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result'],
@@ -232,6 +243,8 @@ experiment records.  You can specify records in the following ways:
             }[view_mode]
 
         rows = []
+
+        oneliner_func = memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string) if cache_result_string else get_oneline_result_string
 
         def get_field(header):
             try:
@@ -244,7 +257,7 @@ experiment records.  You can specify records in the following ways:
                     experiment_record.info.get_field_text(ExpInfoFields.RUNTIME) if header=='Duration' else \
                     experiment_record.info.get_field_text(ExpInfoFields.STATUS) if header=='Status' else \
                     get_record_invalid_arg_string(experiment_record) if header=='Valid' else \
-                    get_oneline_result_string(experiment_record, truncate_to=truncate_result_to) if header=='Result' else \
+                    oneliner_func(experiment_record.get_id(), truncate_to=truncate_result_to) if header=='Result' else \
                     '???'
             except:
                 if raise_display_errors:
@@ -298,7 +311,7 @@ experiment records.  You can specify records in the following ways:
         """
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         parallel_text = {'-p': True, '-s': False, None: None}[parallel_arg]
-        has_matplotlib_figures=show_experiment_records(records, parallel_text = parallel_text)
+        has_matplotlib_figures=show_experiment_records(records, parallel_text = parallel_text, truncate_logs=None)
         if has_matplotlib_figures:
             from matplotlib import pyplot as plt
             print '\n\n... Close all figures to return to experiment browser ...'
@@ -307,12 +320,15 @@ experiment records.  You can specify records in the following ways:
         else:
             _warn_with_prompt(use_prompt=not self.close_after)
 
-    def display(self, user_range = 'all'):
+    def display(self, user_range = 'all', skip_if_single = True):
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        with IndentPrint("Results:", show_line=True, show_end=True):
-            for record in records:
-                with IndentPrint(record.get_id(), show_line=True, show_end=True):
-                    display_experiment_record(record)
+        if len(records)==1 and skip_if_single:
+            display_experiment_record(records[0])
+        else:
+            with IndentPrint("Results:", show_line=True, show_end=True):
+                for record in records:
+                    with IndentPrint(record.get_id(), show_line=True, show_end=True):
+                        display_experiment_record(record)
 
         _warn_with_prompt(use_prompt=not self.close_after)
 
@@ -386,7 +402,7 @@ experiment records.  You can specify records in the following ways:
     def compare(self, user_range):
         experiment_ids = select_experiments(user_range, self.exp_record_dict)
         experiments = [load_experiment(eid) for eid in experiment_ids]
-        compare_experiment_results(experiments, error_if_no_result=True)
+        compare_experiment_results(experiments, error_if_no_result=False)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def explist(self, surround = ""):
@@ -397,7 +413,7 @@ experiment records.  You can specify records in the following ways:
         return self.QUIT
 
 
-def browse_experiment_records(**kwargs):
+def browse_experiment_records(*args, **kwargs):
     """
     Browse through experiment records.
 
@@ -406,7 +422,7 @@ def browse_experiment_records(**kwargs):
     :return:
     """
 
-    experiment_record_browser = ExperimentRecordBrowser(**kwargs)
+    experiment_record_browser = ExperimentRecordBrowser(*args, **kwargs)
     experiment_record_browser.launch()
 
 

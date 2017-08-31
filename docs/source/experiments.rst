@@ -3,10 +3,9 @@
 Artemis Experiments Documentation
 ===================================
 
+The Artemis Experiment Framework helps you to keep track of your experiments and their results.  It is an alternative to `Sacred <http://sacred.readthedocs.io/en/latest/>`_, with the goal of being more intuitive to use. 
 
-For details on the Experiment API, see :doc:`experiment-api`.
-
-
+For details on the Experiment API, see :doc:`experiment-api`.  For a in introduction to the framework, read on...
 
 ######################
 A Basic Example
@@ -15,8 +14,6 @@ A Basic Example
 
 Using this module, you can turn your main function into an "Experiment", which, when run, stores all console output, plots,
 and computed results to disk (in ~/.artemis/experiments)
-
-For a simple demo, see artemis/fileman/demo_experiments.py
 
 Any function that can be called alone with no arguments can be turned into an experiment using the @experiment_function
 decorator:
@@ -29,36 +26,33 @@ decorator:
     def multiply_3_numbers(a=1, b=2, c=3):
         return a*b*c
 
-This turns the function into an Experiment object, which has the following methods:
+This turns the function into an Experiment object, which, in addition to still being a callable function, has methods ``run()``, ``add_variant(...)`` and ``get_variant()``.   It's important to give this function a unique name (rather than ``main()``, or something) because this name is used to link the experiment to the records that it has produced.
+
+If we want to run our experiment, and save all text outputs and plots to disk, we can call the ``run`` method:
 
 .. code-block:: python
 
     record = multiply_3_numbers.run()
 
-Run the function, and save all text outputs and plots to disk.
-Console output, plots, and result are stored in: ~/.artemis/experiments
+Before we get to reviewing the results, we may want to create a "variant" on this experiment, with a different set of parameters.  For this, we can use the ``add_variant`` method: 
 
 .. code-block:: python
 
     multiply_3_numbers.add_variant('higher-ab', a=4, b=5)
 
-Add a variant to the experiment, with new arguments that override any existing ones.
-The variant is itself an experiment, and can have variants of its own.
-
-
-Get a variant of an experiment (or one of its sub-variants).
+If we want to access this variant later, we can call ``get_variant``:.
 
 .. code-block:: python
 
     ex = multiply_3_numbers.get_variant('higher-ab')
 
-To open up a menu where you can see and run all experiments (and their variants) that have been created run:
+To open up a menu where you can see and run all experiments (and their variants) that have been created we run:
 
 .. code-block:: python
 
     multiply_3_numbers.browse()
 
-This will give you an output that looks something like this::
+This will give us an output that looks something like this::
 
     ==================== Experiments ====================
       E#  R#    Name                          All Runs                    Duration         Status           Valid    Result
@@ -69,7 +63,7 @@ This will give you an output that looks something like this::
     Enter command or experiment # to run (h for help) >>
 
 
-This indicates that you have a saved record of your experiment (created when we called ``multiply_3_numbers.run()``), but
+This indicates that we have a saved record of our experiment (created when we called ``multiply_3_numbers.run()``), but
 none of the variant ``higher-ab``.  In the UI, we can run this variant by entering ``run 1``::
 
     Enter command or experiment # to run (h for help) >> run 1

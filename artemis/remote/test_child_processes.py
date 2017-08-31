@@ -1,120 +1,160 @@
-import SocketServer
-import os
+import signal
 import sys
 import time
-import signal
-from artemis.plotting.plotting_backend import get_plotting_server_address
-from artemis.remote.child_processes import check_ssh_connection, check_if_port_is_free, execute_command, ChildProcess, \
-    ParamikoPrintThread, Nanny
-from artemis.remote.utils import get_local_ips, get_socket, get_remote_artemis_path
-from pytest import raises
 
+import os
 
-ip_addresses = [get_plotting_server_address()]
+from artemis.config import get_artemis_config_value
+from artemis.remote.child_processes import PythonChildProcess, RemotePythonProcess
+from artemis.remote.remote_execution import ParamikoPrintThread, execute_command
+from artemis.remote.utils import get_local_ips, get_remote_artemis_path
+from functools import partial
+
+ip_addresses = [get_artemis_config_value(section="tests", option="remote_server",default_generator=lambda: "127.0.0.1")]
+# ip_addresses=["127.0.0.1"]
 if ip_addresses[0] not in get_local_ips():
     ip_addresses.append("127.0.0.1")
 
+def get_test_functions_path(ip_address):
+    if ip_address in get_local_ips():
+        return os.path.join(os.path.dirname(__file__), "remote_test_functions.py")
+    else:
+        remote_path = get_remote_artemis_path(ip_address)
+        return os.path.join(remote_path, "remote/remote_test_functions.py")
 
-def test_check_ssh_connections():
+
+def test_simple_pcp():
     for ip_address in ip_addresses:
-        if ip_address not in get_local_ips():
-            check_ssh_connection(ip_address)
+        command = "python %s --callback=%s"%(get_test_functions_path(ip_address),"success_function")
+        pyc = PythonChildProcess(ip_address=ip_address,command=command)
+        (stdin, stdout, stderr) = pyc.execute_child_process()
+        stderr_out =stderr.readlines()
+        stderr_out = [line.strip() for line in stderr_out if "pydev debugger" not in line]
+        stdout_out = stdout.readlines()
+        assert len("".join(stderr_out)) == 0, "Stderr not empty. Received: %s"%stderr_out
+        assert len(stdout_out) == 1 and stdout_out[0].strip() == "Success", "Stdout not as expected. Received: %s"%stdout_out
 
-
-def test_check_if_port_is_free():
+def test_simple_pcp_list():
     for ip_address in ip_addresses:
-        if ip_address not in get_local_ips():
-            with raises(AssertionError):
-                check_if_port_is_free(ip_address,80)
+        command = ["python", get_test_functions_path(ip_address), "--callback=success_function"]
+        pyc = PythonChildProcess(ip_address=ip_address,command=command)
+        (stdin, stdout, stderr) = pyc.execute_child_process()
+        stderr_out = stderr.readlines()
+        stderr_out = [line.strip() for line in stderr_out if "pydev debugger" not in line]
+        stdout_out = stdout.readlines()
+        assert len("".join(stderr_out)) == 0, "Stderr not empty. Received: %s"%stderr_out
+        assert len(stdout_out) == 1 and stdout_out[0].strip() == "Success", "Stdout not as expected. Received: %s"%stdout_out
+
+def test_interrupt_process_gently():
+    for ip_address in ip_addresses:
+        command = ["python", get_test_functions_path(ip_address), "--callback=count_high"]
+
+        cp = PythonChildProcess(ip_address, command)
+        stdin , stdout, stderr = cp.execute_child_process()
+        time.sleep(5)
+        cp.kill()
+        time.sleep(1)
+        stdout_out = stdout.readlines()
+        stderr_out = stderr.readlines()
+        if cp.is_local():
+            assert stderr_out[-1].strip() == "KeyboardInterrupt"
         else:
-            sock, port = get_socket(ip_address,7005)
-            # port is now not free:
-            with raises(SocketServer.socket.error):
-                check_if_port_is_free(ip_address, port)
-            sock.close()
-            # now no error to be expected
-            check_if_port_is_free(ip_address,port)
-
-
-def test_communications():
-    for ip_address in ip_addresses:
-        execute_command(ip_address=ip_address,
-                    blocking=True,
-                    command = "python -c 'from __future__ import print_function\nimport sys,time\nfor i in range(10): print(i, file=sys.stderr if i%2==0 else sys.stdout);sys.stdout.flush();time.sleep(0.3)'")
-
+            assert stdout_out[-1].strip() == "KeyboardInterrupt"
+        assert not cp.is_alive(), "Process is still alive, killing it did not work"
 
 def test_kill_process_gently():
-
     for ip_address in ip_addresses:
-        if ip_address in get_local_ips():
-            command = "python %s"%os.path.join(os.path.dirname(__file__), "bogus_test_functions.py")
-        else:
-            remote_path = get_remote_artemis_path()
-            command = "python %s"%os.path.join(remote_path, "remote/bogus_test_functions.py")
+        command = ["python", get_test_functions_path(ip_address), "--callback=sleep_function"]
 
-        cp = ChildProcess(ip_address, command)
+        cp = PythonChildProcess(ip_address, command)
         stdin , stdout, stderr = cp.execute_child_process()
-        # stdin , stdout, stderr = ssh_conn.exec_command(command)
-
-        pid=cp.get_pid()
-        print("Pid: %s"%pid)
-        #stdout
-        t1 = ParamikoPrintThread(source_pipe=stdout, target_pipe=sys.stdout, prefix="stdout: ")
-        t1.start()
-        # stderr
-        t2 = ParamikoPrintThread(source_pipe=stderr, target_pipe=sys.stderr, prefix="stderr: ")
-        t2.start()
-
-        print("Waiting 4 seconds")
-        time.sleep(4)
-
-        print ("Killing Process %s:" %(pid) )
+        time.sleep(1)
         cp.kill()
-        print("Waiting 4 seconds")
-        time.sleep(4)
-        if cp.is_alive():
-            print("Process still alive")
-        else:
-            print("Process dead")
+        time.sleep(1)
+        stdout_out = stdout.readlines()
+        assert stdout_out[-1].strip() == "Interrupted"
+        assert not cp.is_alive(), "Process is still alive, killing it did not work"
 
+def test_kill_process_strongly():
+    for ip_address in ip_addresses:
+        command = ["python", get_test_functions_path(ip_address), "--callback=hanging_sleep_function"]
 
-        print("Terminating")
+        cp = PythonChildProcess(ip_address, command)
+        stdin , stdout, stderr = cp.execute_child_process()
+        time.sleep(1)
+        cp.kill()
+        time.sleep(1)
+        assert cp.is_alive(), "Process terminated too soon. Check remote_test_functions.py implementation!"
+        cp.kill(signal.SIGKILL)
+        time.sleep(1)
+        assert not cp.is_alive(), "Process is still alive, killing it did not work"
 
 
 
 def test_remote_graphics():
     for ip_address in ip_addresses:
-        # command = 'export DISPLAY=:0.0; python -c "from matplotlib import pyplot as plt;import time; plt.figure();plt.show();time.sleep(10)"'
-        if ip_address not in get_local_ips():
-            command =["export DISPLAY=:0.0;", "python","-u", "-c", "from matplotlib import pyplot as plt;import time; plt.figure();plt.show();time.sleep(10)"]
-        else:
-            command =["python","-u", "-c", "from matplotlib import pyplot as plt;import time; plt.figure();plt.show();time.sleep(10)"]
+        command = ["python", get_test_functions_path(ip_address), "--callback=remote_graphics"]
 
-        cp = ChildProcess(ip_address=ip_address,command=command)
-        i, o, e = cp.execute_child_process()
-        time.sleep(5)
-        cp.deconstruct(message=signal.SIGTERM)
-        print(o.read())
-        print(e.read())
+        cp = PythonChildProcess(ip_address=ip_address,command=command,take_care_of_deconstruct=True)
+        i, stdout, stderr = cp.execute_child_process()
+        time.sleep(1)
+        stderr_out = stderr.readlines()
+        stdout_out = stdout.readlines()
+        # assert len(stderr_out) == 0, "Stderr not empty. Received: %s"%stderr_out
+        assert stdout_out[-1].strip() == "Success", "Stdout not as expected. Received: %s"%stdout_out
+
+        # Do not call decons
+        # cp.deconstruct(signum=signal.SIGINT)
+
+def remote_test_func(a, b):
+    print 'a+b={}'.format(a+b)
+    return a+b
 
 
-def test_is_alive():
-    for ip in ip_addresses:
-        command ="python -u -c 'from __future__ import print_function\nimport sys,time\nfor i in range(10): print(i, file=sys.stderr if i%2==0 else sys.stdout);time.sleep(0.3)'"
-        cp = ChildProcess(ip_address=ip, command=command)
-        i,o,e = cp.execute_child_process()
-        t = ParamikoPrintThread(o,sys.stdout).start()
-        t = ParamikoPrintThread(e,sys.stderr).start()
-        while cp.is_alive():
-            print("alive")
-            time.sleep(0.3)
-        print("dead")
+def test_remote_child_function():
+
+    for ip_address in ip_addresses:
+        pyc = PythonChildProcess(ip_address=ip_address,command=partial(remote_test_func, a=1, b=2))
+        (stdin, stdout, stderr) = pyc.execute_child_process()
+        stderr_out =stderr.readlines()
+        stderr_out = [line.strip() for line in stderr_out if "pydev debugger" not in line]
+        stdout_out = stdout.readlines()
+
+
+def my_func(a, b):
+    print 'hello hello hello'
+    time.sleep(0.01)
+    return a+b
+
+
+def test_remote_python_process():
+
+    in_debug_mode = sys.gettrace() is not None
+
+    p = RemotePythonProcess(
+        function=partial(my_func, a=1, b=2),
+        ip_address='localhost',
+        )
+
+    stdin , stdout, stderr = p.execute_child_process()
+    time.sleep(.1)  # That autta be enough
+
+    errtext = stderr.read()
+    if in_debug_mode:
+        assert errtext.startswith('pydev debugger: ')
+    else:
+        assert errtext == '', errtext
+    assert stdout.read() == 'hello hello hello\n'
+    assert p.get_return_value()==3
 
 
 if __name__ == "__main__":
-    test_check_ssh_connections()
-    test_check_if_port_is_free()
-    test_communications()
+    test_simple_pcp()
+    test_simple_pcp_list()
+    test_interrupt_process_gently()
     test_kill_process_gently()
+    test_kill_process_strongly()
     test_remote_graphics()
-    test_is_alive()
+    test_remote_child_function()
+    test_remote_python_process()
+    print("Tests finished")

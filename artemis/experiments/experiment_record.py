@@ -3,14 +3,15 @@ import logging
 import os
 import pickle
 import shutil
+import sys
 import tempfile
 import traceback
 from collections import OrderedDict
 from contextlib import contextmanager, nested
 from datetime import datetime
 
-import sys
-from artemis.fileman.local_dir import format_filename, make_file_dir, get_local_path, make_dir
+from artemis.config import get_artemis_config_value
+from artemis.fileman.local_dir import format_filename, make_file_dir, get_artemis_data_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
 from artemis.general.hashing import compute_fixed_hash
@@ -52,6 +53,7 @@ class ExpStatusOptions(Enum):
     ERROR = 'Error'
     STOPPED = 'Stopped by User'
     FINISHED = 'Ran Succesfully'
+    CORRUPT = 'Corrupt'
 
 
 class ExperimentRecordInfo(object):
@@ -264,12 +266,15 @@ class ExperimentRecord(object):
     def get_args(self):
         """
         Get the arguments with which this record was run.
-        :return: A list of 2-tuples of (arg_name, arg_value)
+        :return: An OrderedDict((arg_name -> arg_value))
         """
-        return self.info.get_field(ExpInfoFields.ARGS)
+        return OrderedDict(self.info.get_field(ExpInfoFields.ARGS))
 
     def get_status(self):
-        return self.info.get_field(ExpInfoFields.STATUS)
+        try:
+            return self.info.get_field(ExpInfoFields.STATUS)
+        except KeyError:
+            return ExpStatusOptions.CORRUPT
 
     def load_figures(self):
         """
@@ -290,16 +295,16 @@ class ExperimentRecord(object):
         """
         shutil.rmtree(self._experiment_directory)
 
-    def is_valid(self, last_run_args=None, current_args=None):
+    def args_valid(self, last_run_args=None, current_args=None):
         """
         :return: True if the experiment arguments have not changed
             False if they have changed
             None if it cannot be determined because arguments are not hashable objects.
         """
-        if last_run_args is None:
+        if last_run_args is None:  # Cast to dict (from OrderedDict) because different arg order shouldn't matter
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
         if current_args is None:
-            current_args = dict(self.get_experiment().get_args().get_args())
+            current_args = dict(self.get_experiment().get_args())
         try:
             return compute_fixed_hash(last_run_args, try_objects=True) == compute_fixed_hash(current_args, try_objects=True)
         except NotImplementedError:  # Happens when we have unhashable arguments
@@ -334,8 +339,10 @@ def hold_current_experiment_record(experiment_record):
     global _CURRENT_EXPERIMENT_RECORD
     assert _CURRENT_EXPERIMENT_RECORD is None, "It seems that you are trying to start an experiment withinin an experiment.  This is not allowed!"
     _CURRENT_EXPERIMENT_RECORD = experiment_record
-    yield
-    _CURRENT_EXPERIMENT_RECORD = None
+    try:
+        yield
+    finally:
+        _CURRENT_EXPERIMENT_RECORD = None
 
 
 def is_matplotlib_imported():
@@ -376,10 +383,11 @@ def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True,
     this_record = ExperimentRecord(experiment_directory)
 
     # Create context that sets the current experiment record
-    contexts = [hold_current_experiment_record(this_record)]
-
-    # Add the context which captures stdout (print statements) and logs them.
-    contexts.append(CaptureStdOut(log_file_path=os.path.join(experiment_directory, 'output.txt'), print_to_console=print_to_console))
+    # and the context which captures stdout (print statements) and logs them.
+    contexts = [
+        hold_current_experiment_record(this_record),
+        CaptureStdOut(log_file_path=os.path.join(experiment_directory, 'output.txt'), print_to_console=print_to_console)
+        ]
 
     if is_matplotlib_imported():
         from artemis.plotting.manage_plotting import WhatToDoOnShow
@@ -404,28 +412,28 @@ def get_current_experiment_id():
     """
     :return: A string identifying the current experiment
     """
-    return get_current_experiment_record().get_identifier()
+    return get_current_experiment_record().get_experiment_id()
 
 
-def get_current_experiment_name():
+def get_current_record_id():
     """
-    :return: A string containing the name of the current experiment
+    :return: A string identifying the current experiment
     """
-    return get_current_experiment_record().get_name()
+    return get_current_experiment_record().get_id()
 
 
-def get_current_experiment_dir():
+def get_current_record_dir():
     """
     The directory in which the results of the current experiment are recorded.
     """
     return get_current_experiment_record().get_dir()
 
 
-def open_in_experiment_dir(filename, *args, **kwargs):
+def open_in_record_dir(filename, *args, **kwargs):
     """
     Open a file in the given experiment directory.  Usage:
 
-    with open_in_experiment_dir('myfile.txt', 'w') as f:
+    with open_in_record_dir('myfile.txt', 'w') as f:
         f.write('blahblahblah')
 
     :param filename: The name of the file, relative to your experiment directory,
@@ -445,7 +453,10 @@ def delete_experiment_with_id(experiment_identifier):
 
 
 def get_experiment_dir():
-    return get_local_path('experiments')
+    path = os.path.expanduser(get_artemis_config_value(section="experiments", option="experiment_directory", write_default=True, default_generator=lambda: get_artemis_data_path('experiments')))
+    if not os.path.exists(path):
+        make_dir(path)
+    return path
 
 
 def get_local_experiment_path(identifier):
@@ -541,6 +552,6 @@ def save_figure_in_record(name, fig=None, default_ext='.pkl'):
     from artemis.plotting.saving_plots import save_figure
     if fig is None:
         fig = plt.gcf()
-    save_path = os.path.join(get_current_experiment_dir(), name)
+    save_path = os.path.join(get_current_record_dir(), name)
     save_figure(fig, path=save_path, default_ext=default_ext)
     return save_path

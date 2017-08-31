@@ -1,4 +1,4 @@
-from artemis.fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_artemis_data_path
 import os
 
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
@@ -6,7 +6,7 @@ from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 
 def test_persistent_ordered_dict():
 
-    file_path = get_local_path('tests/podtest.pkl')
+    file_path = get_artemis_data_path('tests/podtest.pkl')
     if os.path.exists(file_path):
         os.remove(file_path)
 

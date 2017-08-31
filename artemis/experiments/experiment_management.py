@@ -7,10 +7,10 @@ from importlib import import_module
 
 from artemis.experiments.experiment_record import load_experiment_record, ExpInfoFields, \
     ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id
-from artemis.experiments.experiments import load_experiment, GLOBAL_EXPERIMENT_LIBRARY
+from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.should_be_builtins import izip_equal, detect_duplicates
+from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
 
 
 def pull_experiments(user, ip, experiment_names, include_variants=True):
@@ -59,6 +59,11 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
     """
     results = OrderedDict()
     for ex in experiments:
+
+        ex = load_experiment(ex) if isinstance(ex, basestring) else ex
+
+        name = experiments[ex.get_id()] if isinstance(experiments, dict) else ex if isinstance(ex, basestring) else ex.get_id()
+
         record = ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True)
         if record is None:
             if error_if_no_result:
@@ -66,7 +71,7 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
             else:
                 ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(ex.get_id()))
         else:
-            results[ex.get_id()] = record.get_result()
+            results[name] = record.get_result()
     if len(results)==0:
         ARTEMIS_LOGGER.warn('None of your experiments had any results.  Your comparison function will probably show no meaningful result.')
     return results
@@ -175,7 +180,7 @@ def _filter_records(user_range, exp_record_dict):
         # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
     elif user_range == 'invalid':
         for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).is_valid() is False for rec_id in exp_record_dict[k]]
+            base[k] = [load_experiment_record(rec_id).args_valid() is False for rec_id in exp_record_dict[k]]
     elif user_range == 'all':
         for k, v in base.iteritems():
             base[k] = [True]*len(v)
@@ -197,12 +202,13 @@ def _filter_experiment_record_list(user_range, experiment_record_ids):
         return [not x for x in _filter_records(user_range, 'new')]
     elif user_range=='orphans':
         orphans = []
+        global_lib = get_global_experiment_library()
         for i, record_id in enumerate(experiment_record_ids):
             info = load_experiment_record(record_id).info
             if 'Module' in info:
                 try:
                     import_module(info['Module'])
-                    if not record_id_to_experiment_id(record_id) in GLOBAL_EXPERIMENT_LIBRARY:
+                    if not record_id_to_experiment_id(record_id) in global_lib:
                         orphans.append(True)
                     else:
                         orphans.append(False)
@@ -258,7 +264,7 @@ def interpret_numbers(user_range):
         return None
 
 
-def run_experiment(name, exp_dict=GLOBAL_EXPERIMENT_LIBRARY, **experiment_record_kwargs):
+def run_experiment(name, exp_dict='global', **experiment_record_kwargs):
     """
     Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
     You can run the experiment agin later by calling show_experiment(location_string):
@@ -269,6 +275,8 @@ def run_experiment(name, exp_dict=GLOBAL_EXPERIMENT_LIBRARY, **experiment_record
 
     :return: A location_string, uniquely identifying the experiment.
     """
+    if exp_dict == 'global':
+        exp_dict = get_global_experiment_library()
     experiment = exp_dict[name]
     return experiment.run(**experiment_record_kwargs)
 
@@ -301,3 +309,17 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, rais
         return p.map(partial(func, **run_args), experiment_identifiers)
     else:
         return [ex.run(raise_exceptions=raise_exceptions, display_results=False, **run_args) for ex in experiments]
+
+
+def remove_common_results_prefix(results_dict):
+    """
+    Remove the common prefix for the results you are comparing.
+    :param results_dict: An OrderedDict of experiment Results
+    :return: An OrderedDict of results with the common beginnings of the keys truncated.
+    """
+    # TODO: Fix this so that it splits correctly, not just on '.', which is not necessarily a separator.
+    assert isinstance(dict, OrderedDict), 'Expecting an OrderedDict of <experiment_name -> result>'
+
+    split_keys = [k.split('.') for k in results_dict.keys()]
+    trimmed_keys = remove_common_prefix(split_keys)
+    return OrderedDict((k, v) for k, v in izip_equal(trimmed_keys, results_dict.values()))

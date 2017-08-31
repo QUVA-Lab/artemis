@@ -1,5 +1,5 @@
 import sys
-from artemis.fileman.local_dir import get_local_path
+from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.display import CaptureStdOut
 
 __author__ = 'peter'
@@ -29,7 +29,7 @@ def capture_print(log_file_path = 'logs/dump/%T-log.txt', print_to_console=True)
     :param print_to_console: Also continue printing to console.
     :return: The absolute path to the log file.
     """
-    local_log_file_path = get_local_path(log_file_path)
+    local_log_file_path = get_artemis_data_path(log_file_path)
     logger = CaptureStdOut(log_file_path=local_log_file_path, print_to_console=print_to_console)
     logger.__enter__()
     sys.stdout = logger

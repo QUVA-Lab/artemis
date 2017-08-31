@@ -1,16 +1,6 @@
 Artemis Documentation
 ===================================
 
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-   experiments
-   experiment-api
-   plotting
-
-
 Artemis is a collection of tools that make it easier to run experiments in Python. These include:
 
 * An easy-to-use system for making live plots, to monitor variables in a running experiment.
@@ -20,3 +10,12 @@ Artemis is a collection of tools that make it easier to run experiments in Pytho
 
 
 To install Artemis, see `Artemis on Github <https://github.com/QUVA-Lab/artemis/>`_
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   experiments
+   experiment-api
+   plotting

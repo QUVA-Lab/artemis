@@ -122,7 +122,7 @@ class LinePlot(HistoryFreePlot):
 
     def __init__(self, x_axis_type = 'lin', y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
                  x_bound_extend = (0, 0), make_legend = None, axes_update_mode = 'fit', add_end_markers = False, legend_entries = None,
-                 legend_entry_size = 8, plot_kwargs = {}, allow_axis_offset = False):
+                 legend_entry_size = 8, color=None, linewidth=None, linestyle=None, plot_kwargs = None, allow_axis_offset = False):
         """
         :param y_axis_type: 'lin' (only one supported now)
         :param x_bounds: A tuple of (lower_bound, upper_bound), where None means automatic
@@ -146,6 +146,14 @@ class LinePlot(HistoryFreePlot):
         self.x_bound_extend = x_bound_extend
         self.y_bound_extend = y_bound_extend
         self.make_legend=make_legend
+        if plot_kwargs is None:
+            plot_kwargs = {}
+        if color is not None:
+            plot_kwargs['color'] = color
+        if linewidth is not None:
+            plot_kwargs['linewidth'] = linewidth
+        if linestyle is not None:
+            plot_kwargs['linestyle'] = linestyle
         self.plot_kwargs = plot_kwargs
         self.axes_update_mode = axes_update_mode
         self.add_end_markers = add_end_markers
@@ -264,6 +272,21 @@ def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
             ax.set_ybound(min(old_lower, lower), max(old_upper, upper))
     else:
         raise Exception('No axis update mode: "%s"' % (mode, ))
+
+
+class BoundingBoxPlot(LinePlot):
+
+    def __init__(self, axes_update_mode='expand', **kwargs):
+        super(BoundingBoxPlot, self).__init__(axes_update_mode=axes_update_mode, **kwargs)
+
+    def update(self, data):
+        """
+        :param data: A (left, bottom, right, top) bounding box.
+        """
+        l, b, r, t = data
+        x = np.array([l+.5, l+.5, r+.5, r+.5, l+.5])
+        y = np.array([t+.5, b+.5, b+.5, t+.5, t+.5])
+        LinePlot.update(self, (x, y))
 
 
 class MovingPointPlot(LinePlot):
