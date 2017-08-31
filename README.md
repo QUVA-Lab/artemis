@@ -49,3 +49,5 @@ py.test
 All tests should pass.
 (pytest for some reason cant find modules when you do this alone)--->
 Note: During installation, the settings file `.artemisrc` is created in your home directory. In it you can specify the plotting backend to use, and other settings.
+
+Now that you have Artemis installed, see [this Tutorial](http://artemis-ml.readthedocs.io/en/latest/experiments.html) on how to use Artemis to organize your experiments.
