@@ -238,7 +238,9 @@ class Experiment(object):
             records = [record for record in records if record.get_status()==ExpStatusOptions.FINISHED]
         return records
 
-    def browse(self, **kwargs):
+    def browse(self, command=None, catch_errors = False, close_after = False, just_last_record = False,
+            view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
+            cache_result_string = False, **kwargs):
         """
         Open up the UI, which allows you to run experiments and view their results.
 
@@ -255,7 +257,9 @@ class Experiment(object):
             when opening up the menu - often when results are long lists).
         """
         from artemis.experiments.ui import browse_experiments
-        browse_experiments(root_experiment=self, **kwargs)
+        browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record,
+            view_mode=view_mode, raise_display_errors=raise_display_errors, run_args=run_args, keep_record=keep_record,
+            truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, **kwargs)
 
     # Above this line is the core api....
     # -----------------------------------
