@@ -21,10 +21,11 @@
 |  iris.data = iris.data[perm]                   |     iris.data = iris.data[per]             |       iris.data = iris.data[perm]                                         |
 |  iris.target = iris.target[perm]               |     iris.target = iris.target[per]         |       iris.target = iris.target[perm]                                     |
 |  clf = svm.SVC(C, 'rbf', gamma=gamma)          |     clf = svm.SVC(C, 'rbf', gamma=gamma)   |       clf = svm.SVC(C, 'rbf', gamma=gamma)                                |
-|  clf.fit(iris.data[:90],                       |     clf.fit(iris.data[:90],                |       clf.fit(iris.data[:90], iris.target[:90])                           |
-|          iris.target[:90])                     |             iris.target[:90])              |       return clf.score(iris.data[90:],                                    |
-|  print(clf.score(iris.data[90:],               |     return clf.score(iris.data[90:],       |                        iris.target[90:])                                  |
-|                  iris.target[90:]))            |                      iris.target[90:])     |                                                                           |
+|  clf.fit(iris.data[:90],                       |     clf.fit(iris.data[:90],                |       clf.fit(iris.data[:90],                                             |
+|          iris.target[:90])                     |             iris.target[:90])              |               iris.target[:90])                                           |
+|  print(clf.score(iris.data[90:],               |     return clf.score(iris.data[90:],       |       return clf.score(iris.data[90:],                                    |
+|                  iris.target[90:]))            |                      iris.target[90:])     |                        iris.target[90:])                                  |
+|                                                |                                            |                                                                           |
 |                                                |                                            |   if __name__ == '__main__':                                              |
 |                                                |                                            |       demo_iris_svm.browse()                                              |
 +------------------------------------------------+--------------------------------------------+---------------------------------------------------------------------------+
