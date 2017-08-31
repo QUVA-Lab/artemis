@@ -276,7 +276,7 @@ experiment records.  You can specify records in the following ways:
                     except:
                         experiment_record = None
                     rows.append([get_field(h) for h in headers])
-        assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), '\n'.join([len(row) for row in rows]))
+        assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), [len(row) for row in rows])
         table = tabulate(rows, headers=headers)
         return table
 
