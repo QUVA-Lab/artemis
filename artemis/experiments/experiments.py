@@ -62,8 +62,6 @@ class Experiment(object):
 
     def get_args(self):
         """
-        :param to_root: If True, find all args of this experiment down to the root experiment.
-            If False, just return the args that differentiate this variant from its parent.
         :return: A dictionary of arguments to the experiment
         """
         return infer_derived_arg_values(self.function)
