@@ -87,6 +87,10 @@ X.add_variant(minibatch_size=10)                                        # ... wh
 demo_mnist_logreg.add_variant('small-set', max_training_samples=1000)   # You can optionally give variants names to refer to via experiment.get_variant(name)
 
 
+# print demo_mnist_logreg.get_variant('small-set').get_latest_record().get_log()
+print demo_mnist_logreg.get_variant('small-set').get_latest_record().get_result()
+# print demo_mnist_logreg.get_latest_record().get_log()
+
 if __name__ == '__main__':
     import sys
     demo_version = sys.argv[1] if len(sys.argv) > 1 else 'ui'
@@ -125,3 +129,4 @@ if __name__ == '__main__':
         plt.show()
     else:
         raise NotImplementedError('No Demo Version {}'.format(demo_version))
+
