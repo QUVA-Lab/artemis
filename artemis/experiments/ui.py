@@ -38,10 +38,18 @@ def browse_experiments(command=None, **kwargs):
     """
     Browse Experiments
 
-    :param root_experiment: Optionally, the root experiment to look at.
-    :param catch_errors: True if you want to catch any errors here
-    :param close_after: Close this menu after running an experiment
-    :param just_last_record: Just show the last record for the experiment
+    :param command: Optionally, a string command to pass directly to the UI.  (e.g. "run 1")
+    :param root_experiment: The Experiment whose (self and) children to browse
+    :param catch_errors: Catch errors that arise while running experiments
+    :param close_after: Close after issuing one command.
+    :param just_last_record: Only show the most recent record for each experiment.
+    :param view_mode: How to view experiments {'full', 'results'} ('results' leads to a narrower display).
+    :param raise_display_errors: Raise errors that arise when displaying the table (otherwise just indicate that display failed in table)
+    :param run_args: A dict of named arguments to pass on to Experiment.run
+    :param keep_record: Keep a record of the experiment after running.
+    :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
+    :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
+        when opening up the menu - often when results are long lists).
     """
     browser = ExperimentBrowser(**kwargs)
     browser.launch(command=command)
@@ -124,6 +132,19 @@ experiment records.  You can specify records in the following ways:
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
             cache_result_string = False):
+        """
+        :param root_experiment: The Experiment whose (self and) children to browse
+        :param catch_errors: Catch errors that arise while running experiments
+        :param close_after: Close after issuing one command.
+        :param just_last_record: Only show the most recent record for each experiment.
+        :param view_mode: How to view experiments {'full', 'results'} ('results' leads to a narrower display).
+        :param raise_display_errors: Raise errors that arise when displaying the table (otherwise just indicate that display failed in table)
+        :param run_args: A dict of named arguments to pass on to Experiment.run
+        :param keep_record: Keep a record of the experiment after running.
+        :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
+        :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
+            when opening up the menu - often when results are long lists).
+        """
 
         if run_args is None:
             run_args = {}
@@ -267,7 +288,7 @@ experiment records.  You can specify records in the following ways:
         for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
             if len(record_ids)==0:
                 if exp_id in exp_record_dict:
-                    rows.append([str(i), '', exp_id, '<No Records>', '-', '-', '-', '-'])
+                    rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-4))
             else:
                 for j, record_id in enumerate(record_ids):
                     index, name = ['{}.{}'.format(i, j), exp_id] if j==0 else ['{}.{}'.format('`'*len(str(i)), j), exp_id]
@@ -276,7 +297,7 @@ experiment records.  You can specify records in the following ways:
                     except:
                         experiment_record = None
                     rows.append([get_field(h) for h in headers])
-        assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), '\n'.join([len(row) for row in rows]))
+        assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), [len(row) for row in rows])
         table = tabulate(rows, headers=headers)
         return table
 

@@ -208,6 +208,9 @@ class Experiment(object):
         return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=True)
 
     def get_id(self):
+        """
+        :return: A string uniquely identifying this experiment.
+        """
         return self.name
 
     def get_variant(self, variant_name=None, **kwargs):
@@ -226,12 +229,33 @@ class Experiment(object):
         return self.variants[variant_name]
 
     def get_records(self, only_completed=False):
+        """
+        Get all records associated with this experiment.
+
+        :param only_completed: Only include records that have run to completion.
+        :return: A list of ExperimentRecord objects.
+        """
         records = [load_experiment_record(rid) for rid in experiment_id_to_record_ids(self.name)]
         if only_completed:
             records = [record for record in records if record.get_status()==ExpStatusOptions.FINISHED]
         return records
 
     def browse(self, **kwargs):
+        """
+        Open up the UI, which allows you to run experiments and view their results.
+
+        :param command: Optionally, a string command to pass directly to the UI.  (e.g. "run 1")
+        :param catch_errors: Catch errors that arise while running experiments
+        :param close_after: Close after issuing one command.
+        :param just_last_record: Only show the most recent record for each experiment.
+        :param view_mode: How to view experiments {'full', 'results'} ('results' leads to a narrower display).
+        :param raise_display_errors: Raise errors that arise when displaying the table (otherwise just indicate that display failed in table)
+        :param run_args: A dict of named arguments to pass on to Experiment.run
+        :param keep_record: Keep a record of the experiment after running.
+        :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
+        :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
+            when opening up the menu - often when results are long lists).
+        """
         from artemis.experiments.ui import browse_experiments
         browse_experiments(root_experiment=self, **kwargs)
 
@@ -380,7 +404,7 @@ def _kwargs_to_experiment_name(kwargs):
 @contextmanager
 def hold_global_experiment_libary(new_lib = None):
     if new_lib is None:
-        new_lib = {}
+        new_lib = OrderedDict()
 
     global _GLOBAL_EXPERIMENT_LIBRARY
     oldlib = _GLOBAL_EXPERIMENT_LIBRARY
