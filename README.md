@@ -14,21 +14,23 @@ For examples of how to use artemis, read the [Artemis Documentation](http://arte
 ## Installation
 To use artemis from within your project, use the following to install Artemis and its dependencies: (You probably want to do this in a virtualenv with the latest version of pip - run `virtualenv venv; source venv/bin/activate; pip install --upgrade pip;` to make one and enter it).
 
-**Option 1: (Recommended, unless you have Anaconda) Install as source (allows you to edit Artemis).**
+
+**Option 1: Simple install:**
+
+```
+pip install artemis-ml
+```
+
+**Option 2: Install as source.**
 
 ```
 pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis 
 ```
 This will install it in `(virtual env or system python root)/src/artemis`.  You can edit the code and submit pull requests to our git repo.  To install with the optional [remote plotting](https://github.com/QUVA-Lab/artemis/blob/master/artemis/remote/README.md) mode enabled, add the `[remote_plotting]` option, as in: `pip install -e git+http://github.com/QUVA-Lab/artemis.git#egg=artemis[remote_plotting]`
 
-(Note, this doesn't work if you have Anaconda installed, as it does not work with the `-e` option).  Use Option 2 in this case instead.
+**(Note, this doesn't work if you have Anaconda installed, as it does not work with the `-e` option)**.  Use `pip install artemis-ml` in this case instead.
 
 
-**Option 2: Simple install:**
-
-```
-pip install artemis-ml
-```
 
 **Verifying that it works**
 
@@ -47,3 +49,5 @@ py.test
 All tests should pass.
 (pytest for some reason cant find modules when you do this alone)--->
 Note: During installation, the settings file `.artemisrc` is created in your home directory. In it you can specify the plotting backend to use, and other settings.
+
+Now that you have Artemis installed, see [this Tutorial](http://artemis-ml.readthedocs.io/en/latest/experiments.html) on how to use Artemis to organize your experiments.
