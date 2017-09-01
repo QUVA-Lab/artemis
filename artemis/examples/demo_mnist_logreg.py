@@ -89,7 +89,7 @@ demo_mnist_logreg.add_variant('small-set', max_training_samples=1000)   # You ca
 
 if __name__ == '__main__':
     import sys
-    demo_version = sys.argv[1] if len(sys.argv) > 1 else 'ui'
+    demo_version = sys.argv[1] if len(sys.argv) > 1 else 'api'
 
     if demo_version == 'ui':
         # Open the experiment browser UI, from where you can run and view experiments:
