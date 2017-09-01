@@ -178,9 +178,30 @@ def test_simple_experiment_show():
             show_experiment_records(rec)
 
 
+def test_view_modes():
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_function
+        def my_simdfsffsdfsfs(a=1):
+
+            print 'xxxxx'
+            print 'yyyyy'
+            return a+2
+
+        my_simdfsffsdfsfs.add_variant(a=2)
+        my_simdfsffsdfsfs.add_variant(a=3)
+
+        my_simdfsffsdfsfs.run()
+
+        for view_mode in ('full', 'results'):
+            my_simdfsffsdfsfs.browse(view_mode=view_mode, command = 'q')
+
+
 if __name__ == '__main__':
     test_experiments_function_additions()
     test_experiment_function_ui()
     test_invalid_arg_text()
     test_invalid_arg_text_when_object_arg()
     test_simple_experiment_show()
+    test_view_modes()
