@@ -16,7 +16,7 @@ def _queue_get_all_no_wait(q, max_items_to_retreive):
     for numOfItemsRetrieved in range(0, max_items_to_retreive):
         try:
             items.append(q.get_nowait())
-        except Queue.Empty, e:
+        except Queue.Empty as e:
             break
     return items
 
@@ -60,7 +60,7 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
         if not return_queue: break
         try:
             return_objects = _queue_get_all_no_wait(return_queue, 10)
-        except:
+        except Exception:
             break
 
         if len(return_objects) > 0:
