@@ -16,4 +16,4 @@ script:
     - true  # add other tests here
 notifications:
     on_success: change
-    on_failure: always
+    on_failure: always 
