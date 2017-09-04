@@ -555,6 +555,7 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
             prediction_function is identifies the prediction function (usually None, but can be used if you specify multiple prediction functions)
             cost_function is identifiers the cost function.
     """
+    last_time = last_epoch = 0
     info_score_pairs = InfoScorePairSequence() if score_collection is None else score_collection
     for (x_mini, y_mini), info in zip_minibatch_iterate_info(dataset.training_set.xy, minibatch_size=minibatch_size, n_epochs=n_epochs, test_epochs=test_epochs):
         if info.test_now:
