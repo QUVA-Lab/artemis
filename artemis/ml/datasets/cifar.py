@@ -9,6 +9,53 @@ from artemis.fileman.file_getter import get_file, get_archive
 
 __author__ = 'peter'
 
+def get_cifar_100_dataset(n_training_samples=None, n_test_samples=None, whiten_individual_images=False, fine_labels=True):
+    '''
+    :param n_training_samples: Number of training samples, or None to leave it at 50000
+    :param n_test_samples: Number of test samples, or None to leave it at 10000
+    :param whiten_individual_images: True to normalize each individual image, and turn them from uint8 to double
+    :param fine_labels: True to use the fine categorization (100 classes) or False to use the coarse categorization (20 classes)
+    :return: The CIFAR-100 dataset, which consists of 50000 training and 10000 test images.
+        Images are 32x32 uint8 (or double) RGB images (n_samples, 3, 32, 32) of 100 (or 20) categories of objects.
+        Targets are integer labels in the range [0, 100] (or [0,20])
+
+    '''
+
+    directory = get_archive(relative_path='data/cifar-100', url='https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz')
+    with open(os.path.join(directory, "cifar-100-python", "train"), 'rb') as fo:
+        dict = pickle.load(fo)
+    x_tr = dict["data"].reshape(-1, 3, 32, 32)
+    y_tr = dict["fine_labels"] if fine_labels else dict["coarse_labels"]
+    y_tr = np.array(y_tr)
+
+    with open(os.path.join(directory, "cifar-100-python", "test"), 'rb') as fo:
+        dict = pickle.load(fo)
+    x_ts = dict["data"].reshape(-1, 3, 32, 32)
+    y_ts = dict["fine_labels"] if fine_labels else dict["coarse_labels"]
+    y_ts = np.array(y_ts)
+
+    if whiten_individual_images:
+        mean_tr = x_tr.mean(axis=(1,2,3), keepdims=True)
+        std_tr = x_tr.std(axis=(1,2,3), keepdims=True)
+        x_tr = (x_tr - mean_tr)/std_tr
+        mean_ts = x_ts.mean(axis=(1,2,3), keepdims=True)
+        std_ts = x_ts.std(axis=(1,2,3), keepdims=True)
+        x_ts = (x_ts - mean_ts)/std_ts
+
+    if n_training_samples is not None:
+        x_tr = x_tr[:n_training_samples]
+        y_tr = y_tr[:n_training_samples]
+    if n_test_samples is not None:
+        x_ts = x_ts[:n_test_samples]
+        y_ts = y_ts[:n_test_samples]
+
+
+    return DataSet(training_set=DataCollection(x_tr, y_tr), test_set=DataCollection(x_ts, y_ts), name='CIFAR-100-%s'%("fine" if fine_labels else "coarse"))
+
+
+
+
+
 
 def get_cifar_10_dataset(n_training_samples = None, n_test_samples = None, normalize_inputs = False):
     """
@@ -77,9 +124,11 @@ if __name__ == '__main__':
     from artemis.plotting.easy_plotting import ezplot
 
     dataset = get_cifar_10_dataset()
+    dataset = get_cifar_100_dataset()
     n_samples = 100
 
     ezplot({
         'sampled training images': np.rollaxis(dataset.training_set.input[:n_samples], 1, 4),# np.swapaxes(dataset.training_set.input[:n_samples], 1, 3).reshape(10, 10, 32, 32, 3),
         'sampled training labels': dataset.training_set.target[:n_samples].reshape(10, 10)
         }, cmap = 'jet')
+    raw_input("Enter to exit")
