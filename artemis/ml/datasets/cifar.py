@@ -62,7 +62,6 @@ def get_cifar_10_dataset(n_training_samples = None, n_test_samples = None, norma
     :param n_training_samples: Number of training samples, or None to leave it at 50000
     :param n_test_samples: Number of test samples, or None to leave it at 10000
     :param normalize_inputs: True to normalize inputs, and turn them from uint8 to double
-    :param swap_axes: True to arrange images as (n_samples, n_colors, n_rows, n_cols) instead of (n_samples, n_rows, n_cols, n_colors)
 
     :return: The CIFAR-10 dataset, which consists of 50000 training and 10000 test images.
         Images are 32x32 uint8 RGB images (n_samples, 3, 32, 32) of 10 categories of objects.
