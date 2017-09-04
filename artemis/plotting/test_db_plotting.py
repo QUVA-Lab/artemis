@@ -5,8 +5,7 @@ import numpy as np
 from artemis.plotting.demo_dbplot import demo_dbplot
 from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot, \
     dbplot_hang
-from artemis.plotting.matplotlib_backend import LinePlot, HistogramPlot, MovingPointPlot, _USE_SERVER
-from artemis.plotting.plotting_server_state import _USE_SERVER
+from artemis.plotting.matplotlib_backend import LinePlot, HistogramPlot, MovingPointPlot, is_server_plotting_on
 import pytest
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -123,7 +122,7 @@ def test_two_plots_in_the_same_axis_version_2():
             dbplot((x, 1./np.sqrt(2*np.pi*np.var(data)) * np.exp(-(x-np.mean(data))**2/(2*np.var(data)))), 'density', axis='hist', plot_type='line')
 
 
-@pytest.mark.skipif(_USE_SERVER, reason = "This fails in server mode because we currently do not have an interpretation of freeze_all_dbplots")
+@pytest.mark.skipif(is_server_plotting_on(), reason = "This fails in server mode because we currently do not have an interpretation of freeze_all_dbplots")
 def test_freeze_dbplot():
     reset_dbplot()
     def random_walk():
@@ -182,7 +181,7 @@ def test_close_and_open():
 
 
 if __name__ == '__main__':
-    if _USE_SERVER:
+    if is_server_plotting_on():
         test_cornertext()
         time.sleep(2.)
         test_trajectory_plot()

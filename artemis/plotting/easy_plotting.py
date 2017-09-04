@@ -1,9 +1,8 @@
 from collections import OrderedDict
 from artemis.general.nested_structures import flatten_struct
 from artemis.plotting.data_conversion import vector_length_to_tile_dims
-# import plotting.matplotlib_backend as eplt
-import artemis.plotting.matplotlib_backend as eplt
 import numpy as np
+from matplotlib import pyplot as plt
 
 __author__ = 'peter'
 
@@ -33,23 +32,23 @@ def plot_data_dict(data_dict, plots = None, mode = 'static', hang = True, figure
         data_dict = OrderedDict(data_dict)
 
     if plots is None:
-        plots = {k: eplt.get_plot_from_data(v, mode = mode, **plot_preference_kwargs) for k, v in data_dict.iteritems()}
+        plots = {k: plt.get_plot_from_data(v, mode = mode, **plot_preference_kwargs) for k, v in data_dict.iteritems()}
 
     if figure is None:
         if size is not None:
             from pylab import rcParams
             rcParams['figure.figsize'] = size
-        figure = eplt.figure()
+        figure = plt.figure()
     n_rows, n_cols = vector_length_to_tile_dims(len(data_dict))
     for i, (k, v) in enumerate(data_dict.iteritems()):
-        eplt.subplot(n_rows, n_cols, i+1)
+        plt.subplot(n_rows, n_cols, i + 1)
         plots[k].update(v)
         plots[k].plot()
-        eplt.title(k, fontdict = {'fontsize': 8})
-    oldhang = eplt.isinteractive()
-    eplt.interactive(not hang)
-    eplt.show()
-    eplt.interactive(oldhang)
+        plt.title(k, fontdict = {'fontsize': 8})
+    oldhang = plt.isinteractive()
+    plt.interactive(not hang)
+    plt.show()
+    plt.interactive(oldhang)
     return figure, plots
 
 
@@ -62,12 +61,12 @@ def funplot(func, xlims = None, n_points = 100, keep_ylims = False, **plot_args)
     :return:
     """
     if xlims is None:
-        xlims = eplt.gca().get_xbound()
+        xlims = plt.gca().get_xbound()
     xs, xe = xlims
     x = np.linspace(xs, xe, n_points)
     if keep_ylims:
-        ylims = eplt.gca().get_ybound()
-    eplt.plot(x, func(x), **plot_args)
+        ylims = plt.gca().get_ybound()
+    plt.plot(x, func(x), **plot_args)
     if keep_ylims:
-        eplt.gca().set_ybound(*ylims)
-    eplt.gca().set_xbound(*xlims)
+        plt.gca().set_ybound(*ylims)
+    plt.gca().set_xbound(*xlims)

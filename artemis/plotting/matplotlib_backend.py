@@ -8,7 +8,6 @@ from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, dat
 from matplotlib import pyplot as plt
 import numpy as np
 
-from artemis.plotting.plotting_server_state import _USE_SERVER
 
 __author__ = 'peter'
 
