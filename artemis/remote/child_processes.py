@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import Queue
 import atexit
+import base64
 import inspect
 import shlex
 import signal
@@ -12,6 +13,7 @@ import time
 import uuid
 import os
 import pickle
+import pipes
 
 import StringIO
 
@@ -66,6 +68,9 @@ class ChildProcess(object):
         if self.is_local():
             return command
         else:
+            if isinstance(command,list):
+                command = " ".join(pipes.quote(c) for c in command)
+
             return self.get_extended_command(command)
         return command
 
@@ -292,6 +297,7 @@ class RemotePythonProcess(ChildProcess):
             ip_address="127.0.0.1"
 
         pickled_function = pickle_dumps_without_main_refs(function)
+        encoded_pickled_function = base64.b64encode(pickled_function)
 
         remote_run_script_path = inspect.getfile(remote_function_run_script)
         if remote_run_script_path.endswith('pyc'):
@@ -300,7 +306,7 @@ class RemotePythonProcess(ChildProcess):
         self.return_value_queue, return_port = listen_on_port(7000)
         all_local_ips = get_local_ips()
         return_address = "127.0.0.1" if ip_address in all_local_ips else all_local_ips[-1]
-        command = [sys.executable, '-u', remote_run_script_path, pickled_function, return_address, str(return_port)]
+        command = [sys.executable, '-u', remote_run_script_path, encoded_pickled_function, return_address, str(return_port)]
         super(RemotePythonProcess, self).__init__(ip_address=ip_address, command=command, set_up_port_for_structured_back_communication=set_up_port_for_structured_back_communication,  **kwargs)
 
     def get_return_value(self, timeout=1):
