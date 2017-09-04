@@ -139,14 +139,20 @@ class NestedType(object):
 
 def get_leaf_values(data_object, containers = _primitive_containers):
     """
-    Collect leaf values.
+    Collect leaf values of a nested data_obj in Depth-First order.
+
+    e.g.
+
+        >>> get_leaf_values([6]+[{'x': 3, 'y': [i, 'aaa']} for i in xrange(4)])
+        [6, 3, 0, 'aaa', 3, 1, 'aaa', 3, 2, 'aaa', 3, 3, 'aaa']
+
     Caution: If your data contains dicts, you may not get the same order of results when you call this function with
     different dict objects containing the same data.  Python only guarantees that a given dict will always iterate in
     the same order so long as it is not modified.  See https://docs.python.org/2/library/stdtypes.html#dict.items
 
     :param data_object: An arbitrary nested data object
     :param containers: The list of "container" classes that we should break into.
-    :return:
+    :return: A list of leaf values.
     """
     leaf_values = []
     if isinstance(data_object, containers):
