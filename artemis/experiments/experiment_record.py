@@ -222,7 +222,7 @@ class ExperimentRecord(object):
         make_file_dir(file_path)
         with open(file_path, 'w') as f:
             pickle.dump(result, f, protocol=2)
-            print 'Saving Result for Experiment "%s"' % (self.get_id(),)
+            print('Saving Result for Experiment "%s"' % (self.get_id(),))
 
     def get_id(self):
         """
@@ -313,7 +313,7 @@ class ExperimentRecord(object):
             error_text = traceback.format_exc()
             f.write(error_text)
         if print_too:
-            print error_text
+            print(error_text)
 
 _CURRENT_EXPERIMENT_RECORD = None
 

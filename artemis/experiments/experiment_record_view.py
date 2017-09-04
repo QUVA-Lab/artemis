@@ -133,7 +133,7 @@ def display_experiment_record(record):
     result = record.get_result(err_if_none=False)
     display_func = record.get_experiment().display_function
     if display_func is None:
-        print deepstr(result)
+        print(deepstr(result))
     else:
         display_func(result)
 
@@ -181,7 +181,7 @@ def print_experiment_record_argtable(records):
         prettify_labels=False
         )
 
-    print tabulate(rows)
+    print(tabulate(rows))
 
 
 def show_experiment_records(records, parallel_text=None, hang_notice = None, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
@@ -198,7 +198,7 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
     if parallel_text is None:
         parallel_text = len(records)>1
     if len(records)==0:
-        print '... No records to show ...'
+        print('... No records to show ...')
     else:
         strings = [get_record_full_string(rec, show_logs=show_logs, show_result=show_result, truncate_logs=truncate_logs,
                     truncate_result=truncate_result, header_width=header_width, include_bottom_border=False) for rec in records]
@@ -209,7 +209,7 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
         for rec in records:
             rec.show_figures(hang=False)
         if hang_notice is not None:
-            print hang_notice
+            print(hang_notice)
 
         with interactive_matplotlib_context(not hang):
             plt.show()
@@ -225,10 +225,10 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
                     strings[i] += section_with_header('Result Display', cap.read(), width=header_width, bottom_char='=')
 
     if parallel_text:
-        print side_by_side(strings, max_linewidth=128)
+        print(side_by_side(strings, max_linewidth=128))
     else:
         for string in strings:
-            print string
+            print(string)
 
     return has_matplotlib_figures
 
@@ -304,6 +304,6 @@ def make_record_comparison_table(records, args_to_show=None, results_extractor =
 
     if print_table:
         import tabulate
-        print tabulate.tabulate(rows, headers=headers, tablefmt='simple')
+        print(tabulate.tabulate(rows, headers=headers, tablefmt='simple'))
     return headers, rows
 

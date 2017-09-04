@@ -24,7 +24,7 @@ def what_are_we_waiting_for(command, sort_by ='time', max_len = 20, print_here =
     p.strip_dirs()
     p.sort_stats(sort_by)
     if print_here:
-        print surround_with_header('Profile for "{}"'.format(command), width=100, char='=')
+        print(surround_with_header('Profile for "{}"'.format(command), width=100, char='='))
         p.print_stats(max_len)
-        print '='*100
+        print('='*100)
     return p

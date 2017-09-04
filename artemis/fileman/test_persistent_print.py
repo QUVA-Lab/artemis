@@ -11,11 +11,11 @@ def test_proper_persistent_print_usage():
     Here is the best, cleanest way to use persistent print
     :return:
     """
-    print 'ddd'
+    print('ddd')
     with CaptureStdOut() as ps:
-        print 'fff'
-        print 'ggg'
-    print 'hhh'
+        print('fff')
+        print('ggg')
+    print('hhh')
     assert ps.read() == 'fff\nggg\n'
 
 
@@ -23,9 +23,9 @@ def test_proper_persistent_print_file_logging():
 
     log_file_path = get_artemis_data_path('tests/test_log.txt')
     with CaptureStdOut(log_file_path) as ps:
-        print 'fff'
-        print 'ggg'
-    print 'hhh'
+        print('fff')
+        print('ggg')
+    print('hhh')
     assert ps.read() == 'fff\nggg\n'
 
     # You can verify that the log has also been written.
@@ -38,15 +38,15 @@ def test_proper_persistent_print_file_logging():
 def test_persistent_print():
 
     test_log_path = capture_print()
-    print 'aaa'
-    print 'bbb'
+    print('aaa')
+    print('bbb')
     assert read_print()  == 'aaa\nbbb\n'
     stop_capturing_print()
 
     capture_print()
     assert read_print() == ''
-    print 'ccc'
-    print 'ddd'
+    print('ccc')
+    print('ddd')
     assert read_print()  == 'ccc\nddd\n'
 
     os.remove(get_artemis_data_path(test_log_path))
@@ -56,8 +56,8 @@ def test_new_log_file():
     # Just a shorthand for persistent print.
 
     log_file_loc = new_log_file('dump/test_file')
-    print 'eee'
-    print 'fff'
+    print('eee')
+    print('fff')
     stop_capturing_print()
 
     local_log_loc = get_artemis_data_path(log_file_loc)

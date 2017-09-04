@@ -56,10 +56,10 @@ def install_packages_on_remote_virtualenv(ip_address, packages):
         if "Successfully installed" in out or "Requirement already up-to-date" in out:
             pass
         else:
-            print ("Error in installing %s==%s:" % (key,version))
+            print(("Error in installing %s==%s:" % (key,version)))
             err = stderr.read()
             err = "\n".join([s for s in err.strip().split("\n") if "SNIMissingWarning" not in s and "InsecurePlatformWarning" not in s])
-            print err
+            print(err)
     ssh_conn.close()
     print("... Done")
 
@@ -80,7 +80,7 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
     :param ignore_warnings:
     :return:
     '''
-    print("="*10 + " Checking remote virtualenv %s "%ip_address + "="*10)
+    print(("="*10 + " Checking remote virtualenv %s "%ip_address + "="*10))
     remote_packages = get_remote_installed_packages(ip_address)
     local_packages = {i.key: i.version  for i in pip.get_installed_distributions(include_editables=False)}
     missing_packages = OrderedDict()
@@ -100,11 +100,11 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
             if auto_install:
                 chosen_packages_to_install_and_update = missing_packages
             else:
-                print("Some locally installed packages are missing in the remote virtualenv at %s. You chose not to install them. "
-                  "The missing packages are: \n %s " % (ip_address,missing_packages_string))
+                print(("Some locally installed packages are missing in the remote virtualenv at %s. You chose not to install them. "
+                  "The missing packages are: \n %s " % (ip_address,missing_packages_string)))
         else:
-            print "The following locally installed packages are missing in the virtualenv at %s:" % ip_address
-            print '\n'.join(['%s: %s (%s)' % (i, key, missing_packages[key]) for i, key in enumerate(missing_packages.keys())])
+            print("The following locally installed packages are missing in the virtualenv at %s:" % ip_address)
+            print('\n'.join(['%s: %s (%s)' % (i, key, missing_packages[key]) for i, key in enumerate(missing_packages.keys())]))
             valid = False
             while not valid:
                 ix = raw_input("Please specify in the format '1, 3, 4' all packages you want to install. Can be empty or 'all' ")
@@ -119,10 +119,10 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                     try:
                         numbers = [int(n) for n in numbers]
                     except:
-                        print("Please format input correctly. The input recieved was: \n%s"%ix)
+                        print(("Please format input correctly. The input recieved was: \n%s"%ix))
                         continue
                     if not np.all([n >= 0 and n < len(missing_packages) for n in numbers]):
-                        print("Please make sure every number is valid. The input recieved was: \n%s"%ix)
+                        print(("Please make sure every number is valid. The input recieved was: \n%s"%ix))
                         continue
                     for i, key in enumerate(missing_packages.keys()):
                         if i in numbers:
@@ -136,13 +136,13 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                 for key, versions in different_versions.iteritems():
                     chosen_packages_to_install_and_update[key] = versions[0]
             else:
-                print("Some locally installed packages are installed in a different version than on the remote virtualenv at %s. You chose not to upgrade them. "
-                  "The different packages are:" % (ip_address))
+                print(("Some locally installed packages are installed in a different version than on the remote virtualenv at %s. You chose not to upgrade them. "
+                  "The different packages are:" % (ip_address)))
                 for key, versions in different_versions.iteritems():
-                    print ("%s: local %s, reote %s") % (key, versions[0],versions[1])
+                    print(("%s: local %s, reote %s") % (key, versions[0],versions[1]))
         else:
-            print "The following locally installed packages are installed in a different version than on the virtualenv at %s:" % ip_address
-            print '\n'.join(['%s: %s (local: %s) => (remote: %s)' % (i, key, different_versions[key][0], different_versions[key][1]) for i, key in enumerate(different_versions.keys())])
+            print("The following locally installed packages are installed in a different version than on the virtualenv at %s:" % ip_address)
+            print('\n'.join(['%s: %s (local: %s) => (remote: %s)' % (i, key, different_versions[key][0], different_versions[key][1]) for i, key in enumerate(different_versions.keys())]))
             valid = False
             while not valid:
                 ix = raw_input("Please specify in the format '1, 3, 4' all remote packages you want to upgrade (downgrade) to the local version. Can be empty or 'all' ")
@@ -158,10 +158,10 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                     try:
                         numbers = [int(n) for n in numbers]
                     except:
-                        print("Please format input correctly. The input recieved was: \n%s"%ix)
+                        print(("Please format input correctly. The input recieved was: \n%s"%ix))
                         continue
                     if not np.all([n >= 0 and n < len(different_versions) for n in numbers]):
-                        print("Please make sure every number is valid. The input recieved was: \n%s"%ix)
+                        print(("Please make sure every number is valid. The input recieved was: \n%s"%ix))
                         continue
                     for i, key in enumerate(different_versions.keys()):
                         if i in numbers:
@@ -193,4 +193,4 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                         sys.exit(0)
                     else:
                         print("Ignoring discrepancies...")
-    print("="*10 + " Done remote virtualenv %s "%ip_address + "="*10)
+    print(("="*10 + " Done remote virtualenv %s "%ip_address + "="*10))

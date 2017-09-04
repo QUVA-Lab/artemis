@@ -61,5 +61,5 @@ def reprint():
     # Need to avoid exponentially growing prints...
     current_stdout = sys.stdout
     sys.stdout = _ORIGINAL_STDOUT
-    print read_print()
+    print(read_print())
     sys.stdout = current_stdout

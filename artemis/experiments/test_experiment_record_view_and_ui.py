@@ -7,7 +7,7 @@ from artemis.general.display import CaptureStdOut, assert_things_are_printed
 
 
 def display_it(result):
-    print str(result) + 'aaa'
+    print(str(result) + 'aaa')
 
 
 def one_liner(result):
@@ -15,7 +15,7 @@ def one_liner(result):
 
 
 def compare_them(results):
-    print ', '.join('{}: {}'.format(k, results[k]) for k in sorted(results.keys()))
+    print(', '.join('{}: {}'.format(k, results[k]) for k in sorted(results.keys())))
 
 
 @ExperimentFunction(display_function=display_it, one_liner_function=one_liner, comparison_function=compare_them)
@@ -24,7 +24,7 @@ def my_xxxyyy_test_experiment(a=1, b=2):
     if b==17:
         raise Exception('b should never be 17')
 
-    print 'xxx' if a==1 else 'yyy'
+    print('xxx' if a==1 else 'yyy')
     return a+b
 
 
@@ -60,10 +60,10 @@ def test_experiments_function_additions():
             compare_experiment_results([my_xxxyyy_test_experiment, my_xxxyyy_test_experiment.get_variant('a2'), my_xxxyyy_test_experiment.get_variant(b=17)])
         assert cap.read() == 'my_xxxyyy_test_experiment: 3, my_xxxyyy_test_experiment.a2: 4\n'
 
-        print '='*100+'\n ARGTABLE \n'+'='*100
+        print('='*100+'\n ARGTABLE \n'+'='*100)
         print_experiment_record_argtable([r1, r2, r3])
 
-        print '='*100+'\n SHOW \n'+'='*100
+        print('='*100+'\n SHOW \n'+'='*100)
         show_experiment_records([r1, r2, r3])
 
 
@@ -168,8 +168,8 @@ def test_simple_experiment_show():
         @experiment_function
         def my_simdfsfdsgfs(a=1):
 
-            print 'xxxxx'
-            print 'yyyyy'
+            print('xxxxx')
+            print('yyyyy')
             return a+2
 
         rec = my_simdfsfdsgfs.run()

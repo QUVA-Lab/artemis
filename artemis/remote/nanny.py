@@ -139,11 +139,11 @@ class Nanny(object):
         time.sleep(time_out)
         for id,cp in self.managed_child_processes.iteritems():
             if cp.is_alive():
-                print("Child Process %s at %s did not terminate %s seconds after the first process in cluster terminated. Terminating now." %(cp.get_name(), cp.get_ip(), time_out))
+                print(("Child Process %s at %s did not terminate %s seconds after the first process in cluster terminated. Terminating now." %(cp.get_name(), cp.get_ip(), time_out)))
                 cp.deconstruct()
         for id,cp in self.managed_child_processes.iteritems():
             if cp.is_alive():
-                print("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip()))
+                print(("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip())))
                 cp.deconstruct(signal.SIGKILL)
 
 
@@ -158,7 +158,7 @@ class Nanny(object):
         time.sleep(1.0)
         for cp in self.managed_child_processes.values():
             if cp.is_alive():
-                print("Child Process %s at %s still alive, force terminating now"% (cp.name, cp.get_ip()))
+                print(("Child Process %s at %s still alive, force terminating now"% (cp.name, cp.get_ip())))
                 cp.kill(signal=signal.SIGTERM)
 
 
@@ -208,5 +208,5 @@ class Nanny(object):
                 pass
         except:
             exp_name=""
-        print("Timeout occurred after %.1f min, process %s%s stuck"%(timeout/60., process_name, " from experiment %s"%exp_name if exp_name != "" else ""))
+        print(("Timeout occurred after %.1f min, process %s%s stuck"%(timeout/60., process_name, " from experiment %s"%exp_name if exp_name != "" else "")))
         termination_request_event.set()
