@@ -4,9 +4,8 @@ from collections import OrderedDict
 from tabulate import tabulate
 
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments
-from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
-    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields
+    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments, get_experient_to_record_dict
+from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, load_experiment_record, ExpInfoFields
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
     display_experiment_record
@@ -149,7 +148,9 @@ experiment records.  You can specify records in the following ways:
             descendents_of_root = set(ex.name for ex in self.root_experiment.get_all_variants(include_self=True))
             names = [name for name in names if name in descendents_of_root]
 
-        d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in names)
+        # d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in names)
+        d = get_experient_to_record_dict(names)
+
         if self.just_last_record:
             for k in d.keys():
                 d[k] = [d[k][-1]] if len(d[k])>0 else []
