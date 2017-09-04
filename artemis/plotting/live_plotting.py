@@ -3,7 +3,7 @@ from abc import abstractmethod
 from artemis.general.nested_structures import flatten_struct
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.easy_plotting import plot_data_dict
-import artemis.plotting.plotting_backend as eplt
+import artemis.plotting.matplotlib_backend as eplt
 
 __author__ = 'peter'
 

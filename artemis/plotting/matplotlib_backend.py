@@ -1,11 +1,14 @@
 from abc import ABCMeta, abstractmethod
 from itertools import cycle
 
+from artemis.config import get_artemis_config_value
 from artemis.general.should_be_builtins import bad_value
 from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array, \
     UnlimitedRecordBuffer
 from matplotlib import pyplot as plt
 import numpy as np
+
+from artemis.plotting.plotting_server_state import _USE_SERVER
 
 __author__ = 'peter'
 
@@ -526,3 +529,23 @@ def get_static_plot_from_data(data, line_to_image_threshold=8, cmap = 'gray'):
         return LinePlot()
     else:
         return ImagePlot(cmap=cmap)
+
+
+_PLOTTING_SERVER = get_artemis_config_value(section='plotting', option='plotting_server', default_generator="")
+_USE_SERVER = _PLOTTING_SERVER != ""
+
+
+def is_server_plotting_on():
+    return _USE_SERVER
+
+
+def set_server_plotting(state):
+    global _USE_SERVER
+    _USE_SERVER = state
+
+
+def get_plotting_server_address():
+    return _PLOTTING_SERVER
+
+
+BACKEND = get_artemis_config_value(section='plotting', option='backend')
