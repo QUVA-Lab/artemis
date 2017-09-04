@@ -277,7 +277,12 @@ experiment records.  You can specify records in the following ways:
                         experiment_record = None
                     rows.append([get_field(h) for h in headers])
         assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), '\n'.join([len(row) for row in rows]))
-        table = tabulate(rows, headers=headers)
+        try:
+            table = tabulate(rows, headers=headers)
+        except UnicodeDecodeError:
+            rows = [[v.encode('ascii', 'ignore') if isinstance(v, basestring) else v for v in row] for row in rows]
+            table = tabulate(rows, headers=headers)
+
         return table
 
     def run(self, user_range, mode='-s', raise_exceptions = ''):
