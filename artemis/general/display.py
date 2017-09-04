@@ -177,7 +177,7 @@ class IndentPrint(object):
     def __enter__(self):
         self.old_stdout = sys.stdout
         if self.block_header is not None:
-            print self.block_header
+            print(self.block_header)
         sys.stdout = self
 
     def flush(self):
@@ -196,7 +196,7 @@ class IndentPrint(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout = self.old_stdout
         if self.show_end:
-            print '```'
+            print('```')
 
 
 class DocumentWrapper(textwrap.TextWrapper):

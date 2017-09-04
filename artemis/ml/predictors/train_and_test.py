@@ -30,10 +30,10 @@ def train_online_predictor(predictor, training_set, minibatch_size, n_epochs = 1
     :param minibatch_size: An integer, or 'full' for full batch training
     :param n_epochs: Number of passes to make over the training set.
     """
-    print 'Training Predictor %s...' % (predictor, )
+    print('Training Predictor %s...' % (predictor, ))
     for (_, data, target) in training_set.minibatch_iterator(minibatch_size = minibatch_size, epochs = n_epochs, single_channel = True):
         predictor.train(data, target)
-    print 'Done.'
+    print('Done.')
 
 
 def evaluate_predictor(predictor, test_set, evaluation_function):
@@ -499,7 +499,7 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
                 results[test_pair_name, function_name, cost_name] = cost_function(predictions, y)
 
     if print_results:
-        print results.get_table()
+        print(results.get_table())
 
     return results
 
@@ -510,7 +510,7 @@ def print_score_results(score, info=None):
     :return:
     """
     if info is not None:
-        print 'Epoch {} (after {:.3g}s)'.format(info.epoch, info.time)
+        print('Epoch {} (after {:.3g}s)'.format(info.epoch, info.time))
     test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*score.keys())]
     rows = build_table(
         lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: score[test_pair_name_, function_name_, cost_name_],
@@ -521,7 +521,7 @@ def print_score_results(score, info=None):
         remove_unchanging_cols=True
         )
     import tabulate
-    print tabulate.tabulate(rows)
+    print(tabulate.tabulate(rows))
 
 
 def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
@@ -560,7 +560,7 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
     for (x_mini, y_mini), info in zip_minibatch_iterate_info(dataset.training_set.xy, minibatch_size=minibatch_size, n_epochs=n_epochs, test_epochs=test_epochs):
         if info.test_now:
             rate = (info.time-last_time)/(info.epoch - last_epoch) if info.epoch>0 else float('nan')
-            print 'Epoch {}.  Rate: {:.3g}s/epoch'.format(info.epoch, rate)
+            print('Epoch {}.  Rate: {:.3g}s/epoch'.format(info.epoch, rate))
             last_epoch = info.epoch
             last_time = info.time
             test_pairs = _dataset_to_test_pair(dataset, include = test_on)
@@ -653,6 +653,6 @@ class ParameterSchedule(object):
         else:
             new_value = self.schedule(epoch)
         if self.last_value != new_value and self.print_variable_name is not None:
-            print 'Epoch {}: {} = {}'.format(epoch, self.print_variable_name, new_value)
+            print('Epoch {}: {} = {}'.format(epoch, self.print_variable_name, new_value))
             self.last_value = new_value
         return new_value

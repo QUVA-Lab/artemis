@@ -20,7 +20,7 @@ def test_get_full_args():
     with raises(AssertionError):  # AssertionError: Arguments ('b',) require values but are not given any.
         infer_arg_values(func, 1, c=5)
     with raises(AssertionError):  # AssertionError: You provided 3 arguments, but the function only takes 2
-        print infer_arg_values(func, 1, 2, 5)
+        print(infer_arg_values(func, 1, 2, 5))
     with raises(AssertionError):  # AssertionError: Arguments ('b',) have been defined multiple times: (('a', 1), ('b', 2), ('b', 5))
         infer_arg_values(func, 1, 2, b=5)
 
@@ -38,7 +38,7 @@ def test_get_full_args():
     with raises(AssertionError):  # AssertionError: The set of argument names to the function: ('a', 'b') must match the set of arguments given: ('a', 'b', 'c')
         infer_arg_values(func_with_defaults, 1, c=5)
     with raises(AssertionError):  # AssertionError: You provided 3 arguments, but the function only takes 2
-        print infer_arg_values(func_with_defaults, 1, 2, 5)
+        print(infer_arg_values(func_with_defaults, 1, 2, 5))
     with raises(AssertionError):  # AssertionError: Arguments ('b',) have been defined multiple times: (('a', 1), ('b', 2), ('b', 5))
         infer_arg_values(func_with_defaults, 1, 2, b=5)
 
@@ -53,7 +53,7 @@ def test_get_full_args():
     with raises(AssertionError):  # AssertionError: Arguments ('a',) require values but are not given any.
         infer_arg_values(func_with_kwargs, b=3)
     with raises(AssertionError):  # AssertionError: You provided 3 arguments, but the function only takes 2
-        print infer_arg_values(func_with_kwargs, 1, 2, 5)
+        print(infer_arg_values(func_with_kwargs, 1, 2, 5))
     with raises(AssertionError):  # AssertionError: Arguments ('b',) have been defined multiple times: (('a', 1), ('b', 2), ('b', 5))
         infer_arg_values(func_with_kwargs, 1, 2, b=5)
 

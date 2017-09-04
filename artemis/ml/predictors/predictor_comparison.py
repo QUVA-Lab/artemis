@@ -67,7 +67,7 @@ def compare_predictors(dataset, online_predictors={}, offline_predictors={}, min
 
     # Run the offline predictors
     for predictor_name, (predictor_type, predictor) in type_constructor_dict.iteritems():
-        print '%s\nRunning predictor %s\n%s' % ('='*20, predictor_name, '-'*20)
+        print('%s\nRunning predictor %s\n%s' % ('='*20, predictor_name, '-'*20))
         records[predictor_name] = \
             assess_offline_predictor(
                 predictor=predictor,
@@ -91,7 +91,7 @@ def compare_predictors(dataset, online_predictors={}, offline_predictors={}, min
                 ) if predictor_type == 'online' else \
             bad_value(predictor_type)
 
-    print 'Done!'
+    print('Done!')
 
     return records
 
@@ -144,7 +144,7 @@ def assess_offline_predictor(predictor, dataset, evaluation_function, test_on = 
     scores = [(k, evaluation_function(process_in_batches(predictor.predict, x, test_batch_size), y)) for k, (x, y) in testing_sets.iteritems()]
     record.add(None, scores)
     if report_test_scores:
-        print 'Scores: %s' % (scores, )
+        print('Scores: %s' % (scores, ))
     return record
 
 
@@ -189,7 +189,7 @@ def assess_online_predictor(predictor, dataset, evaluation_function, test_epochs
     def do_test(current_epoch):
         scores = [(k, evaluation_function(process_in_batches(prediction_functions[k], x, test_batch_size), y)) for k, (x, y) in testing_sets.iteritems()]
         if report_test_scores:
-            print 'Scores at Epoch %s: %s, after %.2fs' % (current_epoch, ', '.join('%s: %.3f' % (set_name, score) for set_name, score in scores), time.time()-start_time)
+            print('Scores at Epoch %s: %s, after %.2fs' % (current_epoch, ', '.join('%s: %.3f' % (set_name, score) for set_name, score in scores), time.time()-start_time))
         record.add(current_epoch, scores)
         if test_callback is not None:
             record.add(current_epoch, ('callback', test_callback(predictor)))
