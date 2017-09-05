@@ -378,8 +378,7 @@ experiment records.  You can specify records in the following ways:
     def selectexp(self, user_range):
         exps_to_records = select_experiments(user_range, self.exp_record_dict, return_dict=True)
         with IndentPrint():
-            print self.get_experiment_list_str(exps_to_records)
-            # print ExperimentRecordBrowser.get_record_table(record_ids)
+            print(self.get_experiment_list_str(exps_to_records))
         _warn_with_prompt('Experiment Selection "{}" includes {} out of {} experiments.'.format(user_range, len(exps_to_records), len(self.exp_record_dict)), use_prompt=not self.close_after)
 
     def selectrec(self, user_range):
