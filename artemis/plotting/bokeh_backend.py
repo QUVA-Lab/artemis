@@ -1,6 +1,9 @@
 
 from artemis.general.should_be_builtins import bad_value
 from artemis.plotting.data_conversion import put_data_in_grid, data_to_image, RecordBuffer, UnlimitedRecordBuffer
+from artemis.plotting.matplotlib_backend import MovingImagePlot, TextPlot
+
+from matplotlib import pyplot as plt
 import numpy as np
 
 from bokeh.models import GridPlot
@@ -252,7 +255,7 @@ class ImagePlot(object):
             data_to_image(data, clims = clims, cmap = self._cmap)
 
         if self._plot is None:
-            self._plot = imshow(plottable_data, interpolation = self._interpolation, aspect = self._aspect, cmap = self._cmap)
+            self._plot = plt.imshow(plottable_data, interpolation = self._interpolation, aspect = self._aspect, cmap = self._cmap)
             if not self._show_axes:
                 # self._plot.axes.get_xaxis().set_visible(False)
                 self._plot.axes.tick_params(labelbottom = 'off')
