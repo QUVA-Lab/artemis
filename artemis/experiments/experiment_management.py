@@ -11,6 +11,7 @@ from artemis.experiments.experiments import load_experiment, get_global_experime
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
+from artemis.remote.child_processes import SlurmPythonProcess
 
 
 def pull_experiments(user, ip, experiment_names, include_variants=True):
@@ -287,8 +288,17 @@ def run_experiment_ignoring_errors(name, **kwargs):
     except Exception as err:
         traceback.print_exc()
 
-# def run_experiments_with_slurm(experiments, n_parallel=1, raise_exceptions=True, run_args={})
-
+def run_multiple_experiments_with_slurm(experiments, n_parallel=1, raise_exceptions=True, run_args={}, slurm_args={}):
+    '''
+    Run multiple experiments using slurm, optionally in parallel.
+    '''
+    if n_parallel > 1:
+        pass
+    else:
+        for i,ex in enumerate(experiments):
+            function_call = partial(func=ex.run, raise_exceptions=raise_exceptions,display_results=False, run_args=run_args)
+            spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_args=slurm_args)
+        # pass
 
 
 def run_multiple_experiments(experiments, parallel = False, cpu_count=None, raise_exceptions=True, run_args = {}):
