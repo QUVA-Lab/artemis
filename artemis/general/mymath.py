@@ -458,6 +458,6 @@ def onehotvector(ix, length):
         v = np.zeros(length)
         v[ix] = 1
     else:
-        v = np.zeros(len(ix), length)
+        v = np.zeros((len(ix), length))
         v[np.arange(len(ix)), ix] = 1
     return v
