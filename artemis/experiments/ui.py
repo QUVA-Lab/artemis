@@ -1,10 +1,11 @@
 import shlex
 from collections import OrderedDict
-
+import re
 from tabulate import tabulate
 
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments, get_experient_to_record_dict
+    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments, get_experient_to_record_dict, run_multiple_experiments_with_slurm, \
+    _filter_experiment_record_list
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
@@ -131,7 +132,7 @@ experiment records.  You can specify records in the following ways:
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            ignore_valid_keys=(),  give_slurm_option = False, cache_result_string = False):
+            ignore_valid_keys=(), cache_result_string = False, slurm_kwargs={}):
         """
         :param root_experiment: The Experiment whose (self and) children to browse
         :param catch_errors: Catch errors that arise while running experiments
@@ -143,9 +144,9 @@ experiment records.  You can specify records in the following ways:
         :param keep_record: Keep a record of the experiment after running.
         :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
         :param ignore_valid_keys: When checking whether arguments are valid, ignore arguments with names in this list
-        :param give_slurm_option:
         :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
             when opening up the menu - often when results are long lists).
+        :param slurm_kwargs:
         """
 
         if run_args is None:
@@ -164,7 +165,7 @@ experiment records.  You can specify records in the following ways:
         self.truncate_result_to = truncate_result_to
         self.cache_result_string = cache_result_string
         self.ignore_valid_keys = ignore_valid_keys
-        self.give_slurm_option = give_slurm_option
+        self.slurm_kwargs = slurm_kwargs
 
     def reload_record_dict(self):
         names = get_global_experiment_library().keys()
@@ -210,8 +211,22 @@ experiment records.  You can specify records in the following ways:
             all_experiments = self.reload_record_dict()
 
             print("==================== Experiments ====================")
-            self.exp_record_dict = all_experiments if self._filter is None else \
-                OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
+
+            if self._filter is None:
+                self.exp_record_dict = all_experiments
+            elif self._filter.startswith('rec:'):
+                # Not yet there all the way.
+                filtered_records = _filter_experiment_record_list(user_range=self._filter[4:], experiment_record_ids=get_all_record_ids(all_experiments))
+                self.exp_record_dict = OrderedDict((exp_name, [name for name, isin in zip(all_experiments[exp_name], filtered_records[exp_name]) if isin]) for exp_name in all_experiments)
+                # subselecet records
+            else:
+                self.exp_record_dict = OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
+
+            # self.exp_record_dict = all_experiments if self._filter is None else \
+            #     all_experiments if self._filter.startswith('rec:') else \
+            #     OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
+
+
             print(self.get_experiment_list_str(self.exp_record_dict))
             if self._filter is not None:
                 print('[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments)))
@@ -306,14 +321,26 @@ experiment records.  You can specify records in the following ways:
     def run(self, user_range, mode='-s', raise_exceptions = ''):
         assert mode in ('-s', '-e') or mode.startswith('-p') or mode.startswith('-slurm')
         ids = select_experiments(user_range, self.exp_record_dict)
+        try:
+            # Returns the first integer in mode
+            n_parallel = int(re.search(r'\d+', mode).group())
+        except AttributeError:
+            n_parallel = None
 
         if mode.startswith('-slurm'):
-            raise NotImplementedError()
+            run_multiple_experiments_with_slurm(
+                experiments=[load_experiment(eid) for eid in ids],
+                n_parallel = n_parallel,
+                raise_exceptions = raise_exceptions =='-e',
+                run_args=self.run_args,
+                slurm_kwargs=self.slurm_kwargs
+            )
         else:
             run_multiple_experiments(
                 experiments=[load_experiment(eid) for eid in ids],
                 parallel=len(ids)>1 and mode.startswith('-p'),
                 raise_exceptions = raise_exceptions=='-e',
+                cpu_count=n_parallel,
                 run_args=self.run_args
                 )
 

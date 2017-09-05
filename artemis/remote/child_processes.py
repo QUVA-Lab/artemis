@@ -352,6 +352,8 @@ class SlurmPythonProcess(RemotePythonProcess):
 
         final_command = " ".join((slurm_command,command))
         print(final_command)
+        # import sys
+        # sys.exit(0)
 
         if self.is_local():
             return final_command

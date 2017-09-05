@@ -5,13 +5,13 @@ from collections import OrderedDict
 from functools import partial
 from importlib import import_module
 
-from artemis.experiments.experiment_record import load_experiment_record, ExpInfoFields, \
+from artemis.experiments.experiment_record import load_experiment_record, \
     ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id, get_all_record_ids
-from artemis.experiments.experiments import load_experiment, get_global_experiment_library
+from artemis.experiments.experiments import load_experiment, get_global_experiment_library, Experiment
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
-from artemis.remote.child_processes import SlurmPythonProcess
+from artemis.remote.child_processes import SlurmPythonProcess, pickle_dumps_without_main_refs
 from artemis.remote.nanny import Nanny
 
 
@@ -80,7 +80,6 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
 
 
 def select_experiments(user_range, exp_record_dict, return_dict=False):
-
     exp_filter = _filter_experiments(user_range, exp_record_dict)
     if return_dict:
         return OrderedDict((name, exp_record_dict[name]) for name in exp_record_dict if exp_filter[name])
@@ -115,7 +114,7 @@ def _filter_experiments(user_range, exp_record_dict):
             phrase = user_range[len('hasnot:'):]
             # experiment_ids = [exp_id for exp_id in experiment_list if phrase not in exp_id]
             is_in = [phrase not in exp_id for exp_id in exp_record_dict]
-        elif user_range in ('unfinished', 'invalid'):  # Return all experiments where all records are unfinished/invalid
+        elif user_range in ('unfinished', 'invalid', 'corrupt'):  # Return all experiments where all records are unfinished/invalid/corrupt
             record_filters = _filter_records(user_range, exp_record_dict)
             # experiment_ids = [exp_id for exp_id in experiment_list if len(record_filters[exp_id])]
             is_in = [all(record_filters[exp_id]) for exp_id in exp_record_dict]
@@ -176,9 +175,12 @@ def _filter_records(user_range, exp_record_dict):
     elif user_range == 'old':
         for k, v in base.iteritems():
             base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
+    elif user_range == 'corrupt':
+        for k, v in base.iteritems():
+            base[k] = [load_experiment_record(rec_id).info.get_status_field()==ExpStatusOptions.CORRUPT for rec_id in exp_record_dict[k]]
     elif user_range == 'unfinished':
         for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
+            base[k] = [load_experiment_record(rec_id).info.get_status_field() != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
         # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
     elif user_range == 'invalid':
         for k, v in base.iteritems():
@@ -188,7 +190,7 @@ def _filter_records(user_range, exp_record_dict):
             base[k] = [True]*len(v)
     elif user_range == 'errors':
         for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
+            base[k] = [load_experiment_record(rec_id).info.get_status_field() == ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
     else:
         raise Exception("Don't know how to interpret subset '{}'".format(user_range))
     return base
@@ -219,6 +221,7 @@ def _filter_experiment_record_list(user_range, experiment_record_ids):
             else:  # They must be old... lets kill them!
                 orphans.append(True)
         return orphans
+    # elif user_range
     else:
         which_ones = interpret_numbers(user_range)
         if which_ones is None:
@@ -269,7 +272,7 @@ def interpret_numbers(user_range):
 def run_experiment(name, exp_dict='global', **experiment_record_kwargs):
     """
     Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
-    You can run the experiment agin later by calling show_experiment(location_string):
+    You can run the experiment again later by calling show_experiment(location_string):
 
     :param name: The name for the experiment (must reference something in exp_dict)
     :param exp_dict: A dict<str:func> where funcs is a function with no arguments that run the experiment.
@@ -277,10 +280,17 @@ def run_experiment(name, exp_dict='global', **experiment_record_kwargs):
 
     :return: A location_string, uniquely identifying the experiment.
     """
-    if exp_dict == 'global':
-        exp_dict = get_global_experiment_library()
-    experiment = exp_dict[name]
+    if isinstance(name,basestring):
+        if exp_dict == 'global':
+            exp_dict = get_global_experiment_library()
+        experiment = exp_dict[name]
+    else:
+        assert isinstance(name,Experiment)
+        experiment = name
     return experiment.run(**experiment_record_kwargs)
+
+# def run_experiment_by_object(experiment, **experiment_record_kwargs):
+#     return experiment.run(**experiment_record_kwargs)
 
 
 def run_experiment_ignoring_errors(name, **kwargs):
@@ -289,18 +299,27 @@ def run_experiment_ignoring_errors(name, **kwargs):
     except Exception as err:
         traceback.print_exc()
 
-def run_multiple_experiments_with_slurm(experiments, n_parallel=1, raise_exceptions=True, run_args={}, slurm_args={}):
+
+
+def run_multiple_experiments_with_slurm(experiments, n_parallel=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
     '''
     Run multiple experiments using slurm, optionally in parallel.
     '''
-    if n_parallel > 1:
+    if n_parallel and n_parallel > 1:
         raise NotImplementedError("No parallel Slurm execution at the moment")
     else:
         return_values = []
-        for i,ex in enumerate(experiments):
+        experiment_identifiers = [ex.get_id() for ex in experiments]
+        # for i,eid in enumerate(experiment_identifiers):
+        for i,exp in enumerate(experiments):
             nanny = Nanny()
-            function_call = partial(func=ex.run, raise_exceptions=raise_exceptions,display_results=False, run_args=run_args)
-            spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_args=slurm_args)
+            # func = run_experiment if raise_exceptions else run_experiment_ignoring_errors
+            # func = run_experiment_by_object
+            # experiment_picked = pickle_dumps_without_main_refs(eid)
+            func = run_experiment
+            function_call = partial(func, experiment=exp, raise_exceptions=raise_exceptions,display_results=False, run_args=run_args)
+            spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
+
             # Using Nanny only for convenient stdout & stderr forwarding.
             nanny.register_child_process(spp,monitor_for_termination=False)
             nanny.execute_all_child_processes(time_out=2)

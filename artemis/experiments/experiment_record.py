@@ -76,6 +76,12 @@ class ExperimentRecordInfo(object):
         assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
         return self.persistent_obj[field]
 
+    def get_status_field(self):
+        if self.has_field(ExpInfoFields.STATUS):
+            return self.persistent_obj[ExpInfoFields.STATUS]
+        else:
+            return ExpStatusOptions.CORRUPT
+
     def set_field(self, field, value):
         assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
         if field == ExpInfoFields.STATUS:
