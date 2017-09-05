@@ -170,7 +170,7 @@ def clear_all_memos():
     all_memos = get_all_memos()
     for m in all_memos:
         os.remove(m)
-    print 'Removed %s memos.' % (len(all_memos))
+    print('Removed %s memos.' % (len(all_memos)))
 
 
 class DisableMemoReading(object):

@@ -15,7 +15,7 @@ def test_matplotlib_dependency_is_soft():
 
     @experiment_function
     def my_test_exp(a=1, b=3):
-        print 'aaa'
+        print('aaa')
         return a*b
 
     assert not is_matplotlib_imported()

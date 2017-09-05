@@ -77,7 +77,7 @@ def get_record_full_string(record, show_info = True, show_logs = True, truncate_
     return full_info_string
 
 
-def get_record_invalid_arg_string(record, recursive=True):
+def get_record_invalid_arg_string(record, recursive=True,ignore_valid_keys=[]):
     """
     Return a string identifying ig the arguments for this experiment are still valid.
     :return:
@@ -87,7 +87,7 @@ def get_record_invalid_arg_string(record, recursive=True):
         if record.info.has_field(ExpInfoFields.ARGS):
             last_run_args = record.get_args()
             current_args = record.get_experiment().get_args()
-            validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
+            validity = record.args_valid(last_run_args=last_run_args, current_args=current_args, ignore_valid_keys=ignore_valid_keys)
             if validity is False:
                 if recursive:
                     last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
@@ -133,7 +133,7 @@ def display_experiment_record(record):
     result = record.get_result(err_if_none=False)
     display_func = record.get_experiment().display_function
     if display_func is None:
-        print deepstr(result)
+        print(deepstr(result))
     else:
         display_func(result)
 
@@ -181,7 +181,7 @@ def print_experiment_record_argtable(records):
         prettify_labels=False
         )
 
-    print tabulate(rows)
+    print(tabulate(rows))
 
 
 def show_experiment_records(records, parallel_text=None, hang_notice = None, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
@@ -198,7 +198,7 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
     if parallel_text is None:
         parallel_text = len(records)>1
     if len(records)==0:
-        print '... No records to show ...'
+        print('... No records to show ...')
     else:
         strings = [get_record_full_string(rec, show_logs=show_logs, show_result=show_result, truncate_logs=truncate_logs,
                     truncate_result=truncate_result, header_width=header_width, include_bottom_border=False) for rec in records]
@@ -209,7 +209,7 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
         for rec in records:
             rec.show_figures(hang=False)
         if hang_notice is not None:
-            print hang_notice
+            print(hang_notice)
 
         with interactive_matplotlib_context(not hang):
             plt.show()
@@ -225,10 +225,10 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
                     strings[i] += section_with_header('Result Display', cap.read(), width=header_width, bottom_char='=')
 
     if parallel_text:
-        print side_by_side(strings, max_linewidth=128)
+        print(side_by_side(strings, max_linewidth=128))
     else:
         for string in strings:
-            print string
+            print(string)
 
     return has_matplotlib_figures
 
@@ -304,6 +304,6 @@ def make_record_comparison_table(records, args_to_show=None, results_extractor =
 
     if print_table:
         import tabulate
-        print tabulate.tabulate(rows, headers=headers, tablefmt='simple')
+        print(tabulate.tabulate(rows, headers=headers, tablefmt='simple'))
     return headers, rows
 

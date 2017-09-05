@@ -73,7 +73,7 @@ def demo_linear_regression(
             training_cost = ((training_target-training_out)**2).sum(axis=1).mean(axis=0)
             test_out = predictor.predict(test_data)
             test_cost = ((test_target-test_out)**2).sum(axis=1).mean(axis=0)
-            print 'Epoch {epoch}: Test Cost: {test}, Training Cost: {train}'.format(epoch=float(i)/n_training_samples, test=test_cost, train=training_cost)
+            print('Epoch {epoch}: Test Cost: {test}, Training Cost: {train}'.format(epoch=float(i)/n_training_samples, test=test_cost, train=training_cost))
             epoch = float(i) / n_training_samples
             epoch_scores.append((epoch, training_cost, test_cost))
         predictor.train(training_data[[i % n_training_samples]], training_target[[i % n_training_samples]])
@@ -90,6 +90,7 @@ def demo_linear_regression(
 
     return {'training_cost': training_cost, 'test_cost': test_cost}
 
+add_slurm_option(kwargs)
 
 demo_linear_regression.add_variant('fast-learn', eta=0.01)
 

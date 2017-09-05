@@ -6,11 +6,12 @@ from functools import partial
 from importlib import import_module
 
 from artemis.experiments.experiment_record import load_experiment_record, ExpInfoFields, \
-    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id
+    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id, get_all_record_ids
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
+from artemis.remote.child_processes import SlurmPythonProcess
 
 
 def pull_experiments(user, ip, experiment_names, include_variants=True):
@@ -43,7 +44,7 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     child = pexpect.spawn(command)
     code = child.expect([pexpect.TIMEOUT, 'password:'])
     if code == 0:
-        print("Got unexpected output: %s %s" % (child.before, child.after))
+        print(("Got unexpected output: %s %s" % (child.before, child.after)))
         sys.exit()
     else:
         child.sendline(password)
@@ -287,6 +288,18 @@ def run_experiment_ignoring_errors(name, **kwargs):
     except Exception as err:
         traceback.print_exc()
 
+def run_multiple_experiments_with_slurm(experiments, n_parallel=1, raise_exceptions=True, run_args={}, slurm_args={}):
+    '''
+    Run multiple experiments using slurm, optionally in parallel.
+    '''
+    if n_parallel > 1:
+        pass
+    else:
+        for i,ex in enumerate(experiments):
+            function_call = partial(func=ex.run, raise_exceptions=raise_exceptions,display_results=False, run_args=run_args)
+            spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_args=slurm_args)
+        # pass
+
 
 def run_multiple_experiments(experiments, parallel = False, cpu_count=None, raise_exceptions=True, run_args = {}):
     """
@@ -323,3 +336,22 @@ def remove_common_results_prefix(results_dict):
     split_keys = [k.split('.') for k in results_dict.keys()]
     trimmed_keys = remove_common_prefix(split_keys)
     return OrderedDict((k, v) for k, v in izip_equal(trimmed_keys, results_dict.values()))
+
+
+def get_experient_to_record_dict(experiment_ids = None):
+    """
+    Given a list of experiment ids, return an OrderedDict whose keys are the experiment ids and whose values
+    are lists of experiment record ids.
+
+    :param experiment_ids: A list of experiment ids.  (Defaults to all imported experiments)
+    :return: A dict<experiment_id -> list<experiment_record_id>
+    """
+    if experiment_ids is None:
+        experiment_ids = get_global_experiment_library().keys()
+    record_ids = get_all_record_ids(experiment_ids)
+    exp_rec_dict = OrderedDict((exp_id, []) for exp_id in experiment_ids)
+    for rid in record_ids:
+        rec = load_experiment_record(rid)
+        exp_id = rec.get_experiment_id()
+        exp_rec_dict[exp_id].append(rid)
+    return exp_rec_dict

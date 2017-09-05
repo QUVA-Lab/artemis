@@ -29,7 +29,7 @@ def test_check_diff_local_remote_virtualenv():
 @pytest.mark.skipif(ip_address="" or is_local, reason ="No sense for local ip")
 def test_get_remote_installed_packages():
     packages = get_remote_installed_packages(ip_address)
-    print packages
+    print(packages)
 
 
 if __name__ == "__main__":

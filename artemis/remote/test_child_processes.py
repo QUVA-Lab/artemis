@@ -107,7 +107,7 @@ def test_remote_graphics():
         # cp.deconstruct(signum=signal.SIGINT)
 
 def remote_test_func(a, b):
-    print 'a+b={}'.format(a+b)
+    print('a+b={}'.format(a+b))
     return a+b
 
 
@@ -122,7 +122,7 @@ def test_remote_child_function():
 
 
 def my_func(a, b):
-    print 'hello hello hello'
+    print('hello hello hello')
     time.sleep(0.01)
     return a+b
 
