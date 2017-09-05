@@ -315,6 +315,49 @@ class RemotePythonProcess(ChildProcess):
         out = pickle.loads(serialized_out.dbplot_message)
         return out
 
+class SlurmPythonProcess(RemotePythonProcess):
+    def __init__(self, function, ip_address, set_up_port_for_structured_back_communication=True, slurm_kwargs={}, slurm_command="srun", **kwargs):
+        '''
+
+        :param function:
+        :param ip_address:
+        :param set_up_port_for_structured_back_communication:
+        :param slurm_kwargs:
+        :param kwargs:
+        '''
+        assert ip_address in get_local_ips(), "At the moment, we want you to start a slurm process only from localhost"
+        assert slurm_command in ["srun"], "At the moment, we only support 'srun' for execution of slurm"
+        # for k,v in slurm_kwargs.iteritems():
+        #     assert k.startswith("--"), "At the moment, please make sure every slurm key-word starts with double dash '--'. You provided: %s"%(k)
+        super(SlurmPythonProcess,self).__init__(function, ip_address, set_up_port_for_structured_back_communication, **kwargs)
+        self.slurm_kwargs = slurm_kwargs
+
+
+    def prepare_command(self,command):
+        '''
+        All the stuff that I need to prepare for the command to definitely work
+        :param command:
+        :return:
+        '''
+
+        slurm_command = "srun"
+        for k,v in self.slurm_kwargs.iteritems():
+            if k.startswith("--"):
+                slurm_command += " %s=%s"%(k,v)
+            elif k.startswith("-"):
+                slurm_command += " %s %s"%(k,v)
+
+        if isinstance(command, list):
+            command = " ".join(pipes.quote(c) for c in command)
+
+        final_command = " ".join((slurm_command,command))
+        print(final_command)
+
+        if self.is_local():
+            return final_command
+        else:
+            raise NotImplementedError()
+            # return self.get_extended_command(command)
 
 
 def pickle_dumps_without_main_refs(obj):

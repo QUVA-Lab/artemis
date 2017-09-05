@@ -90,6 +90,7 @@ def demo_linear_regression(
 
     return {'training_cost': training_cost, 'test_cost': test_cost}
 
+add_slurm_option(kwargs)
 
 demo_linear_regression.add_variant('fast-learn', eta=0.01)
 

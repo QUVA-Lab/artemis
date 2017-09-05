@@ -287,6 +287,9 @@ def run_experiment_ignoring_errors(name, **kwargs):
     except Exception as err:
         traceback.print_exc()
 
+# def run_experiments_with_slurm(experiments, n_parallel=1, raise_exceptions=True, run_args={})
+
+
 
 def run_multiple_experiments(experiments, parallel = False, cpu_count=None, raise_exceptions=True, run_args = {}):
     """

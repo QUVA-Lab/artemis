@@ -122,7 +122,7 @@ experiment records.  You can specify records in the following ways:
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,ignore_valid_keys=[],
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = False):
+            cache_result_string = False, give_slurm_option=False):
 
         if run_args is None:
             run_args = {}
@@ -140,6 +140,8 @@ experiment records.  You can specify records in the following ways:
         self.truncate_result_to = truncate_result_to
         self.cache_result_string = cache_result_string
         self.ignore_valid_keys = ignore_valid_keys
+
+        self.give_slurm_option = give_slurm_option
 
     def reload_record_dict(self):
         names = get_global_experiment_library().keys()
@@ -282,7 +284,7 @@ experiment records.  You can specify records in the following ways:
         return table
 
     def run(self, user_range, mode='-s', raise_exceptions = ''):
-        assert mode in ('-s', '-e') or mode.startswith('-p')
+        assert mode in ('-s', '-e') or mode.startswith('-p') or mode.startswith('-slurm')
         ids = select_experiments(user_range, self.exp_record_dict)
         run_multiple_experiments(
             experiments=[load_experiment(eid) for eid in ids],
