@@ -190,9 +190,7 @@ experiment records.  You can specify records in the following ways:
             print("==================== Experiments ====================")
             self.exp_record_dict = all_experiments if self._filter is None else \
                 OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
-            print(self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record,
-                view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, truncate_result_to=self.truncate_result_to,
-                cache_result_string = self.cache_result_string,ignore_valid_keys=self.ignore_valid_keys))
+            print(self.get_experiment_list_str(self.exp_record_dict))
             if self._filter is not None:
                 print('[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments)))
             print('-----------------------------------------------------')
@@ -367,8 +365,7 @@ experiment records.  You can specify records in the following ways:
     def selectexp(self, user_range):
         exps_to_records = select_experiments(user_range, self.exp_record_dict, return_dict=True)
         with IndentPrint():
-            print(self.get_experiment_list_str(exps_to_records, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors))
-            # print ExperimentRecordBrowser.get_record_table(record_ids)
+            print(self.get_experiment_list_str(exps_to_records))
         _warn_with_prompt('Experiment Selection "{}" includes {} out of {} experiments.'.format(user_range, len(exps_to_records), len(self.exp_record_dict)), use_prompt=not self.close_after)
 
     def selectrec(self, user_range):
