@@ -207,7 +207,7 @@ experiment records.  You can specify records in the following ways:
             print("==================== Experiments ====================")
             self.exp_record_dict = all_experiments if self._filter is None else \
                 OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
-            print self.get_experiment_list_str(self.exp_record_dict)
+            print(self.get_experiment_list_str(self.exp_record_dict))
             if self._filter is not None:
                 print('[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments)))
             print('-----------------------------------------------------')
