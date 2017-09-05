@@ -3,8 +3,8 @@ from itertools import cycle
 
 from artemis.config import get_artemis_config_value
 from artemis.general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array, \
-    UnlimitedRecordBuffer
+from artemis.plotting.data_conversion import (put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array,
+    UnlimitedRecordBuffer)
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -259,7 +259,9 @@ class LinePlot(HistoryFreePlot):
         # plt.legend(loc='best', framealpha=0.5, prop={'size': self.legend_entry_size})
 
 
-def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
+def _update_axes_bound(ax, left_and_right, lower_and_upper, mode = 'fit'):
+    left, right = left_and_right
+    lower, upper = lower_and_upper
     if mode=='fit':
         ax.set_xbound(left, right)
         ax.set_ybound(lower, upper)
@@ -321,8 +323,8 @@ class Moving2DPointPlot(LinePlot):
         self._y_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
         self._x_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
 
-    def update(self, (x_data, y_data)):
-
+    def update(self, x_data_and_y_data):
+        x_data, y_data = x_data_and_y_data
         x_buffer_data = self._x_buffer(x_data)
         y_buffer_data = self._y_buffer(y_data)
 
