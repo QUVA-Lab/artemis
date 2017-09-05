@@ -12,6 +12,7 @@ from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
 from artemis.remote.child_processes import SlurmPythonProcess
+from artemis.remote.nanny import Nanny
 
 
 def pull_experiments(user, ip, experiment_names, include_variants=True):
@@ -295,11 +296,15 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=1, raise_excepti
     if n_parallel > 1:
         pass
     else:
+        return_values = []
         for i,ex in enumerate(experiments):
+            nanny = Nanny()
             function_call = partial(func=ex.run, raise_exceptions=raise_exceptions,display_results=False, run_args=run_args)
             spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_args=slurm_args)
-        # pass
-
+            # Using Nanny only for convenient stdout & stderr forwarding.
+            nanny.register_child_process(spp,monitor_for_termination=False)
+            nanny.execute_all_child_processes(time_out=2)
+            return_values.append(spp.get_return_value())
 
 def run_multiple_experiments(experiments, parallel = False, cpu_count=None, raise_exceptions=True, run_args = {}):
     """
