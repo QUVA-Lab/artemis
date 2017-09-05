@@ -106,7 +106,7 @@ class DataSet(object):
         if n_categories is None:
             n_categories = self.n_categories  # Will throw an exception if not a categorical target
         encoder = OneHotEncoding(n_categories, form=form, dtype=dtype)
-        return self.process_with(targets_processor=lambda (t, ): (encoder(t), ))
+        return self.process_with(targets_processor=lambda t_tuple: (encoder(t_tuple[0]), ))
 
 
 class DataCollection(object):
