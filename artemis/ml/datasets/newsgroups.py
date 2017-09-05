@@ -143,4 +143,4 @@ if __name__ == '__main__':
 
     data = get_20_newsgroups_dataset(numeric=False, filter_most_common = (100, 500), bag_of_words=False)
     for _, (inputs, ), (targets, ) in data.training_set.shorten(20).minibatch_iterator(minibatch_size = 1):
-        print '%s: %s' % (targets, inputs)
+        print('%s: %s' % (targets, inputs))

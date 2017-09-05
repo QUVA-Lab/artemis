@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
 #sys.path.extend([os.path.dirname(os.path.dirname(os.path.dirname(__file__)))])
 from artemis.fileman.local_dir import get_artemis_data_path, format_filename
-from artemis.plotting.plotting_backend import set_server_plotting
+from artemis.plotting.matplotlib_backend import set_server_plotting
 from artemis.plotting.db_plotting import dbplot, hold_dbplots, set_dbplot_figure_size
 from artemis.plotting.saving_plots import save_figure
 from artemis.remote.plotting.utils import _queue_get_all_no_wait, handle_socket_accepts

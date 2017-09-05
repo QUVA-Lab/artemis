@@ -337,7 +337,7 @@ def decaying_cumsum(x, memory, axis=-1):
     for i in xrange(1, x.shape[axis]):
         result[leading_indices+(i, )] = memory*result[leading_indices+(i-1, )] + one_minus_mem*x[leading_indices+(i, )]
     if np.max(np.abs(result)>1e9):
-        print 'sdfdsf: {}'.format(np.max(np.abs(x)))
+        print('sdfdsf: {}'.format(np.max(np.abs(x))))
 
     return result
 
@@ -444,3 +444,20 @@ def levenshtein_distance(s1, s2):
                 distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
         distances = distances_
     return distances[-1]
+
+
+def onehotvector(ix, length):
+    """
+    Create a one-hot vector of length length with element ix 1 (and the rest 0)
+    :param ix: The element to be "hot".  Ot a vector of elememts.
+    :param length: The total length of the vector.
+    :return: If ix is scalar, a single vector.
+        If ix is a vector, a (len(ix), length) array where each row is a one-hot vector for an element of ix.
+    """
+    if isinstance(ix, int):
+        v = np.zeros(length)
+        v[ix] = 1
+    else:
+        v = np.zeros((len(ix), length))
+        v[np.arange(len(ix)), ix] = 1
+    return v

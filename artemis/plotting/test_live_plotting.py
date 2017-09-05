@@ -1,7 +1,6 @@
 import time
-from artemis.general.test_mode import set_test_mode
 from artemis.plotting.live_plotting import LiveStream, LivePlot, LiveCanal
-from artemis.plotting.plotting_backend import MovingImagePlot, MovingPointPlot, LinePlot, ImagePlot, HistogramPlot
+from artemis.plotting.matplotlib_backend import MovingImagePlot, MovingPointPlot, LinePlot, ImagePlot, HistogramPlot
 from itertools import count
 
 __author__ = 'peter'
@@ -31,7 +30,7 @@ def test_streaming(duration = 10):
         if i==1:
             start_time = time.time()
         elif i>1:
-            print 'Average Frame Rate: %.2f FPS' % (i/(time.time()-start_time), )
+            print('Average Frame Rate: %.2f FPS' % (i/(time.time()-start_time), ))
         stream.update()
 
 
@@ -53,7 +52,7 @@ def test_dynamic_rebuild():
         if i==1:
             start_time = time.time()
         elif i>1:
-            print 'Average Frame Rate: %.2f FPS' % (i/(time.time()-start_time), )
+            print('Average Frame Rate: %.2f FPS' % (i/(time.time()-start_time), ))
         stream.update()
 
 

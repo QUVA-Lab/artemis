@@ -6,7 +6,7 @@ import shutil
 from artemis.config import get_artemis_config_value
 from artemis.fileman.config_files import get_config_value
 from artemis.fileman.local_dir import get_artemis_data_path
-from artemis.plotting.plotting_backend import get_plotting_server_address
+from artemis.plotting.matplotlib_backend import get_plotting_server_address
 from artemis.remote.file_system import rsync, simple_rsync, check_config_file
 from artemis.remote.utils import get_local_ips
 

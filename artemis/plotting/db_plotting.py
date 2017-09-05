@@ -10,7 +10,8 @@ from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
-from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
+from artemis.plotting.matplotlib_backend import LinePlot, ImagePlot, is_server_plotting_on
+
 if is_server_plotting_on():
     from artemis.remote.plotting.plotting_client import deconstruct_plotting_server
 

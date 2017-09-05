@@ -62,7 +62,7 @@ def demo_mnist_logreg(minibatch_size=20, learning_rate=0.01, max_training_sample
         if iteration_info.test_now:
             training_error = 100*(np.argmax(predictor.predict(x_train), axis=1)==y_train).mean()
             test_error = 100*(np.argmax(predictor.predict(x_test), axis=1)==y_test).mean()
-            print 'Epoch {epoch}: Test Error: {test}%, Training Error: {train}%'.format(epoch=iteration_info.epoch, test=test_error, train=training_error)
+            print('Epoch {epoch}: Test Error: {test}%, Training Error: {train}%'.format(epoch=iteration_info.epoch, test=test_error, train=training_error))
             epoch_scores.append((iteration_info.epoch, training_error, test_error))
         predictor.train(x_train[ix], y_train[ix])
 
@@ -119,9 +119,10 @@ if __name__ == '__main__':
             result = record.get_result()  # This is the return value {'train': train score, 'test': test_score}
             (fig, ) = record.load_figures()
             fig.gca().set_title(ex.name)
-            print ex.name.ljust(60) \
+            print(ex.name.ljust(60) \
                   + ' '.join('{}:{}'.format(arg_name, arg_value).ljust(26) for arg_name, arg_value in args.iteritems()) \
-                  + '  ||  ' + ' '.join('{}:{}'.format(subset, score).rjust(15) for subset, score in result.items())
+                  + '  ||  ' + ' '.join('{}:{}'.format(subset, score).rjust(15) for subset, score in result.items()))
         plt.show()
     else:
         raise NotImplementedError('No Demo Version {}'.format(demo_version))
+

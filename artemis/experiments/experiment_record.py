@@ -194,6 +194,11 @@ class ExperimentRecord(object):
         return open(full_path, *args, **kwargs)
 
     def get_figure_locs(self, include_directory=True):
+        """
+        Return a list of the paths of the figures saved in the experiment.
+        :param include_directory: If True, return the full path.
+        :return: A list of string file paths.
+        """
         locs = [f for f in os.listdir(self._experiment_directory) if f.startswith('fig-')]
         if include_directory:
             return [os.path.join(self._experiment_directory, f) for f in locs]
@@ -204,9 +209,17 @@ class ExperimentRecord(object):
         return self.info.get_text()
 
     def has_result(self):
+        """
+        :return: True if this record has a saved result.
+        """
         return os.path.exists(os.path.join(self._experiment_directory, 'result.pkl'))
 
     def get_result(self, err_if_none = True):
+        """
+        Unpickle and return the "return value" of the experiment.
+        :param err_if_none: If there is no saved return value, throw an exception if err_is_none, else just return None.
+        :return: The return value from the experiment.
+        """
         result_loc = os.path.join(self._experiment_directory, 'result.pkl')
         if os.path.exists(result_loc):
             with open(result_loc) as f:
@@ -222,7 +235,7 @@ class ExperimentRecord(object):
         make_file_dir(file_path)
         with open(file_path, 'w') as f:
             pickle.dump(result, f, protocol=2)
-            print 'Saving Result for Experiment "%s"' % (self.get_id(),)
+            print('Saving Result for Experiment "%s"' % (self.get_id(),))
 
     def get_id(self):
         """
@@ -245,6 +258,9 @@ class ExperimentRecord(object):
         return self.get_id()[27:]
 
     def get_dir(self):
+        """
+        :return: The directory associated with this experiment record.
+        """
         return self._experiment_directory
 
     def get_args(self):
@@ -313,7 +329,7 @@ class ExperimentRecord(object):
             error_text = traceback.format_exc()
             f.write(error_text)
         if print_too:
-            print error_text
+            print(error_text)
 
 _CURRENT_EXPERIMENT_RECORD = None
 

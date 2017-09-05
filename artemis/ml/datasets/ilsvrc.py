@@ -33,14 +33,14 @@ def load_ilsvrc_video(identifier, size = None, resize_mode='scale_crop', cut_edg
         'ILSVRC2015/Data/VID/snippets/train/ILSVRC2015_VID_train_0003/' if os.path.exists(os.path.join(archive_folder_path, 'ILSVRC2015/Data/VID/snippets/train/ILSVRC2015_VID_train_0003/', identifier + '.mp4')) else \
         bad_value(identifier, 'Could not find identifier: {}'.format(identifier, ))
 
-    print 'Loading %s' % (identifier, )
+    print('Loading %s' % (identifier, ))
     full_path = get_file_in_archive(
         relative_path='data/ILSVRC2015',
         subpath=os.path.join(subpath, identifier+'.mp4'),
         url='http://vision.cs.unc.edu/ilsvrc2015/ILSVRC2015_VID_snippets_final.tar.gz'
         )
     video = smart_load_video(full_path, size=size, cut_edges=cut_edges, resize_mode=resize_mode, cut_edges_thresh=cut_edges_thresh)
-    print 'Done.'
+    print('Done.')
     return video
 
 
