@@ -294,7 +294,7 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=1, raise_excepti
     Run multiple experiments using slurm, optionally in parallel.
     '''
     if n_parallel > 1:
-        pass
+        raise NotImplementedError("No parallel Slurm execution at the moment")
     else:
         return_values = []
         for i,ex in enumerate(experiments):

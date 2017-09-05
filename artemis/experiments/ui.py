@@ -286,12 +286,16 @@ experiment records.  You can specify records in the following ways:
     def run(self, user_range, mode='-s', raise_exceptions = ''):
         assert mode in ('-s', '-e') or mode.startswith('-p') or mode.startswith('-slurm')
         ids = select_experiments(user_range, self.exp_record_dict)
-        run_multiple_experiments(
-            experiments=[load_experiment(eid) for eid in ids],
-            parallel=len(ids)>1 and mode.startswith('-p'),
-            raise_exceptions = raise_exceptions=='-e',
-            run_args=self.run_args
-            )
+
+        if mode.startswith('-slurm'):
+            pass
+        else:
+            run_multiple_experiments(
+                experiments=[load_experiment(eid) for eid in ids],
+                parallel=len(ids)>1 and mode.startswith('-p'),
+                raise_exceptions = raise_exceptions=='-e',
+                run_args=self.run_args
+                )
 
         result = _warn_with_prompt('Finished running {} experiment{}.'.format(len(ids), '' if len(ids)==1 else 's'),
                 use_prompt=not self.close_after,
