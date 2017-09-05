@@ -337,7 +337,7 @@ def decaying_cumsum(x, memory, axis=-1):
     for i in xrange(1, x.shape[axis]):
         result[leading_indices+(i, )] = memory*result[leading_indices+(i-1, )] + one_minus_mem*x[leading_indices+(i, )]
     if np.max(np.abs(result)>1e9):
-        print 'sdfdsf: {}'.format(np.max(np.abs(x)))
+        print('sdfdsf: {}'.format(np.max(np.abs(x))))
 
     return result
 

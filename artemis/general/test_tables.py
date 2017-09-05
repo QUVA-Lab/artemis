@@ -18,7 +18,7 @@ def test_build_table(show_table=True):
 
     if show_table:
         import tabulate
-        print tabulate.tabulate(rows)
+        print(tabulate.tabulate(rows))
 
 
 if __name__ == '__main__':

@@ -44,8 +44,8 @@ class ProgressIndicator(object):
                 remaining = elapsed * (1 / frac - 1) if frac > 0 else float('NaN')
             elapsed = self._current_time - self._start_time
             self._last_update = progress if self._update_unit == 'iterations' else self._current_time
-            print 'Progress%s: %s%%.  %.1fs Elapsed, %.1fs Remaining.%s' \
-                % ('' if self.name is None else ' of '+self.name, int(100*frac), elapsed, remaining, (', %s' % (self._post_info_callback(), )) if self._post_info_callback is not None else '')
+            print('Progress%s: %s%%.  %.1fs Elapsed, %.1fs Remaining.%s' \
+                % ('' if self.name is None else ' of '+self.name, int(100*frac), elapsed, remaining, (', %s' % (self._post_info_callback(), )) if self._post_info_callback is not None else ''))
         self._i += 1
 
         if self.just_use_last:

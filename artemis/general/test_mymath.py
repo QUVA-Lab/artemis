@@ -47,7 +47,7 @@ def test_exp_sig_of_norm():
         approx_sample_mean = expected_sigm_of_norm(np.mean(inputs), np.std(inputs), method = method)
         true_error = np.abs(approx_true_mean-sample_mean)/sample_mean
         sample_error = np.abs(approx_sample_mean-sample_mean)/sample_mean
-        print 'Error for %s: %.4f True, %.4f Sample.' % (method, true_error, sample_error)
+        print('Error for %s: %.4f True, %.4f Sample.' % (method, true_error, sample_error))
         assert true_error < 0.02, 'Method %s did pretty bad' % (method, )
 
 

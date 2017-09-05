@@ -21,18 +21,18 @@ jjj
 def test_indent_print():
 
     with CaptureStdOut() as cap:
-        print 'aaa'
-        print 'bbb'
+        print('aaa')
+        print('bbb')
         with IndentPrint():
-            print 'ccc'
-            print 'ddd'
+            print('ccc')
+            print('ddd')
             with IndentPrint():
-                print 'eee'
-                print 'fff'
-            print 'ggg'
-            print 'hhh'
-        print 'iii'
-        print 'jjj'
+                print('eee')
+                print('fff')
+            print('ggg')
+            print('hhh')
+        print('iii')
+        print('jjj')
 
     assert '\n'+cap.read() == _desired
 
@@ -57,11 +57,11 @@ desired = '' \
 
 def test_side_by_side():
 
-    print 'String 1:\n{}'.format(str1)
-    print 'String 2:\n{}'.format(str2)
+    print('String 1:\n{}'.format(str1))
+    print('String 2:\n{}'.format(str2))
 
     out = side_by_side([str1, str2])
-    print 'Side by side:\n{}'.format(out)
+    print('Side by side:\n{}'.format(out))
     assert out==desired  # Would work but pycharm automatically trims trailing spaces from the strings defined av
 
 
@@ -90,7 +90,7 @@ def test_deepstr():
     obj = {'a': np.arange(100).reshape(10, 10), 'bbbb': [1, 3, np.arange(6).reshape(2, 3), ('xx', 'yy')]}
     obj['c'] = obj['bbbb']
     string_desc = deepstr(obj)
-    print string_desc
+    print(string_desc)
     # For now, no assertions, because string contains IDS which will always change.  We can come up with some way to do this later with regular experessions if needed.
 
 
@@ -123,10 +123,10 @@ def test_surround_with_header():
 def test_nested_capture():
 
     with CaptureStdOut() as cap1:
-        print 'a'
+        print('a')
         with CaptureStdOut() as cap2:
-            print 'b'
-        print 'c'
+            print('b')
+        print('c')
 
     assert cap2.read()=='b\n'
     assert cap1.read()=='a\nb\nc\n'

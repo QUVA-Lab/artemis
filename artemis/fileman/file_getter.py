@@ -28,13 +28,13 @@ def get_file(relative_name, url = None, data_transformation = None):
     if not os.path.exists(full_filename):
         assert url is not None, "No local copy of '%s' was found, and you didn't provide a URL to fetch it from" % (full_filename, )
 
-        print 'Downloading file from url: "%s"...' % (url, )
+        print('Downloading file from url: "%s"...' % (url, ))
         response = urllib2.urlopen(url)
         data = response.read()
-        print '...Done.'
+        print('...Done.')
 
         if data_transformation is not None:
-            print 'Processing downloaded data...'
+            print('Processing downloaded data...')
             data = data_transformation(data)
         with open(full_filename, 'w') as f:
             f.write(data)
@@ -93,9 +93,9 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None, fo
                         bad_value(original_file_name, 'Filename "%s" does not end with a familiar zip extension like .zip or .tar.gz' % (original_file_name, ))
                 except StopIteration:
                     raise Exception("Could not infer archive type from user argument, url-name, or file-header.  Please specify archive type as either '.zip' or '.tar.gz'.")
-        print 'Downloading archive from url: "%s"...' % (url, )
+        print('Downloading archive from url: "%s"...' % (url, ))
         data = response.read()
-        print '...Done.'
+        print('...Done.')
 
         local_zip_path = local_folder_path + archive_type
         make_file_dir(local_zip_path)

@@ -43,7 +43,7 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     child = pexpect.spawn(command)
     code = child.expect([pexpect.TIMEOUT, 'password:'])
     if code == 0:
-        print("Got unexpected output: %s %s" % (child.before, child.after))
+        print(("Got unexpected output: %s %s" % (child.before, child.after)))
         sys.exit()
     else:
         child.sendline(password)

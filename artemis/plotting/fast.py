@@ -1,7 +1,7 @@
 try:
     from scipy import weave
 except ImportError:
-    print "Cannot Import scipy weave.  That's ok for now, you won't be able to use the fastplot function."
+    print("Cannot Import scipy weave.  That's ok for now, you won't be able to use the fastplot function.")
 
 __author__ = 'peter'
 import numpy as np

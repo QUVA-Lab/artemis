@@ -33,7 +33,7 @@ def smart_save(obj, relative_path, remove_file_after = False):
     _, ext = os.path.splitext(relative_path)
 
     with smart_file(relative_path, make_dir=True) as local_path:
-        print 'Saved object <%s at %s> to file: "%s"' % (obj.__class__.__name__, hex(id(object)), local_path)
+        print('Saved object <%s at %s> to file: "%s"' % (obj.__class__.__name__, hex(id(object)), local_path))
         if ext=='.pkl':
             with open(local_path, 'w') as f:
                 pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
