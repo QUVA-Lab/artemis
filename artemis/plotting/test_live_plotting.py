@@ -1,7 +1,6 @@
 import time
-from artemis.general.test_mode import set_test_mode
 from artemis.plotting.live_plotting import LiveStream, LivePlot, LiveCanal
-from artemis.plotting.plotting_backend import MovingImagePlot, MovingPointPlot, LinePlot, ImagePlot, HistogramPlot
+from artemis.plotting.matplotlib_backend import MovingImagePlot, MovingPointPlot, LinePlot, ImagePlot, HistogramPlot
 from itertools import count
 
 __author__ = 'peter'

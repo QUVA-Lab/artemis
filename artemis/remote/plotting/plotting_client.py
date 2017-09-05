@@ -8,7 +8,7 @@ import uuid
 import pickle
 from collections import namedtuple
 from artemis.general.should_be_builtins import is_lambda
-from artemis.plotting.plotting_backend import get_plotting_server_address
+from artemis.plotting.matplotlib_backend import get_plotting_server_address
 from artemis.remote.child_processes import PythonChildProcess
 from artemis.remote.nanny import Nanny
 from artemis.remote.file_system import check_config_file
