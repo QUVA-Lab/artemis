@@ -115,7 +115,7 @@ def set_up_plotting_server():
     try:
         port = int(server_message.dbplot_message)
     except ValueError:
-        print(("There was an incorrect string on the remote server's stdout. Make sure the server first communicates a port number. Received:\n {}".format(str_port)))
+        print("There was an incorrect string on the remote server's stdout. Make sure the server first communicates a port number. Received:\n {}".format(server_message.dbplot_message))
         sys.exit(0)
 
     # In the remote setting we don't want to rely on the user correctly specifying their firewalls. Therefore we need to set up port forwarding through ssh:
