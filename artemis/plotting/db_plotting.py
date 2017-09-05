@@ -1,12 +1,12 @@
 from collections import OrderedDict, namedtuple
 from artemis.config import get_artemis_config_value
 from artemis.plotting.matplotlib_backend import BarPlot
+import matplotlib as mplt
+mplt.use('Agg')  # Workaround for Travis CI testing.  Must be before plt import
 from matplotlib.axes import Axes
 from matplotlib.gridspec import SubplotSpec
 from contextlib import contextmanager
 import numpy as np
-import matplotlib as mplt
-mplt.use('Agg')  # Workaround for Travis CI testing.  Must be before plt import
 from matplotlib import pyplot as plt
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
