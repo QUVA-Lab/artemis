@@ -1,5 +1,5 @@
 from artemis.general.nested_structures import flatten_struct, get_meta_object, NestedType, \
-    seqstruct_to_structseq, structseq_to_seqstruct, nested_map
+    seqstruct_to_structseq, structseq_to_seqstruct, nested_map, get_leaf_values
 import numpy as np
 from pytest import raises
 
@@ -92,9 +92,14 @@ def test_nested_map():
     assert nested_map(func, [1, 2, None, {'a': 3, 'b': 'It works!'}]) == [2, 4, None, {'a': 6, 'b': 'It works!  Not!'}]
 
 
+def test_get_leaf_values():
+    assert get_leaf_values([6]+[{'x': 3, 'y': [i, 'aaa']} for i in xrange(4)]) == [6, 3, 0, 'aaa', 3, 1, 'aaa', 3, 2, 'aaa', 3, 3, 'aaa']
+
+
 if __name__ == '__main__':
     test_flatten_struct()
     test_get_meta_object()
     test_nested_type()
     test_seqstruct_to_structseq_and_inverse()
     test_nested_map()
+    test_get_leaf_values()
