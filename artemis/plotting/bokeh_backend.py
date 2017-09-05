@@ -57,7 +57,7 @@ def _session(name=None):
         name = get_name()
     doc = Document()
     session = push_session(document=doc, session_id=name, url=_URL)
-    print ("Session id: %s" %(name))
+    print(("Session id: %s" %(name)))
     session.show()
     global _CURRENT_SESSION
     _CURRENT_SESSION = session
@@ -89,7 +89,7 @@ def _plot(model = None, **kwargs):
     _GRIDPLOT.children = children
     _CURRENT_SESSION.document.clear()
     _GRIDPLOT._detach_document()
-    print _GRIDPLOT
+    print(_GRIDPLOT)
     _CURRENT_SESSION.document.add_root(_GRIDPLOT)
     # global _CURRENT_PLOT
     # _CURRENT_PLOT = newplot
@@ -201,7 +201,7 @@ class LinePlot(object):
                 _CURRENT_PLOT.renderers.append(self._plots)
             self._plots.data_source.data["xs"] = x_data
             self._plots.data_source.data["ys"] = y_data
-            print self._plots.data_source.data
+            print(self._plots.data_source.data)
 
 class HistoryPlot(LinePlot):
     def __init__(self, **kwargs):

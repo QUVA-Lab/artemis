@@ -37,7 +37,7 @@ def experiment_test_function(seed=1234):
     with warnings.catch_warnings():  # This is just to stop that stupid matplotlib warning from screwing up our logs.
         warnings.simplefilter('ignore')
 
-        print 'aaa'
+        print('aaa')
         plt.figure('sensible defaults')
         dat = rng.randn(4, 5)
         plt.subplot(211)
@@ -45,7 +45,7 @@ def experiment_test_function(seed=1234):
         plt.subplot(212)
         plt.imshow(dat, interpolation = 'nearest', cmap = 'gray')
         plt.show()
-        print 'bbb'
+        print('bbb')
         plt.figure()
         plt.plot(rng.randn(10))
         plt.show()
@@ -109,7 +109,7 @@ def test_get_latest_identifier():
 
     with experiment_testing_context():
         exp_rec = experiment_test_function.run()
-        print get_experiment_info('experiment_test_function')
+        print(get_experiment_info('experiment_test_function'))
         assert_experiment_record_is_correct(exp_rec)
         last_experiment_identifier = load_experiment('experiment_test_function').get_latest_record().get_id()
         assert last_experiment_identifier is not None, 'Experiment was run, this should not be none'
@@ -123,8 +123,8 @@ def test_accessing_experiment_dir():
 
         @experiment_function
         def access_dir_test():
-            print '123'
-            print 'abc'
+            print('123')
+            print('abc')
             dir = get_current_record_dir()
             with open_in_record_dir('my_test_file.txt', 'w') as f:
                 f.write('Experiment Directory is: {}'.format(dir))
@@ -145,7 +145,7 @@ def test_accessing_experiment_dir():
 @experiment_function
 def add_some_numbers_test_experiment(a=1, b=1):
     c = a + b
-    print c
+    print(c)
     return c
 
 
@@ -161,7 +161,7 @@ def test_variants():
     @experiment_function
     def add_some_numbers(a=1, b=1):
         c=a+b
-        print c
+        print(c)
         return c
 
     with experiment_testing_context():
@@ -197,7 +197,7 @@ def test_variants():
 
 @experiment_function
 def my_api_test(a=1, b=3):
-    print 'aaa'
+    print('aaa')
     return a*b
 
 my_api_test.add_variant('a2b2', a=2, b=2)
@@ -295,7 +295,7 @@ def test_parallel_run_errors():
 
         with pytest.raises(Exception) as err:
             run_multiple_experiments(variants, parallel=True, raise_exceptions=True)
-        print "^^^ Dont't worry, the above is not actually an error, we were just asserting that we caught the error."
+        print("^^^ Dont't worry, the above is not actually an error, we were just asserting that we caught the error.")
 
         assert err.value.message == 'nononono'
 

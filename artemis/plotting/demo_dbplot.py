@@ -44,7 +44,7 @@ def demo_dbplot(n_frames = 1000):
             dbplot(('Veni', 'Vidi', 'Vici')[i%3], 'text-history')
             dbplot(('Veni', 'Vidi', 'Vici')[i%3], 'text-notice', plot_type='notice')
         if i % 10 == 0:
-            print 'Frame Rate: {:3g}FPS'.format(1./(time.time() - t_start))
+            print('Frame Rate: {:3g}FPS'.format(1./(time.time() - t_start)))
 
 
 def demo_debug_dbplot():
@@ -52,15 +52,15 @@ def demo_debug_dbplot():
     import pdb
     for i in xrange(1000):
         dbplot(np.random.randn(50, 2), 'a')
-        print 'aaa'
+        print('aaa')
         pdb.set_trace()
         dbplot(np.random.randn(10, 10), 'b')
-        print 'bbb'
+        print('bbb')
         pdb.set_trace()
 
 
 if __name__ == '__main__':
     demo_dbplot()
     # demo_debug_dbplot()
-    print("#"*40)
+    print(("#"*40))
     raw_input("Terminate")
