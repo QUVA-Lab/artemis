@@ -38,10 +38,18 @@ def browse_experiments(command=None, **kwargs):
     """
     Browse Experiments
 
-    :param root_experiment: Optionally, the root experiment to look at.
-    :param catch_errors: True if you want to catch any errors here
-    :param close_after: Close this menu after running an experiment
-    :param just_last_record: Just show the last record for the experiment
+    :param command: Optionally, a string command to pass directly to the UI.  (e.g. "run 1")
+    :param root_experiment: The Experiment whose (self and) children to browse
+    :param catch_errors: Catch errors that arise while running experiments
+    :param close_after: Close after issuing one command.
+    :param just_last_record: Only show the most recent record for each experiment.
+    :param view_mode: How to view experiments {'full', 'results'} ('results' leads to a narrower display).
+    :param raise_display_errors: Raise errors that arise when displaying the table (otherwise just indicate that display failed in table)
+    :param run_args: A dict of named arguments to pass on to Experiment.run
+    :param keep_record: Keep a record of the experiment after running.
+    :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
+    :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
+        when opening up the menu - often when results are long lists).
     """
     browser = ExperimentBrowser(**kwargs)
     browser.launch(command=command)
@@ -124,6 +132,19 @@ experiment records.  You can specify records in the following ways:
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
             cache_result_string = False):
+        """
+        :param root_experiment: The Experiment whose (self and) children to browse
+        :param catch_errors: Catch errors that arise while running experiments
+        :param close_after: Close after issuing one command.
+        :param just_last_record: Only show the most recent record for each experiment.
+        :param view_mode: How to view experiments {'full', 'results'} ('results' leads to a narrower display).
+        :param raise_display_errors: Raise errors that arise when displaying the table (otherwise just indicate that display failed in table)
+        :param run_args: A dict of named arguments to pass on to Experiment.run
+        :param keep_record: Keep a record of the experiment after running.
+        :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
+        :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
+            when opening up the menu - often when results are long lists).
+        """
 
         if run_args is None:
             run_args = {}
@@ -186,9 +207,7 @@ experiment records.  You can specify records in the following ways:
             print("==================== Experiments ====================")
             self.exp_record_dict = all_experiments if self._filter is None else \
                 OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
-            print(self.get_experiment_list_str(self.exp_record_dict, just_last_record=self.just_last_record,
-                view_mode=self.view_mode, raise_display_errors=self.raise_display_errors, truncate_result_to=self.truncate_result_to,
-                cache_result_string = self.cache_result_string))
+            print(self.get_experiment_list_str(self.exp_record_dict))
             if self._filter is not None:
                 print('[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments)))
             print('-----------------------------------------------------')
@@ -234,17 +253,16 @@ experiment records.  You can specify records in the following ways:
                     else:
                         raise
 
-    @staticmethod
-    def get_experiment_list_str(exp_record_dict, just_last_record, view_mode='full', raise_display_errors=False, truncate_result_to=100, cache_result_string = True):
+    def get_experiment_list_str(self, exp_record_dict):
 
         headers = {
-            'full': ['E#', 'R#', 'Name', 'Last Run' if just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result'],
+            'full': ['E#', 'R#', 'Name', 'Last Run' if self.just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result'],
             'results': ['E#', 'R#', 'Name', 'Result']
-            }[view_mode]
+            }[self.view_mode]
 
         rows = []
 
-        oneliner_func = memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string) if cache_result_string else get_oneline_result_string
+        oneliner_func = memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string) if self.cache_result_string else get_oneline_result_string
 
         def get_field(header):
             try:
@@ -257,17 +275,17 @@ experiment records.  You can specify records in the following ways:
                     experiment_record.info.get_field_text(ExpInfoFields.RUNTIME) if header=='Duration' else \
                     experiment_record.info.get_field_text(ExpInfoFields.STATUS) if header=='Status' else \
                     get_record_invalid_arg_string(experiment_record) if header=='Valid' else \
-                    oneliner_func(experiment_record.get_id(), truncate_to=truncate_result_to) if header=='Result' else \
+                    oneliner_func(experiment_record.get_id(), truncate_to=self.truncate_result_to) if header=='Result' else \
                     '???'
             except:
-                if raise_display_errors:
+                if self.raise_display_errors:
                     raise
                 return '<Display Error>'
 
         for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
             if len(record_ids)==0:
                 if exp_id in exp_record_dict:
-                    rows.append([str(i), '', exp_id, '<No Records>', '-', '-', '-', '-'])
+                    rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-4))
             else:
                 for j, record_id in enumerate(record_ids):
                     index, name = ['{}.{}'.format(i, j), exp_id] if j==0 else ['{}.{}'.format('`'*len(str(i)), j), exp_id]
@@ -276,7 +294,7 @@ experiment records.  You can specify records in the following ways:
                     except:
                         experiment_record = None
                     rows.append([get_field(h) for h in headers])
-        assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), '\n'.join([len(row) for row in rows]))
+        assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), [len(row) for row in rows])
         table = tabulate(rows, headers=headers)
         return table
 
@@ -360,8 +378,7 @@ experiment records.  You can specify records in the following ways:
     def selectexp(self, user_range):
         exps_to_records = select_experiments(user_range, self.exp_record_dict, return_dict=True)
         with IndentPrint():
-            print(self.get_experiment_list_str(exps_to_records, just_last_record=self.just_last_record, view_mode=self.view_mode, raise_display_errors=self.raise_display_errors))
-            # print ExperimentRecordBrowser.get_record_table(record_ids)
+            print(self.get_experiment_list_str(exps_to_records))
         _warn_with_prompt('Experiment Selection "{}" includes {} out of {} experiments.'.format(user_range, len(exps_to_records), len(self.exp_record_dict)), use_prompt=not self.close_after)
 
     def selectrec(self, user_range):
