@@ -1,6 +1,6 @@
-from artemis.experiments.decorators import experiment_function
 from numpy.random import permutation
 from sklearn import svm, datasets
+from artemis.experiments import experiment_function
 
 
 @experiment_function
