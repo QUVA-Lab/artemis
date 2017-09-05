@@ -235,7 +235,7 @@ class ExperimentRecord(object):
         make_file_dir(file_path)
         with open(file_path, 'w') as f:
             pickle.dump(result, f, protocol=2)
-            print 'Saving Result for Experiment "%s"' % (self.get_id(),)
+            print('Saving Result for Experiment "%s"' % (self.get_id(),))
 
     def get_id(self):
         """
@@ -295,7 +295,7 @@ class ExperimentRecord(object):
         """
         shutil.rmtree(self._experiment_directory)
 
-    def args_valid(self, last_run_args=None, current_args=None):
+    def args_valid(self, last_run_args=None, current_args=None, ignore_valid_keys=[]):
         """
         :return: True if the experiment arguments have not changed
             False if they have changed
@@ -305,6 +305,8 @@ class ExperimentRecord(object):
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
         if current_args is None:
             current_args = dict(self.get_experiment().get_args())
+        last_run_args = {k:v for k,v in last_run_args.iteritems() if k not in ignore_valid_keys}
+        current_args = {k:v for k,v in current_args.iteritems() if k not in ignore_valid_keys}
         try:
             return compute_fixed_hash(last_run_args, try_objects=True) == compute_fixed_hash(current_args, try_objects=True)
         except NotImplementedError:  # Happens when we have unhashable arguments
@@ -329,7 +331,7 @@ class ExperimentRecord(object):
             error_text = traceback.format_exc()
             f.write(error_text)
         if print_too:
-            print error_text
+            print(error_text)
 
 _CURRENT_EXPERIMENT_RECORD = None
 

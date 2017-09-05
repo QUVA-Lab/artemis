@@ -60,4 +60,4 @@ if __name__ == '__main__':
     book = 'fifty_shades_of_grey'
     n_characters = 10000
 
-    print read_book(book, n_characters)
+    print(read_book(book, n_characters))

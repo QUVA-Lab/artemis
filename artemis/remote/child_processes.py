@@ -77,7 +77,7 @@ class ChildProcess(object):
     def get_extended_command(self,command):
         return "echo $$ ; exec %s"%command
 
-    def deconstruct(self, signum=signal.SIGINT, system_signal=False):
+    def deconstruct(self, signum=signal.SIGKILL, system_signal=False):
         '''
         This completely and safely deconstructs a remote connection. It might also be called at program shutdown, if take_care_of_deconstruct is set to True
         kills itself if alive, then closes remote connection if applicable
@@ -314,6 +314,7 @@ class RemotePythonProcess(ChildProcess):
         serialized_out = self.return_value_queue.get(timeout=timeout)
         out = pickle.loads(serialized_out.dbplot_message)
         return out
+
 
 
 def pickle_dumps_without_main_refs(obj):

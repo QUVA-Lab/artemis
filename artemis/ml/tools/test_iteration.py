@@ -71,8 +71,8 @@ def test_minibatch_iterate_info():
 
             ixs = (np.arange(minibatch_size)+iterator*minibatch_size) % n_samples
             epoch = iterator * minibatch_size / float(n_samples)
-            print (epoch, info.epoch)
-            print info.done
+            print((epoch, info.epoch))
+            print(info.done)
             assert np.allclose(epoch, info.epoch)
             assert np.array_equal(ixs, np.arange(info.sample, info.sample+minibatch_size) % n_samples)
             assert np.array_equal(training_minibatch, training_arr[ixs])

@@ -38,7 +38,7 @@ class EZProfiler(object):
         start_time = time()
         self.start_time = start_time
         if self.print_on_start:
-            print '{} Started'.format(self.profiler_name)
+            print('{} Started'.format(self.profiler_name))
         return self
 
     def __exit__(self, *args):
@@ -50,7 +50,7 @@ class EZProfiler(object):
             self.print_result.info(self.get_report())
 
     def print_elapsed(self):
-        print self.get_report()
+        print(self.get_report())
 
     def get_report(self):
         keys = self._lap_times.keys()

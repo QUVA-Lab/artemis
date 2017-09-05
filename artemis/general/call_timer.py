@@ -17,7 +17,7 @@ class CallStatus(object):
         self.call_count += 1
 
         if self.print_time is None or (current_time - self.last_print_time) > self.print_time:
-            print 'Timer {}: {} iterations in {:.3}s ({:.3} iterations/second)'.format(self.name, self.call_count, current_time-self.start_time, self.call_count/(current_time-self.start_time))
+            print('Timer {}: {} iterations in {:.3}s ({:.3} iterations/second)'.format(self.name, self.call_count, current_time-self.start_time, self.call_count/(current_time-self.start_time)))
             self.last_print_time = current_time
 
 
