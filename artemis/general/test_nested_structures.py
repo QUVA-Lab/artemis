@@ -1,7 +1,8 @@
-from artemis.general.nested_structures import flatten_struct, get_meta_object, NestedType, \
-    seqstruct_to_structseq, structseq_to_seqstruct, nested_map, get_leaf_values
+from artemis.general.nested_structures import (flatten_struct, get_meta_object, NestedType,
+    seqstruct_to_structseq, structseq_to_seqstruct, nested_map, get_leaf_values)
 import numpy as np
 from pytest import raises
+from six.moves import xrange
 
 
 def test_flatten_struct():
