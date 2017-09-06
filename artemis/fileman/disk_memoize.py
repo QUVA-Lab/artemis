@@ -1,6 +1,7 @@
 import logging
 import os
 from functools import partial
+from six.moves import input
 from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.functional import infer_arg_values
 from artemis.general.hashing import compute_fixed_hash
@@ -219,7 +220,7 @@ class DisableMemos(object):
 
 if __name__ == '__main__':
 
-    cmd = raw_input('Type "clearall" to clear all memos: ')
+    cmd = input('Type "clearall" to clear all memos: ').strip().lower()
 
     if cmd == 'clearall':
         clear_all_memos()
