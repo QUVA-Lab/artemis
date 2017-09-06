@@ -4,9 +4,10 @@ import traceback
 from collections import OrderedDict
 from functools import partial
 from importlib import import_module
+from six.moves import xrange
 
-from artemis.experiments.experiment_record import load_experiment_record, ExpInfoFields, \
-    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id
+from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
+    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id)
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
