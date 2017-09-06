@@ -213,9 +213,9 @@ experiment records.  You can specify records in the following ways:
                 print('[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments)))
             print('-----------------------------------------------------')
             if command is None:
-                user_input = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
+                user_input = input('Enter command or experiment # to run (h for help) >> ').strip()
             else:
-                user_input=command
+                user_input = command
                 command = None
             with IndentPrint():
                 try:
@@ -240,16 +240,16 @@ experiment records.  You can specify records in the following ways:
                         min_distance = min(edit_distances)
                         closest = func_dict.keys()[edit_distances.index(min_distance)]
                         suggestion = ' Did you mean "{}"?.  '.format(closest) if min_distance<=2 else ''
-                        response = raw_input('Unrecognised command: "{}". {}Type "h" for help or Enter to continue. >'.format(cmd, suggestion, closest))
-                        if response.lower()=='h':
+                        response = input('Unrecognised command: "{}". {}Type "h" for help or Enter to continue. >'.format(cmd, suggestion, closest))
+                        if response.strip().lower()=='h':
                             self.help()
                         out = None
                     if out is self.QUIT or self.close_after:
                         break
                 except Exception as name:
                     if self.catch_errors:
-                        res = raw_input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (name.__class__.__name__, name.message))
-                        if res == 'e':
+                        res = input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (name.__class__.__name__, name.message))
+                        if res.strip().lower() == 'e':
                             raise
                     else:
                         raise
@@ -364,8 +364,8 @@ experiment records.  You can specify records in the following ways:
         print('{} out of {} Records will be deleted.'.format(len(records), sum(len(recs) for recs in self.exp_record_dict.values())))
         with IndentPrint():
             print(ExperimentRecordBrowser.get_record_table(records, ))
-        response = raw_input('Type "yes" to continue. >')
-        if response.lower() == 'yes':
+        response = input('Type "yes" to continue. >').strip().lower()
+        if response == 'yes':
             clear_experiment_records([record.get_id() for record in records])
             print('Records deleted.')
         else:
@@ -533,7 +533,7 @@ class ExperimentRecordBrowser(object):
 
             if self.experiment_names is not None or len(self.filters) != 0:
                 print('Not showing all experiments.  Type "showall" to see all experiments, or "viewfilters" to view current filters.')
-            user_input = raw_input('Enter Command (show # to show and experiment, or h for help) >>')
+            user_input = input('Enter Command (show # to show and experiment, or h for help) >>').strip()
             parts = shlex.split(user_input)
             if len(parts)==0:
                 print("You need to specify an command.  Press h for help.")
@@ -549,8 +549,8 @@ class ExperimentRecordBrowser(object):
                     if return_val==self.QUIT:
                         break
             except Exception as e:
-                res = raw_input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (e.__class__.__name__, e.message))
-                if res == 'e':
+                res = input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (e.__class__.__name__, e.message))
+                if res.strip().lower() == 'e':
                     raise
 
     def _select_records(self, user_range):
@@ -600,8 +600,8 @@ class ExperimentRecordBrowser(object):
         ids = self._select_records(user_range)
         print('We will delete the following experiments:')
         print(self.get_record_table(ids))
-        conf = raw_input("Going to clear {} of {} experiment records shown above.  Enter 'yes' to confirm: ".format(len(ids), len(self.record_ids)))
-        if conf=='yes':
+        conf = input("Going to clear {} of {} experiment records shown above.  Enter 'yes' to confirm: ".format(len(ids), len(self.record_ids)))
+        if conf.strip().lower() == 'yes':
             clear_experiment_records(ids=ids)
         else:
             _warn_with_prompt("Did not delete experiments")
