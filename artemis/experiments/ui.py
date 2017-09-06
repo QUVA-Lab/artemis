@@ -1,15 +1,16 @@
 import shlex
 from collections import OrderedDict
+from six.moves import input
 
 from tabulate import tabulate
 
-from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments
-from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
-    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields
-from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
-    print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
-    display_experiment_record
+from artemis.experiments.experiment_management import (pull_experiments, select_experiments, select_experiment_records,
+    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments)
+from artemis.experiments.experiment_record import (get_all_record_ids, clear_experiment_records,
+    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields)
+from artemis.experiments.experiment_record_view import (get_record_full_string, get_record_invalid_arg_string,
+    print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string,
+    display_experiment_record)
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.disk_memoize import memoize_to_disk_with_settings
 from artemis.general.display import IndentPrint, side_by_side
@@ -17,17 +18,17 @@ from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal
 
 try:
-    import readline  # Makes raw_input behave like interactive shell.
+    import readline  # Makes input() behave like interactive shell.
     # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
 except:
     pass  # readline not available
 
 
 def _warn_with_prompt(message= None, prompt = 'Press Enter to continue or q then Enter to quit', use_prompt=True):
-    if message is not None:
+    if message:
         print(message)
     if use_prompt:
-        out = raw_input('({}) >> '.format(prompt))
+        out = input('({}) >> '.format(prompt)).strip().lower()
         if out=='q':
             quit()
         else:
