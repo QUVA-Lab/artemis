@@ -2,6 +2,7 @@ import time
 from artemis.plotting.live_plotting import LiveStream, LivePlot, LiveCanal
 from artemis.plotting.matplotlib_backend import MovingImagePlot, MovingPointPlot, LinePlot, ImagePlot, HistogramPlot
 from itertools import count
+from six.moves import xrange
 
 __author__ = 'peter'
 import numpy as np
