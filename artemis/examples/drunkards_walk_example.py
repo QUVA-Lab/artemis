@@ -1,6 +1,7 @@
 import numpy as np
 from artemis.experiments import ExperimentFunction
 from matplotlib import pyplot as plt
+from six.moves import xrange
 
 
 def display_drunkards_walk(drunkards):
