@@ -7,6 +7,7 @@ from artemis.plotting.data_conversion import (put_data_in_grid, RecordBuffer, da
     UnlimitedRecordBuffer)
 from matplotlib import pyplot as plt
 import numpy as np
+from six.moves import xrange
 
 
 __author__ = 'peter'
