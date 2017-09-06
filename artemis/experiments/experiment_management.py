@@ -4,14 +4,18 @@ import traceback
 from collections import OrderedDict
 from functools import partial
 from importlib import import_module
+import os
+
+import time
 
 from artemis.experiments.experiment_record import load_experiment_record, \
-    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id, get_all_record_ids
+    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id, get_all_record_ids, get_experiment_dir
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library, Experiment
-from artemis.fileman.config_files import get_home_dir
+from artemis.fileman.config_files import get_home_dir, set_non_persistent_config_value
+from artemis.fileman.local_dir import get_local_path
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
-from artemis.remote.child_processes import SlurmPythonProcess, pickle_dumps_without_main_refs
+from artemis.remote.child_processes import SlurmPythonProcess, pickle_dumps_without_main_refs, PythonChildProcess, RemotePythonProcess
 from artemis.remote.nanny import Nanny
 
 
@@ -269,7 +273,7 @@ def interpret_numbers(user_range):
         return None
 
 
-def run_experiment(name, exp_dict='global', **experiment_record_kwargs):
+def run_experiment(name, exp_dict='global', slurm_job = False, experiment_path=None, **experiment_record_kwargs):
     """
     Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
     You can run the experiment again later by calling show_experiment(location_string):
@@ -280,13 +284,19 @@ def run_experiment(name, exp_dict='global', **experiment_record_kwargs):
 
     :return: A location_string, uniquely identifying the experiment.
     """
+    if slurm_job and int(os.environ["SLURM_NODEID"]) > 0:
+        return
+    if experiment_path:
+        set_non_persistent_config_value(config_filename=".artemisrc", section="experiments", option="experiment_directory", value=experiment_path)
+
     if isinstance(name,basestring):
         if exp_dict == 'global':
             exp_dict = get_global_experiment_library()
         experiment = exp_dict[name]
     else:
-        assert isinstance(name,Experiment)
+        assert isinstance(name, Experiment)
         experiment = name
+    print("Running experiment %s"%(experiment.get_id()))
     return experiment.run(**experiment_record_kwargs)
 
 # def run_experiment_by_object(experiment, **experiment_record_kwargs):
@@ -308,22 +318,16 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, raise_exce
     if n_parallel and n_parallel > 1:
         raise NotImplementedError("No parallel Slurm execution at the moment")
     else:
-        return_values = []
-        experiment_identifiers = [ex.get_id() for ex in experiments]
-        # for i,eid in enumerate(experiment_identifiers):
         for i,exp in enumerate(experiments):
             nanny = Nanny()
-            # func = run_experiment if raise_exceptions else run_experiment_ignoring_errors
-            # func = run_experiment_by_object
-            # experiment_picked = pickle_dumps_without_main_refs(eid)
             func = run_experiment
-            function_call = partial(func, experiment=exp, raise_exceptions=raise_exceptions,display_results=False, run_args=run_args)
+            experiment_path = get_experiment_dir()
+            function_call = partial(func, name=exp, slurm_job=True, experiment_path=experiment_path,raise_exceptions=raise_exceptions,display_results=False, **run_args)
             spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
-
             # Using Nanny only for convenient stdout & stderr forwarding.
             nanny.register_child_process(spp,monitor_for_termination=False)
             nanny.execute_all_child_processes(time_out=2)
-            return_values.append(spp.get_return_value())
+
 
 def run_multiple_experiments(experiments, parallel = False, cpu_count=None, raise_exceptions=True, run_args = {}):
     """

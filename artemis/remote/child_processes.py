@@ -11,11 +11,11 @@ import sys
 import threading
 import time
 import uuid
+
 import os
 import pickle
 import pipes
 
-import StringIO
 
 from artemis.general.should_be_builtins import file_path_to_absolute_module
 from artemis.remote import remote_function_run_script
@@ -351,7 +351,7 @@ class SlurmPythonProcess(RemotePythonProcess):
             command = " ".join(pipes.quote(c) for c in command)
 
         final_command = " ".join((slurm_command,command))
-        print(final_command)
+        # print(final_command)
         # import sys
         # sys.exit(0)
 
@@ -371,7 +371,13 @@ def pickle_dumps_without_main_refs(obj):
     """
     currently_run_file = sys.argv[0]
     module_path = file_path_to_absolute_module(currently_run_file)
-    pickle_str = pickle.dumps(obj, protocol=0)
+    try:
+        pickle_str = pickle.dumps(obj, protocol=0)
+    except:
+        print("Using Dill")
+        import dill
+        pickle_str = dill.dumps(obj,protocol=0)
+
     pickle_str = pickle_str.replace('__main__', module_path)  # Hack!
     return pickle_str
 
