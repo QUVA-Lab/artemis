@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import numpy as np
+from six.moves import xrange
 
 __author__ = 'peter'
 
