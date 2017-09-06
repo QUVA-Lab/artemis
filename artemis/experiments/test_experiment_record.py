@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import pytest
+from six.moves import xrange
 
 from artemis.experiments.decorators import experiment_function
 from artemis.experiments.deprecated import start_experiment, end_current_experiment
