@@ -1,8 +1,10 @@
 import pytest
 
-from artemis.general.mymath import softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel, \
-    align_curves, angle_between, fixed_diff, decaying_cumsum, geosum, selective_sum, conv_fanout, conv2_fanout_map
+from artemis.general.mymath import (softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel,
+    align_curves, angle_between, fixed_diff, decaying_cumsum, geosum, selective_sum, conv_fanout, conv2_fanout_map)
 import numpy as np
+from six.moves import xrange
+
 __author__ = 'peter'
 
 
