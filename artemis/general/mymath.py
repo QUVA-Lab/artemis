@@ -6,6 +6,8 @@ try:
     from scipy import weave
 except ImportError:
     logging.warn("Could not import scipy.weave.  That's ok, ignore this unless you need it.")
+from six.moves import xrange
+
 __author__ = 'peter'
 
 # Note - this module used to be called math, but it somehow results in a numpy import error
