@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
+from six import string_types
 from six.moves import xrange
 
 __author__ = 'peter'
@@ -281,7 +282,7 @@ def assert_things_are_printed(things, min_len=None):
     :return:
     """
 
-    if isinstance(things, basestring):
+    if isinstance(things, string_types):
         things = [things]
 
     with CaptureStdOut() as cap:
