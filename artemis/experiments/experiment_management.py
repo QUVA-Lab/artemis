@@ -4,7 +4,7 @@ import traceback
 from collections import OrderedDict
 from functools import partial
 from importlib import import_module
-from six.moves import xrange
+from six.moves import reduce, xrange
 
 from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
     ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id)
