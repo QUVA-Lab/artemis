@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
+from six.moves import xrange
 
 __author__ = 'peter'
 
