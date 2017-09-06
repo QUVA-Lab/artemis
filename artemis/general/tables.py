@@ -1,6 +1,7 @@
 import itertools
 
 from artemis.general.should_be_builtins import all_equal_deprecated, all_equal
+from six.moves import xrange
 
 
 def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_headers = True, prettify_labels = True,
