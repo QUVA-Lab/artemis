@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 import itertools
 import numpy as np
+from six.moves import xrange
 
 __author__ = 'peter'
 
