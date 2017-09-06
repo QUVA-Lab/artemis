@@ -4,6 +4,7 @@ import traceback
 from collections import OrderedDict
 from functools import partial
 from importlib import import_module
+from six import string_types
 from six.moves import reduce, xrange
 
 from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
@@ -27,7 +28,7 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     import pexpect
     import sys
 
-    if isinstance(experiment_names, basestring):
+    if isinstance(experiment_names, string_types):
         experiment_names = [experiment_names]
 
     inclusions = ' '.join("--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names)
@@ -61,9 +62,9 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
     results = OrderedDict()
     for ex in experiments:
 
-        ex = load_experiment(ex) if isinstance(ex, basestring) else ex
+        ex = load_experiment(ex) if isinstance(ex, string_types) else ex
 
-        name = experiments[ex.get_id()] if isinstance(experiments, dict) else ex if isinstance(ex, basestring) else ex.get_id()
+        name = experiments[ex.get_id()] if isinstance(experiments, dict) else ex if isinstance(ex, string_types) else ex.get_id()
 
         record = ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True)
         if record is None:
