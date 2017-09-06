@@ -8,6 +8,7 @@ import sys
 
 import os
 import paramiko
+from six.moves import input
 
 from artemis.config import get_artemis_config_value
 
@@ -22,20 +23,17 @@ def one_time_send_to(address, port, message):
     :param message: A string to send
     '''
 
-    if isinstance(port, basestring):
-        port = int(port)
-
-    server_address = (address, port)
+    server_address = (address, int(port))
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.connect(tuple(server_address))
     except:
         raise
 
-    send_size(sock,message)
+    send_size(sock, message)
 
 
-def get_socket(address,port):
+def get_socket(address, port):
     '''
     Returns a socket, bound to the next free port starting from the given port.
     :param port:
@@ -137,7 +135,7 @@ def get_remote_artemis_path(remote_ip):
     return get_artemis_config_value(
         section=remote_ip,
         option='artemis_path',
-        default_generator=lambda: raw_input('Specify Remote Artemis Installation Path: '),
+        default_generator=lambda: input('Specify Remote Artemis Installation Path: ').strip(),
         write_default=True
         )
 
