@@ -1,8 +1,9 @@
 import inspect
 from collections import OrderedDict
 import itertools
-
 import os
+
+from six.moves import xrange
 
 __author__ = 'peter'
 
