@@ -4,6 +4,8 @@ import sys
 from collections import OrderedDict
 import numpy as np
 import pip
+from six.moves import input
+
 from artemis.fileman.config_files import get_config_value
 from artemis.config import get_artemis_config_value
 from artemis.remote.utils import get_ssh_connection
@@ -107,7 +109,7 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
             print('\n'.join(['%s: %s (%s)' % (i, key, missing_packages[key]) for i, key in enumerate(missing_packages.keys())]))
             valid = False
             while not valid:
-                ix = raw_input("Please specify in the format '1, 3, 4' all packages you want to install. Can be empty or 'all' ")
+                ix = input("Please specify in the format '1, 3, 4' all packages you want to install. Can be empty or 'all' ")
                 ix=ix.strip(",")
                 numbers = ix.split(",")
                 if numbers[0] == "all" and len(numbers) == 1:
@@ -145,7 +147,7 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
             print('\n'.join(['%s: %s (local: %s) => (remote: %s)' % (i, key, different_versions[key][0], different_versions[key][1]) for i, key in enumerate(different_versions.keys())]))
             valid = False
             while not valid:
-                ix = raw_input("Please specify in the format '1, 3, 4' all remote packages you want to upgrade (downgrade) to the local version. Can be empty or 'all' ")
+                ix = input("Please specify in the format '1, 3, 4' all remote packages you want to upgrade (downgrade) to the local version. Can be empty or 'all' ")
                 ix=ix.strip(",")
                 numbers = ix.split(",")
                 if numbers[0] == "all" and len(numbers) == 1:
@@ -184,8 +186,9 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                 if len(missing_packages)>0 or len(different_versions)>0:
                     valid = False
                     while not valid:
-                        ix=raw_input("The following packages could not be installed or upgraded: \n %s \nDo you want to continue? (y/n)"% (",".join(missing_packages.keys() + different_versions.keys())))
-                        if ix in ["y","n"]:
+                        ix=input("The following packages could not be installed or upgraded: \n %s \nDo you want to continue? (y/n)"% (",".join(missing_packages.keys() + different_versions.keys())))
+                        ix=ix.strip().lower()
+                        if ix in ("y", "n"):
                             valid=True
 
                     if ix == "n":
@@ -193,4 +196,5 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                         sys.exit(0)
                     else:
                         print("Ignoring discrepancies...")
+    
     print(("="*10 + " Done remote virtualenv %s "%ip_address + "="*10))
