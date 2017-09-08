@@ -155,7 +155,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     if cornertext is not None:
         if not hasattr(_DBPLOT_FIGURES[fig].figure, '__cornertext'):
-            _DBPLOT_FIGURES[fig].figure.__cornertext = _DBPLOT_FIGURES[fig].subplots.values()[0].axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
+            _DBPLOT_FIGURES[fig].figure.__cornertext = next(iter(_DBPLOT_FIGURES[fig].subplots.values())).axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
         else:
             _DBPLOT_FIGURES[fig].figure.__cornertext.set_text(cornertext)
     if title is not None:

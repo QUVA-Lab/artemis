@@ -259,7 +259,7 @@ def minibatch_process(f, minibatch_size, mb_args = (), mb_kwargs = {}, fixed_kwa
     n_samples = len(mb_args[0])
     assert all(len(arg) == n_samples for arg in all_mb_args)
     mb_kwarg_list = mb_kwargs.items()
-    fixed_kwarg_list = fixed_kwargs.items()
+    fixed_kwarg_list = list(fixed_kwargs.items())
     index_generator = minibatch_index_generator(n_samples = n_samples, n_epochs=1, minibatch_size=minibatch_size, final_treatment='truncate')
     ix = next(index_generator)
     first_output = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))

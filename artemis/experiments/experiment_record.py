@@ -223,7 +223,7 @@ class ExperimentRecord(object):
         """
         result_loc = os.path.join(self._experiment_directory, 'result.pkl')
         if os.path.exists(result_loc):
-            with open(result_loc) as f:
+            with open(result_loc, 'rb') as f:
                 result = pickle.load(f)
             return result
         elif err_if_none:
@@ -286,7 +286,7 @@ class ExperimentRecord(object):
         figs = []
         for fig_path in locs:
             assert fig_path.endswith('.pkl'), 'Figure {} was not saved as a pickle, so it cannot be reloaded.'.format(fig_path)
-            with open(fig_path) as f:
+            with open(fig_path, 'rb') as f:
                 figs.append(pickle.load(f))
         return figs
 

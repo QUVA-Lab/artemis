@@ -422,7 +422,7 @@ def test_current_experiment_access_functions():
 
             assert os.path.exists(os.path.join(loc, 'somefile.pkl'))
 
-            with open_in_record_dir('somefile.pkl') as f:
+            with open_in_record_dir('somefile.pkl', 'rb') as f:
                 assert pickle.load(f) == [1, 2, 3]
 
             exp = rec.get_experiment()
