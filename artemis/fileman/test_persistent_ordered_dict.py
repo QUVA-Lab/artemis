@@ -18,11 +18,11 @@ def test_persistent_ordered_dict():
     pod['d'] = [9, 10]  # Should not be recorded
 
     with PersistentOrderedDict(file_path) as pod:
-        assert pod.items() == [('a', [1, 2, 3]), ('b', [4, 5, 6]), ('c', [7, 8])]
+        assert list(pod.items()) == [('a', [1, 2, 3]), ('b', [4, 5, 6]), ('c', [7, 8])]
         pod['e']=11
 
     with PersistentOrderedDict(file_path) as pod:
-        assert pod.items() == [('a', [1, 2, 3]), ('b', [4, 5, 6]), ('c', [7, 8]), ('e', 11)]
+        assert list(pod.items()) == [('a', [1, 2, 3]), ('b', [4, 5, 6]), ('c', [7, 8]), ('e', 11)]
 
 
 if __name__ == '__main__':

@@ -5,8 +5,8 @@ import itertools
 import numpy as np
 from six import string_types, next
 
-_ALREADY_SEEN_CODE = 'dbf056790fabd3c7b79c1ddab7b7ee49'
-_END_CODE = 'e0abd6b36d6e295b6c8859cdffc773df'
+_ALREADY_SEEN_CODE = 'dbf056790fabd3c7b79c1ddab7b7ee49'.encode('utf-8')
+_END_CODE = 'e0abd6b36d6e295b6c8859cdffc773df'.encode('utf-8')
 
 
 def fixed_hash_eq(obj1, obj2):

@@ -75,8 +75,8 @@ def test_get_derived_function_args():
 
     with raises(AssertionError):  # AssertionError: Arguments ('a',) require values but are not given any.
         infer_derived_arg_values(f)
-    assert infer_derived_arg_values(g).items() == [('a', 2), ('b', 1)]
-    assert infer_derived_arg_values(h).items() == [('a', 2), ('b', 3)]
+    assert list(infer_derived_arg_values(g).items()) == [('a', 2), ('b', 1)]
+    assert list(infer_derived_arg_values(h).items()) == [('a', 2), ('b', 3)]
     with raises(AssertionError):
         infer_derived_arg_values(j)
 

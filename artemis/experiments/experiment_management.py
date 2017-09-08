@@ -155,7 +155,7 @@ def _filter_records(user_range, exp_record_dict):
             filter_set_3[k] = [(a or b) if op=='or' else (a and b) for a, b in izip_equal(filter_set_1[k], filter_set_2[k])]
         return filter_set_3
 
-    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.iteritems())
+    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.items())
     if user_range in exp_record_dict:  # User just lists an experiment
         base[user_range] = [True]*len(base[user_range])
         return base
