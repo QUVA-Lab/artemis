@@ -125,6 +125,14 @@ class NestedType(object):
         return get_leaf_values(data_object)
 
     def expand_from_leaves(self, leaves, check_types = True, assert_fully_used=True):
+        """
+        Given an iterator of leaf values, fill the meta-object represented by this type.
+
+        :param leaves: An iteratable over leaf values
+        :param check_types: Assert that the data types match those of the original object
+        :param assert_fully_used: Assert that all the leaf values are used
+        :return: A nested object, filled with the leaf data, whose structure is represented in this NestedType instance.
+        """
         return _fill_meta_object(self.meta_object, (x for x in leaves), check_types=check_types, assert_fully_used=assert_fully_used)
 
     @staticmethod

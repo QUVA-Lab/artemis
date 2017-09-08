@@ -25,7 +25,7 @@ _newplot_settings = dict(
     )
 
 
-def _create_subplot(fig = None, layout = None, **subplot_args):
+def _create_subplot(fig = None, layout = None, position = None, **subplot_args):
 
     if layout is None:
         layout = _newplot_settings['layout']

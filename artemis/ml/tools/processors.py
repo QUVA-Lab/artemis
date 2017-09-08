@@ -41,6 +41,29 @@ class RunningAverage(object):
         self._average = (1-frac)*self._average + frac*data
         return self._average
 
+    @classmethod
+    def batch(cls, x):
+        ra = cls()
+        return np.array([ra(x_) for x_ in x])
+
+
+class RecentRunningAverage(object):
+
+    def __init__(self):
+        self._n_samples_seen = 0
+        self._average = 0
+
+    def __call__(self, data):
+        self._n_samples_seen+=1
+        frac = 1/self._n_samples_seen**.5
+        self._average = (1-frac)*self._average + frac*data
+        return self._average
+
+    @classmethod
+    def batch(cls, x):
+        ra = cls()
+        return np.array([ra(x_) for x_ in x])
+
 
 class RunningAverageWithBurnin(object):
 
