@@ -233,7 +233,8 @@ class ModelTestScore(object):
     def get_table(self):
         # test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*self.scores.keys())]
 
-        def lookup( (test_pair_name_, function_name_), cost_name_):
+        def lookup( test_pair_name_and_function_name_, cost_name_):
+            test_pair_name_, function_name_ = test_pair_name_and_function_name_
             return self[test_pair_name_, function_name_, cost_name_]
 
         rows = build_table(
@@ -517,7 +518,7 @@ def print_score_results(score, info=None):
         print('Epoch {} (after {:.3g}s)'.format(info.epoch, info.time))
     test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*score.keys())]
     rows = build_table(
-        lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: score[test_pair_name_, function_name_, cost_name_],
+        lookup_fcn=lambda test_pair_name_and_function_name_, cost_name_: score[test_pair_name_and_function_name_[0], test_pair_name_and_function_name_[1], cost_name_],
         row_categories = [[test_pair_name for test_pair_name in test_pair_names], [function_name for function_name in function_names]],
         column_categories = [cost_name for cost_name in cost_names],
         row_header_labels=['Subset', 'Function'],

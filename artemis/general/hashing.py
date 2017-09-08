@@ -3,7 +3,6 @@ import pickle
 from collections import OrderedDict
 import itertools
 import numpy as np
-from past.builtins import basestring
 from six import string_types
 
 _ALREADY_SEEN_CODE = 'dbf056790fabd3c7b79c1ddab7b7ee49'

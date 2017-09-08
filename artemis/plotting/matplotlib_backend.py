@@ -163,7 +163,7 @@ class LinePlot(HistoryFreePlot):
         self.axes_update_mode = axes_update_mode
         self.add_end_markers = add_end_markers
         self._end_markers = []
-        self.legend_entries = [legend_entries] if isinstance(legend_entries, basestring) else legend_entries
+        self.legend_entries = [legend_entries] if isinstance(legend_entries, string_types) else legend_entries
         self.legend_entry_size = legend_entry_size
         self.allow_axis_offset = allow_axis_offset
 

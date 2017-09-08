@@ -15,6 +15,8 @@ import pickle
 
 import StringIO
 
+from six import string_types
+
 from artemis.general.should_be_builtins import file_path_to_absolute_module
 from artemis.remote import remote_function_run_script
 from artemis.remote.plotting.utils import handle_socket_accepts
@@ -148,7 +150,7 @@ class ChildProcess(object):
         if self.local_process:
             if type(command) == list:
                 sub = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            elif type(command) == str or type(command) == unicode:
+            elif isinstance(command, string_types):
                 shlexed_command = shlex.split(command)
                 sub = subprocess.Popen(shlexed_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             else:
@@ -254,7 +256,7 @@ class PythonChildProcess(ChildProcess):
                 command = [c.replace("python", sys.executable, 1) if c.startswith("python") else c for c in command]
                 command = [s.replace("~",home_dir) for s in command]
 
-        elif type(command) == str or type(command) == unicode and command.startswith("python"):
+        elif isinstance(command, string_types) and command.startswith("python"):
             if self.set_up_port_for_structured_back_communication:
                 command += " --port=%i "%port
                 command += "--address=%s"%address
