@@ -113,7 +113,7 @@ class Experiment(object):
                 exp_rec.info.set_field(ExpInfoFields.NAME, self.name)
                 exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
                 exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
-                exp_rec.info.set_field(EIF.ARGS, self.get_args().items())
+                exp_rec.info.set_field(EIF.ARGS, list(self.get_args().items()))
                 root_function = self.get_root_function()
                 exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
                 exp_rec.info.set_field(EIF.TIMESTAMP, str(date))
