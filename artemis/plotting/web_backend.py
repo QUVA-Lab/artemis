@@ -1,9 +1,8 @@
-from tempfile import gettempdir
 import time
 import thread
-import SimpleHTTPServer
+# import SimpleHTTPServer
+from six.moves import SimpleHTTPServer
 import SocketServer
-
 from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.plotting.manage_plotting import set_show_callback, set_draw_callback
 import os
@@ -12,6 +11,7 @@ import logging
 import atexit
 import shutil
 import uuid
+
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
