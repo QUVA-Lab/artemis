@@ -1,13 +1,13 @@
 from collections import OrderedDict
-
 import itertools
 import numpy as np
 from six.moves import xrange
+from six import string_types
 
 __author__ = 'peter'
 
 
-def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, bool), custom_handlers = {},
+def flatten_struct(struct, primatives = (int, float, np.ndarray, bool)+string_types, custom_handlers = {},
         break_into_objects = True, detect_duplicates = True, first_dict_is_namespace=False, memo = None):
     """
     Given some nested struct, return a list<*(str, primative)>, where primative
@@ -37,7 +37,7 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
         return [(None, handler(struct))]
     elif isinstance(struct, dict):
         return [
-            (("[{}]{}").format(("'{}'".format(key) if isinstance(key, basestring) else key), subkey if subkey is not None else ''), v) if not first_dict_is_namespace else
+            (("[{}]{}").format(("'{}'".format(key) if isinstance(key, string_types) else key), subkey if subkey is not None else ''), v) if not first_dict_is_namespace else
             (("{}{}").format(key, subkey if subkey is not None else ''), v)
             for key in (struct.keys() if isinstance(struct, OrderedDict) else sorted(struct.keys()))
             for subkey, v in flatten_struct(struct[key], custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)

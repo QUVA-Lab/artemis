@@ -1,5 +1,7 @@
 import itertools
 
+from six import string_types
+
 from artemis.general.should_be_builtins import all_equal_deprecated, all_equal
 from six.moves import xrange
 
@@ -44,8 +46,8 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
     :return: A list of rows.
     """
     # Now, build that table!
-    single_row_category = all(isinstance(c, basestring) for c in row_categories)
-    single_column_category = all(isinstance(c, basestring) for c in column_categories)
+    single_row_category = all(isinstance(c, string_types) for c in row_categories)
+    single_column_category = all(isinstance(c, string_types) for c in column_categories)
 
     if single_row_category:
         row_categories = [row_categories]

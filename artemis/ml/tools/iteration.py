@@ -1,5 +1,8 @@
 from collections import namedtuple
 import itertools
+
+from six import string_types
+
 from artemis.general.should_be_builtins import bad_value
 import numpy as np
 from six.moves import xrange
@@ -153,7 +156,7 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = 5):
                 False if test_epochs=='never' else
                 np.floor(epoch)>np.floor(last_epoch) if test_epochs == 'every' else
                 bad_value(test_epochs)
-            ) if isinstance(test_epochs, basestring) else \
+            ) if isinstance(test_epochs, string_types) else \
             np.floor(epoch/period) > np.floor(last_epoch/period) if isinstance(test_epochs, tuple) else \
             False if test_epochs is None else \
             np.searchsorted(test_epochs, epoch, side='right') > np.searchsorted(test_epochs, last_epoch, side='right')

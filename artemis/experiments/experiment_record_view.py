@@ -12,6 +12,7 @@ from artemis.general.display import deepstr, truncate_string, hold_numpy_printop
 from artemis.general.nested_structures import flatten_struct
 from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value, izip_equal
 from artemis.general.tables import build_table
+from six import string_types
 
 
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False):
@@ -22,7 +23,7 @@ def get_record_result_string(record, func='deep', truncate_to = None, array_prin
     :return:
     """
     with hold_numpy_printoptions(threshold = array_print_threshold, formatter={'float': lambda x: '{{:{}}}'.format(array_float_format).format(x)}):
-        if isinstance(func, basestring):
+        if isinstance(func, string_types):
             func = {
                 'deep': deepstr,
                 'str': str,
@@ -117,7 +118,7 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
     :param array_print_threshold:
     :return: A string with no newlines briefly describing the result of the record.
     """
-    if isinstance(record, basestring):
+    if isinstance(record, string_types):
         record = load_experiment_record(record)
     if not is_experiment_loadable(record.get_experiment_id()):
         one_liner_function=str

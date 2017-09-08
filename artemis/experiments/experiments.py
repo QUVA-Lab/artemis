@@ -7,6 +7,9 @@ from datetime import datetime
 from functools import partial
 from getpass import getuser
 from uuid import getnode
+
+from six import string_types
+
 from artemis.experiments.experiment_record import ARTEMIS_LOGGER, \
     ExpInfoFields, record_experiment, ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
@@ -395,7 +398,7 @@ def load_experiment(experiment_id):
 
 
 def is_experiment_loadable(experiment_id):
-    assert isinstance(experiment_id, basestring), 'Expected a string for experiment_id, not {}'.format(experiment_id)
+    assert isinstance(experiment_id, string_types), 'Expected a string for experiment_id, not {}'.format(experiment_id)
     return experiment_id in _GLOBAL_EXPERIMENT_LIBRARY
 
 

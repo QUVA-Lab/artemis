@@ -2,6 +2,8 @@
 from collections import OrderedDict
 
 import numpy as np
+from six import string_types
+
 from artemis.general.mymath import softmax, cosine_distance
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
@@ -482,12 +484,12 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
         assert all(callable(f) for name, f in functions)
     if callable(costs):
         costs = [(costs.__name__, costs)]
-    elif isinstance(costs, basestring):
+    elif isinstance(costs, string_types):
         costs = [(costs, get_evaluation_function(costs))]
     elif isinstance(costs, dict):
         costs = costs.items()
     else:
-        costs = [(cost, get_evaluation_function(cost)) if isinstance(cost, basestring) else (cost.__name__, cost) if callable(cost) else cost for cost in costs]
+        costs = [(cost, get_evaluation_function(cost)) if isinstance(cost, string_types) else (cost.__name__, cost) if callable(cost) else cost for cost in costs]
     assert all(callable(cost) for name, cost in costs)
 
     results = ModelTestScore()

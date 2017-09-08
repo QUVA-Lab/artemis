@@ -1,4 +1,7 @@
 import re
+
+from six import string_types
+
 __author__ = 'peter'
 
 
@@ -17,7 +20,7 @@ class ReDict(dict):
             or None.  None in this case means default - in case nothing else matches.
         """
         dict.__init__(self, dict_initializer)
-        assert all(isinstance(k, basestring) or k is None for k in self), 'All keys to a Redict must be strings or None'
+        assert all(isinstance(k, string_types) or k is None for k in self), 'All keys to a Redict must be strings or None'
 
     def __getitem__(self, index):
         match_found = False

@@ -1,4 +1,7 @@
 from collections import OrderedDict, namedtuple
+
+from six import string_types
+
 from artemis.config import get_artemis_config_value
 from artemis.plotting.matplotlib_backend import BarPlot
 from matplotlib.axes import Axes
@@ -121,7 +124,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         if isinstance(axis, Axes):
             ax = axis
             ax_name = str(axis)
-        elif isinstance(axis, basestring) or axis is None:
+        elif isinstance(axis, string_types) or axis is None:
             ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
             ax_name = axis
             # ax.set_title(axis)
