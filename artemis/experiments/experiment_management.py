@@ -174,20 +174,20 @@ def _filter_records(user_range, exp_record_dict):
         for exp_number, rec_number in exp_rec_pairs:
             base[keys[exp_number]][rec_number] = True
     elif user_range == 'old':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
     elif user_range == 'unfinished':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
         # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
     elif user_range == 'invalid':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = [load_experiment_record(rec_id).args_valid() is False for rec_id in exp_record_dict[k]]
     elif user_range == 'all':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = [True]*len(v)
     elif user_range == 'errors':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
     else:
         raise Exception("Don't know how to interpret subset '{}'".format(user_range))

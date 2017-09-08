@@ -96,10 +96,10 @@ class ExperimentRecordInfo(object):
     def get_text(self):
         if ExpInfoFields.VERSION not in self.persistent_obj:  # Old version... we must adapt
             return '\n'.join(
-                '{}: {}'.format(key, self.get_field_text(key)) for key, value in self.persistent_obj.iteritems())
+                '{}: {}'.format(key, self.get_field_text(key)) for key, value in self.persistent_obj.items())
         else:
             return '\n'.join(
-                '{}: {}'.format(key.value, self.get_field_text(key)) for key, value in self.persistent_obj.iteritems())
+                '{}: {}'.format(key.value, self.get_field_text(key)) for key, value in self.persistent_obj.items())
 
     def get_field_text(self, field, replacement_if_none=''):
         assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'

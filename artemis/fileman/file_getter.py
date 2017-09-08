@@ -123,7 +123,7 @@ def get_file_and_cache(url, data_transformation = None, enable_cache_write = Tru
 
     if enable_cache_read or enable_cache_write:
         hasher = hashlib.md5()
-        hasher.update(url)
+        hasher.update(url.encode('utf-8'))
         code = hasher.hexdigest()
         local_cache_path = os.path.join(get_artemis_data_path('caches'), code + ext)
 

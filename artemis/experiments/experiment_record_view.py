@@ -93,7 +93,7 @@ def get_record_invalid_arg_string(record, recursive=True):
                 if recursive:
                     last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
                     current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
-                last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.iteritems()] for argdict in (last_run_args, current_args)]
+                last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.items()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
                 notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
             elif validity is None:
@@ -241,7 +241,7 @@ def find_experiment(*search_terms):
     :return:
     """
     global_lib = get_global_experiment_library()
-    found_experiments = OrderedDict((name, ex) for name, ex in global_lib.iteritems() if all(re.search(term, name) for term in search_terms))
+    found_experiments = OrderedDict((name, ex) for name, ex in global_lib.items() if all(re.search(term, name) for term in search_terms))
     if len(found_experiments)==0:
         raise Exception("None of the {} experiments matched the search: '{}'".format(len(global_lib), search_terms))
     elif len(found_experiments)>1:

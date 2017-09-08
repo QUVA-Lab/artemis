@@ -257,8 +257,8 @@ def surround_with_header(string, width, char='-'):
     :param char: Character to repeat
     :return: A header, whose length will be
     """
-    left = (width-len(string)-1)/2
-    right = (width-len(string)-2)/2
+    left = (width-len(string)-1)//2
+    right = (width-len(string)-2)//2
     return char*left+' '+string+' '+char*right
 
 

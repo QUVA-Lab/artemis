@@ -26,7 +26,7 @@ class ReDict(dict):
         match_found = False
         if index is None:
             return dict.__getitem__(self, None)
-        for k, v in self.iteritems():
+        for k, v in self.items():
             if k is not None and re.match(k, index) is not None:
                 if match_found:
                     raise MultipleMatchesError('Multiple Matches to expression %s: %s.  If this is what you want use get_matches'
@@ -48,7 +48,7 @@ class ReDict(dict):
         """
         Get matching keys, NOT including the default None key.
         """
-        matching_dict = {k: v for k, v in self.iteritems() if k is not None and re.match(k, index) is not None}
+        matching_dict = {k: v for k, v in self.items() if k is not None and re.match(k, index) is not None}
         return ReDict(matching_dict) if as_redict else matching_dict
 
     def get(self, item, default):
@@ -73,7 +73,7 @@ class ReCurseDict(ReDict):
         :param dict_initialzer: Don't try to be funny here an give dicts containing themselves.
         """
         ReDict.__init__(self, dict_initialzer)
-        for k, v in self.iteritems():
+        for k, v in self.items():
             if isinstance(v, dict):
                 self[k] = ReCurseDict(v)
 

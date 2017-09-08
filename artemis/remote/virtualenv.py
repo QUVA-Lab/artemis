@@ -50,7 +50,7 @@ def install_packages_on_remote_virtualenv(ip_address, packages):
     activate_path = os.path.join(os.path.dirname(python_path),"activate") # TODO: Make this work without the user using virtualenv
     activate_command = "source %s"%activate_path
     ssh_conn = get_ssh_connection(ip_address)
-    for key,version in packages.iteritems():
+    for key,version in packages.items():
         install_command = "pip install -U %s==%s" %(key,version)
         function = "; ".join([activate_command, install_command])
         stdin , stdout, stderr =ssh_conn.exec_command(function)
@@ -87,7 +87,7 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
     local_packages = {i.key: i.version  for i in pip.get_installed_distributions(include_editables=False)}
     missing_packages = OrderedDict()
     different_versions = OrderedDict()
-    for (local_key, local_version) in local_packages.iteritems():
+    for (local_key, local_version) in local_packages.items():
         if local_key not in remote_packages.keys():
             missing_packages[local_key] = local_version
         elif local_version != remote_packages[local_key]:
@@ -135,12 +135,12 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
     if len(different_versions) > 0:
         if auto_upgrade is not None:
             if auto_upgrade:
-                for key, versions in different_versions.iteritems():
+                for key, versions in different_versions.items():
                     chosen_packages_to_install_and_update[key] = versions[0]
             else:
                 print(("Some locally installed packages are installed in a different version than on the remote virtualenv at %s. You chose not to upgrade them. "
                   "The different packages are:" % (ip_address)))
-                for key, versions in different_versions.iteritems():
+                for key, versions in different_versions.items():
                     print(("%s: local %s, reote %s") % (key, versions[0],versions[1]))
         else:
             print("The following locally installed packages are installed in a different version than on the virtualenv at %s:" % ip_address)
@@ -151,7 +151,7 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                 ix=ix.strip(",")
                 numbers = ix.split(",")
                 if numbers[0] == "all" and len(numbers) == 1:
-                    for key, versions in different_versions.iteritems():
+                    for key, versions in different_versions.items():
                         chosen_packages_to_install_and_update[key] = versions[0]
                     valid = True
                 elif not numbers[0] and len(numbers) == 1:
@@ -178,7 +178,7 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
                 remote_packages = get_remote_installed_packages(ip_address)
                 missing_packages = OrderedDict()
                 different_versions = OrderedDict()
-                for (local_key, local_version) in local_packages.iteritems():
+                for (local_key, local_version) in local_packages.items():
                     if local_key not in remote_packages.keys():
                         missing_packages[local_key] = local_version
                     elif local_version != remote_packages[local_key]:

@@ -2,7 +2,7 @@ from collections import OrderedDict
 import itertools
 import numpy as np
 from six.moves import xrange
-from six import string_types
+from six import string_types, next
 
 __author__ = 'peter'
 
@@ -78,7 +78,7 @@ def get_meta_object(data_object, containers = _primitive_containers):
         if isinstance(data_object, (list, tuple, set)):
             return type(data_object)(get_meta_object(x) for x in data_object)
         elif isinstance(data_object, dict):
-            return type(data_object)((k, get_meta_object(v)) for k, v in data_object.iteritems())
+            return type(data_object)((k, get_meta_object(v)) for k, v in data_object.items())
     else:
         return type(data_object)
 
@@ -160,7 +160,7 @@ def get_leaf_values(data_object, containers = _primitive_containers):
         if isinstance(data_object, (list, tuple)):
             leaf_values += [val for x in data_object for val in get_leaf_values(x)]
         elif isinstance(data_object, OrderedDict):
-            leaf_values += [val for k, x in data_object.iteritems() for val in get_leaf_values(x)]
+            leaf_values += [val for k, x in data_object.items() for val in get_leaf_values(x)]
         elif isinstance(data_object, dict):
             leaf_values += [val for k in sorted(data_object.keys()) for val in get_leaf_values(data_object[k])]
         else:
@@ -184,13 +184,13 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
             if isinstance(meta_object, (list, tuple, set)):
                 filled_object = type(meta_object)(_fill_meta_object(x, data_iteratable, assert_fully_used=False, check_types=check_types) for x in meta_object)
             elif isinstance(meta_object, OrderedDict):
-                filled_object = type(meta_object)((k, _fill_meta_object(val, data_iteratable, assert_fully_used=False, check_types=check_types)) for k, val in meta_object.iteritems())
+                filled_object = type(meta_object)((k, _fill_meta_object(val, data_iteratable, assert_fully_used=False, check_types=check_types)) for k, val in meta_object.items())
             elif isinstance(meta_object, dict):
                 filled_object = type(meta_object)((k, _fill_meta_object(meta_object[k], data_iteratable, assert_fully_used=False, check_types=check_types)) for k in sorted(meta_object.keys()))
             else:
                 raise Exception('Cannot handle container type: "{}"'.format(type(meta_object)))
         else:
-            next_data = data_iteratable.next()
+            next_data = next(data_iteratable)
             if check_types and meta_object is not type(next_data):
                 raise TypeError('The type of the data object: {} did not match type from the meta object: {}'.format(type(next_data), meta_object))
             filled_object = next_data
@@ -199,7 +199,7 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
 
     if assert_fully_used:
         try:
-            data_iteratable.next()
+            next(data_iteratable)
             raise TypeError('It appears that the data object you were using to fill your meta object had more data than could fit.')
         except StopIteration:
             pass

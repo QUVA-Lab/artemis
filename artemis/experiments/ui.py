@@ -283,7 +283,7 @@ experiment records.  You can specify records in the following ways:
                     raise
                 return '<Display Error>'
 
-        for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
+        for i, (exp_id, record_ids) in enumerate(exp_record_dict.items()):
             if len(record_ids)==0:
                 if exp_id in exp_record_dict:
                     rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-4))

@@ -3,7 +3,7 @@ import pickle
 from collections import OrderedDict
 import itertools
 import numpy as np
-from six import string_types
+from six import string_types, next
 
 _ALREADY_SEEN_CODE = 'dbf056790fabd3c7b79c1ddab7b7ee49'
 _END_CODE = 'e0abd6b36d6e295b6c8859cdffc773df'
@@ -44,7 +44,7 @@ def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _co
 
     if _count is None:
         _count = itertools.count()
-    _memo[id(obj)] = _count.next()
+    _memo[id(obj)] =next(_count)
 
     if _hasher is None:
         _hasher = hashlib.md5()

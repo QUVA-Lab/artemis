@@ -290,7 +290,7 @@ class Experiment(object):
         variants = []
         if include_self and (not self.is_root or include_roots):
             variants.append(self)
-        for name, v in self.variants.iteritems():
+        for name, v in self.variants.items():
             variants += v.get_all_variants(include_roots=include_roots, include_self=True)
         return variants
 

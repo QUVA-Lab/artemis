@@ -145,11 +145,11 @@ def single_to_batch(fcn, *batch_inputs, **batch_kwargs):
     """
     n_samples = len(batch_inputs[0])
     assert all(len(b) == n_samples for b in batch_inputs)
-    first_out = fcn(*[b[0] for b in batch_inputs], **{k: b[0] for k, b in batch_kwargs.iteritems()})
+    first_out = fcn(*[b[0] for b in batch_inputs], **{k: b[0] for k, b in batch_kwargs.items()})
     if n_samples==1:
         return first_out[None]
     out = np.empty((n_samples, )+first_out.shape)
     out[0] = n_samples
     for i in xrange(1, n_samples):
-        out[i] = fcn(*[b[i] for b in batch_inputs], **{k: b[i] for k, b in batch_kwargs.iteritems()})
+        out[i] = fcn(*[b[i] for b in batch_inputs], **{k: b[i] for k, b in batch_kwargs.items()})
     return out

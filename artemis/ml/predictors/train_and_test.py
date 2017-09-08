@@ -182,8 +182,11 @@ class ModelTestScore(object):
     def values(self):
         return self.scores.values()
 
+    def items(self):
+        return self.scores.items()
+
     def iteritems(self):
-        return self.scores.iteritems()
+        return self.scores.items()
 
     def get_score(self, subset=None, prediction_function=None, cost_name=None):
         if subset is None:
@@ -439,7 +442,7 @@ def plot_info_score_pairs_collection(info_score_pair_sequences, prediction_funct
         info_score_pair_sequences = OrderedDict((ix, ispc) for ix, ispc in enumerate(info_score_pair_sequences))
 
     colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
-    for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
+    for (name, ispc), colour in zip(info_score_pair_sequences.items(), colours):
         plot_info_score_pairs(ispc, prediction_function = prediction_function, score_measure=score_measure, show=False, name=name)
     if show:
         plt.show()
@@ -654,7 +657,7 @@ class ParameterSchedule(object):
 
     def get_new_value(self, epoch):
         if isinstance(self.schedule, dict):
-            new_value = self.schedule[(e for e in self._reverse_sorted_schedule_checkpoints if e <= epoch).next()]
+            new_value = self.schedule[next(e for e in self._reverse_sorted_schedule_checkpoints if e <= epoch)]
         else:
             new_value = self.schedule(epoch)
         if self.last_value != new_value and self.print_variable_name is not None:
