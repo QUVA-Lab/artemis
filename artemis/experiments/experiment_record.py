@@ -234,7 +234,7 @@ class ExperimentRecord(object):
     def save_result(self, result):
         file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
         make_file_dir(file_path)
-        with open(file_path, 'w') as f:
+        with open(file_path, 'wb') as f:
             pickle.dump(result, f, protocol=2)
             print('Saving Result for Experiment "%s"' % (self.get_id(),))
 

@@ -103,7 +103,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
             if result_computed:  # Result was computed, so write it down
                 filepath = get_function_hash_filename(fcn, full_args)
                 make_file_dir(filepath)
-                with open(filepath, 'w') as f:
+                with open(filepath, 'wb') as f:
                     if not suppress_info:
                         LOGGER.info('Writing disk-memo for function %s' % (fcn.__name__, ))
                     pickle.dump(result, f, protocol=2)

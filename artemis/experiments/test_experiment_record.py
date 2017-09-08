@@ -417,7 +417,7 @@ def test_current_experiment_access_functions():
             assert os.path.isdir(loc)
             assert loc.endswith(record_id)
 
-            with open_in_record_dir('somefile.pkl', 'w') as f:
+            with open_in_record_dir('somefile.pkl', 'wb') as f:
                 pickle.dump([1, 2, 3], f, protocol=pickle.HIGHEST_PROTOCOL)
 
             assert os.path.exists(os.path.join(loc, 'somefile.pkl'))

@@ -38,7 +38,7 @@ class PersistentOrderedDict(OrderedDict):
         return self
 
     def close(self):
-        with open(self.file_path, 'w') as f:
+        with open(self.file_path, 'wb') as f:
             pickle.dump(list(self.items()), f, protocol=self.pickle_protocol)
 
     def __exit__(self, thing1, thing2, thing3):

@@ -36,7 +36,7 @@ def get_file(relative_name, url = None, data_transformation = None):
         if data_transformation is not None:
             print('Processing downloaded data...')
             data = data_transformation(data)
-        with open(full_filename, 'w') as f:
+        with open(full_filename, 'wb') as f:
             f.write(data)
     return full_filename
 
@@ -99,7 +99,7 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None, fo
 
         local_zip_path = local_folder_path + archive_type
         make_file_dir(local_zip_path)
-        with open(local_zip_path, 'w') as f:
+        with open(local_zip_path, 'wb') as f:
             f.write(data)
 
         force_extract = True
