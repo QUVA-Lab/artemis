@@ -77,7 +77,7 @@ def checkpoint_minibatch_index_generator(n_samples, checkpoints, slice_when_poss
     """
     checkpoints = np.array(checkpoints, dtype = int)
     assert len(checkpoints) > 1 and checkpoints[0] >= 0 and np.all(np.diff(checkpoints) > 0)
-    checkpoint_divs = zip(checkpoints[:-1], checkpoints[1:])
+    checkpoint_divs = list(zip(checkpoints[:-1], checkpoints[1:]))
     if checkpoints[0] > 0:
         checkpoint_divs.insert(0, (0, checkpoints[0]))
     for start, stop in checkpoint_divs:

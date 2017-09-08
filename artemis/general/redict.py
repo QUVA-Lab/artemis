@@ -42,7 +42,7 @@ class ReDict(dict):
 
     def __contains__(self, index):
 
-        return (None in self.viewkeys()) if index is None else any(re.match(k, index) for k in self if k is not None)
+        return (None in self.keys()) if index is None else any(re.match(k, index) for k in self if k is not None)
 
     def get_matches(self, index, as_redict = True):
         """

@@ -78,7 +78,7 @@ def infer_arg_values(f, *args, **kwargs):
     assert set(all_arg_names).issubset(args_with_values), "Arguments {} require values but are not given any.  ".format(tuple(set(all_arg_names).difference(args_with_values)))
     assert len(args) <= len(all_arg_names), "You provided {} arguments, but the function only takes {}".format(len(args), len(all_arg_names))
     full_args = tuple(
-        zip(all_arg_names, args)  # Handle unnamed args f(1, 2)
+        list(zip(all_arg_names, args))  # Handle unnamed args f(1, 2)
         + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]]  # Handle named keyworkd args f(a=1, b=2)
         + [(name, kwargs[name]) for name in kwargs if name not in all_arg_names[len(args):]]  # Need to handle case if f takes **kwargs
         )

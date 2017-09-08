@@ -143,7 +143,7 @@ def izip_equal(*iterables):
     :return:
     """
     sentinel = object()
-    for combo in itertools.zip_longest(*iterables, fillvalue=sentinel):
+    for combo in zip_longest(*iterables, fillvalue=sentinel):
         if any(sentinel is c for c in combo):
             raise ValueError('Iterables have different lengths')
         yield combo

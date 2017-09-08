@@ -294,7 +294,7 @@ class LearningCurveData(object):
         if which_test_set is None:
             assert len(results)==1, 'You failed to specify which test set to use, which would be fine if there was only ' \
                 "one, but there's more than one.  There's %s" % (results.keys(), )
-            return results.values()[0]
+            return next(v for v in results.values())
         else:
             assert which_test_set in results, 'You asked for results for the test set %s, but we only have test sets %s' \
                 % (which_test_set, results.keys())

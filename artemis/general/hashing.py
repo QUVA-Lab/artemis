@@ -51,7 +51,7 @@ def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _co
 
     kwargs = dict(_hasher=_hasher, try_objects=try_objects, _memo=_memo, _count=_count)
 
-    _hasher.update(obj.__class__.__name__)
+    _hasher.update(obj.__class__.__name__.encode('utf-8'))
     if isinstance(obj, np.ndarray):
         _hasher.update(pickle.dumps(obj.dtype, protocol=2))
         _hasher.update(pickle.dumps(obj.shape, protocol=2))

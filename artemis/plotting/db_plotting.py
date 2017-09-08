@@ -197,7 +197,7 @@ def reset_dbplot():
     if is_server_plotting_on():
         deconstruct_plotting_server()
     else:
-        for fig_name, plot_window in _DBPLOT_FIGURES.items():
+        for fig_name, plot_window in list(_DBPLOT_FIGURES.items()):
             plt.close(plot_window.figure)
             del _DBPLOT_FIGURES[fig_name]
 
