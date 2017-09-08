@@ -1,6 +1,6 @@
 import hashlib
 import tempfile
-from StringIO import StringIO
+from six.moves import StringIO
 import gzip
 import tarfile
 from zipfile import ZipFile

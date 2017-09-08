@@ -1,6 +1,6 @@
 from tempfile import gettempdir
 import time
-import thread
+from six.moves import _thread as thread
 import SimpleHTTPServer
 import SocketServer
 
