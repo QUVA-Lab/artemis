@@ -38,7 +38,7 @@ def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _co
         _memo = {}
     elif not isinstance(obj, (np.ndarray, int, float, bool)+string_types) and id(obj) in _memo:
         _hasher.update(_ALREADY_SEEN_CODE)
-        _hasher.update(str(_memo[id(obj)]))
+        _hasher.update(str(_memo[id(obj)]).encode('utf-8'))
         _hasher.update(_END_CODE)
         return _memo[id(obj)]
 

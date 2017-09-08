@@ -56,7 +56,7 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
     if row_header_labels is not None:
         assert len(row_header_labels) == len(row_categories)
     rows = []
-    column_headers = zip(*itertools.product(*column_categories))
+    column_headers = list(zip(*itertools.product(*column_categories)))
     for i, c in enumerate(column_headers):
         row_header = row_header_labels if row_header_labels is not None and i==len(column_headers)-1 else [' ']*len(row_categories)
         row = row_header+(blank_out_repeats(c) if clear_repeated_headers else list(c))

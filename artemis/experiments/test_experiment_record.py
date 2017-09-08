@@ -298,7 +298,7 @@ def test_parallel_run_errors():
             run_multiple_experiments(variants, parallel=True, raise_exceptions=True)
         print("^^^ Dont't worry, the above is not actually an error, we were just asserting that we caught the error.")
 
-        assert err.value.message == 'nononono'
+        assert str(err.value) == 'nononono'
 
 
 def test_invalid_arg_detection():

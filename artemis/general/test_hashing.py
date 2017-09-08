@@ -3,7 +3,7 @@ import numpy as np
 
 
 def test_compute_fixed_hash():
-    complex_obj = [1, 'd', {'a': 4, 'b': np.arange(10)}, (7, range(10))]
+    complex_obj = [1, 'd', {'a': 4, 'b': np.arange(10)}, (7, list(range(10)))]
     original_code = compute_fixed_hash(complex_obj)
     assert compute_fixed_hash(complex_obj) == original_code == '6c98fabc301361863f321f6149a8a12a'
     complex_obj[2]['b'][6]=0

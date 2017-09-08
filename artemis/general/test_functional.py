@@ -8,9 +8,9 @@ def test_get_full_args():
     def func(a, b):
         return a+b
 
-    assert infer_arg_values(func, a=1, b=3).items() == [('a', 1), ('b', 3)]
-    assert infer_arg_values(func, 1, b=3).items() == [('a', 1), ('b', 3)]
-    assert infer_arg_values(func, 1, 3).items() == [('a', 1), ('b', 3)]
+    assert list(infer_arg_values(func, a=1, b=3).items()) == [('a', 1), ('b', 3)]
+    assert list(infer_arg_values(func, 1, b=3).items()) == [('a', 1), ('b', 3)]
+    assert list(infer_arg_values(func, 1, 3).items()) == [('a', 1), ('b', 3)]
     with raises(AssertionError):  # AssertionError: Arguments ('a', 'b') require values but are not given any.
         infer_arg_values(func, )
     with raises(AssertionError):  # AssertionError: Arguments ('a',) require values but are not given any.
@@ -26,9 +26,9 @@ def test_get_full_args():
 
     def func_with_defaults(a, b=4):
         return a+b
-    assert infer_arg_values(func_with_defaults, a=1).items() == [('a', 1), ('b', 4)]
-    assert infer_arg_values(func_with_defaults, a=1, b=3).items() == [('a', 1), ('b', 3)]
-    assert infer_arg_values(func_with_defaults, 1).items() == [('a', 1), ('b', 4)]
+    assert list(infer_arg_values(func_with_defaults, a=1).items()) == [('a', 1), ('b', 4)]
+    assert list(infer_arg_values(func_with_defaults, a=1, b=3).items()) == [('a', 1), ('b', 3)]
+    assert list(infer_arg_values(func_with_defaults, 1).items()) == [('a', 1), ('b', 4)]
     with raises(AssertionError):  # AssertionError: Arguments ('a',) require values but are not given any.
         infer_arg_values(func_with_defaults, )
     with raises(AssertionError):  # AssertionError: Arguments ('a',) require values but are not given any.
@@ -44,16 +44,16 @@ def test_get_full_args():
 
     def func_with_kwargs(a, b=4, **kwargs):
         return a+b
-    assert infer_arg_values(func_with_kwargs, a=1).items() == [('a', 1), ('b', 4)]
-    assert infer_arg_values(func_with_kwargs, a=1, b=3).items() == [('a', 1), ('b', 3)]
-    assert infer_arg_values(func_with_kwargs, 1).items() == [('a', 1), ('b', 4)]
-    infer_arg_values(func_with_kwargs, a=1, b=3, c=5) == [('a', 1), ('b', 3), ('c', 5)]
+    assert list(infer_arg_values(func_with_kwargs, a=1).items()) == [('a', 1), ('b', 4)]
+    assert list(infer_arg_values(func_with_kwargs, a=1, b=3).items()) == [('a', 1), ('b', 3)]
+    assert list(infer_arg_values(func_with_kwargs, 1).items()) == [('a', 1), ('b', 4)]
+    list(infer_arg_values(func_with_kwargs, a=1, b=3, c=5)) == [('a', 1), ('b', 3), ('c', 5)]
     with raises(AssertionError):  # AssertionError: Arguments ('a',) require values but are not given any.
         infer_arg_values(func_with_kwargs, )
     with raises(AssertionError):  # AssertionError: Arguments ('a',) require values but are not given any.
         infer_arg_values(func_with_kwargs, b=3)
     with raises(AssertionError):  # AssertionError: You provided 3 arguments, but the function only takes 2
-        print(infer_arg_values(func_with_kwargs, 1, 2, 5))
+        print(list(infer_arg_values(func_with_kwargs, 1, 2, 5)))
     with raises(AssertionError):  # AssertionError: Arguments ('b',) have been defined multiple times: (('a', 1), ('b', 2), ('b', 5))
         infer_arg_values(func_with_kwargs, 1, 2, b=5)
 
