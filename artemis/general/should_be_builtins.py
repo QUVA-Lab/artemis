@@ -334,3 +334,18 @@ def file_path_to_absolute_module(file_path):
 
 def assert_option(choice, possiblilties):
     assert choice in possiblilties, '"{}" was not in the list of possible choices: {}'.format(choice, possiblilties)
+
+try:
+    from contextlib import nested  # Python 2
+except ImportError:
+    from contextlib import ExitStack, contextmanager
+
+    @contextmanager
+    def nested(*contexts):
+        """
+        Reimplementation of nested in python 3.
+        """
+        with ExitStack() as stack:
+            for ctx in contexts:
+                stack.enter_context(ctx)
+            yield contexts

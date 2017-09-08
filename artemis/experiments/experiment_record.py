@@ -7,7 +7,7 @@ import sys
 import tempfile
 import traceback
 from collections import OrderedDict
-from contextlib import contextmanager, nested
+from contextlib import contextmanager
 from datetime import datetime
 
 from artemis.config import get_artemis_config_value
@@ -15,6 +15,7 @@ from artemis.fileman.local_dir import format_filename, make_file_dir, get_artemi
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
 from artemis.general.hashing import compute_fixed_hash
+from artemis.general.should_be_builtins import nested
 from artemis.general.test_mode import is_test_mode
 
 try:

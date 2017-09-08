@@ -1,6 +1,6 @@
 import os
 import sys
-from ConfigParser import NoSectionError, NoOptionError, ConfigParser
+from six.moves.configparser import NoSectionError, NoOptionError, ConfigParser
 
 __author__ = 'peter'
 

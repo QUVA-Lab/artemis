@@ -7,7 +7,7 @@ from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
 from six import string_types
-from six.moves import xrange
+from six.moves import xrange, StringIO
 
 __author__ = 'peter'
 

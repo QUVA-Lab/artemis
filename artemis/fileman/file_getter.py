@@ -1,6 +1,5 @@
 import hashlib
 import tempfile
-import urllib2
 from StringIO import StringIO
 import gzip
 import tarfile
@@ -9,6 +8,7 @@ from artemis.fileman.local_dir import get_artemis_data_path, make_dir, make_file
 from artemis.general.should_be_builtins import bad_value
 import shutil
 import os
+from six.moves.urllib.request import urlopen
 
 __author__ = 'peter'
 
@@ -29,7 +29,7 @@ def get_file(relative_name, url = None, data_transformation = None):
         assert url is not None, "No local copy of '%s' was found, and you didn't provide a URL to fetch it from" % (full_filename, )
 
         print('Downloading file from url: "%s"...' % (url, ))
-        response = urllib2.urlopen(url)
+        response = urlopen(url)
         data = response.read()
         print('...Done.')
 
@@ -76,7 +76,7 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None, fo
 
     if not os.path.exists(local_folder_path) or force_download:  # If the folder does not exist, download zip and extract.
         # (We also check force download here to avoid a race condition)
-        response = urllib2.urlopen(url)
+        response = urlopen(url)
 
         # Need to infer
         if archive_type is None:
