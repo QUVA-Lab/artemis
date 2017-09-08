@@ -33,7 +33,7 @@ def demo_drunkards_walk(n_steps=500, n_drunkards=5, homing_instinct = 0, n_dim=2
     for t in xrange(1, n_steps+1):
         drunkards[t] = drunkards[t-1]*(1-homing_instinct) + rng.randn(n_drunkards, n_dim)
         if t%100==0:
-            print 'Status at step {}: Mean: {}, STD: {}'.format(t, drunkards[t].mean(), drunkards[t].std())
+            print ('Status at step {}: Mean: {}, STD: {}'.format(t, drunkards[t].mean(), drunkards[t].std()))
     return drunkards
 
 
