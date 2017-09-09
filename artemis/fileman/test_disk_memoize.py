@@ -7,6 +7,7 @@ from pytest import raises
 
 __author__ = 'peter'
 
+
 @memoize_to_disk_test
 def compute_slow_thing(a, b, c):
     call_time = time.time()

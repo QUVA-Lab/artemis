@@ -3,6 +3,8 @@ from collections import OrderedDict
 import pickle
 import os
 
+from artemis.fileman.local_dir import make_file_dir
+
 
 class PersistentOrderedDict(OrderedDict):
     """
@@ -38,6 +40,7 @@ class PersistentOrderedDict(OrderedDict):
         return self
 
     def close(self):
+        make_file_dir(self.file_path)
         with open(self.file_path, 'wb') as f:
             pickle.dump(list(self.items()), f, protocol=self.pickle_protocol)
 

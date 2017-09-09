@@ -1,4 +1,6 @@
 from functools import partial
+
+import sys
 from pytest import raises
 from artemis.general.functional import infer_arg_values, get_partial_chain, infer_derived_arg_values
 
@@ -63,7 +65,13 @@ def test_get_partial_chain():
         return a+b
     g = partial(f, b=3)
     h = partial(g, a=2)
-    assert [f, g, h] == get_partial_chain(h)
+
+    if sys.version_info < (3, 0):  # Python 2.X
+        assert [f, g, h] == get_partial_chain(h)
+    else: # Python 3.X
+        base, part = get_partial_chain(h)
+        assert base is f
+        assert part.keywords == {'a': 2, 'b': 3}
 
 
 def test_get_derived_function_args():

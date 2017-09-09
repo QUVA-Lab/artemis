@@ -1,9 +1,7 @@
 import inspect
 from collections import OrderedDict
 from functools import partial
-
 import collections
-
 from artemis.general.should_be_builtins import separate_common_items
 
 
@@ -17,10 +15,16 @@ def get_partial_chain(f):
         h = partial(g, a=2)
         assert [f, g, h] == get_partial_chain(h)
 
+    WARNING: Python 3 automatically collapses partials - so in Python 3 this chain will never be longer than 2!
+
     :param f: A function, possibly a partial
     :return: A list of functions, starting with the root
     """
     return get_partial_chain(f.func) + [f] if isinstance(f, partial) else [f]
+
+
+def get_partial_root(f):
+    return get_partial_chain(f)[0]
 
 
 def infer_function_and_derived_arg_values(f):

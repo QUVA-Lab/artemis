@@ -85,9 +85,10 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None, fo
             elif url.endswith('.zip'):
                 archive_type = '.zip'
             else:
-                info = response.info()
+                # info = response.info()
                 try:
-                    header = next(x for x in info.headers if x.startswith('Content-Disposition'))
+                    # header = next(x for x in info.headers if x.startswith('Content-Disposition'))
+                    header = response.headers['content-disposition']
                     original_file_name = next(x for x in header.split(';') if x.startswith('filename')).split('=')[-1].lstrip('"\'').rstrip('"\'')
                     archive_type = '.tar.gz' if original_file_name.endswith('.tar.gz') else '.zip' if original_file_name.endswith('.zip') else \
                         bad_value(original_file_name, 'Filename "%s" does not end with a familiar zip extension like .zip or .tar.gz' % (original_file_name, ))

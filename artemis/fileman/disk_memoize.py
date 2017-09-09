@@ -78,7 +78,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
                         LOGGER.info('Reading disk-memo from local cache for function %s' % (fcn.__name__, ))
                     return cached_local_results[filepath]
             if os.path.exists(filepath):
-                with open(filepath) as f:
+                with open(filepath, 'rb') as f:
                     try:
                         if not suppress_info:
                             LOGGER.info('Reading memo for function %s' % (fcn.__name__, ))

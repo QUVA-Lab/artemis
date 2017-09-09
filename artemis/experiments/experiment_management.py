@@ -165,7 +165,7 @@ def _filter_records(user_range, exp_record_dict):
     if '&' in user_range:
         return reduce(lambda a, b: _bitwise('and', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
     number_range = interpret_numbers(user_range)
-    keys = exp_record_dict.keys()
+    keys = list(exp_record_dict.keys())
     if number_range is not None:
         for i in number_range:
             base[keys[i]] = [True]*len(base[keys[i]])

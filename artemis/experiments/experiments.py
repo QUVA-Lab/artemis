@@ -13,7 +13,7 @@ from six import string_types
 from artemis.experiments.experiment_record import ARTEMIS_LOGGER, \
     ExpInfoFields, record_experiment, ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
-from artemis.general.functional import infer_derived_arg_values, get_partial_chain
+from artemis.general.functional import infer_derived_arg_values, get_partial_root
 from artemis.general.test_mode import is_test_mode, set_test_mode
 
 
@@ -70,7 +70,7 @@ class Experiment(object):
         return infer_derived_arg_values(self.function)
 
     def get_root_function(self):
-        return get_partial_chain(self.function)[0]
+        return get_partial_root(self.function)
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
             display_results=True, **experiment_record_kwargs):
