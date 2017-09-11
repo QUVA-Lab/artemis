@@ -12,6 +12,7 @@ from artemis.general.display import deepstr, truncate_string, hold_numpy_printop
 from artemis.general.nested_structures import flatten_struct
 from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value, izip_equal
 from artemis.general.tables import build_table
+from six import string_types
 
 
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False):
@@ -22,7 +23,7 @@ def get_record_result_string(record, func='deep', truncate_to = None, array_prin
     :return:
     """
     with hold_numpy_printoptions(threshold = array_print_threshold, formatter={'float': lambda x: '{{:{}}}'.format(array_float_format).format(x)}):
-        if isinstance(func, basestring):
+        if isinstance(func, string_types):
             func = {
                 'deep': deepstr,
                 'str': str,
@@ -92,7 +93,7 @@ def get_record_invalid_arg_string(record, recursive=True):
                 if recursive:
                     last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
                     current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
-                last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.iteritems()] for argdict in (last_run_args, current_args)]
+                last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.items()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
                 notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
             elif validity is None:
@@ -117,7 +118,7 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
     :param array_print_threshold:
     :return: A string with no newlines briefly describing the result of the record.
     """
-    if isinstance(record, basestring):
+    if isinstance(record, string_types):
         record = load_experiment_record(record)
     if not is_experiment_loadable(record.get_experiment_id()):
         one_liner_function=str
@@ -240,7 +241,7 @@ def find_experiment(*search_terms):
     :return:
     """
     global_lib = get_global_experiment_library()
-    found_experiments = OrderedDict((name, ex) for name, ex in global_lib.iteritems() if all(re.search(term, name) for term in search_terms))
+    found_experiments = OrderedDict((name, ex) for name, ex in global_lib.items() if all(re.search(term, name) for term in search_terms))
     if len(found_experiments)==0:
         raise Exception("None of the {} experiments matched the search: '{}'".format(len(global_lib), search_terms))
     elif len(found_experiments)>1:

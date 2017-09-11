@@ -1,7 +1,9 @@
-from artemis.general.nested_structures import flatten_struct, get_meta_object, NestedType, \
-    seqstruct_to_structseq, structseq_to_seqstruct, nested_map, get_leaf_values
+from six import string_types
+from artemis.general.nested_structures import (flatten_struct, get_meta_object, NestedType,
+    seqstruct_to_structseq, structseq_to_seqstruct, nested_map, get_leaf_values)
 import numpy as np
 from pytest import raises
+from six.moves import xrange
 
 
 def test_flatten_struct():
@@ -85,7 +87,7 @@ def test_seqstruct_to_structseq_and_inverse():
 
 
 def test_nested_map():
-    func = lambda x: x*2 if isinstance(x, (int, float)) else x+'  Not!' if isinstance(x, basestring) else x
+    func = lambda x: x*2 if isinstance(x, (int, float)) else x+'  Not!' if isinstance(x, string_types) else x
     assert nested_map(func, 2)==4
     assert nested_map(func, 'God is dead.')=='God is dead.  Not!'
     assert nested_map(func, (1, 2, 3)) == (2, 4, 6)

@@ -1,7 +1,6 @@
 import hashlib
 import tempfile
-import urllib2
-from StringIO import StringIO
+from six.moves import StringIO
 import gzip
 import tarfile
 from zipfile import ZipFile
@@ -9,6 +8,7 @@ from artemis.fileman.local_dir import get_artemis_data_path, make_dir, make_file
 from artemis.general.should_be_builtins import bad_value
 import shutil
 import os
+from six.moves.urllib.request import urlopen
 
 __author__ = 'peter'
 
@@ -29,14 +29,14 @@ def get_file(relative_name, url = None, data_transformation = None):
         assert url is not None, "No local copy of '%s' was found, and you didn't provide a URL to fetch it from" % (full_filename, )
 
         print('Downloading file from url: "%s"...' % (url, ))
-        response = urllib2.urlopen(url)
+        response = urlopen(url)
         data = response.read()
         print('...Done.')
 
         if data_transformation is not None:
             print('Processing downloaded data...')
             data = data_transformation(data)
-        with open(full_filename, 'w') as f:
+        with open(full_filename, 'wb') as f:
             f.write(data)
     return full_filename
 
@@ -76,7 +76,7 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None, fo
 
     if not os.path.exists(local_folder_path) or force_download:  # If the folder does not exist, download zip and extract.
         # (We also check force download here to avoid a race condition)
-        response = urllib2.urlopen(url)
+        response = urlopen(url)
 
         # Need to infer
         if archive_type is None:
@@ -85,9 +85,10 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None, fo
             elif url.endswith('.zip'):
                 archive_type = '.zip'
             else:
-                info = response.info()
+                # info = response.info()
                 try:
-                    header = next(x for x in info.headers if x.startswith('Content-Disposition'))
+                    # header = next(x for x in info.headers if x.startswith('Content-Disposition'))
+                    header = response.headers['content-disposition']
                     original_file_name = next(x for x in header.split(';') if x.startswith('filename')).split('=')[-1].lstrip('"\'').rstrip('"\'')
                     archive_type = '.tar.gz' if original_file_name.endswith('.tar.gz') else '.zip' if original_file_name.endswith('.zip') else \
                         bad_value(original_file_name, 'Filename "%s" does not end with a familiar zip extension like .zip or .tar.gz' % (original_file_name, ))
@@ -99,7 +100,7 @@ def get_archive(relative_path, url, force_extract=False, archive_type = None, fo
 
         local_zip_path = local_folder_path + archive_type
         make_file_dir(local_zip_path)
-        with open(local_zip_path, 'w') as f:
+        with open(local_zip_path, 'wb') as f:
             f.write(data)
 
         force_extract = True
@@ -123,7 +124,7 @@ def get_file_and_cache(url, data_transformation = None, enable_cache_write = Tru
 
     if enable_cache_read or enable_cache_write:
         hasher = hashlib.md5()
-        hasher.update(url)
+        hasher.update(url.encode('utf-8'))
         code = hasher.hexdigest()
         local_cache_path = os.path.join(get_artemis_data_path('caches'), code + ext)
 

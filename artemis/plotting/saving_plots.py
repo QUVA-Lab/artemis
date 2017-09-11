@@ -37,7 +37,7 @@ def save_figure(fig, path, ext=None, default_ext = '.pdf'):
 
     make_file_dir(path)
     if ext=='.pkl':
-        with open(path, 'w') as f:
+        with open(path, 'wb') as f:
             pickle.dump(fig, f, protocol=pickle.HIGHEST_PROTOCOL)
     else:
         fig.savefig(path)

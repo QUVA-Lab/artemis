@@ -1,6 +1,7 @@
 import numpy as np
 from artemis.experiments import ExperimentFunction
 from matplotlib import pyplot as plt
+from six.moves import xrange
 
 
 def display_drunkards_walk(drunkards):
@@ -13,7 +14,7 @@ def display_drunkards_walk(drunkards):
 
 def compare_drunkards_walk(dict_of_drunkards):
     plot_handles = []
-    for i, (exp_name, drunkards) in enumerate(dict_of_drunkards.iteritems()):
+    for i, (exp_name, drunkards) in enumerate(dict_of_drunkards.items()):
         plot_handles.append(plt.plot(drunkards[:, :, 0], drunkards[:, :, 1], color='C{}'.format(i)))
     plt.grid()
     plt.xlabel('$\Delta$ Longitude (arcseconds)')

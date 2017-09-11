@@ -40,4 +40,4 @@ def merge_dicts(*dicts):
     :param dicts: dictionaries.
     :return: A merged dictionary.
     """
-    return dict(sum([d.items() for d in dicts], []))
+    return dict((k, v) for d in dicts for k, v in d.items())

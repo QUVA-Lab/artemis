@@ -33,7 +33,7 @@ def plot_data_dict(data_dict, plots = None, mode = 'static', hang = True, figure
         data_dict = OrderedDict(data_dict)
 
     if plots is None:
-        plots = {k: get_plot_from_data(v, mode = mode, **plot_preference_kwargs) for k, v in data_dict.iteritems()}
+        plots = {k: get_plot_from_data(v, mode = mode, **plot_preference_kwargs) for k, v in data_dict.items()}
 
     if figure is None:
         if size is not None:
@@ -41,7 +41,7 @@ def plot_data_dict(data_dict, plots = None, mode = 'static', hang = True, figure
             rcParams['figure.figsize'] = size
         figure = plt.figure()
     n_rows, n_cols = vector_length_to_tile_dims(len(data_dict))
-    for i, (k, v) in enumerate(data_dict.iteritems()):
+    for i, (k, v) in enumerate(data_dict.items()):
         plt.subplot(n_rows, n_cols, i + 1)
         plots[k].update(v)
         plots[k].plot()

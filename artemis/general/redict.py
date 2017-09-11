@@ -1,4 +1,7 @@
 import re
+
+from six import string_types
+
 __author__ = 'peter'
 
 
@@ -17,13 +20,13 @@ class ReDict(dict):
             or None.  None in this case means default - in case nothing else matches.
         """
         dict.__init__(self, dict_initializer)
-        assert all(isinstance(k, basestring) or k is None for k in self), 'All keys to a Redict must be strings or None'
+        assert all(isinstance(k, string_types) or k is None for k in self), 'All keys to a Redict must be strings or None'
 
     def __getitem__(self, index):
         match_found = False
         if index is None:
             return dict.__getitem__(self, None)
-        for k, v in self.iteritems():
+        for k, v in self.items():
             if k is not None and re.match(k, index) is not None:
                 if match_found:
                     raise MultipleMatchesError('Multiple Matches to expression %s: %s.  If this is what you want use get_matches'
@@ -39,13 +42,13 @@ class ReDict(dict):
 
     def __contains__(self, index):
 
-        return (None in self.viewkeys()) if index is None else any(re.match(k, index) for k in self if k is not None)
+        return (None in self.keys()) if index is None else any(re.match(k, index) for k in self if k is not None)
 
     def get_matches(self, index, as_redict = True):
         """
         Get matching keys, NOT including the default None key.
         """
-        matching_dict = {k: v for k, v in self.iteritems() if k is not None and re.match(k, index) is not None}
+        matching_dict = {k: v for k, v in self.items() if k is not None and re.match(k, index) is not None}
         return ReDict(matching_dict) if as_redict else matching_dict
 
     def get(self, item, default):
@@ -70,7 +73,7 @@ class ReCurseDict(ReDict):
         :param dict_initialzer: Don't try to be funny here an give dicts containing themselves.
         """
         ReDict.__init__(self, dict_initialzer)
-        for k, v in self.iteritems():
+        for k, v in self.items():
             if isinstance(v, dict):
                 self[k] = ReCurseDict(v)
 

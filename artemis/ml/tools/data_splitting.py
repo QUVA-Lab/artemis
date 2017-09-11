@@ -1,6 +1,7 @@
-__author__ = 'peter'
 import numpy as np
+from six.moves import xrange
 
+__author__ = 'peter'
 
 def split_data_by_label(data, labels, frac_training = 0.5):
     """

@@ -1,4 +1,4 @@
-from ConfigParser import NoSectionError, NoOptionError
+from six.moves.configparser import NoSectionError, NoOptionError
 from pytest import raises
 from artemis.fileman.config_files import get_config_path, get_config_value, set_non_persistent_config_value
 import os

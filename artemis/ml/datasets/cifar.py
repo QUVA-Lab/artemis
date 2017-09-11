@@ -2,6 +2,7 @@ import pickle
 import os
 
 import numpy as np
+from six.moves import xrange
 
 from artemis.ml.datasets.datasets import DataSet, DataCollection
 from artemis.fileman.file_getter import get_file, get_archive
