@@ -164,6 +164,20 @@ def remove_duplicates(sequence, hashable=True, key=None, keep_last=False):
     return [x for x, is_duplicate in zip(sequence, is_dup) if not is_duplicate]
 
 
+def uniquify_duplicates(sequence_of_strings):
+
+    counts = {}
+    new_strings = []
+    for string in sequence_of_strings:
+        if string in counts:
+            new_strings.append(string+'[{}]'.format(counts[string]))
+            counts[string] += 1
+        else:
+            counts[string]=1
+            new_strings.append(string)
+    return new_strings
+
+
 def detect_duplicates(sequence, hashable=True, key=None, keep_last=False):
     """
     Identify whether each element in a sequence is a duplicate of a previously existing element.

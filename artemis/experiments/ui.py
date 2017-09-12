@@ -8,7 +8,7 @@ from artemis.experiments.experiment_management import pull_experiments, select_e
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
-    print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
+    print_experiment_record_argtable, compare_experiment_results, compare_experiment_records, get_oneline_result_string, \
     display_experiment_record
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.disk_memoize import memoize_to_disk_with_settings
@@ -341,9 +341,9 @@ experiment records.  You can specify records in the following ways:
         func(records)
 
 
-        experiment_ids = select_experiments(user_range, self.exp_record_dict)
-        experiments = [load_experiment(eid) for eid in experiment_ids]
-        compare_experiment_results(experiments, error_if_no_result=False)
+        # experiment_ids = select_experiments(user_range, self.exp_record_dict)
+        # experiments = [load_experiment(eid) for eid in experiment_ids]
+        # compare_experiment_results(experiments, error_if_no_result=False)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def errortrace(self, user_range):
@@ -577,7 +577,7 @@ class ExperimentRecordBrowser(object):
 
     def show(self, user_range):
         record_ids = self._select_records(user_range)
-        show_experiment_records([load_experiment_record(rid) for rid in record_ids])
+        compare_experiment_records([load_experiment_record(rid) for rid in record_ids])
         _warn_with_prompt('')
 
     def search(self, filter_text):

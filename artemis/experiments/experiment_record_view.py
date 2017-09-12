@@ -14,6 +14,7 @@ from artemis.general.should_be_builtins import separate_common_items, all_equal,
 from artemis.general.tables import build_table
 
 
+
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False):
     """
     Get a string representing the result of the experiment.
@@ -42,8 +43,33 @@ def get_record_result_string(record, func='deep', truncate_to = None, array_prin
     return string
 
 
+def _get_record_info_section(record, header_width):
+    return section_with_header('Info', record.info.get_text(), width=header_width)
+
+
+def _get_record_log_section(record, truncate_logs = None, header_width=64):
+    log = record.get_log()
+    if truncate_logs is not None and len(log)>truncate_logs:
+        log = log[:truncate_logs-100] + '\n\n ... LOG TRUNCATED TO {} CHARACTERS ... \n\n'.format(truncate_logs) + log[-100:]
+    return section_with_header('Logs', log, width=header_width)
+
+
+def _get_record_error_trace_section(record, header_width):
+    error_trace = record.get_error_trace()
+    if error_trace is None:
+        return ''
+    else:
+        return section_with_header('Error Trace', record.get_error_trace(), width=header_width)
+
+
+def _get_result_section(record, truncate_result, show_result, header_width):
+    assert show_result in (False, 'full', 'deep')
+    result_str = get_record_result_string(record, truncate_to=truncate_result, func=show_result)
+    return section_with_header('Result', result_str, width=header_width)
+
+
 def get_record_full_string(record, show_info = True, show_logs = True, truncate_logs = None, show_result ='deep',
-        show_exceptions=True, truncate_result = None, include_bottom_border = True, header_width=64):
+        show_exceptions=True, truncate_result = None, include_bottom_border = True, header_width=64, return_list = False):
     """
     Get a human-readable string containing info about the experiment record.
 
@@ -56,25 +82,32 @@ def get_record_full_string(record, show_info = True, show_logs = True, truncate_
     :return: A string to print.
     """
 
-    assert show_result in (False, 'full', 'deep')
-    full_info_string = surround_with_header(record.get_id(), width=header_width, char='=') + '\n'
+    parts = [surround_with_header(record.get_id(), width=header_width, char='=')]
+
     if show_info:
-        full_info_string += '{}\n'.format(record.info.get_text())
+        parts.append(section_with_header('Info', record.info.get_text(), width=header_width))
+
     if show_logs:
         log = record.get_log()
         if truncate_logs is not None and len(log)>truncate_logs:
             log = log[:truncate_logs-100] + '\n\n ... LOG TRUNCATED TO {} CHARACTERS ... \n\n'.format(truncate_logs) + log[-100:]
-        full_info_string += section_with_header('Logs', log, width=header_width)
+        # return section_with_header('Logs', log, width=header_width)
+        parts.append(section_with_header('Logs', log, width=header_width))
 
-    error_trace = record.get_error_trace()
-    if show_exceptions and error_trace is not None:
-        full_info_string += section_with_header('Error Trace', record.get_error_trace(), width=header_width)
+    if show_exceptions:
+        error_trace = record.get_error_trace()
+        error_trace_text = '' if error_trace is None else section_with_header('Error Trace', record.get_error_trace(), width=header_width)
+        parts.append(error_trace_text)
 
     if show_result:
+        assert show_result in (False, 'full', 'deep')
         result_str = get_record_result_string(record, truncate_to=truncate_result, func=show_result)
-        full_info_string += section_with_header('Result', result_str, width=header_width, bottom_char='=' if include_bottom_border else None)
+        parts.append(section_with_header('Result', result_str, width=header_width))
 
-    return full_info_string
+    if return_list:
+        return parts
+    else:
+        return '\n'.join(parts)
 
 
 def get_record_invalid_arg_string(record, recursive=True, note_version = 'full'):
@@ -132,6 +165,7 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
 
 
 def display_experiment_record(record):
+    # TODO: Remove..  Call show_record instead
     result = record.get_result(err_if_none=False)
     display_func = record.get_experiment().display_function
     if display_func is None:
@@ -141,6 +175,7 @@ def display_experiment_record(record):
 
 
 def compare_experiment_results(experiments, error_if_no_result = False):
+    # TODO: Remove... Call compare_records instead
     comp_functions = [ex.comparison_function for ex in experiments]
     assert all_equal(comp_functions), 'Experiments must have same comparison functions.'
     comp_function = comp_functions[0]
@@ -209,7 +244,8 @@ def show_record(record, show_logs=True, truncate_logs=None, truncate_result=1000
     print(string)
 
 
-def show_experiment_records(records, parallel_text=None, hang_notice = None, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
+def compare_experiment_records(records, parallel_text=None, show_logs=True, truncate_logs=None,
+        truncate_result=10000, header_width=100, max_linewidth=128, show_result ='deep'):
     """
     Show the console logs, figures, and results of a collection of experiments.
 
@@ -224,36 +260,40 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
         parallel_text = len(records)>1
     if len(records)==0:
         print('... No records to show ...')
+        return
     else:
-        strings = [get_record_full_string(rec, show_logs=show_logs, show_result=show_result, truncate_logs=truncate_logs,
-                    truncate_result=truncate_result, header_width=header_width, include_bottom_border=False) for rec in records]
-    has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
-    if has_matplotlib_figures:
-        from matplotlib import pyplot as plt
-        from artemis.plotting.saving_plots import interactive_matplotlib_context
-        for rec in records:
-            rec.show_figures(hang=False)
-        if hang_notice is not None:
-            print(hang_notice)
-
-        with interactive_matplotlib_context(not hang):
-            plt.show()
-
-    if any(rec.get_experiment().display_function is not None for rec in records):
-        from artemis.plotting.saving_plots import interactive_matplotlib_context
-        with interactive_matplotlib_context():
-            for i, rec in enumerate(records):
-                with CaptureStdOut(print_to_console=False) as cap:
-                    display_experiment_record(rec)
-                if cap != '':
-                    # strings[i] += '{subborder} Result Display {subborder}\n{out} \n{border}'.format(subborder='-'*20, out=cap.read(), border='='*50)
-                    strings[i] += section_with_header('Result Display', cap.read(), width=header_width, bottom_char='=')
+        records_sections = [get_record_full_string(rec, show_logs=show_logs, show_result=show_result, truncate_logs=truncate_logs,
+                    truncate_result=truncate_result, header_width=header_width, include_bottom_border=False, return_list=True) for rec in records]
 
     if parallel_text:
-        print(side_by_side(strings, max_linewidth=128))
+        full_string = '\n'.join(side_by_side(records_section, max_linewidth=max_linewidth) for records_section in zip(*records_sections))
     else:
-        for string in strings:
-            print(string)
+        full_string = '\n'.join('\n'.join(record_sections) for record_sections in records_sections)
+
+    print(full_string)
+
+    has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
+    if has_matplotlib_figures:
+        from artemis.plotting.manage_plotting import delay_show
+        with delay_show():
+            for rec in records:
+                rec.show_figures()
+    #
+    # # if any(rec.get_experiment().show is not None for rec in records):
+    # from artemis.plotting.saving_plots import interactive_matplotlib_context
+    # with interactive_matplotlib_context():
+    #     for i, rec in enumerate(records):
+    #         with CaptureStdOut(print_to_console=False) as cap:
+    #             show_record(rec)
+    #         if cap != '':
+    #             # strings[i] += '{subborder} Result Display {subborder}\n{out} \n{border}'.format(subborder='-'*20, out=cap.read(), border='='*50)
+    #             strings[i] += section_with_header('Result Display', cap.read(), width=header_width, bottom_char='=')
+    #
+    # if parallel_text:
+    #     print(side_by_side(strings, max_linewidth=128))
+    # else:
+    #     for string in strings:
+    #         print(string)
 
     return has_matplotlib_figures
 

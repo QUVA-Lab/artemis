@@ -1,7 +1,7 @@
 import pytest
 from artemis.experiments.decorators import ExperimentFunction, experiment_function
 from artemis.experiments.experiment_record_view import display_experiment_record, compare_experiment_results, \
-    get_oneline_result_string, print_experiment_record_argtable, show_experiment_records, get_record_invalid_arg_string
+    get_oneline_result_string, print_experiment_record_argtable, compare_experiment_records, get_record_invalid_arg_string
 from artemis.experiments.experiments import experiment_testing_context, clear_all_experiments
 from artemis.general.display import CaptureStdOut, assert_things_are_printed
 
@@ -64,7 +64,7 @@ def test_experiments_function_additions():
         print_experiment_record_argtable([r1, r2, r3])
 
         print('='*100+'\n SHOW \n'+'='*100)
-        show_experiment_records([r1, r2, r3])
+        compare_experiment_records([r1, r2, r3])
 
 
 def test_experiment_function_ui():
@@ -175,7 +175,7 @@ def test_simple_experiment_show():
         rec = my_simdfsfdsgfs.run()
 
         with assert_things_are_printed(things=['my_simdfsfdsgfs', 'xxxxx\nyyyyy\n']):
-            show_experiment_records(rec)
+            compare_experiment_records(rec)
 
 
 def test_view_modes():

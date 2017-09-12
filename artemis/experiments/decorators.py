@@ -1,7 +1,8 @@
 from collections import OrderedDict
 
-from artemis.experiments.experiment_record_view import show_record, show_experiment_records
+from artemis.experiments.experiment_record_view import show_record, compare_experiment_records
 from artemis.experiments.experiments import Experiment
+from artemis.general.should_be_builtins import uniquify_duplicates, izip_equal
 
 
 def experiment_function(f):
@@ -42,7 +43,7 @@ class ExperimentFunction(object):
     This is the most general decorator.  You can use this to add details on the experiment.
     """
 
-    def __init__(self, show = show_record, compare = show_experiment_records, display_function=None, comparison_function=None, one_liner_function=None, is_root=False):
+    def __init__(self, show = show_record, compare = compare_experiment_records, display_function=None, comparison_function=None, one_liner_function=None, is_root=False):
         """
         :param show:  A function that is called when you "show" an experiment record in the UI.  It takes an experiment
             record as an argument.
@@ -62,8 +63,11 @@ class ExperimentFunction(object):
             show = lambda rec: display_function(rec.get_result())
 
         if comparison_function is not None:
-            assert compare is show_experiment_records, "You can't set both display function and show.  (display_function is deprecated)"
-            compare = lambda records: display_function(OrderedDict((rec.experiment_id, rec.get_results()) for rec in records))
+            assert compare is compare_experiment_records, "You can't set both display function and show.  (display_function is deprecated)"
+
+            def compare(records):
+                record_experiment_ids_uniquified = uniquify_duplicates(rec.get_experiment_id() for rec in records)
+                comparison_function(OrderedDict((unique_rid, rec.get_result()) for unique_rid, rec in izip_equal(record_experiment_ids_uniquified, records)))
 
         self.show = show
         self.compare = compare

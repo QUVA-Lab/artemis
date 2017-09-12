@@ -152,8 +152,15 @@ def set_draw_callback(callback):
 
 
 @contextmanager
-def hold_plot_show():
-    any_show
-    with WhatToDoOnShow(False):
+def delay_show():
+    """
+    Delay any calls to plt.show() until the end of this block
+    :return:
+    """
+    has_shown = [False]
+    def show_sub(*args, **kwargs):
+        has_shown[0]=True
+    with ShowContext(show_sub):
         yield
-    plt.show()
+    if has_shown[0]:
+        plt.show()
