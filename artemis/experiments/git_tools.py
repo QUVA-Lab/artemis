@@ -27,6 +27,8 @@ def save_working_copy(message = 'autocommit'):
 
     unmerged_files = g.diff('--name-only', '--diff-filter=U')
 
+    print unmerged_files
+
     g.commit('-am', message)
 
     g.checkout('-')
@@ -34,6 +36,7 @@ def save_working_copy(message = 'autocommit'):
     g.stash('pop')
 
 
-print 'bb'
+print 'cc'
+
 
 save_working_copy()
