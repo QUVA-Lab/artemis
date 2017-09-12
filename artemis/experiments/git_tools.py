@@ -15,7 +15,7 @@ def get_git_repo_for_current_run():
     print git_root
 
 
-def save_working_copy():
+def save_working_copy(message = 'autocommit'):
 
     g = Git(get_git_repo_for_current_run())
 
@@ -27,9 +27,13 @@ def save_working_copy():
 
     unmerged_files = g.diff('--name-only', '--diff-filter=U')
 
+    g.commit('-am', message)
+
     g.checkout('-')
 
     g.stash('pop')
 
+
+print 'aa'
 
 save_working_copy()
