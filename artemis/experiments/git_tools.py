@@ -34,6 +34,6 @@ def save_working_copy(message = 'autocommit'):
     g.stash('pop')
 
 
-print 'aa'
+print 'bb'
 
 save_working_copy()
