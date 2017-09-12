@@ -19,13 +19,17 @@ def save_working_copy():
 
     g = Git(get_git_repo_for_current_run())
 
+    g.stash()
+
     g.checkout('-B', 'artemis-experiments')
 
+    g.stash('apply')
 
+    unmerged_files = g.diff('--name-only', '--diff-filter=U')
+
+    g.checkout('-')
+
+    g.stash('pop')
 
 
 save_working_copy()
-
-
-
-
