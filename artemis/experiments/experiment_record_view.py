@@ -77,11 +77,12 @@ def get_record_full_string(record, show_info = True, show_logs = True, truncate_
     return full_info_string
 
 
-def get_record_invalid_arg_string(record, recursive=True):
+def get_record_invalid_arg_string(record, recursive=True, note_version = 'full'):
     """
     Return a string identifying ig the arguments for this experiment are still valid.
     :return:
     """
+    assert note_version in ('full', 'short')
     experiment_id = record.get_experiment_id()
     if is_experiment_loadable(experiment_id):
         if record.info.has_field(ExpInfoFields.ARGS):
@@ -94,15 +95,16 @@ def get_record_invalid_arg_string(record, recursive=True):
                     current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
                 last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.iteritems()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
-                notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+                changestr = "{{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+                notes = ("Args changed!: " if note_version=='full' else "") + changestr
             elif validity is None:
-                notes = "Cannot Determine: Unhashable Args"
+                notes = "Cannot Determine: Unhashable Args" if note_version=='full' else '<Unhashable Args>'
             else:
-                notes = "Yes"
+                notes = "<No Change>"
         else:
-            notes = "Cannot Determine: Inconsistent Experiment Record"
+            notes = "Cannot Determine: Inconsistent Experiment Record" if note_version == 'full' else '<Inconsistent Record>'
     else:
-        notes = "Cannot Determine: Experiment Not Imported"
+        notes = "Cannot Determine: Experiment Not Imported" if note_version=='full' else '<Not Imported>'
     return notes
 
 
@@ -182,6 +184,29 @@ def print_experiment_record_argtable(records):
         )
 
     print(tabulate(rows))
+
+
+def show_record(record, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
+    """
+    Show the results of an experiment record.
+    :param record:
+    :param show_logs:
+    :param truncate_logs:
+    :param truncate_result:
+    :param header_width:
+    :param show_result:
+    :param hang:
+    :return:
+    """
+    string = get_record_full_string(record, show_logs=show_logs, show_result=show_result, truncate_logs=truncate_logs,
+        truncate_result=truncate_result, header_width=header_width, include_bottom_border=False)
+
+    has_matplotlib_figures = any(loc.endswith('.pkl') for loc in record.get_figure_locs())
+    if has_matplotlib_figures:
+        from matplotlib import pyplot as plt
+        from artemis.plotting.saving_plots import interactive_matplotlib_context
+        record.show_figures(hang=hang)
+    print(string)
 
 
 def show_experiment_records(records, parallel_text=None, hang_notice = None, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):

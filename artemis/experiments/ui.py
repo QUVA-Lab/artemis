@@ -193,7 +193,6 @@ experiment records.  You can specify records in the following ways:
             'sidebyside': self.side_by_side,
             'argtable': self.argtable,
             'compare': self.compare,
-            'display': self.display,
             'delete': self.delete,
             'errortrace': self.errortrace,
             'q': self.quit,
@@ -256,7 +255,7 @@ experiment records.  You can specify records in the following ways:
     def get_experiment_list_str(self, exp_record_dict):
 
         headers = {
-            'full': ['E#', 'R#', 'Name', 'Last Run' if self.just_last_record else 'All Runs', 'Duration', 'Status', 'Valid', 'Result'],
+            'full': ['E#', 'R#', 'Name', 'Last Run' if self.just_last_record else 'All Runs', 'Duration', 'Status', 'Args Changed?', 'Result'],
             'results': ['E#', 'R#', 'Name', 'Result']
             }[self.view_mode]
 
@@ -322,32 +321,29 @@ experiment records.  You can specify records in the following ways:
     def help(self):
         _warn_with_prompt(self.HELP_TEXT, prompt = 'Press Enter to exit help.', use_prompt=not self.close_after)
 
-    def show(self, user_range, parallel_arg = None):
+    def show(self, user_range):
         """
         :param user_range:  A range specifying the record
         :param parallel_arg: -p to print logs side-by-side, and -s to print them in sequence.
         """
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        parallel_text = {'-p': True, '-s': False, None: None}[parallel_arg]
-        has_matplotlib_figures=show_experiment_records(records, parallel_text = parallel_text, truncate_logs=None)
-        if has_matplotlib_figures:
-            from matplotlib import pyplot as plt
-            print('\n\n... Close all figures to return to experiment browser ...')
-            plt.ioff()
-            plt.show()
-        else:
-            _warn_with_prompt(use_prompt=not self.close_after)
+        for rec in records:
+            exp = rec.get_experiment()
+            exp.show(rec)
+        _warn_with_prompt(use_prompt=not self.close_after)
 
-    def display(self, user_range = 'all', skip_if_single = True):
+    def compare(self, user_range):
+
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        if len(records)==1 and skip_if_single:
-            display_experiment_record(records[0])
-        else:
-            with IndentPrint("Results:", show_line=True, show_end=True):
-                for record in records:
-                    with IndentPrint(record.get_id(), show_line=True, show_end=True):
-                        display_experiment_record(record)
+        compare_funcs = [rec.get_experiment().compare for rec in records]
+        assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
+        func = compare_funcs[0]
+        func(records)
 
+
+        experiment_ids = select_experiments(user_range, self.exp_record_dict)
+        experiments = [load_experiment(eid) for eid in experiment_ids]
+        compare_experiment_results(experiments, error_if_no_result=False)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def errortrace(self, user_range):
@@ -415,12 +411,6 @@ experiment records.  You can specify records in the following ways:
 
     def view(self, mode):
         self.view_mode = mode
-
-    def compare(self, user_range):
-        experiment_ids = select_experiments(user_range, self.exp_record_dict)
-        experiments = [load_experiment(eid) for eid in experiment_ids]
-        compare_experiment_results(experiments, error_if_no_result=False)
-        _warn_with_prompt(use_prompt=not self.close_after)
 
     def explist(self, surround = ""):
         print("\n".join([surround+k+surround for k in self.exp_record_dict.keys()]))

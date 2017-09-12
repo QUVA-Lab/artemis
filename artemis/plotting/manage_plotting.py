@@ -149,3 +149,11 @@ def set_draw_callback(callback):
     :param callback:
     """
     plt.draw = callback
+
+
+@contextmanager
+def hold_plot_show():
+    any_show
+    with WhatToDoOnShow(False):
+        yield
+    plt.show()

@@ -20,7 +20,7 @@ class Experiment(object):
     create variants using decorated_function.add_variant()
     """
 
-    def __init__(self, function=None, display_function=None, comparison_function=None, one_liner_function=None,
+    def __init__(self, function=None, show=None, compare=None, one_liner_function=None,
                  name=None, is_root=False):
         """
         :param function: The function defining the experiment
@@ -32,9 +32,9 @@ class Experiment(object):
         """
         self.name = name
         self.function = function
-        self._display_function = display_function
+        self._show = show
         self._one_liner_results = one_liner_function
-        self._comparison_function = comparison_function
+        self._compare = compare
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
@@ -42,16 +42,16 @@ class Experiment(object):
             _register_experiment(self)
 
     @property
-    def display_function(self):
-        return self._display_function
+    def show(self):
+        return self._show
 
     @property
     def one_liner_function(self):
         return self._one_liner_results
 
     @property
-    def comparison_function(self):
-        return self._comparison_function
+    def compare(self):
+        return self._compare
 
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything.  You can also modify with arguments. """
@@ -142,8 +142,8 @@ class Experiment(object):
         exp_rec.save_result(results)
         for n in self._notes:
             exp_rec.info.add_note(n)
-        if display_results and self.display_function is not None:
-            self.display_function(results)
+        if display_results:
+            self.show(exp_rec)
         ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=self.name))
         set_test_mode(old_test_mode)
         return exp_rec
@@ -155,8 +155,8 @@ class Experiment(object):
         ex = Experiment(
             name=self.name + '.' + name,
             function=partial(self.function, **kwargs),
-            display_function=self.display_function,
-            comparison_function=self.comparison_function,
+            show=self._show,
+            compare=self._compare,
             one_liner_function=self.one_liner_function,
             is_root=is_root
         )

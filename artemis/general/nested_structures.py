@@ -61,7 +61,11 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
 _primitive_containers = (list, tuple, dict, set)
 
 
-def get_meta_object(data_object, containers = _primitive_containers):
+def _is_primitive_container(obj):
+    return isinstance(obj, _primitive_containers)
+
+
+def get_meta_object(data_object, is_container_func = _is_primitive_container):
     """
     Given an arbitrary data structure, return a "meta object" which is the same structure, except all non-container
     objects are replaced by their types.
@@ -70,14 +74,14 @@ def get_meta_object(data_object, containers = _primitive_containers):
         get_meta_obj([1, 2, {'a':(3, 4), 'b':['hey', 'yeah']}, 'woo']) == [int, int, {'a':(int, int), 'b':[str, str]}, str]
 
     :param data_object: A data object with arbitrary nested structure
-    :param containers: Which classes to consider containers.  Classes derived from these are also considered containers.
+    :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
     :return:
     """
-    if isinstance(data_object, containers):
+    if is_container_func(data_object):
         if isinstance(data_object, (list, tuple, set)):
-            return type(data_object)(get_meta_object(x) for x in data_object)
+            return type(data_object)(get_meta_object(x, is_container_func=is_container_func) for x in data_object)
         elif isinstance(data_object, dict):
-            return type(data_object)((k, get_meta_object(v)) for k, v in data_object.iteritems())
+            return type(data_object)((k, get_meta_object(v, is_container_func=is_container_func)) for k, v in data_object.iteritems())
     else:
         return type(data_object)
 
@@ -106,7 +110,7 @@ class NestedType(object):
         :param data_object:
         :return:
         """
-        if not self.is_type_for(data_object):
+        if not self.is_type_for(data_object):  # note: we'd like to switch this to isnestedinstance
             raise TypeError('The data object has type {}, which does not match this format: {}'.format(NestedType.from_data(data_object), self))
 
     def __repr__(self):
@@ -115,16 +119,16 @@ class NestedType(object):
     def __eq__(self, other):
         return self.meta_object == other.meta_object
 
-    def get_leaves(self, data_object, check_types = True):
+    def get_leaves(self, data_object, check_types = True, is_container_func = _is_primitive_container):
         """
         :param data_object: Given a nested object, get the "leaf" values in Depth-First Order
         :return: A list of leaf values.
         """
         if check_types:
-            assert self.is_type_for(data_object)
-        return get_leaf_values(data_object)
+            self.check_type(data_object)
+        return get_leaf_values(data_object, is_container_func=is_container_func)
 
-    def expand_from_leaves(self, leaves, check_types = True, assert_fully_used=True):
+    def expand_from_leaves(self, leaves, check_types = True, assert_fully_used=True, is_container_func = _is_primitive_container):
         """
         Given an iterator of leaf values, fill the meta-object represented by this type.
 
@@ -133,19 +137,29 @@ class NestedType(object):
         :param assert_fully_used: Assert that all the leaf values are used
         :return: A nested object, filled with the leaf data, whose structure is represented in this NestedType instance.
         """
-        return _fill_meta_object(self.meta_object, (x for x in leaves), check_types=check_types, assert_fully_used=assert_fully_used)
+        return _fill_meta_object(self.meta_object, (x for x in leaves), check_types=check_types, assert_fully_used=assert_fully_used, is_container_func=is_container_func)
 
     @staticmethod
-    def from_data(data_object, containers = _primitive_containers):
+    def from_data(data_object, is_container_func = _is_primitive_container):
         """
         :param data_object: A nested data object
-        :param containers: The list of classes defined as "containers"
+        :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
         :return: A NestedType object
         """
-        return NestedType(get_meta_object(data_object, containers=containers))
+        return NestedType(get_meta_object(data_object, is_container_func=is_container_func))
 
 
-def get_leaf_values(data_object, containers = _primitive_containers):
+def isnestedinstance(data, meta_obj):
+    """
+    Check if the data is
+    :param data:
+    :param meta_obj:
+    :return:
+    """
+    raise NotImplementedError()
+
+
+def get_leaf_values(data_object, is_container_func = _is_primitive_container):
     """
     Collect leaf values of a nested data_obj in Depth-First order.
 
@@ -159,17 +173,17 @@ def get_leaf_values(data_object, containers = _primitive_containers):
     the same order so long as it is not modified.  See https://docs.python.org/2/library/stdtypes.html#dict.items
 
     :param data_object: An arbitrary nested data object
-    :param containers: The list of "container" classes that we should break into.
+    :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
     :return: A list of leaf values.
     """
     leaf_values = []
-    if isinstance(data_object, containers):
+    if is_container_func(data_object):
         if isinstance(data_object, (list, tuple)):
-            leaf_values += [val for x in data_object for val in get_leaf_values(x)]
+            leaf_values += [val for x in data_object for val in get_leaf_values(x, is_container_func=is_container_func)]
         elif isinstance(data_object, OrderedDict):
-            leaf_values += [val for k, x in data_object.iteritems() for val in get_leaf_values(x)]
+            leaf_values += [val for k, x in data_object.iteritems() for val in get_leaf_values(x, is_container_func=is_container_func)]
         elif isinstance(data_object, dict):
-            leaf_values += [val for k in sorted(data_object.keys()) for val in get_leaf_values(data_object[k])]
+            leaf_values += [val for k in sorted(data_object.keys()) for val in get_leaf_values(data_object[k], is_container_func=is_container_func)]
         else:
             raise Exception('Have no way to consistently extract leaf values from a {}'.format(data_object))
         return leaf_values
@@ -177,23 +191,24 @@ def get_leaf_values(data_object, containers = _primitive_containers):
         return [data_object]
 
 
-def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, check_types = True):
+def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, check_types = True, is_container_func = _is_primitive_container):
     """
     Fill the data from the iterable into the meta_object.
     :param meta_object: A nested type descripter.  See NestedType init
     :param data_iteratable: The iterable data object
     :param assert_fully_used: Assert that we actually get through all the items in the iterable
+    :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
     :return: The filled object
     """
 
     try:
-        if isinstance(meta_object, _primitive_containers):
+        if is_container_func(meta_object):
             if isinstance(meta_object, (list, tuple, set)):
-                filled_object = type(meta_object)(_fill_meta_object(x, data_iteratable, assert_fully_used=False, check_types=check_types) for x in meta_object)
+                filled_object = type(meta_object)(_fill_meta_object(x, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func) for x in meta_object)
             elif isinstance(meta_object, OrderedDict):
-                filled_object = type(meta_object)((k, _fill_meta_object(val, data_iteratable, assert_fully_used=False, check_types=check_types)) for k, val in meta_object.iteritems())
+                filled_object = type(meta_object)((k, _fill_meta_object(val, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k, val in meta_object.iteritems())
             elif isinstance(meta_object, dict):
-                filled_object = type(meta_object)((k, _fill_meta_object(meta_object[k], data_iteratable, assert_fully_used=False, check_types=check_types)) for k in sorted(meta_object.keys()))
+                filled_object = type(meta_object)((k, _fill_meta_object(meta_object[k], data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k in sorted(meta_object.keys()))
             else:
                 raise Exception('Cannot handle container type: "{}"'.format(type(meta_object)))
         else:
@@ -213,7 +228,7 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
     return filled_object
 
 
-def nested_map(func, nested_obj, check_types=False):
+def nested_map(func, nested_obj, check_types=False, is_container_func = _is_primitive_container):
     """
     An equivalent of pythons built-in map, but for nested objects.  This function crawls the object and applies func
     to the leaf nodes.
@@ -221,12 +236,14 @@ def nested_map(func, nested_obj, check_types=False):
     :param func: A function of the form new_leaf_val = func(old_leaf_val)
     :param nested_obj: A nested object e.g. [1, 2, {'a': 3, 'b': (3, 4)}, 5]
     :param check_types: Assert that the new leaf types match the old leaf types (False by default)
+    :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
     :return: A nested objectect with the same structure, but func applied to every value.
     """
-    nested_type = NestedType.from_data(nested_obj)
-    leaf_values = nested_type.get_leaves(nested_obj)
+    assert callable(func), 'func must be a function with one argument.'
+    nested_type = NestedType.from_data(nested_obj, is_container_func=is_container_func)
+    leaf_values = nested_type.get_leaves(nested_obj, is_container_func=is_container_func, check_types=check_types)
     new_leaf_values = [func(v) for v in leaf_values]
-    new_nested_obj = nested_type.expand_from_leaves(new_leaf_values, check_types=check_types)
+    new_nested_obj = nested_type.expand_from_leaves(new_leaf_values, check_types=check_types, is_container_func=is_container_func)
     return new_nested_obj
 
 
