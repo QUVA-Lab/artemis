@@ -9,13 +9,20 @@ import traceback
 from collections import OrderedDict
 from contextlib import contextmanager, nested
 from datetime import datetime
+from uuid import getnode
+from getpass import getuser
+import inspect
+
+import time
 
 from artemis.config import get_artemis_config_value
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_artemis_data_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
+from artemis.general.functional import infer_derived_arg_values, get_partial_chain, \
+    infer_function_and_derived_arg_values
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.test_mode import is_test_mode
+from artemis.general.test_mode import is_test_mode, set_test_mode
 
 try:
     from enum import Enum
@@ -555,3 +562,77 @@ def save_figure_in_record(name, fig=None, default_ext='.pkl'):
     save_path = os.path.join(get_current_record_dir(), name)
     save_figure(fig, path=save_path, default_ext=default_ext)
     return save_path
+
+
+def run_and_record(function, experiment_id, print_to_console=True, show_figs=None, test_mode=None, keep_record=None,
+        raise_exceptions=True, notes = (), **experiment_record_kwargs):
+    """
+    Run an experiment function and record the results in an experiment folder in ~/.artemis/experiments
+
+    :param function:
+    :param experiment_id:
+    :param print_to_console:
+    :param show_figs:
+    :param test_mode:
+    :param keep_record:
+    :param raise_exceptions:
+    :param notes:
+    :param experiment_record_kwargs:
+    :return:
+    """
+
+    if test_mode is None:
+        test_mode = is_test_mode()
+
+    old_test_mode = is_test_mode()
+    set_test_mode(test_mode)
+    ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'
+        .format(border='=' * 10, mode="Testing" if test_mode else "Running", name=experiment_id))
+    EIF = ExpInfoFields
+    date = datetime.now()
+    with record_experiment(name=experiment_id, print_to_console=print_to_console, show_figs=show_figs,
+            use_temp_dir=not keep_record, date=date, **experiment_record_kwargs) as exp_rec:
+        start_time = time.time()
+        try:
+
+            exp_rec.info.set_field(ExpInfoFields.NAME, experiment_id)
+            exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
+            exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
+            root_function, args = infer_function_and_derived_arg_values(function)
+            exp_rec.info.set_field(EIF.ARGS, args.items())
+            # root_function = self.get_root_function()
+            exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
+            exp_rec.info.set_field(EIF.TIMESTAMP, str(date))
+            module = inspect.getmodule(root_function)
+            exp_rec.info.set_field(EIF.MODULE, module.__name__)
+            exp_rec.info.set_field(EIF.FILE, module.__file__ if hasattr(module, '__file__') else '<unknown>')
+            exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STARTED)
+            exp_rec.info.set_field(EIF.USER, getuser())
+            exp_rec.info.set_field(EIF.MAC, ':'.join(("%012X" % getnode())[i:i+2] for i in range(0, 12, 2)))
+            results = function()
+            exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.FINISHED)
+        except KeyboardInterrupt:
+            exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STOPPED)
+            exp_rec.write_error_trace(print_too=False)
+            raise
+        except Exception:
+            exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.ERROR)
+            exp_rec.write_error_trace(print_too=not raise_exceptions)
+            if raise_exceptions:
+                raise
+            else:
+                return exp_rec
+        finally:
+            exp_rec.info.set_field(EIF.RUNTIME, time.time() - start_time)
+            fig_locs = exp_rec.get_figure_locs(include_directory=False)
+            exp_rec.info.set_field(EIF.N_FIGS, len(fig_locs))
+            exp_rec.info.set_field(EIF.FIGS, fig_locs)
+
+    exp_rec.save_result(results)
+    for n in notes:
+        exp_rec.info.add_note(n)
+
+    ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=experiment_id))
+    set_test_mode(old_test_mode)
+
+    return exp_rec

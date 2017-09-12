@@ -474,7 +474,7 @@ class ExperimentRecordBrowser(object):
             'Duration': lambda: experiment_record.info.get_field_text(ExpInfoFields.RUNTIME, replacement_if_none='?'),
             'Status': lambda: experiment_record.info.get_field_text(ExpInfoFields.STATUS, replacement_if_none='?'),
             'Args': lambda: experiment_record.info.get_field_text(ExpInfoFields.ARGS, replacement_if_none='?'),
-            'Valid': lambda: get_record_invalid_arg_string(experiment_record),
+            'Valid': lambda: get_record_invalid_arg_string(experiment_record, note_version='short'),
             'Notes': lambda: experiment_record.info.get_field_text(ExpInfoFields.NOTES, replacement_if_none='?'),
             'Result': lambda: get_oneline_result_string(experiment_record, truncate_to=128)
             # experiment_record.get_experiment().get_oneline_result_string(truncate_to=result_truncation) if is_experiment_loadable(experiment_record.get_experiment_id()) else '<Experiment not loaded>'
