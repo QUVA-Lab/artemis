@@ -220,6 +220,10 @@ def side_by_side(multiline_strings, gap=4, max_linewidth=None):
         lineses = [w.wrap(mlstring) for mlstring in multiline_strings]
     else:
         lineses = [s.split('\n') for s in multiline_strings]
+
+    if all(len(lines)==0 for lines in lineses):  # All strings are empty
+        return ''
+
     longests = [max(len(line) for line in lines) for lines in lineses]
 
     spacer = ' '*gap

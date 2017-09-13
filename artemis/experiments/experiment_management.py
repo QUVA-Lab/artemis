@@ -10,7 +10,7 @@ from artemis.experiments.experiment_record import load_experiment_record, ExpInf
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
+from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix, memoize
 
 
 def pull_experiments(user, ip, experiment_names, include_variants=True):
@@ -288,7 +288,7 @@ def run_experiment_ignoring_errors(name, **kwargs):
         traceback.print_exc()
 
 
-def run_multiple_experiments(experiments, parallel = False, cpu_count=None, raise_exceptions=True, run_args = {}):
+def run_multiple_experiments(experiments, parallel = False, cpu_count=None, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
     """
     Run multiple experiments, optionally in parallel with multiprocessing.
 
@@ -306,9 +306,9 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, rais
             cpu_count = multiprocessing.cpu_count()
         func = run_experiment if raise_exceptions else run_experiment_ignoring_errors
         p = multiprocessing.Pool(processes=cpu_count)
-        return p.map(partial(func, **run_args), experiment_identifiers)
+        return p.map(partial(func, notes=notes, **run_args), experiment_identifiers)
     else:
-        return [ex.run(raise_exceptions=raise_exceptions, display_results=False, **run_args) for ex in experiments]
+        return [ex.run(raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **run_args) for ex in experiments]
 
 
 def remove_common_results_prefix(results_dict):
@@ -323,3 +323,35 @@ def remove_common_results_prefix(results_dict):
     split_keys = [k.split('.') for k in results_dict.keys()]
     trimmed_keys = remove_common_prefix(split_keys)
     return OrderedDict((k, v) for k, v in izip_equal(trimmed_keys, results_dict.values()))
+
+
+def deprefix_experiment_ids(experiment_ids):
+    """
+    Given a list of experiment ids, removed the common root experiments from the list.
+    :param experiment_ids: A list of experiment ids.
+    :return: A list of experiment ids with the root prefix removed.
+    """
+
+    # First build dict mapping experiment_ids to their parents experiment_ids
+    glib = get_global_experiment_library()
+    exp_to_parent = {}
+    for eid in glib.keys():
+        ex = glib[eid]
+        for var in ex.get_variants():
+            exp_to_parent[var.get_id()] = ex.get_id()
+
+    @memoize
+    def get_experiment_tuple(exp_id):
+        if exp_id in exp_to_parent:
+            parent_id = exp_to_parent[exp_id]
+            parent_tuple = get_experiment_tuple(parent_id)
+            return parent_tuple + (exp_id[len(parent_id)+1:], )
+        else:
+            return (exp_id, )
+
+    # Then for each experiment in the list,
+    tuples = [get_experiment_tuple(eid) for eid in experiment_ids]
+    de_prefixed_tuples = remove_common_prefix(tuples, keep_base=False)
+    new_strings = ['.'+'.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
+    return new_strings
+

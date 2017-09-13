@@ -160,7 +160,7 @@ def delay_show():
     has_shown = [False]
     def show_sub(*args, **kwargs):
         has_shown[0]=True
-    with ShowContext(show_sub):
+    with ShowContext(show_sub, clear_others=True):
         yield
     if has_shown[0]:
         plt.show()

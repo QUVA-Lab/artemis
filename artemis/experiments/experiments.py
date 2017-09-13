@@ -248,7 +248,7 @@ class Experiment(object):
 
     def browse(self, command=None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = False, **kwargs):
+            cache_result_string = False, remove_prefix = True, **kwargs):
         """
         Open up the UI, which allows you to run experiments and view their results.
 
@@ -263,11 +263,12 @@ class Experiment(object):
         :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
         :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
             when opening up the menu - often when results are long lists).
+        :param remove_prefix: Remove the common prefix on the experiment ids in the display.
         """
         from artemis.experiments.ui import browse_experiments
         browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record,
             view_mode=view_mode, raise_display_errors=raise_display_errors, run_args=run_args, keep_record=keep_record,
-            truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, **kwargs)
+            truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, remove_prefix=remove_prefix, **kwargs)
 
     # Above this line is the core api....
     # -----------------------------------
@@ -285,6 +286,9 @@ class Experiment(object):
             records = [record for record in records if record.args_valid()]
         return len(records)>0
 
+    def get_variants(self):
+        return self.variants.values()
+
     def get_all_variants(self, include_roots=False, include_self=True):
         """
         Return a list of variants of this experiment
@@ -295,7 +299,7 @@ class Experiment(object):
         variants = []
         if include_self and (not self.is_root or include_roots):
             variants.append(self)
-        for name, v in self.variants.iteritems():
+        for name, v in self.variants.items():
             variants += v.get_all_variants(include_roots=include_roots, include_self=True)
         return variants
 

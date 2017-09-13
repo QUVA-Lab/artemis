@@ -1,12 +1,13 @@
+import argparse
 import shlex
 from collections import OrderedDict
 
 from tabulate import tabulate
 
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments
+    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments, deprefix_experiment_ids
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
-    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields
+    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, is_matplotlib_imported
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
     print_experiment_record_argtable, compare_experiment_results, compare_experiment_records, get_oneline_result_string, \
     display_experiment_record
@@ -15,6 +16,7 @@ from artemis.fileman.disk_memoize import memoize_to_disk_with_settings
 from artemis.general.display import IndentPrint, side_by_side
 from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal
+from artemis.plotting.manage_plotting import delay_show
 
 try:
     import readline  # Makes raw_input behave like interactive shell.
@@ -131,7 +133,7 @@ experiment records.  You can specify records in the following ways:
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = False):
+            cache_result_string = False, remove_prefix = True):
         """
         :param root_experiment: The Experiment whose (self and) children to browse
         :param catch_errors: Catch errors that arise while running experiments
@@ -144,6 +146,7 @@ experiment records.  You can specify records in the following ways:
         :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
         :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
             when opening up the menu - often when results are long lists).
+        :param remove_prefix: Remove the common prefix on the experiment ids in the display.
         """
 
         if run_args is None:
@@ -161,6 +164,7 @@ experiment records.  You can specify records in the following ways:
         self.run_args = {} if run_args is None else run_args
         self.truncate_result_to = truncate_result_to
         self.cache_result_string = cache_result_string
+        self.remove_prefix = remove_prefix
 
     def reload_record_dict(self):
         names = get_global_experiment_library().keys()
@@ -255,11 +259,15 @@ experiment records.  You can specify records in the following ways:
     def get_experiment_list_str(self, exp_record_dict):
 
         headers = {
-            'full': ['E#', 'R#', 'Name', 'Last Run' if self.just_last_record else 'All Runs', 'Duration', 'Status', 'Args Changed?', 'Result'],
+            'full': ['E#', 'R#', 'Name', 'Last Run' if self.just_last_record else 'All Runs', 'Duration', 'Status', 'Args Changed?', 'Result', 'Notes'],
             'results': ['E#', 'R#', 'Name', 'Result']
             }[self.view_mode]
 
         rows = []
+
+        if self.remove_prefix:
+            deprefixed_ids = deprefix_experiment_ids(exp_record_dict.keys())
+            exp_record_dict = OrderedDict((k, v) for k, v in zip(deprefixed_ids, exp_record_dict.values()))
 
         oneliner_func = memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string) if self.cache_result_string else get_oneline_result_string
 
@@ -273,8 +281,9 @@ experiment records.  You can specify records in the following ways:
                     experiment_record.info.get_field_text(ExpInfoFields.TIMESTAMP) if header in ('Last Run', 'All Runs') else \
                     experiment_record.info.get_field_text(ExpInfoFields.RUNTIME) if header=='Duration' else \
                     experiment_record.info.get_field_text(ExpInfoFields.STATUS) if header=='Status' else \
-                    get_record_invalid_arg_string(experiment_record) if header=='Valid' else \
+                    get_record_invalid_arg_string(experiment_record) if header=='Args Changed?' else \
                     oneliner_func(experiment_record.get_id(), truncate_to=self.truncate_result_to) if header=='Result' else \
+                    (';'.join(experiment_record.info.get_field(ExpInfoFields.NOTES)).replace('\n', ';;') if experiment_record.info.has_field(ExpInfoFields.NOTES) else '') if header=='Notes' else \
                     '???'
             except:
                 if self.raise_display_errors:
@@ -297,14 +306,26 @@ experiment records.  You can specify records in the following ways:
         table = tabulate(rows, headers=headers)
         return table
 
-    def run(self, user_range, mode='-s', raise_exceptions = ''):
-        assert mode in ('-s', '-e') or mode.startswith('-p')
+    def run(self, user_range, *args):
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-p', '--parallel', default=False, action = "store_true")
+        parser.add_argument('-c', '--cores')
+        parser.add_argument('-n', '--note')
+        parser.add_argument('-e', '--raise_errors', default=False, action = "store_true")
+        parser.add_argument('-d', '--display_results', default=False, action = "store_true")
+        args = parser.parse_args(args)
+
+        # assert mode in ('-s', '-e') or mode.startswith('-p')
         ids = select_experiments(user_range, self.exp_record_dict)
         run_multiple_experiments(
             experiments=[load_experiment(eid) for eid in ids],
-            parallel=len(ids)>1 and mode.startswith('-p'),
-            raise_exceptions = raise_exceptions=='-e',
-            run_args=self.run_args
+            parallel=args.parallel,
+            cpu_count=args.cores,
+            raise_exceptions = args.raise_errors,
+            run_args=self.run_args,
+            notes=(args.note, ) if args.note is not None else (),
+            display_results=args.display_results
             )
 
         result = _warn_with_prompt('Finished running {} experiment{}.'.format(len(ids), '' if len(ids)==1 else 's'),
@@ -327,9 +348,15 @@ experiment records.  You can specify records in the following ways:
         :param parallel_arg: -p to print logs side-by-side, and -s to print them in sequence.
         """
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        for rec in records:
-            exp = rec.get_experiment()
-            exp.show(rec)
+        if is_matplotlib_imported():
+            with delay_show():
+                for rec in records:
+                    exp = rec.get_experiment()
+                    exp.show(rec)
+        else:
+            for rec in records:
+                exp = rec.get_experiment()
+                exp.show(rec)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def compare(self, user_range):

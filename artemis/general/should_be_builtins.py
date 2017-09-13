@@ -280,7 +280,7 @@ def check(value, condition, string = ""):
     return value
 
 
-def remove_common_prefix(list_of_lists, max_elements=None):
+def remove_common_prefix(list_of_lists, max_elements=None, keep_base = True):
     """
     Remove common elements starting each list in the list of lists.
 
@@ -292,7 +292,10 @@ def remove_common_prefix(list_of_lists, max_elements=None):
     """
 
     count = 0
-    while max(len(parts) for parts in list_of_lists)>1:
+
+    min_len = 1 if keep_base else 0
+
+    while min(len(parts) for parts in list_of_lists)>min_len:
         if max_elements is not None and count >= max_elements:
             break
 
