@@ -106,6 +106,14 @@ def test_nested_map_with_container_func():
     assert np.array_equal(result['b'], [3, 4, 5])
 
 
+def test_none_bug():
+
+    a = {'a': 1, 'b': None, 'c': [1, 2, None]}
+
+    fa = flatten_struct(a, first_dict_is_namespace=True)
+    assert dict(fa) == {'a': 1, 'b': None, 'c[0]': 1, 'c[1]': 2, 'c[2]': None}
+
+
 if __name__ == '__main__':
     test_flatten_struct()
     test_get_meta_object()
@@ -114,3 +122,4 @@ if __name__ == '__main__':
     test_nested_map()
     test_get_leaf_values()
     test_nested_map_with_container_func()
+    test_none_bug()

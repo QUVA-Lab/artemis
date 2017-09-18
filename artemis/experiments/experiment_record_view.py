@@ -121,6 +121,9 @@ def get_record_invalid_arg_string(record, recursive=True, note_version = 'full')
         if record.info.has_field(ExpInfoFields.ARGS):
             last_run_args = record.get_args()
             current_args = record.get_experiment().get_args()
+
+            old_last_run_args, old_current_args = last_run_args, current_args
+
             validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
                 if recursive:
@@ -128,6 +131,9 @@ def get_record_invalid_arg_string(record, recursive=True, note_version = 'full')
                     current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
                 last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.iteritems()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
+
+                if len(old_args)+len(new_args)==0:
+                    print "WARNING: NEED TO FIX REPORT FOR NEW NESTED ARGS"
                 changestr = "{{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
                 notes = ("Args changed!: " if note_version=='full' else "") + changestr
             elif validity is None:

@@ -1,12 +1,16 @@
 from collections import OrderedDict
 
 import itertools
+from types import NoneType
+
 import numpy as np
 
 __author__ = 'peter'
 
+_immutible_types = (int, float, basestring, bool, NoneType)
 
-def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, bool), custom_handlers = {},
+
+def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, bool, NoneType), custom_handlers = {},
         break_into_objects = True, detect_duplicates = True, first_dict_is_namespace=False, memo = None):
     """
     Given some nested struct, return a list<*(str, primative)>, where primative
@@ -26,10 +30,11 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
     if isinstance(struct, primatives):
         return [(None, struct)]
 
-    if id(struct) in memo:
-        return [(None, memo[id(struct)])]
-    elif detect_duplicates:
-        memo[id(struct)] = 'Already Seen object at %s' % hex(id(struct))
+    if not isinstance(struct, _immutible_types):
+        if id(struct) in memo:
+            return [(None, memo[id(struct)])]
+        elif detect_duplicates:
+            memo[id(struct)] = 'Already Seen object at %s' % hex(id(struct))
 
     if isinstance(struct, tuple(custom_handlers.keys())):
         handler = custom_handlers[custom_handlers.keys()[[isinstance(struct, t) for t in custom_handlers].index(True)]]
@@ -47,8 +52,8 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
             for i, value in enumerate(struct)
             for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
             ]
-    elif struct is None or not hasattr(struct, '__dict__'):
-        return []
+    # elif struct is None or not hasattr(struct, '__dict__'):  # Don't see what this line contributed
+    #     return []
     elif break_into_objects:  # It's some kind of object, lets break it down.
         return [(".%s%s" % (key, subkey if subkey is not None else ''), v)
             for key in sorted(struct.__dict__.keys())

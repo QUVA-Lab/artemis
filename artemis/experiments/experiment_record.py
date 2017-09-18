@@ -309,11 +309,11 @@ class ExperimentRecord(object):
             None if it cannot be determined because arguments are not hashable objects.
         """
         if last_run_args is None:  # Cast to dict (from OrderedDict) because different arg order shouldn't matter
-            last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
+            last_run_args = self.info.get_field(ExpInfoFields.ARGS)
         if current_args is None:
-            current_args = dict(self.get_experiment().get_args())
+            current_args = self.get_experiment().get_args()
         try:
-            return compute_fixed_hash(last_run_args, try_objects=True) == compute_fixed_hash(current_args, try_objects=True)
+            return compute_fixed_hash(dict(last_run_args), try_objects=True) == compute_fixed_hash(dict(current_args), try_objects=True)
         except NotImplementedError:  # Happens when we have unhashable arguments
             return None
 
@@ -429,11 +429,14 @@ def get_current_record_id():
     return get_current_experiment_record().get_id()
 
 
-def get_current_record_dir():
+def get_current_record_dir(default_if_none = True):
     """
     The directory in which the results of the current experiment are recorded.
     """
-    return get_current_experiment_record().get_dir()
+    if _CURRENT_EXPERIMENT_RECORD is None and default_if_none:
+        return get_artemis_data_path('experiments/default/', make_local_dir=True)
+    else:
+        return get_current_experiment_record().get_dir()
 
 
 def open_in_record_dir(filename, *args, **kwargs):

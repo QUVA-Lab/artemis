@@ -170,6 +170,8 @@ def _filter_records(user_range, exp_record_dict):
     elif '.' in user_range:
         exp_rec_pairs = interpret_record_identifier(user_range)
         for exp_number, rec_number in exp_rec_pairs:
+            if rec_number>=len(base[keys[exp_number]]):
+                raise RecordSelectionError('Selection {}.{} does not exist.'.format(exp_number, rec_number))
             base[keys[exp_number]][rec_number] = True
     elif user_range == 'old':
         for k, v in base.iteritems():
@@ -188,8 +190,13 @@ def _filter_records(user_range, exp_record_dict):
         for k, v in base.iteritems():
             base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
     else:
-        raise Exception("Don't know how to interpret subset '{}'".format(user_range))
+        raise RecordSelectionError("Don't know how to interpret subset '{}'".format(user_range))
     return base
+
+
+class RecordSelectionError(Exception):
+
+    pass
 
 
 def _filter_experiment_record_list(user_range, experiment_record_ids):

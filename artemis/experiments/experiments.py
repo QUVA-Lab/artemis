@@ -248,7 +248,7 @@ class Experiment(object):
 
     def browse(self, command=None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = False, remove_prefix = True, **kwargs):
+            cache_result_string = False, remove_prefix = True, display_format='nested', **kwargs):
         """
         Open up the UI, which allows you to run experiments and view their results.
 
@@ -264,11 +264,14 @@ class Experiment(object):
         :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
             when opening up the menu - often when results are long lists).
         :param remove_prefix: Remove the common prefix on the experiment ids in the display.
+        :param display_format: How experements and their records are displayed: 'nested' or 'flat'.  'nested' might be
+            better for narrow console outputs.
         """
         from artemis.experiments.ui import browse_experiments
         browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record,
             view_mode=view_mode, raise_display_errors=raise_display_errors, run_args=run_args, keep_record=keep_record,
-            truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, remove_prefix=remove_prefix, **kwargs)
+            truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, remove_prefix=remove_prefix,
+            display_format=display_format, **kwargs)
 
     # Above this line is the core api....
     # -----------------------------------

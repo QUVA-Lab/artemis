@@ -1,21 +1,30 @@
 import argparse
 import shlex
 from collections import OrderedDict
+import os
 
+import pickle
+
+import shutil
+
+import logging
 from tabulate import tabulate
-
+from six.moves import xrange
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments, deprefix_experiment_ids
+    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments, deprefix_experiment_ids, \
+    RecordSelectionError
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
-    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, is_matplotlib_imported
+    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, is_matplotlib_imported, ExpStatusOptions
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
     print_experiment_record_argtable, compare_experiment_results, compare_experiment_records, get_oneline_result_string, \
     display_experiment_record
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.disk_memoize import memoize_to_disk_with_settings
-from artemis.general.display import IndentPrint, side_by_side
+from artemis.fileman.local_dir import get_artemis_data_path
+from artemis.general.display import IndentPrint, side_by_side, truncate_string
+from artemis.general.hashing import compute_fixed_hash
 from artemis.general.mymath import levenshtein_distance
-from artemis.general.should_be_builtins import all_equal
+from artemis.general.should_be_builtins import all_equal, insert_at
 from artemis.plotting.manage_plotting import delay_show
 
 try:
@@ -23,6 +32,11 @@ try:
     # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
 except:
     pass  # readline not available
+
+try:
+    from enum import Enum
+except ImportError:
+    raise ImportError("Failed to import the enum package. This was added in python 3.4 but backported back to 2.4.  To install, run 'pip install --upgrade pip enum34'")
 
 
 def _warn_with_prompt(message= None, prompt = 'Press Enter to continue or q then Enter to quit', use_prompt=True):
@@ -133,7 +147,7 @@ experiment records.  You can specify records in the following ways:
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = False, remove_prefix = True):
+            cache_result_string = False, remove_prefix = True, display_format='nested'):
         """
         :param root_experiment: The Experiment whose (self and) children to browse
         :param catch_errors: Catch errors that arise while running experiments
@@ -147,6 +161,8 @@ experiment records.  You can specify records in the following ways:
         :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
             when opening up the menu - often when results are long lists).
         :param remove_prefix: Remove the common prefix on the experiment ids in the display.
+        :param display_format: How experements and their records are displayed: 'nested' or 'flat'.  'nested' might be
+            better for narrow console outputs.
         """
 
         if run_args is None:
@@ -165,6 +181,7 @@ experiment records.  You can specify records in the following ways:
         self.truncate_result_to = truncate_result_to
         self.cache_result_string = cache_result_string
         self.remove_prefix = remove_prefix
+        self.display_format = display_format
 
     def reload_record_dict(self):
         names = get_global_experiment_library().keys()
@@ -258,53 +275,125 @@ experiment records.  You can specify records in the following ways:
 
     def get_experiment_list_str(self, exp_record_dict):
 
+        # headers = {
+        #     'full': ['Last Run' if self.just_last_record else 'All Runs', 'Duration', 'Status', 'Args Changed?', 'Result', 'Notes'],
+        #     'results': ['Result']
+        #     }[self.view_mode]
         headers = {
-            'full': ['E#', 'R#', 'Name', 'Last Run' if self.just_last_record else 'All Runs', 'Duration', 'Status', 'Args Changed?', 'Result', 'Notes'],
-            'results': ['E#', 'R#', 'Name', 'Result']
+            'full': [ExpRecordDisplayFields.RUNS, ExpRecordDisplayFields.DURATION, ExpRecordDisplayFields.STATUS, ExpRecordDisplayFields.ARGS_CHANGED, ExpRecordDisplayFields.RESULT_STR, ExpRecordDisplayFields.NOTES],
+            'results': [ExpRecordDisplayFields.RESULT_STR]
             }[self.view_mode]
 
-        rows = []
 
         if self.remove_prefix:
             deprefixed_ids = deprefix_experiment_ids(exp_record_dict.keys())
             exp_record_dict = OrderedDict((k, v) for k, v in zip(deprefixed_ids, exp_record_dict.values()))
 
-        oneliner_func = memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string) if self.cache_result_string else get_oneline_result_string
+        # oneliner_func = memoize_to_disk_with_settings(suppress_info=True)(get_oneline_result_string) if self.cache_result_string else get_oneline_result_string
+        #
+        # def get_field(header):
+        #     try:
+        #         return \
+        #             index if header=='#' else \
+        #             (str(i) if j==0 else '') if header == 'E#' else \
+        #             j if header == 'R#' else \
+        #             (name if j==0 else '') if header=='Name' else \
+        #             experiment_record.info.get_field_text(ExpInfoFields.TIMESTAMP) if header in ('Last Run', 'All Runs') else \
+        #             experiment_record.info.get_field_text(ExpInfoFields.RUNTIME) if header=='Duration' else \
+        #             experiment_record.info.get_field_text(ExpInfoFields.STATUS) if header=='Status' else \
+        #             get_record_invalid_arg_string(experiment_record) if header=='Args Changed?' else \
+        #             oneliner_func(experiment_record.get_id(), truncate_to=self.truncate_result_to) if header=='Result' else \
+        #             (';'.join(experiment_record.info.get_field(ExpInfoFields.NOTES)).replace('\n', ';;') if experiment_record.info.has_field(ExpInfoFields.NOTES) else '') if header=='Notes' else \
+        #             '???'
+        #     except:
+        #         if self.raise_display_errors:
+        #             raise
+        #         return '<Display Error>'
 
-        def get_field(header):
-            try:
-                return \
-                    index if header=='#' else \
-                    (str(i) if j==0 else '') if header == 'E#' else \
-                    j if header == 'R#' else \
-                    (name if j==0 else '') if header=='Name' else \
-                    experiment_record.info.get_field_text(ExpInfoFields.TIMESTAMP) if header in ('Last Run', 'All Runs') else \
-                    experiment_record.info.get_field_text(ExpInfoFields.RUNTIME) if header=='Duration' else \
-                    experiment_record.info.get_field_text(ExpInfoFields.STATUS) if header=='Status' else \
-                    get_record_invalid_arg_string(experiment_record) if header=='Args Changed?' else \
-                    oneliner_func(experiment_record.get_id(), truncate_to=self.truncate_result_to) if header=='Result' else \
-                    (';'.join(experiment_record.info.get_field(ExpInfoFields.NOTES)).replace('\n', ';;') if experiment_record.info.has_field(ExpInfoFields.NOTES) else '') if header=='Notes' else \
-                    '???'
-            except:
-                if self.raise_display_errors:
-                    raise
-                return '<Display Error>'
 
-        for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
-            if len(record_ids)==0:
-                if exp_id in exp_record_dict:
-                    rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-4))
-            else:
+        row_func = _get_record_rows_cached if self.cache_result_string else _get_record_rows
+        header_names = [h.value for h in headers]
+
+        if self.display_format=='nested':
+            full_headers = ['E#', 'R#']+header_names
+            record_rows = []
+            experiment_rows = []
+            experiment_row_ixs = []
+            counter = 2  # Start at 2 because record table has the headers.
+            for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
+                experiment_row_ixs.append(counter)
+                experiment_rows.append([i, '', exp_id])
                 for j, record_id in enumerate(record_ids):
-                    index, name = ['{}.{}'.format(i, j), exp_id] if j==0 else ['{}.{}'.format('`'*len(str(i)), j), exp_id]
-                    try:
-                        experiment_record = load_experiment_record(record_id)
-                    except:
-                        experiment_record = None
-                    rows.append([get_field(h) for h in headers])
-        assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), [len(row) for row in rows])
-        table = tabulate(rows, headers=headers)
+                    record_rows.append(['', j]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to))
+                    counter+=1
+            record_table_rows = tabulate(record_rows, headers=full_headers).split('\n')
+            experiment_table_rows = tabulate(experiment_rows).split('\n')[1:-1]  # First and last are just borders
+
+            all_rows = insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs)
+
+            table = '\n'.join(all_rows)
+        elif self.display_format=='flat':
+            full_headers = ['E#', 'R#', 'Experiment']+header_names
+            rows = []
+            for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
+
+                if len(record_ids)==0:
+                    rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-1))
+                else:
+                    for j, record_id in enumerate(record_ids):
+                        rows.append([str(i) if j==0 else '', j, exp_id]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to))
+            table = tabulate(rows, headers=full_headers)
+
+        else:
+            raise NotImplementedError(self.display_format)
+            #
+
+            #     experiment_row_ixs.append(counter)
+            #     experiment_rows.append([i, exp_id])
+            #     for j, record_id in enumerate(record_ids):
+            #         record_rows.append(['', j]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors))
+            #         counter+=1
+            # record_table_rows = tabulate(record_rows, headers=full_headers).split('\n')
+            # experiment_table_rows = tabulate(experiment_rows).split('\n')[1:-1]  # First and last are just borders
+            #
+            # all_rows = insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs)
+            #
+            # table = '\n'.join(all_rows)
+
         return table
+
+        # all_rows = []
+        # for i in xrange(counter):
+        #
+        #
+        #
+        #
+        #     if len(record_ids)==0:
+        #         if exp_id in exp_record_dict:
+        #             record_rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-2))
+        #
+        #
+        #     else:
+        #         for j, record_id in enumerate(record_ids):
+        #             # index, name = ['{}.{}'.format(i, j), exp_id] if j==0 else ['{}.{}'.format('`'*len(str(i)), j), exp_id]
+        #
+        #
+        #
+        #             record_info = row_func(record_id=record_id, headers=headers)
+        #
+        #             exp_index_indicator = str(i) if j==0 else
+        #
+        #             record_rows.append([str(i) if j==0 else '', ])
+        #
+        #             _get_record_row_info(record_id=record_id, headers=headers)
+        #
+        #             try:
+        #                 experiment_record = load_experiment_record(record_id)
+        #             except:
+        #                 experiment_record = None
+        #             record_rows.append([get_field(h) for h in headers])
+        # assert all_equal([len(headers)] + [len(row) for row in rows]), 'Header length: {}, Row Lengths: \n  {}'.format(len(headers), [len(row) for row in rows])
+        # table = tabulate(rows, headers=full_headers)
 
     def run(self, user_range, *args):
 
@@ -347,16 +436,19 @@ experiment records.  You can specify records in the following ways:
         :param user_range:  A range specifying the record
         :param parallel_arg: -p to print logs side-by-side, and -s to print them in sequence.
         """
-        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        if is_matplotlib_imported():
-            with delay_show():
+        try:
+            records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+            if is_matplotlib_imported():
+                with delay_show():
+                    for rec in records:
+                        exp = rec.get_experiment()
+                        exp.show(rec)
+            else:
                 for rec in records:
                     exp = rec.get_experiment()
                     exp.show(rec)
-        else:
-            for rec in records:
-                exp = rec.get_experiment()
-                exp.show(rec)
+        except RecordSelectionError as err:
+            print('FAILED!: {}'.format(str(err)))
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def compare(self, user_range):
@@ -445,6 +537,89 @@ experiment records.  You can specify records in the following ways:
 
     def quit(self):
         return self.QUIT
+
+
+
+class ExpRecordDisplayFields(Enum):
+    RUNS = 'All Runs'
+    DURATION = 'Duration'
+    STATUS = 'Status'
+    ARGS_CHANGED = 'Args Changed?'
+    RESULT_STR = 'Result'
+    NOTES = 'Notes'
+
+
+def _show_notes(rec):
+    if rec.info.has_field(ExpInfoFields.NOTES):
+        notes = rec.info.get_field(ExpInfoFields.NOTES)
+        if notes is None:
+            return ''
+        else:
+            return ';'.join(rec.info.get_field(ExpInfoFields.NOTES)).replace('\n', ';;')
+    else:
+        return ''
+
+
+_exp_record_field_getters = {
+    ExpRecordDisplayFields.RUNS: lambda rec: rec.info.get_field_text(ExpInfoFields.TIMESTAMP),
+    ExpRecordDisplayFields.DURATION: lambda rec: rec.info.get_field_text(ExpInfoFields.RUNTIME),
+    ExpRecordDisplayFields.STATUS: lambda rec: rec.info.get_field_text(ExpInfoFields.STATUS),
+    ExpRecordDisplayFields.ARGS_CHANGED: get_record_invalid_arg_string,
+    ExpRecordDisplayFields.RESULT_STR: get_oneline_result_string,
+    ExpRecordDisplayFields.NOTES: _show_notes
+}
+
+
+def _get_record_rows(record_id, headers, raise_display_errors, truncate_to):
+    rec = load_experiment_record(record_id)
+    if not raise_display_errors:
+        values = []
+        for h in headers:
+            try:
+                values.append(_exp_record_field_getters[h](rec))
+            except:
+                values.append('<Display Error>')
+    else:
+        values = [_exp_record_field_getters[h](rec) for h in headers]
+
+    if truncate_to is not None:
+        values = [truncate_string(val, truncation=truncate_to, message='...') for val in values]
+
+    return values
+
+
+def clear_ui_cache():
+    shutil.rmtree(get_artemis_data_path('_ui_cache/'))
+
+
+def _get_record_rows_cached(record_id, headers, raise_display_errors, truncate_to):
+    """
+    We want to load the saved row only if:
+    - The record is complete
+    -
+    :param record_id:
+    :param headers:
+    :return:
+    """
+    cache_key = compute_fixed_hash(record_id, headers)
+    path = get_artemis_data_path(os.path.join('_ui_cache', cache_key), make_local_dir=True)
+    if os.path.exists(path):
+        try:
+            with open(path, 'rb') as f:
+                info = pickle.load(f)
+            return info
+        except:
+            logging.warn('Failed to load cached record info: {}'.format(record_id))
+
+    info_plus_status = _get_record_rows(record_id=record_id, headers=headers+[ExpRecordDisplayFields.STATUS],
+                                        raise_display_errors=raise_display_errors, truncate_to=truncate_to)
+    info, status = info_plus_status[:-1], info_plus_status[-1]
+    if status == ExpStatusOptions.STARTED:  # In this case it's still running (maybe) and we don't want to cache because it'll change
+        return info
+    else:
+        with open(path, 'wb') as f:
+            pickle.dump(info[:-1], f)
+        return info
 
 
 def browse_experiment_records(*args, **kwargs):
