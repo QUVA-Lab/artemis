@@ -56,7 +56,7 @@ class Experiment(object):
 
     def get_args(self):
         """
-        :return: A dictionary of arguments to the experiment
+        :return: An OrderedDict of arguments to the experiment
         """
         return infer_derived_arg_values(self.function)
 
@@ -192,6 +192,21 @@ class Experiment(object):
         """
         return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=False)
 
+    def copy_variants(self, other_experiment):
+        """
+        Copy over the variants from another experiment.
+
+        :param other_experiment: An Experiment Object
+        """
+        base_args = other_experiment.get_args()
+        for variant in other_experiment.get_variants():
+            if variant is not self:
+                variant_args = variant.get_args()
+                different_args = {k: v for k, v in variant_args.items() if base_args[k]!=v}
+                name_diff = variant.get_id()[len(other_experiment.get_id())+1:]
+                v = self.add_variant(name_diff, **different_args)
+                v.copy_variants(variant)
+
     def add_root_variant(self, variant_name=None, **kwargs):
         """
         Add a variant to this experiment, but do NOT register it on the list of experiments.
@@ -248,7 +263,7 @@ class Experiment(object):
 
     def browse(self, command=None, catch_errors = False, close_after = False, just_last_record = False,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = False, remove_prefix = True, display_format='nested', **kwargs):
+            cache_result_string = False, remove_prefix = None, display_format='nested', **kwargs):
         """
         Open up the UI, which allows you to run experiments and view their results.
 

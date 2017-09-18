@@ -91,6 +91,12 @@ def test_insert_at():
     r = insert_at(list1, list2, indices)
     assert r == [1, 2, 7, 8, 3, 4, 5, 6, 9]
 
+    list1 = []
+    list2 = [0, 1, 2, 3, 4]
+    indices = [0, 0, 0, 0, 0]
+    r = insert_at(list1, list2, indices)
+    assert r == [0, 1, 2, 3, 4]
+
 
 if __name__ == '__main__':
     test_separate_common_items()

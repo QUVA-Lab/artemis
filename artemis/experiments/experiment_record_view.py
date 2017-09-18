@@ -214,7 +214,7 @@ def print_experiment_record_argtable(records):
         elif column=='Different Args':
             return ', '.join('{}={}'.format(k, v) for k, v in different_args[index])
         elif column=='Result':
-            return results[index]
+            return get_oneline_result_string(records[index])
         else:
             bad_value(column)
 

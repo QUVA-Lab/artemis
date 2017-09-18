@@ -1,6 +1,7 @@
 import sys
 import textwrap
 from StringIO import StringIO
+from collections import OrderedDict
 from contextlib import contextmanager
 
 from artemis.fileman.local_dir import make_file_dir
@@ -26,6 +27,39 @@ def arraystr(arr, print_threshold, summary_threshold):
     else:
         return '<{type} with shape={shape}, dtype={dtype}, at {id}>'.format(
             type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, id=hex(id(arr)))
+
+
+def sensible_str(data, size_limit=4, compact=True):
+    """
+    Crawl through an data structure and try to make a sensible compact representation of it.
+    :param data: Some data structure.
+    :param size_limit: The max number of elements in a collection to show.
+    :param compact: Remove spaces from output string.
+    :return: A one-line string giving a "sensible" overview of what's in the data structure.
+    """
+    if isinstance(data, np.ndarray):
+        if data.size<=size_limit:
+            string = 'ndarray('+str(data).replace('\n',',')+')'
+        else:
+            string = '<{} ndarray>'.format(str(data.shape).replace(' ', ''))
+    elif isinstance(data, (list, tuple)):
+        if len(data)>size_limit:
+            string = '<len{}-{}>'.format(len(data), data.__class__.__name__)
+        else:
+            open, close = '[]' if isinstance(data, list) else '()'
+            string = '['+', '.join(sensible_str(x) for x in data[:size_limit]) + close
+    elif isinstance(data, dict):
+        if len(data)>size_limit:
+            string = '<len{}-{}>'.format(len(data), data.__class__.__name__)
+        else:
+            open, close = ('OrderedDict([', '])') if isinstance(dict, OrderedDict) else '{}'
+            string = open+', '.join('{}:{}'.format(sensible_str(k), sensible_str(v)) for i, (k, v) in zip(range(size_limit), data.items())) + close
+    else:
+        string = str(data).replace('\n', '\\n')
+
+    if compact:
+        string = string.replace(' ', '')
+    return string
 
 
 @contextmanager

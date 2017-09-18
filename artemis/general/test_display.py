@@ -1,7 +1,7 @@
 import textwrap
 
 from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper, deepstr, \
-    str_with_arrayopts, surround_with_header
+    str_with_arrayopts, surround_with_header, sensible_str
 import numpy as np
 
 _desired = """
@@ -132,11 +132,23 @@ def test_nested_capture():
     assert cap1.read()=='a\nb\nc\n'
 
 
+def test_sensible_str():
+
+    a = [1, 2, 3]
+    stra = sensible_str(a)
+    assert stra=='[1,2,3]'
+
+    a = {'a': [1,2,3], 'b': (3, list(range(20))), 'c': np.arange(20).reshape(4, 5), 'd': np.arange(4).reshape(2, 2)}
+    stra = sensible_str(a, size_limit=4, compact=True)
+    assert stra=='{a:[1,2,3],c:<(4,5)ndarray>,b:[3,<len20-list>),d:ndarray([[01],[23]])}'
+
+
 if __name__ == '__main__':
-    test_indent_print()
-    test_side_by_side()
-    test_document_wrapper()
-    test_deepstr()
-    test_str_with_arrayopts()
-    test_surround_with_header()
-    test_nested_capture()
+    # test_indent_print()
+    # test_side_by_side()
+    # test_document_wrapper()
+    # test_deepstr()
+    # test_str_with_arrayopts()
+    # test_surround_with_header()
+    # test_nested_capture()
+    test_sensible_str()

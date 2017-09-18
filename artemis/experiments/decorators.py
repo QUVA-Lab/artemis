@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 from artemis.experiments.experiment_record_view import show_record, compare_experiment_records
 from artemis.experiments.experiments import Experiment
+from artemis.general.display import sensible_str
 from artemis.general.should_be_builtins import uniquify_duplicates, izip_equal
 
 
@@ -43,7 +44,7 @@ class ExperimentFunction(object):
     This is the most general decorator.  You can use this to add details on the experiment.
     """
 
-    def __init__(self, show = show_record, compare = compare_experiment_records, display_function=None, comparison_function=None, one_liner_function=None, is_root=False):
+    def __init__(self, show = show_record, compare = compare_experiment_records, display_function=None, comparison_function=None, one_liner_function=sensible_str, is_root=False):
         """
         :param show:  A function that is called when you "show" an experiment record in the UI.  It takes an experiment
             record as an argument.
