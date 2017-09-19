@@ -6,7 +6,7 @@ from six.moves import input
 from artemis.general.hashing import fixed_hash_eq
 
 
-def assert_variable_matches_between_runs(var, var_name, raise_error = False, show='max_diff'):
+def assert_variable_matches_between_runs(var, var_name, show='max_diff'):
     """
     This function allows you to check that a variable is equal between different runs of your program.  It is useful for
     rooting out unexpected randomness in your code.
@@ -25,7 +25,7 @@ def assert_variable_matches_between_runs(var, var_name, raise_error = False, sho
     :param var_name: A name to identify your variable
     """
 
-    variable_matches_between_runs(var=var, var_name=var_name, show='max_diff', raise_error=True)
+    variable_matches_between_runs(var=var, var_name=var_name, show=show, raise_error=True)
 
 
 def variable_matches_between_runs(var, var_name, raise_error = False, show='max_diff'):
@@ -136,7 +136,6 @@ def delete_vars(vars):
 
 
 def reset_variable_tracker():
-    # global _var_readers, _var_write_status, _var_calls
     _var_readers.clear()
     _var_write_status.clear()
     _var_calls.clear()

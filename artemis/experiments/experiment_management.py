@@ -166,6 +166,8 @@ def _filter_records(user_range, exp_record_dict):
     keys = exp_record_dict.keys()
     if number_range is not None:
         for i in number_range:
+            if i>len(keys):
+                raise RecordSelectionError('Experiment {} does not exist (they go from 0 to {})'.format(i, len(keys)-1))
             base[keys[i]] = [True]*len(base[keys[i]])
     elif '.' in user_range:
         exp_rec_pairs = interpret_record_identifier(user_range)

@@ -84,11 +84,8 @@ class Experiment(object):
         :param experiment_record_kwargs: Passed to the "record_experiment" context.
         :return: The ExperimentRecord object, if keep_record is true, otherwise None
         """
-        # if test_mode is None:
-        #     test_mode = is_test_mode()
         if keep_record is None:
             keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode
-
         exp_rec = run_and_record(
             function = self.function,
             experiment_id=self.name,
@@ -100,60 +97,8 @@ class Experiment(object):
             notes=notes,
             **experiment_record_kwargs
         )
-
-        #
-        #
-        # old_test_mode = is_test_mode()
-        # set_test_mode(test_mode)
-        # ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border='=' * 10,
-        #                                                                          mode="Testing" if test_mode else "Running",
-        #                                                                          name=self.name))
-        # EIF = ExpInfoFields
-        # date = datetime.now()
-        # with record_experiment(name=self.name, print_to_console=print_to_console, show_figs=show_figs,
-        #         use_temp_dir=not keep_record, date=date, **experiment_record_kwargs) as exp_rec:
-        #     start_time = time.time()
-        #     try:
-        #
-        #         exp_rec.info.set_field(ExpInfoFields.NAME, self.name)
-        #         exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
-        #         exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
-        #         exp_rec.info.set_field(EIF.ARGS, self.get_args().items())
-        #         root_function = self.get_root_function()
-        #         exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
-        #         exp_rec.info.set_field(EIF.TIMESTAMP, str(date))
-        #         module = inspect.getmodule(root_function)
-        #         exp_rec.info.set_field(EIF.MODULE, module.__name__)
-        #         exp_rec.info.set_field(EIF.FILE, module.__file__ if hasattr(module, '__file__') else '<unknown>')
-        #         exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STARTED)
-        #         exp_rec.info.set_field(EIF.USER, getuser())
-        #         exp_rec.info.set_field(EIF.MAC, ':'.join(("%012X" % getnode())[i:i+2] for i in range(0, 12, 2)))
-        #         results = self.function()
-        #         exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.FINISHED)
-        #     except KeyboardInterrupt:
-        #         exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STOPPED)
-        #         exp_rec.write_error_trace(print_too=False)
-        #         raise
-        #     except Exception:
-        #         exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.ERROR)
-        #         exp_rec.write_error_trace(print_too=not raise_exceptions)
-        #         if raise_exceptions:
-        #             raise
-        #         else:
-        #             return exp_rec
-        #     finally:
-        #         exp_rec.info.set_field(EIF.RUNTIME, time.time() - start_time)
-        #         fig_locs = exp_rec.get_figure_locs(include_directory=False)
-        #         exp_rec.info.set_field(EIF.N_FIGS, len(fig_locs))
-        #         exp_rec.info.set_field(EIF.FIGS, fig_locs)
-        #
-        # exp_rec.save_result(results)
-        # for n in self._notes:
-        #     exp_rec.info.add_note(n)
         if display_results:
             self.show(exp_rec)
-        # ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=self.name))
-        # set_test_mode(old_test_mode)
         return exp_rec
 
     def _create_experiment_variant(self, args, kwargs, is_root):

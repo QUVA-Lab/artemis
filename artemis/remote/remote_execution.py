@@ -13,7 +13,7 @@ def execute_command(ip_address, command, blocking=True):
     This method spawns a child-process (either locally or remote, depending on the ip_address). Then it executes the given command and handles communication.
     If blocking is True, then this call does not return before the child process returns. It then prints stdout to console, followed by stderr.
     If blocking is False, then this call returns immediately and asynchronously forwards stdout and stderr to the console in separate threads.
-    If ip_address is local, then the command will be divide using shlex.divide() and must be formatted accordingly. The subprocess call is executed with shell=False
+    If ip_address is local, then the command will be split using shlex.split() and must be formatted accordingly. The subprocess call is executed with shell=False
     for all the right reasons.
     :param ip_address:
     :param command: String. command to execute

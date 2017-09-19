@@ -144,11 +144,11 @@ def test_sensible_str():
 
 
 if __name__ == '__main__':
-    # test_indent_print()
-    # test_side_by_side()
-    # test_document_wrapper()
-    # test_deepstr()
-    # test_str_with_arrayopts()
-    # test_surround_with_header()
-    # test_nested_capture()
+    test_indent_print()
+    test_side_by_side()
+    test_document_wrapper()
+    test_deepstr()
+    test_str_with_arrayopts()
+    test_surround_with_header()
+    test_nested_capture()
     test_sensible_str()

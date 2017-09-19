@@ -570,18 +570,19 @@ def save_figure_in_record(name, fig=None, default_ext='.pkl'):
 def run_and_record(function, experiment_id, print_to_console=True, show_figs=None, test_mode=None, keep_record=None,
         raise_exceptions=True, notes = (), **experiment_record_kwargs):
     """
-    Run an experiment function and record the results in an experiment folder in ~/.artemis/experiments
+    Run an experiment function.  Save the console output, return values, and any matplotlib figures generated to a new
+    experiment folder in ~/.artemis/experiments
 
-    :param function:
-    :param experiment_id:
-    :param print_to_console:
+    :param function: A function which takes no args.
+    :param experiment_id: The name under which you'd like to save this run of this experiment.
+    :param print_to_console: Show the print output in the console (as well as saving it)
     :param show_figs:
     :param test_mode:
     :param keep_record:
     :param raise_exceptions:
     :param notes:
     :param experiment_record_kwargs:
-    :return:
+    :return: The ExperimentRecord object
     """
 
     if test_mode is None:

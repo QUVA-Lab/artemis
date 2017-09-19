@@ -284,22 +284,6 @@ def compare_experiment_records(records, parallel_text=None, show_logs=True, trun
         with delay_show():
             for rec in records:
                 rec.show_figures()
-    #
-    # # if any(rec.get_experiment().show is not None for rec in records):
-    # from artemis.plotting.saving_plots import interactive_matplotlib_context
-    # with interactive_matplotlib_context():
-    #     for i, rec in enumerate(records):
-    #         with CaptureStdOut(print_to_console=False) as cap:
-    #             show_record(rec)
-    #         if cap != '':
-    #             # strings[i] += '{subborder} Result Display {subborder}\n{out} \n{border}'.format(subborder='-'*20, out=cap.read(), border='='*50)
-    #             strings[i] += section_with_header('Result Display', cap.read(), width=header_width, bottom_char='=')
-    #
-    # if parallel_text:
-    #     print(side_by_side(strings, max_linewidth=128))
-    # else:
-    #     for string in strings:
-    #         print(string)
 
     return has_matplotlib_figures
 

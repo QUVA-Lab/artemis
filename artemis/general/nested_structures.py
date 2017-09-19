@@ -47,13 +47,10 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
             for subkey, v in flatten_struct(struct[key], custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
             ]
     elif isinstance(struct, (list, tuple)):
-        # for i, value in enumerate(struct):
         return [("[%s]%s" % (i, subkey if subkey is not None else ''), v)
             for i, value in enumerate(struct)
             for subkey, v in flatten_struct(value, custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
             ]
-    # elif struct is None or not hasattr(struct, '__dict__'):  # Don't see what this line contributed
-    #     return []
     elif break_into_objects:  # It's some kind of object, lets break it down.
         return [(".%s%s" % (key, subkey if subkey is not None else ''), v)
             for key in sorted(struct.__dict__.keys())
