@@ -355,11 +355,11 @@ def assert_option(choice, possiblilties):
 def insert_at(list1, list2, indices):
     """
     Create a new list by insert elements from list 2 into list 1 at the given indices.
-    (Note: this leaves list1 and list2 unchanged)
+    (Note: this leaves list1 and list2 unchanged, unlike list.insert)
     :param list1: A list
     :param list2: Another list
-    :param indices:
-    :return:
+    :param indices: The indices of list1 into which elements from list2 will be inserted.
+    :return: A new list with len(list1)+len(list2) elements.
     """
     list3 = []
     assert len(list2)==len(indices), 'List 2 has {} elements, but you provided {} indices.  They should have equal length'.format(len(list2), len(indices))
@@ -378,8 +378,6 @@ def insert_at(list1, list2, indices):
                 iter_stopped = True
         if i<len(list1):
             list3.append(list1[i])
-
-
 
     assert iter_stopped, 'Not all elements from list 2 got used!'
     return list3
