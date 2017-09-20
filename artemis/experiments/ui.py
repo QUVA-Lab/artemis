@@ -16,7 +16,7 @@ from artemis.experiments.experiment_record_view import get_record_full_string, g
     print_experiment_record_argtable, compare_experiment_records, get_oneline_result_string
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.local_dir import get_artemis_data_path
-from artemis.general.display import IndentPrint, side_by_side, truncate_string
+from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal, insert_at, izip_equal, separate_common_items
@@ -224,13 +224,13 @@ experiment records.  You can specify records in the following ways:
         while True:
             all_experiments = self.reload_record_dict()
 
-            print("==================== Experiments ====================")
+            # print("==================== Experiments ====================")
             self.exp_record_dict = all_experiments if self._filter is None else \
                 OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
             print(self.get_experiment_list_str(self.exp_record_dict))
             if self._filter is not None:
                 print('[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments)))
-            print('-----------------------------------------------------')
+            # print('-----------------------------------------------------')
             if command is None:
                 user_input = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
             else:
@@ -297,20 +297,20 @@ experiment records.  You can specify records in the following ways:
 
             if self.show_args:
                 _, argdiff = separate_common_items([load_experiment(ex).get_args().items() for ex in exp_record_dict])
-                argdiff = {k: args for k, args in izip_equal(exp_record_dict.keys(), unique_args)}
+                argdiff = {k: args for k, args in izip_equal(exp_record_dict.keys(), argdiff)}
 
             # Build a list of experiments and a list of records.
             full_headers = ['#']+header_names
             record_rows = []
             experiment_rows = []
             experiment_row_ixs = []
-            counter = 2  # Start at 2 because record table has the headers.
+            counter = 1  # Start at 2 because record table has the headers.
             for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
                 experiment_row_ixs.append(counter)
                 if self.show_args:
-                    experiment_rows.append([i, '--- '+exp_id +': '+','.join('{}={}'.format(k, v) for k, v in argdiff[exp_id])])
+                    experiment_rows.append([i, exp_id +': '+','.join('{}={}'.format(k, v) for k, v in argdiff[exp_id])])
                 else:
-                    experiment_rows.append([i, '--- '+exp_id])
+                    experiment_rows.append([i, exp_id])
 
                 for j, record_id in enumerate(record_ids):
                     record_rows.append([j]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to))
@@ -319,11 +319,14 @@ experiment records.  You can specify records in the following ways:
             remove_notes_if_no_notes(record_rows)
 
             # Merge the experiments table and record table.
-            record_table_rows = tabulate(record_rows, headers=full_headers).split('\n')
+            record_table_rows = tabulate(record_rows, headers=full_headers, tablefmt="pipe").split('\n')
+            del record_table_rows[1]  # Get rid of that silly line.
             experiment_table_rows = tabulate(experiment_rows, numalign='left').split('\n')[1:-1]  # First and last are just borders
             longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(record_table_rows)>0 else 0
-            experiment_table_rows = [r+' '+'-'*max(0, longest_row-len(r)-1) for r in experiment_table_rows]
-            all_rows = insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs)
+            # experiment_table_rows = [r+' '+'-'*max(0, longest_row-len(r)-1) for r in experiment_table_rows]
+            # experiment_table_rows = ['-'*longest_row+'\n'+r+' '+'-'*max(0, longest_row-len(r)-1) for r in experiment_table_rows]
+            experiment_table_rows = [('=' if i==0 else '-')*longest_row+'\n'+r + ' '*(longest_row-len(r)-1)+'|' for i, r in enumerate(experiment_table_rows)]
+            all_rows = [surround_with_header('Experiments', width=longest_row, char='=')] + insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs) + ['='*longest_row]
             table = '\n'.join(all_rows)
         elif self.display_format=='flat':  # Display First record on same row
             full_headers = ['E#', 'R#', 'Experiment']+header_names
