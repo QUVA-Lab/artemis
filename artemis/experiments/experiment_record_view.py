@@ -14,7 +14,6 @@ from artemis.general.should_be_builtins import separate_common_items, all_equal,
 from artemis.general.tables import build_table
 
 
-
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False):
     """
     Get a string representing the result of the experiment.
@@ -362,3 +361,17 @@ def make_record_comparison_table(records, args_to_show=None, results_extractor =
         print(tabulate.tabulate(rows, headers=headers, tablefmt='simple'))
     return headers, rows
 
+
+def separate_common_args(records, return_dict = False):
+    """
+
+    :param records: A List of records
+    :param return_dict: Return the different args as a dict<ExperimentRecord: args>
+    :return: (common, different)
+        Where common is an OrderedDict of common args
+        different is a list (the same lengths of records) of OrderedDicts containing args that are not the same in all records.
+    """
+    common, argdiff = separate_common_items([list(rec.get_args().items()) for rec in records])
+    if return_dict:
+        argdiff = {rec.get_id(): args for rec, args in zip(records, argdiff)}
+    return common, argdiff
