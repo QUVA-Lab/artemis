@@ -9,7 +9,7 @@ from tabulate import tabulate
 from six.moves import xrange
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
     select_experiment_records_from_list, interpret_numbers, run_multiple_experiments, deprefix_experiment_ids, \
-    RecordSelectionError
+    RecordSelectionError, select_last_record_of_experiments
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, is_matplotlib_imported, ExpStatusOptions
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
@@ -87,13 +87,16 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > filter has:xyz      Just show experiments with "xyz" in the name and their records
 > filter 1diff:3      Just show all experiments that have no more than 1 argument different from experiment 3.
 > filter -            Clear the filter and show the full list of experiments
+> filterrec last      Just show the last record of each experiment
+> filterrec finished  Just show completed records
+> filterrec ~finished Just show non-completed experiments
+> filterrec finished>last   Just show the last finished runs of each experiment
 > results 4-6         View the results experiments 4, 5, 6
 > view results        View just the columns for experiment name and result
 > view full           View all columns (the default view)
 > show 4              Show the output from the last run of experiment 4 (if it has been run already).
 > show 4-6            Show the output of experiments 4,5,6 together.
 > records             Browse through all experiment records.
-> allruns             Toggle between showing all past runs of each experiment, and just the last one.
 > compare 4.1,5.3     Print a table comparing the arguments and results of records 4.1 and 5.3.
 > selectexp 4-6       Show the list of experiments (and their records) selected by the "experiment selector" "4-6" (see below for possible experiment selectors)
 > selectrec 4-6       Show the list of records selected by the "record selector" "4-6" (see below for possible record selectors)
@@ -121,7 +124,7 @@ experiments in the following ways:
     hasnot:xyz      Select all experiments without substring "xyz" in their names
     1diff:3         Select all experiments who have no more than 1 argument which is different from experiment 3's arguments.
 
-Commands 'results', 'show', 'records', 'compare', 'sidebyside', 'selectrec', 'delete' allow you to specify a range of
+Commands 'results', 'show', 'records', 'compare', 'sidebyside', 'selectrec', 'filterrec', 'delete' allow you to specify a range of
 experiment records.  You can specify records in the following ways:
 
     Record
@@ -134,21 +137,24 @@ experiment records.  You can specify records in the following ways:
     4.3,4.4         Select records 4.3, 4.4
     all             Select all records
     old             Select all records that are not the the most recent run for that experiment
-    unfinished      Select all records that have not run to completion
+    finished        Select all records that have not run to completion
     invalid         Select all records for which the arguments to their experiments have changed since they were run
     errors          Select all records that ended in error
+    ~invalid        Select all records that are not invalid (the '~' can be used to negate any of the above)
     invalid|errors  Select all records that are invalid or ended in error (the '|' can be used to "or" any of the above)
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
+    finished>last   Select the last finished record of each experiment (the '>' can be used to cascade any of the above)
 """
 
-    def __init__(self, root_experiment = None, catch_errors = False, close_after = False, just_last_record = False,
+    def __init__(self, root_experiment = None, catch_errors = False, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
             cache_result_string = False, remove_prefix = None, display_format='nested', show_args=False):
         """
         :param root_experiment: The Experiment whose (self and) children to browse
         :param catch_errors: Catch errors that arise while running experiments
         :param close_after: Close after issuing one command.
-        :param just_last_record: Only show the most recent record for each experiment.
+        :param filterexp: Filter the experiments with this selection (see help for how to use)
+        :param filterrec: Filter the experiment records with this selection (see help for how to use)
         :param view_mode: How to view experiments {'full', 'results'} ('results' leads to a narrower display).
         :param raise_display_errors: Raise errors that arise when displaying the table (otherwise just indicate that display failed in table)
         :param run_args: A dict of named arguments to pass on to Experiment.run
@@ -169,12 +175,12 @@ experiment records.  You can specify records in the following ways:
             remove_prefix = display_format=='flat'
         self.root_experiment = root_experiment
         self.close_after = close_after
-        self.just_last_record = just_last_record
         self.catch_errors = catch_errors
         self.exp_record_dict = self.reload_record_dict()
         self.raise_display_errors = raise_display_errors
         self.view_mode = view_mode
-        self._filter = None
+        self._filter = filterexp
+        self._filterrec = filterrec
         self.run_args = {} if run_args is None else run_args
         self.truncate_result_to = truncate_result_to
         self.cache_result_string = cache_result_string
@@ -191,9 +197,6 @@ experiment records.  You can specify records in the following ways:
             names = [name for name in names if name in descendents_of_root]
 
         d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in names)
-        if self.just_last_record:
-            for k in d.keys():
-                d[k] = [d[k][-1]] if len(d[k])>0 else []
         return d
 
     def launch(self, command=None):
@@ -205,10 +208,10 @@ experiment records.  You can specify records in the following ways:
             'call': self.call,
             'selectexp': self.selectexp,
             'selectrec': self.selectrec,
-            'allruns': self.allruns,
             'view': self.view,
             'h': self.help,
             'filter': self.filter,
+            'filterrec': self.filterrec,
             'explist': self.explist,
             'sidebyside': self.side_by_side,
             'argtable': self.argtable,
@@ -227,9 +230,14 @@ experiment records.  You can specify records in the following ways:
             # print("==================== Experiments ====================")
             self.exp_record_dict = all_experiments if self._filter is None else \
                 OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
+            if self._filterrec is not None:
+                self.exp_record_dict = select_experiment_records(self._filterrec, self.exp_record_dict, load_records=False, flat=False)
             print(self.get_experiment_list_str(self.exp_record_dict))
-            if self._filter is not None:
-                print('[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments)))
+            if self._filter is not None or self._filterrec is not None:
+                print('[Filtered out {}/{} experiments with "{}" and {}/{} records with "{}"]'.format(
+                    len(self.exp_record_dict), len(all_experiments), self._filter,
+                    sum(len(v) for v in self.exp_record_dict.values()), sum(len(v) for v in all_experiments.values()), self._filterrec
+                    ))
             # print('-----------------------------------------------------')
             if command is None:
                 user_input = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
@@ -307,10 +315,10 @@ experiment records.  You can specify records in the following ways:
             counter = 1  # Start at 2 because record table has the headers.
             for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
                 experiment_row_ixs.append(counter)
-                if self.show_args:
-                    experiment_rows.append([i, exp_id +': '+','.join('{}={}'.format(k, v) for k, v in argdiff[exp_id])])
-                else:
-                    experiment_rows.append([i, exp_id])
+
+                exp_identifier = exp_id if not self.show_args else ','.join('{}={}'.format(k, v) for k, v in argdiff[exp_id])
+
+                experiment_rows.append([i, exp_identifier])
 
                 for j, record_id in enumerate(record_ids):
                     record_rows.append([j]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to))
@@ -325,6 +333,7 @@ experiment records.  You can specify records in the following ways:
             longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(record_table_rows)>0 else 0
             # experiment_table_rows = [r+' '+'-'*max(0, longest_row-len(r)-1) for r in experiment_table_rows]
             # experiment_table_rows = ['-'*longest_row+'\n'+r+' '+'-'*max(0, longest_row-len(r)-1) for r in experiment_table_rows]
+            record_table_rows = [r if len(r)==longest_row else r[:-1] + ' '*(longest_row-len(r)) + r[-1] for r in record_table_rows]
             experiment_table_rows = [('=' if i==0 else '-')*longest_row+'\n'+r + ' '*(longest_row-len(r)-1)+'|' for i, r in enumerate(experiment_table_rows)]
             all_rows = [surround_with_header('Experiments', width=longest_row, char='=')] + insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs) + ['='*longest_row]
             table = '\n'.join(all_rows)
@@ -383,13 +392,16 @@ experiment records.  You can specify records in the following ways:
     def help(self):
         _warn_with_prompt(self.HELP_TEXT, prompt = 'Press Enter to exit help.', use_prompt=not self.close_after)
 
-    def show(self, user_range):
+    def show(self, *args):
         """
         :param user_range:  A range specifying the record
-        :param parallel_arg: -p to print logs side-by-side, and -s to print them in sequence.
         """
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', help='A selection of experiment records to show. ')
+        parser.add_argument('-l', action='store_true', help='Just select the last record from the list of experiments.')
+        args = parser.parse_args(args)
         try:
-            records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+            records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
             if is_matplotlib_imported():
                 with delay_show():
                     for rec in records:
@@ -405,16 +417,24 @@ experiment records.  You can specify records in the following ways:
 
     def compare(self, *args):
         parser = argparse.ArgumentParser()
-        parser.add_argument('user_range', action='store', help='A selection of experiment records to run.  Examples: "3" or "3-5", or "3,4,5"')
+        parser.add_argument('user_range', action='store', help='A selection of experiment records to compare.  Examples: "3" or "3-5", or "3,4,5"')
         parser.add_argument('-l', '--last', default=False, action = "store_true", help="Use this flag if you want to select Experiments instead of Experiment Records, and just show the last completed.")
         args = parser.parse_args(args)
-        if args.last:
-            experiments = select_experiments(user_range=args.user_range, exp_record_dict=self.exp_record_dict)
-            records = [load_experiment(ex).get_latest_record(only_completed=True, err_if_none=False) for ex in experiments]
-            if None in records:
-                print('WARNING: Experiments {} have no completed records.', [e for e, r in izip_equal(experiments, records) if r is None])
-        else:
-            records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
+
+        user_range = args.user_range if not args.last else args.user_range + '>finished>last'
+
+
+        # if args.last:
+        #     experiments = select_experiments(user_range=args.user_range, exp_record_dict=self.exp_record_dict)
+        #     records = [load_experiment(ex).get_latest_record(only_completed=True, err_if_none=False) for ex in experiments]
+        #     if None in records:
+        #         print('WARNING: Experiments {} have no completed records.', [e for e, r in izip_equal(experiments, records) if r is None])
+        # else:
+        #     records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
+
+        records = select_last_record_of_experiments(user_range = user_range, exp_record_dict=self.exp_record_dict) if args.last else \
+            select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
+
         compare_funcs = [rec.get_experiment().compare for rec in records]
         assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
         func = compare_funcs[0]
@@ -463,8 +483,11 @@ experiment records.  You can specify records in the following ways:
         print(side_by_side([get_record_full_string(rec) for rec in records], max_linewidth=128))
         _warn_with_prompt(use_prompt=not self.close_after)
 
-    def argtable(self, user_range):
-        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+    def argtable(self, *args):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', nargs = '?', default='all', help='A selection of experiment records to run.  Examples: "3" or "3-5", or "3,4,5"')
+        args = parser.parse_args(args)
+        records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
         print_experiment_record_argtable(records)
         _warn_with_prompt(use_prompt=not self.close_after)
 
@@ -478,11 +501,11 @@ experiment records.  You can specify records in the following ways:
         output = pull_experiments(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False)
         print(output)
 
-    def allruns(self, ):
-        self.just_last_record = not self.just_last_record
-
     def filter(self, user_range):
         self._filter = user_range if user_range not in ('-', '--clear') else None
+
+    def filterrec(self, user_range):
+        self._filterrec = user_range if user_range not in ('-', '--clear') else None
 
     def view(self, mode):
         self.view_mode = mode

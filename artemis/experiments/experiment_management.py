@@ -86,6 +86,14 @@ def select_experiments(user_range, exp_record_dict, return_dict=False):
         return [name for name in exp_record_dict if exp_filter[name]]
 
 
+def select_last_record_of_experiments(user_range, exp_record_dict):
+    experiments = select_experiments(user_range=user_range, exp_record_dict=exp_record_dict)
+    records = [load_experiment(ex).get_latest_record(only_completed=True, err_if_none=False) for ex in experiments]
+    if None in records:
+        print('WARNING: Experiments {} have no completed records.', [e for e, r in izip_equal(experiments, records) if r is None])
+    return records
+
+
 def _filter_experiments(user_range, exp_record_dict):
 
     if user_range in exp_record_dict:
@@ -123,7 +131,7 @@ def _filter_experiments(user_range, exp_record_dict):
     return OrderedDict((exp_id, exp_is_in) for exp_id, exp_is_in in izip_equal(exp_record_dict, is_in))
 
 
-def select_experiment_records(user_range, exp_record_dict, flat=True):
+def select_experiment_records(user_range, exp_record_dict, flat=True, load_records = True):
     """
     :param user_range:
     :param exp_record_dict: An OrderedDict<experiment_name: list<experiment_record_name>>
@@ -132,11 +140,60 @@ def select_experiment_records(user_range, exp_record_dict, flat=True):
         otherwise a list<experiment_record_name>
     """
     filters = _filter_records(user_range, exp_record_dict)
-    filtered_dict = OrderedDict((k, [load_experiment_record(record_id) for record_id, f in izip_equal(exp_record_dict[k], filters[k]) if f]) for k in exp_record_dict.keys())
+    filtered_dict = _select_record_from_filters(filters, exp_record_dict) if load_records else _select_record_ids_from_filters(filters, exp_record_dict)
     if flat:
         return [record_id for records in filtered_dict.values() for record_id in records]
     else:
         return filtered_dict
+
+
+def _select_record_from_filters(filters, exp_record_dict):
+    return OrderedDict((k, [load_experiment_record(record_id) for record_id, f in izip_equal(exp_record_dict[k], filters[k]) if f]) for k in exp_record_dict.keys())
+
+
+def _select_record_ids_from_filters(filters, exp_record_dict):
+    return OrderedDict((k, [record_id for record_id, f in izip_equal(exp_record_dict[k], filters[k]) if f]) for k in exp_record_dict.keys())
+
+
+def _bitwise_and(a, b):
+    return [a_ and b_ for a_, b_ in izip_equal(a, b)]
+
+
+def _bitwise_or(a, b):
+    return [a_ or b_ for a_, b_ in izip_equal(a, b)]
+
+
+def _bitwise_andcascade(a, b):
+    """
+    :param a: A list of booleans whose length matches the number of True elements in b
+    :param b: A list of booleans
+    :return: A list
+    """
+    assert sum(b) == len(a), 'The number of elements in b: {}, did not match the number of true elements in a: {}'.format(sum(b), len(a))
+    a_iter = iter(a)
+    return [b_ and next(a_iter) for b_ in b]
+
+
+def _bitwise_not(a):
+    return [not a_ for a_ in a]
+
+
+def _bitwise_filter_op(op, *filter_sets):
+
+    output_set = filter_sets[0].copy()
+    if op=='not':
+        assert len(filter_sets)==1
+        for k in output_set.keys():
+            output_set[k] = _bitwise_not(filter_sets[0][k])
+    elif op in ('and', 'or'):
+        for k in output_set.keys():
+            output_set[k] = reduce(_bitwise_and if op=='and' else _bitwise_or, [fs[k] for fs in filter_sets])
+    elif op=='andcascade':
+        for k in output_set.keys():
+            output_set[k] = reduce(_bitwise_andcascade, [fs[k] for fs in filter_sets[::-1]])
+    else:
+        raise AssertionError('op should be one of {}'.format(('and', 'or', 'andcascade', 'not')))
+    return output_set
 
 
 def _filter_records(user_range, exp_record_dict):
@@ -146,22 +203,37 @@ def _filter_records(user_range, exp_record_dict):
     :return: An OrderedDict<experiment_id -> list<True or False>> indicating whether each record from the given experiment passed the filter
     """
 
-    def _bitwise(op, filter_set_1, filter_set_2):
-        assert op in ('and', 'or')
-        filter_set_3 = filter_set_1.copy()
-        for k in filter_set_1.keys():
-            filter_set_3[k] = [(a or b) if op=='or' else (a and b) for a, b in izip_equal(filter_set_1[k], filter_set_2[k])]
-        return filter_set_3
+    if user_range=='unfinished':
+        return _filter_records('~finished', exp_record_dict)
+    elif user_range=='last':
+        return _filter_records('~old', exp_record_dict)
+    elif '|' in user_range:
+        return _bitwise_filter_op('or', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('|')])
+    elif '&' in user_range:
+        return _bitwise_filter_op('and', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
+    elif '>' in user_range:
+        ix = user_range.index('>')
+        first_part, second_part = user_range[:ix], user_range[ix+1:]
+        _first_stage_filters = _filter_records(first_part, exp_record_dict)
+        _new_dict = _select_record_ids_from_filters(_first_stage_filters, exp_record_dict)
+        _second_stage_filters = _filter_records(second_part, _new_dict)
+        return _bitwise_filter_op('andcascade', _first_stage_filters, _second_stage_filters)
+
+        # subparts = user_range.split('>')
+        # _new_dict = exp_record_dict
+        # filters = []
+        # for part in subparts:
+        #     filters.append(_filter_records(part, _new_dict))
+        #     _new_dict = _select_record_ids_from_filters(filters[-1], _new_dict)
+        # return _bitwise_filter_op('andcascade', *filters)
+    elif user_range.startswith('~'):
+        return _bitwise_filter_op('not', _filter_records(user_range[1:], exp_record_dict))
 
     base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.iteritems())
     if user_range in exp_record_dict:  # User just lists an experiment
         base[user_range] = [True]*len(base[user_range])
         return base
 
-    if '|' in user_range:
-        return reduce(lambda a, b: _bitwise('or', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('|')])
-    if '&' in user_range:
-        return reduce(lambda a, b: _bitwise('and', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
     number_range = interpret_numbers(user_range)
     keys = exp_record_dict.keys()
     if number_range is not None:
@@ -178,9 +250,13 @@ def _filter_records(user_range, exp_record_dict):
     elif user_range == 'old':
         for k, v in base.iteritems():
             base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
-    elif user_range == 'unfinished':
+    elif user_range == 'finished':
         for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
+            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
+    # elif user_range == 'unfinished':
+    #     base = _filter_records('~finished', )
+    #     for k, v in base.iteritems():
+    #         base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
         # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
     elif user_range == 'invalid':
         for k, v in base.iteritems():

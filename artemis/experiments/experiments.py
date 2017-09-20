@@ -206,7 +206,7 @@ class Experiment(object):
             records = [record for record in records if record.get_status()==ExpStatusOptions.FINISHED]
         return records
 
-    def browse(self, command=None, catch_errors = False, close_after = False, just_last_record = False,
+    def browse(self, command=None, catch_errors = False, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
             cache_result_string = False, remove_prefix = None, display_format='nested', **kwargs):
         """
@@ -215,7 +215,8 @@ class Experiment(object):
         :param command: Optionally, a string command to pass directly to the UI.  (e.g. "run 1")
         :param catch_errors: Catch errors that arise while running experiments
         :param close_after: Close after issuing one command.
-        :param just_last_record: Only show the most recent record for each experiment.
+        :param filterexp: Filter the experiments with this selection (see help for how to use)
+        :param filterrec: Filter the experiment records with this selection (see help for how to use)
         :param view_mode: How to view experiments {'full', 'results'} ('results' leads to a narrower display).
         :param raise_display_errors: Raise errors that arise when displaying the table (otherwise just indicate that display failed in table)
         :param run_args: A dict of named arguments to pass on to Experiment.run
@@ -228,7 +229,8 @@ class Experiment(object):
             better for narrow console outputs.
         """
         from artemis.experiments.ui import browse_experiments
-        browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record,
+        browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after,
+            filterexp=filterexp, filterrec=filterrec,
             view_mode=view_mode, raise_display_errors=raise_display_errors, run_args=run_args, keep_record=keep_record,
             truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, remove_prefix=remove_prefix,
             display_format=display_format, **kwargs)
