@@ -90,6 +90,8 @@ def test_nested_map():
     assert nested_map(func, 'God is dead.')=='God is dead.  Not!'
     assert nested_map(func, (1, 2, 3)) == (2, 4, 6)
     assert nested_map(func, [1, 2, None, {'a': 3, 'b': 'It works!'}]) == [2, 4, None, {'a': 6, 'b': 'It works!  Not!'}]
+    assert nested_map(lambda a, b: a+b, {'a': 1, 'b': [2, 3]}, {'a': 4, 'b': [5, 6]}) == {'a': 5, 'b': [7, 9]}
+    assert nested_map(lambda a, b: a+b, {'a': 1, 'b': [2, 3]}, {'a': 4, 'XXX': [5, 6]}) == {'a': 5, 'b': [7, 9]}
 
 
 def test_get_leaf_values():
@@ -115,11 +117,11 @@ def test_none_bug():
 
 
 if __name__ == '__main__':
-    test_flatten_struct()
-    test_get_meta_object()
-    test_nested_type()
-    test_seqstruct_to_structseq_and_inverse()
+    # test_flatten_struct()
+    # test_get_meta_object()
+    # test_nested_type()
+    # test_seqstruct_to_structseq_and_inverse()
     test_nested_map()
-    test_get_leaf_values()
-    test_nested_map_with_container_func()
-    test_none_bug()
+    # test_get_leaf_values()
+    # test_nested_map_with_container_func()
+    # test_none_bug()

@@ -5,6 +5,8 @@ from types import NoneType
 
 import numpy as np
 
+from artemis.general.should_be_builtins import izip_equal, all_equal
+
 __author__ = 'peter'
 
 _immutible_types = (int, float, basestring, bool, NoneType)
@@ -230,7 +232,7 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
     return filled_object
 
 
-def nested_map(func, nested_obj, check_types=False, is_container_func = _is_primitive_container):
+def nested_map(func, *nested_objs, **kwargs):
     """
     An equivalent of pythons built-in map, but for nested objects.  This function crawls the object and applies func
     to the leaf nodes.
@@ -241,10 +243,15 @@ def nested_map(func, nested_obj, check_types=False, is_container_func = _is_prim
     :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
     :return: A nested objectect with the same structure, but func applied to every value.
     """
+    is_container_func = kwargs['is_container_func'] if 'is_container_func' in kwargs else _is_primitive_container
+    check_types = kwargs['check_types'] if 'check_types' in kwargs else False
+    assert len(nested_objs)>0, 'nested_map requires at least 2 args'
+
     assert callable(func), 'func must be a function with one argument.'
-    nested_type = NestedType.from_data(nested_obj, is_container_func=is_container_func)
-    leaf_values = nested_type.get_leaves(nested_obj, is_container_func=is_container_func, check_types=check_types)
-    new_leaf_values = [func(v) for v in leaf_values]
+    nested_types = [NestedType.from_data(nested_obj, is_container_func=is_container_func) for nested_obj in nested_objs]
+    assert all_equal(nested_types), "The nested objects you provided had different data structures:\n{}".format('\n'.join(str(s) for s in nested_types))
+    leaf_values = zip(*[nested_type.get_leaves(nested_obj, is_container_func=is_container_func, check_types=check_types) for nested_type, nested_obj in zip(nested_types, nested_objs)])
+    new_leaf_values = [func(*v) for v in leaf_values]
     new_nested_obj = nested_type.expand_from_leaves(new_leaf_values, check_types=check_types, is_container_func=is_container_func)
     return new_nested_obj
 

@@ -494,10 +494,14 @@ experiment records.  You can specify records in the following ways:
     def records(self, ):
         browse_experiment_records(self.exp_record_dict.keys())
 
-    def pull(self, user_range, machine_name):
+    def pull(self, *args):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', help='A selection of experiments whose records to pull.  Examples: "3" or "3-5", or "3,4,5"')
+        parser.add_argument('machine_name', action='store', nargs = '?', default='all', help='Name of machine to pull from (must be listed in ~/.artemisrc)')
+        args = parser.parse_args(args)
         from artemis.remote.remote_machines import get_remote_machine_info
-        info = get_remote_machine_info(machine_name)
-        exp_names = select_experiments(user_range, self.exp_record_dict)
+        info = get_remote_machine_info(args.machine_name)
+        exp_names = select_experiments(args.user_range, self.exp_record_dict)
         output = pull_experiments(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False)
         print(output)
 
