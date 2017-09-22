@@ -330,3 +330,63 @@ def structseq_to_seqstruct(structseq):
     sequence = zip(*leaf_data)
     seqstruct = [nested_type.expand_from_leaves(s, check_types=False) for s in sequence]
     return seqstruct
+
+
+class SequentialStructBuilder(object):
+
+    def __init__(self):
+        self._struct = None  # An OrderedDict<string: list<obj>>
+
+    def __getitem__(self, key):
+        if self._struct is None:
+            self._struct = OrderedDict()
+        if key not in self._struct:
+            self._struct[key] = SequentialStructBuilder()
+        return self._struct[key]
+
+    def __setitem__(self, key, value):
+        if self._struct is None:
+            self._struct = OrderedDict()
+        else:
+            assert isinstance(self._struct, OrderedDict)
+        self._struct[key] = value
+
+    @property
+    def is_sequence(self):
+        if isinstance(self._struct, OrderedDict):
+            return False
+        elif isinstance(self._struct, list):
+            return True
+        else:
+            assert self._struct is None
+            return None
+
+    @property
+    def next(self):
+        if self._struct is None:
+            self._struct = []
+        else:
+            assert isinstance(self._struct, [])
+        self._struct.append(SequentialStructBuilder())
+        return self._struct[-1]
+
+    @next.setter
+    def next(self, val):
+        if self._struct is None:
+            self._struct = []
+        else:
+            assert isinstance(self._struct, list)
+
+        self._struct.append(val)
+
+    def get_structs(self):
+        return nested_map(lambda v: v.get_structs() if isinstance(v, SequentialStructBuilder) else v, self._struct)
+
+    def to_struct(self, as_arrays=False):
+        return seqstruct_to_structseq(self.get_structs(), as_arrays=as_arrays)
+
+    def to_seq(self):
+        return structseq_to_seqstruct(self.get_structs())
+
+    # def get_flat_structs(self, as_array=False):
+    #     return OrderedDict((key, seqstruct_to_structseq(val, as_arrays=as_array)) for key, val in self._structs.items())

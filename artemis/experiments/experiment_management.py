@@ -57,23 +57,30 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
     :param error_if_no_result:
     :return:
     """
+    experiments = [load_experiment(ex) if isinstance(ex, basestring) else ex for ex in experiments]
+    records = [ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True) for ex in experiments]
+    record_results = load_record_results([r for r in records if r is not None], err_if_no_result=error_if_no_result)
+    experiment_latest_results = OrderedDict((rec.get_experiment_id(), val) for rec, val in record_results.items())
+    return experiment_latest_results
+
+
+def load_record_results(records, err_if_no_result =True, index_by_id = False):
+    """
+    Given a list of experiment records, return an OrderedDict<record: result>
+    :param records: A list of ExperimentRecord objects
+    :param err_if_no_result: True to raise an error if a record has no result.
+    :return:  OrderedDict<ExperimentRecord: result>
+    """
     results = OrderedDict()
-    for ex in experiments:
-
-        ex = load_experiment(ex) if isinstance(ex, basestring) else ex
-
-        name = experiments[ex.get_id()] if isinstance(experiments, dict) else ex if isinstance(ex, basestring) else ex.get_id()
-
-        record = ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True)
-        if record is None:
-            if error_if_no_result:
-                raise Exception("Experiment {} had no result.  Run this experiment to completion before trying to compare its results.".format(ex.get_id()))
+    for record in records:
+        index = record.get_id() if index_by_id else record
+        if not record.has_result():
+            if err_if_no_result:
+                raise Exception('Record {} had no result.'.format(record.get_id()))
             else:
-                ARTEMIS_LOGGER.warn('Experiment {} had no records.  Not including this in results'.format(ex.get_id()))
+                ARTEMIS_LOGGER.warn('Experiment Record {} had no saved result.  Not including this in results'.format(record.get_id()))
         else:
-            results[name] = record.get_result()
-    if len(results)==0:
-        ARTEMIS_LOGGER.warn('None of your experiments had any results.  Your comparison function will probably show no meaningful result.')
+            results[index] = record.get_result()
     return results
 
 
