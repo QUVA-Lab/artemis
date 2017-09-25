@@ -43,8 +43,33 @@ def get_record_result_string(record, func='deep', truncate_to = None, array_prin
     return string
 
 
+def _get_record_info_section(record, header_width):
+    return section_with_header('Info', record.info.get_text(), width=header_width)
+
+
+def _get_record_log_section(record, truncate_logs = None, header_width=64):
+    log = record.get_log()
+    if truncate_logs is not None and len(log)>truncate_logs:
+        log = log[:truncate_logs-100] + '\n\n ... LOG TRUNCATED TO {} CHARACTERS ... \n\n'.format(truncate_logs) + log[-100:]
+    return section_with_header('Logs', log, width=header_width)
+
+
+def _get_record_error_trace_section(record, header_width):
+    error_trace = record.get_error_trace()
+    if error_trace is None:
+        return ''
+    else:
+        return section_with_header('Error Trace', record.get_error_trace(), width=header_width)
+
+
+def _get_result_section(record, truncate_result, show_result, header_width):
+    assert show_result in (False, 'full', 'deep')
+    result_str = get_record_result_string(record, truncate_to=truncate_result, func=show_result)
+    return section_with_header('Result', result_str, width=header_width)
+
+
 def get_record_full_string(record, show_info = True, show_logs = True, truncate_logs = None, show_result ='deep',
-        show_exceptions=True, truncate_result = None, include_bottom_border = True, header_width=64):
+        show_exceptions=True, truncate_result = None, include_bottom_border = True, header_width=64, return_list = False):
     """
     Get a human-readable string containing info about the experiment record.
 
@@ -57,32 +82,40 @@ def get_record_full_string(record, show_info = True, show_logs = True, truncate_
     :return: A string to print.
     """
 
-    assert show_result in (False, 'full', 'deep')
-    full_info_string = surround_with_header(record.get_id(), width=header_width, char='=') + '\n'
+    parts = [surround_with_header(record.get_id(), width=header_width, char='=')]
+
     if show_info:
-        full_info_string += '{}\n'.format(record.info.get_text())
+        parts.append(section_with_header('Info', record.info.get_text(), width=header_width))
+
     if show_logs:
         log = record.get_log()
         if truncate_logs is not None and len(log)>truncate_logs:
             log = log[:truncate_logs-100] + '\n\n ... LOG TRUNCATED TO {} CHARACTERS ... \n\n'.format(truncate_logs) + log[-100:]
-        full_info_string += section_with_header('Logs', log, width=header_width)
+        # return section_with_header('Logs', log, width=header_width)
+        parts.append(section_with_header('Logs', log, width=header_width))
 
-    error_trace = record.get_error_trace()
-    if show_exceptions and error_trace is not None:
-        full_info_string += section_with_header('Error Trace', record.get_error_trace(), width=header_width)
+    if show_exceptions:
+        error_trace = record.get_error_trace()
+        error_trace_text = '' if error_trace is None else section_with_header('Error Trace', record.get_error_trace(), width=header_width)
+        parts.append(error_trace_text)
 
     if show_result:
+        assert show_result in (False, 'full', 'deep')
         result_str = get_record_result_string(record, truncate_to=truncate_result, func=show_result)
-        full_info_string += section_with_header('Result', result_str, width=header_width, bottom_char='=' if include_bottom_border else None)
+        parts.append(section_with_header('Result', result_str, width=header_width))
 
-    return full_info_string
+    if return_list:
+        return parts
+    else:
+        return '\n'.join(parts)
 
 
-def get_record_invalid_arg_string(record, recursive=True,ignore_valid_keys=[]):
+def get_record_invalid_arg_string(record, recursive=True, ignore_valid_keys=(), note_version = 'full'):
     """
     Return a string identifying ig the arguments for this experiment are still valid.
     :return:
     """
+    assert note_version in ('full', 'short')
     experiment_id = record.get_experiment_id()
     if is_experiment_loadable(experiment_id):
         if record.info.has_field(ExpInfoFields.ARGS):
@@ -95,17 +128,18 @@ def get_record_invalid_arg_string(record, recursive=True,ignore_valid_keys=[]):
                     current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
                 last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.items()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
-                notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
-                if "worker_hosts" in notes:
-                    print("Stop")
+                if len(old_args)+len(new_args)==0:
+                    print "WARNING: NEED TO FIX REPORT FOR NEW NESTED ARGS"
+                changestr = "{{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+                notes = ("Change: " if note_version=='full' else "") + changestr
             elif validity is None:
-                notes = "Cannot Determine: Unhashable Args"
+                notes = "Cannot Determine: Unhashable Args" if note_version=='full' else '<Unhashable Args>'
             else:
-                notes = "Yes"
+                notes = "<No Change>"
         else:
-            notes = "Cannot Determine: Inconsistent Experiment Record"
+            notes = "Cannot Determine: Inconsistent Experiment Record" if note_version == 'full' else '<Inconsistent Record>'
     else:
-        notes = "Cannot Determine: Experiment Not Imported"
+        notes = "Cannot Determine: Experiment Not Imported" if note_version=='full' else '<Not Imported>'
     return notes
 
 
@@ -133,8 +167,9 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
 
 
 def display_experiment_record(record):
+    # TODO: Remove..  Call show_record instead
     result = record.get_result(err_if_none=False)
-    display_func = record.get_experiment().display_function
+    display_func = record.get_experiment().show
     if display_func is None:
         print(deepstr(result))
     else:
@@ -142,6 +177,7 @@ def display_experiment_record(record):
 
 
 def compare_experiment_results(experiments, error_if_no_result = False):
+    # TODO: Remove... Call compare_records instead
     comp_functions = [ex.comparison_function for ex in experiments]
     assert all_equal(comp_functions), 'Experiments must have same comparison functions.'
     comp_function = comp_functions[0]
@@ -174,7 +210,7 @@ def print_experiment_record_argtable(records):
         elif column=='Different Args':
             return ', '.join('{}={}'.format(k, v) for k, v in different_args[index])
         elif column=='Result':
-            return results[index]
+            return get_oneline_result_string(records[index])
         else:
             bad_value(column)
 
@@ -187,7 +223,31 @@ def print_experiment_record_argtable(records):
     print(tabulate(rows))
 
 
-def show_experiment_records(records, parallel_text=None, hang_notice = None, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
+def show_record(record, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
+    """
+    Show the results of an experiment record.
+    :param record:
+    :param show_logs:
+    :param truncate_logs:
+    :param truncate_result:
+    :param header_width:
+    :param show_result:
+    :param hang:
+    :return:
+    """
+    string = get_record_full_string(record, show_logs=show_logs, show_result=show_result, truncate_logs=truncate_logs,
+        truncate_result=truncate_result, header_width=header_width, include_bottom_border=False)
+
+    has_matplotlib_figures = any(loc.endswith('.pkl') for loc in record.get_figure_locs())
+    if has_matplotlib_figures:
+        from matplotlib import pyplot as plt
+        from artemis.plotting.saving_plots import interactive_matplotlib_context
+        record.show_figures(hang=hang)
+    print(string)
+
+
+def compare_experiment_records(records, parallel_text=None, show_logs=True, truncate_logs=None,
+        truncate_result=10000, header_width=100, max_linewidth=128, show_result ='deep'):
     """
     Show the console logs, figures, and results of a collection of experiments.
 
@@ -202,36 +262,24 @@ def show_experiment_records(records, parallel_text=None, hang_notice = None, sho
         parallel_text = len(records)>1
     if len(records)==0:
         print('... No records to show ...')
+        return
     else:
-        strings = [get_record_full_string(rec, show_logs=show_logs, show_result=show_result, truncate_logs=truncate_logs,
-                    truncate_result=truncate_result, header_width=header_width, include_bottom_border=False) for rec in records]
-    has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
-    if has_matplotlib_figures:
-        from matplotlib import pyplot as plt
-        from artemis.plotting.saving_plots import interactive_matplotlib_context
-        for rec in records:
-            rec.show_figures(hang=False)
-        if hang_notice is not None:
-            print(hang_notice)
-
-        with interactive_matplotlib_context(not hang):
-            plt.show()
-
-    if any(rec.get_experiment().display_function is not None for rec in records):
-        from artemis.plotting.saving_plots import interactive_matplotlib_context
-        with interactive_matplotlib_context():
-            for i, rec in enumerate(records):
-                with CaptureStdOut(print_to_console=False) as cap:
-                    display_experiment_record(rec)
-                if cap != '':
-                    # strings[i] += '{subborder} Result Display {subborder}\n{out} \n{border}'.format(subborder='-'*20, out=cap.read(), border='='*50)
-                    strings[i] += section_with_header('Result Display', cap.read(), width=header_width, bottom_char='=')
+        records_sections = [get_record_full_string(rec, show_logs=show_logs, show_result=show_result, truncate_logs=truncate_logs,
+                    truncate_result=truncate_result, header_width=header_width, include_bottom_border=False, return_list=True) for rec in records]
 
     if parallel_text:
-        print(side_by_side(strings, max_linewidth=128))
+        full_string = '\n'.join(side_by_side(records_section, max_linewidth=max_linewidth) for records_section in zip(*records_sections))
     else:
-        for string in strings:
-            print(string)
+        full_string = '\n'.join('\n'.join(record_sections) for record_sections in records_sections)
+
+    print(full_string)
+
+    has_matplotlib_figures = any(loc.endswith('.pkl') for rec in records for loc in rec.get_figure_locs())
+    if has_matplotlib_figures:
+        from artemis.plotting.manage_plotting import delay_show
+        with delay_show():
+            for rec in records:
+                rec.show_figures()
 
     return has_matplotlib_figures
 
@@ -310,3 +358,17 @@ def make_record_comparison_table(records, args_to_show=None, results_extractor =
         print(tabulate.tabulate(rows, headers=headers, tablefmt='simple'))
     return headers, rows
 
+
+def separate_common_args(records, return_dict = False):
+    """
+
+    :param records: A List of records
+    :param return_dict: Return the different args as a dict<ExperimentRecord: args>
+    :return: (common, different)
+        Where common is an OrderedDict of common args
+        different is a list (the same lengths of records) of OrderedDicts containing args that are not the same in all records.
+    """
+    common, argdiff = separate_common_items([list(rec.get_args().items()) for rec in records])
+    if return_dict:
+        argdiff = {rec.get_id(): args for rec, args in zip(records, argdiff)}
+    return common, argdiff

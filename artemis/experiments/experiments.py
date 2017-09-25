@@ -1,20 +1,13 @@
 import atexit
 import inspect
-import time
 from collections import OrderedDict
 from contextlib import contextmanager
-from datetime import datetime
 from functools import partial
-from getpass import getuser
-from uuid import getnode
-
 from six import string_types
-
-from artemis.experiments.experiment_record import ARTEMIS_LOGGER, \
-    ExpInfoFields, record_experiment, ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
+from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
+from artemis.experiments.experiment_record import run_and_record
 from artemis.general.functional import infer_derived_arg_values, get_partial_root
-from artemis.general.test_mode import is_test_mode, set_test_mode
 
 
 class Experiment(object):
@@ -23,7 +16,7 @@ class Experiment(object):
     create variants using decorated_function.add_variant()
     """
 
-    def __init__(self, function=None, display_function=None, comparison_function=None, one_liner_function=None,
+    def __init__(self, function=None, show=None, compare=None, one_liner_function=None,
                  name=None, is_root=False):
         """
         :param function: The function defining the experiment
@@ -35,9 +28,9 @@ class Experiment(object):
         """
         self.name = name
         self.function = function
-        self._display_function = display_function
+        self._show = show
         self._one_liner_results = one_liner_function
-        self._comparison_function = comparison_function
+        self._compare = compare
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
@@ -45,16 +38,16 @@ class Experiment(object):
             _register_experiment(self)
 
     @property
-    def display_function(self):
-        return self._display_function
+    def show(self):
+        return self._show
 
     @property
     def one_liner_function(self):
         return self._one_liner_results
 
     @property
-    def comparison_function(self):
-        return self._comparison_function
+    def compare(self):
+        return self._compare
 
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything.  You can also modify with arguments. """
@@ -65,7 +58,7 @@ class Experiment(object):
 
     def get_args(self):
         """
-        :return: A dictionary of arguments to the experiment
+        :return: An OrderedDict of arguments to the experiment
         """
         return infer_derived_arg_values(self.function)
 
@@ -73,7 +66,7 @@ class Experiment(object):
         return get_partial_root(self.function)
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
-            display_results=True, **experiment_record_kwargs):
+            display_results=False, notes = (), **experiment_record_kwargs):
         """
         Run the experiment, and return the ExperimentRecord that is generated.
 
@@ -93,62 +86,22 @@ class Experiment(object):
         :param experiment_record_kwargs: Passed to the "record_experiment" context.
         :return: The ExperimentRecord object, if keep_record is true, otherwise None
         """
-        if test_mode is None:
-            test_mode = is_test_mode()
         if keep_record is None:
             keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode
+        exp_rec = run_and_record(
+            function = self.function,
+            experiment_id=self.name,
+            print_to_console=print_to_console,
+            show_figs=show_figs,
+            test_mode=test_mode,
+            keep_record=keep_record,
+            raise_exceptions=raise_exceptions,
+            notes=notes,
+            **experiment_record_kwargs
+        )
+        if display_results:
+            self.show(exp_rec)
 
-        old_test_mode = is_test_mode()
-        set_test_mode(test_mode)
-        ARTEMIS_LOGGER.info('{border} {mode} Experiment: {name} {border}'.format(border='=' * 10,
-                                                                                 mode="Testing" if test_mode else "Running",
-                                                                                 name=self.name))
-        EIF = ExpInfoFields
-        date = datetime.now()
-        with record_experiment(name=self.name, print_to_console=print_to_console, show_figs=show_figs,
-                use_temp_dir=not keep_record, date=date, **experiment_record_kwargs) as exp_rec:
-            start_time = time.time()
-            try:
-
-                exp_rec.info.set_field(ExpInfoFields.NAME, self.name)
-                exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
-                exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
-                exp_rec.info.set_field(EIF.ARGS, list(self.get_args().items()))
-                root_function = self.get_root_function()
-                exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
-                exp_rec.info.set_field(EIF.TIMESTAMP, str(date))
-                module = inspect.getmodule(root_function)
-                exp_rec.info.set_field(EIF.MODULE, module.__name__)
-                exp_rec.info.set_field(EIF.FILE, module.__file__ if hasattr(module, '__file__') else '<unknown>')
-                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STARTED)
-                exp_rec.info.set_field(EIF.USER, getuser())
-                exp_rec.info.set_field(EIF.MAC, ':'.join(("%012X" % getnode())[i:i+2] for i in range(0, 12, 2)))
-                results = self.function()
-                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.FINISHED)
-            except KeyboardInterrupt:
-                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STOPPED)
-                exp_rec.write_error_trace(print_too=False)
-                raise
-            except Exception:
-                exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.ERROR)
-                exp_rec.write_error_trace(print_too=not raise_exceptions)
-                if raise_exceptions:
-                    raise
-                else:
-                    return exp_rec
-            finally:
-                exp_rec.info.set_field(EIF.RUNTIME, time.time() - start_time)
-                fig_locs = exp_rec.get_figure_locs(include_directory=False)
-                exp_rec.info.set_field(EIF.N_FIGS, len(fig_locs))
-                exp_rec.info.set_field(EIF.FIGS, fig_locs)
-
-        exp_rec.save_result(results)
-        for n in self._notes:
-            exp_rec.info.add_note(n)
-        if display_results and self.display_function is not None:
-            self.display_function(results)
-        ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=self.name))
-        set_test_mode(old_test_mode)
         return exp_rec
 
     def _create_experiment_variant(self, args, kwargs, is_root):
@@ -158,8 +111,8 @@ class Experiment(object):
         ex = Experiment(
             name=self.name + '.' + name,
             function=partial(self.function, **kwargs),
-            display_function=self.display_function,
-            comparison_function=self.comparison_function,
+            show=self._show,
+            compare=self._compare,
             one_liner_function=self.one_liner_function,
             is_root=is_root
         )
@@ -186,6 +139,21 @@ class Experiment(object):
         :return: The experiment.
         """
         return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=False)
+
+    def copy_variants(self, other_experiment):
+        """
+        Copy over the variants from another experiment.
+
+        :param other_experiment: An Experiment Object
+        """
+        base_args = other_experiment.get_args()
+        for variant in other_experiment.get_variants():
+            if variant is not self:
+                variant_args = variant.get_args()
+                different_args = {k: v for k, v in variant_args.items() if base_args[k]!=v}
+                name_diff = variant.get_id()[len(other_experiment.get_id())+1:]
+                v = self.add_variant(name_diff, **different_args)
+                v.copy_variants(variant)
 
     def add_root_variant(self, variant_name=None, **kwargs):
         """
@@ -241,16 +209,17 @@ class Experiment(object):
             records = [record for record in records if record.get_status()==ExpStatusOptions.FINISHED]
         return records
 
-    def browse(self, command=None, catch_errors = False, close_after = False, just_last_record = False,
+    def browse(self, command=None, catch_errors = False, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = False, **kwargs):
+            cache_result_string = False, remove_prefix = None, display_format='nested', **kwargs):
         """
         Open up the UI, which allows you to run experiments and view their results.
 
         :param command: Optionally, a string command to pass directly to the UI.  (e.g. "run 1")
         :param catch_errors: Catch errors that arise while running experiments
         :param close_after: Close after issuing one command.
-        :param just_last_record: Only show the most recent record for each experiment.
+        :param filterexp: Filter the experiments with this selection (see help for how to use)
+        :param filterrec: Filter the experiment records with this selection (see help for how to use)
         :param view_mode: How to view experiments {'full', 'results'} ('results' leads to a narrower display).
         :param raise_display_errors: Raise errors that arise when displaying the table (otherwise just indicate that display failed in table)
         :param run_args: A dict of named arguments to pass on to Experiment.run
@@ -258,11 +227,16 @@ class Experiment(object):
         :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
         :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
             when opening up the menu - often when results are long lists).
+        :param remove_prefix: Remove the common prefix on the experiment ids in the display.
+        :param display_format: How experements and their records are displayed: 'nested' or 'flat'.  'nested' might be
+            better for narrow console outputs.
         """
         from artemis.experiments.ui import browse_experiments
-        browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record,
+        browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after,
+            filterexp=filterexp, filterrec=filterrec,
             view_mode=view_mode, raise_display_errors=raise_display_errors, run_args=run_args, keep_record=keep_record,
-            truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, **kwargs)
+            truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, remove_prefix=remove_prefix,
+            display_format=display_format, **kwargs)
 
     # Above this line is the core api....
     # -----------------------------------
@@ -279,6 +253,9 @@ class Experiment(object):
         if valid:
             records = [record for record in records if record.args_valid()]
         return len(records)>0
+
+    def get_variants(self):
+        return self.variants.values()
 
     def get_all_variants(self, include_roots=False, include_self=True):
         """

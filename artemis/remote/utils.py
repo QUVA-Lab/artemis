@@ -7,7 +7,6 @@ import struct
 import sys
 
 import os
-import paramiko
 from six.moves import input
 
 from artemis.config import get_artemis_config_value
@@ -178,9 +177,8 @@ def get_ssh_connection(ip_address):
     :param ip_address:
     :return:
     '''
-
+    import paramiko
     path_to_private_key = os.path.join(os.path.expanduser("~"),".ssh/id_rsa")
-
     private_key = paramiko.RSAKey.from_private_key_file(os.path.expanduser(path_to_private_key))
     username = get_artemis_config_value(section=ip_address, option="username", default_generator=lambda: getpass.getuser())
     ssh_conn = paramiko.SSHClient()

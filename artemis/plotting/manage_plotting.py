@@ -111,6 +111,8 @@ class ShowContext(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         plt.show = self.old
+        # print exc_type
+        # raise
 
 
 class DrawContext(object):
@@ -149,3 +151,18 @@ def set_draw_callback(callback):
     :param callback:
     """
     plt.draw = callback
+
+
+@contextmanager
+def delay_show():
+    """
+    Delay any calls to plt.show() until the end of this block
+    :return:
+    """
+    has_shown = [False]
+    def show_sub(*args, **kwargs):
+        has_shown[0]=True
+    with ShowContext(show_sub, clear_others=True):
+        yield
+    if has_shown[0]:
+        plt.show()

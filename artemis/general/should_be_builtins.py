@@ -165,6 +165,20 @@ def remove_duplicates(sequence, hashable=True, key=None, keep_last=False):
     return [x for x, is_duplicate in zip(sequence, is_dup) if not is_duplicate]
 
 
+def uniquify_duplicates(sequence_of_strings):
+
+    counts = {}
+    new_strings = []
+    for string in sequence_of_strings:
+        if string in counts:
+            new_strings.append(string+'[{}]'.format(counts[string]))
+            counts[string] += 1
+        else:
+            counts[string]=1
+            new_strings.append(string)
+    return new_strings
+
+
 def detect_duplicates(sequence, hashable=True, key=None, keep_last=False):
     """
     Identify whether each element in a sequence is a duplicate of a previously existing element.
@@ -267,7 +281,7 @@ def check(value, condition, string = ""):
     return value
 
 
-def remove_common_prefix(list_of_lists, max_elements=None):
+def remove_common_prefix(list_of_lists, max_elements=None, keep_base = True):
     """
     Remove common elements starting each list in the list of lists.
 
@@ -279,7 +293,10 @@ def remove_common_prefix(list_of_lists, max_elements=None):
     """
 
     count = 0
-    while max(len(parts) for parts in list_of_lists)>1:
+
+    min_len = 1 if keep_base else 0
+
+    while min(len(parts) for parts in list_of_lists)>min_len:
         if max_elements is not None and count >= max_elements:
             break
 
@@ -334,6 +351,38 @@ def file_path_to_absolute_module(file_path):
 
 def assert_option(choice, possiblilties):
     assert choice in possiblilties, '"{}" was not in the list of possible choices: {}'.format(choice, possiblilties)
+
+
+def insert_at(list1, list2, indices):
+    """
+    Create a new list by insert elements from list 2 into list 1 at the given indices.
+    (Note: this leaves list1 and list2 unchanged, unlike list.insert)
+    :param list1: A list
+    :param list2: Another list
+    :param indices: The indices of list1 into which elements from list2 will be inserted.
+    :return: A new list with len(list1)+len(list2) elements.
+    """
+    list3 = []
+    assert len(list2)==len(indices), 'List 2 has {} elements, but you provided {} indices.  They should have equal length'.format(len(list2), len(indices))
+    index_iterator = iter(sorted(indices))
+    list_2_iter = iter(list2)
+    next_ix = next(index_iterator)
+
+    iter_stopped = False
+    for i in xrange(len(list1)+1):
+        while i == next_ix:
+            list3.append(next(list_2_iter))
+            try:
+                next_ix = next(index_iterator)
+            except StopIteration:
+                next_ix = None
+                iter_stopped = True
+        if i<len(list1):
+            list3.append(list1[i])
+
+    assert iter_stopped, 'Not all elements from list 2 got used!'
+    return list3
+
 
 try:
     from contextlib import nested  # Python 2

@@ -98,6 +98,24 @@ def test_get_leaf_values():
     assert get_leaf_values([6]+[{'x': 3, 'y': [i, 'aaa']} for i in xrange(4)]) == [6, 3, 0, 'aaa', 3, 1, 'aaa', 3, 2, 'aaa', 3, 3, 'aaa']
 
 
+def test_nested_map_with_container_func():
+
+    data = {'a': [1, 2, 3], 'b': [3, 4, 5]}
+    result = nested_map(lambda x: np.array(x), data, is_container_func=lambda x: isinstance(x, dict))
+    assert isinstance(result['a'], np.ndarray)
+    assert np.array_equal(result['a'], [1, 2, 3])
+    assert isinstance(result['b'], np.ndarray)
+    assert np.array_equal(result['b'], [3, 4, 5])
+
+
+def test_none_bug():
+
+    a = {'a': 1, 'b': None, 'c': [1, 2, None]}
+
+    fa = flatten_struct(a, first_dict_is_namespace=True)
+    assert dict(fa) == {'a': 1, 'b': None, 'c[0]': 1, 'c[1]': 2, 'c[2]': None}
+
+
 if __name__ == '__main__':
     test_flatten_struct()
     test_get_meta_object()
@@ -105,3 +123,5 @@ if __name__ == '__main__':
     test_seqstruct_to_structseq_and_inverse()
     test_nested_map()
     test_get_leaf_values()
+    test_nested_map_with_container_func()
+    test_none_bug()

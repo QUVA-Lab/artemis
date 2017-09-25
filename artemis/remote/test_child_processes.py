@@ -149,12 +149,12 @@ def test_remote_python_process():
 
 
 if __name__ == "__main__":
-    test_simple_pcp()
-    test_simple_pcp_list()
-    test_interrupt_process_gently()
-    test_kill_process_gently()
-    test_kill_process_strongly()
-    test_remote_graphics()
-    test_remote_child_function()
+    # test_simple_pcp()
+    # test_simple_pcp_list()
+    # test_interrupt_process_gently()
+    # test_kill_process_gently()
+    # test_kill_process_strongly()
+    # test_remote_graphics()
+    # test_remote_child_function()
     test_remote_python_process()
     print("Tests finished")
