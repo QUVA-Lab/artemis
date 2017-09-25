@@ -602,7 +602,7 @@ def _get_record_rows_cached(record_id, headers, raise_display_errors, truncate_t
     :param headers:
     :return:
     """
-    cache_key = compute_fixed_hash(record_id, headers)
+    cache_key = compute_fixed_hash((record_id, [h.value for h in headers], truncate_to))
     path = get_artemis_data_path(os.path.join('_ui_cache', cache_key), make_local_dir=True)
     if os.path.exists(path):
         try:

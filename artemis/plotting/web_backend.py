@@ -1,5 +1,4 @@
 import time
-import thread
 from six.moves import _thread as thread
 from six.moves import SimpleHTTPServer, socketserver
 from artemis.fileman.local_dir import get_artemis_data_path
