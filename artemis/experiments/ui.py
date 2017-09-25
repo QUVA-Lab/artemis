@@ -377,7 +377,7 @@ experiment records.  You can specify records in the following ways:
         parser = argparse.ArgumentParser()
         parser.add_argument('user_range', action='store', help='A selection of experiments to run.  Examples: "3" or "3-5", or "3,4,5"')
         parser.add_argument('-p', '--parallel', default=False, action = "store_true")
-        parser.add_argument('-np', '--n_processes')
+        parser.add_argument('-np', '--n_processes', default=1, type=int)
         parser.add_argument('-n', '--note')
         parser.add_argument('-e', '--raise_errors', default=False, action = "store_true")
         parser.add_argument('-d', '--display_results', default=False, action = "store_true")
