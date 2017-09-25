@@ -341,7 +341,7 @@ class SlurmPythonProcess(RemotePythonProcess):
         '''
 
         slurm_command = "srun"
-        for k,v in self.slurm_kwargs.iteritems():
+        for k,v in self.slurm_kwargs.items():
             if k.startswith("--"):
                 slurm_command += " %s=%s"%(k,v)
             elif k.startswith("-"):
