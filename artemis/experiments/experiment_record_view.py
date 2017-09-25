@@ -128,9 +128,8 @@ def get_record_invalid_arg_string(record, recursive=True, note_version = 'full')
                     current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
                 last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.items()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
-
                 if len(old_args)+len(new_args)==0:
-                    print "WARNING: NEED TO FIX REPORT FOR NEW NESTED ARGS"
+                    raise Exception('Error displaying different args.  Bug Peter.')
                 changestr = "{{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
                 notes = ("Change: " if note_version=='full' else "") + changestr
             elif validity is None:
