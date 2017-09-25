@@ -4,6 +4,7 @@ from artemis.experiments.experiment_record_view import display_experiment_record
     get_oneline_result_string, print_experiment_record_argtable, compare_experiment_records, get_record_invalid_arg_string
 from artemis.experiments.experiments import experiment_testing_context, clear_all_experiments
 from artemis.general.display import CaptureStdOut, assert_things_are_printed
+from artemis.general.profile import what_are_we_waiting_for
 
 
 def display_it(result):
@@ -198,10 +199,28 @@ def test_view_modes():
             my_simdfsffsdfsfs.browse(view_mode=view_mode, command = 'q')
 
 
+# def test_display_caching():
+
+@experiment_function
+def my_viwjbthn(a=1):
+    print('xxxxx')
+    print('yyyyy')
+    return a+2
+
+for a in range(50):
+    my_viwjbthn.add_variant(a=a)#.run()
+
+what_are_we_waiting_for('my_viwjbthn.browse(cache_result_string=True, command="q")', sort_by='cumtime')
+
+
+
+
 if __name__ == '__main__':
-    test_experiments_function_additions()
-    test_experiment_function_ui()
-    test_invalid_arg_text()
-    test_invalid_arg_text_when_object_arg()
-    test_simple_experiment_show()
-    test_view_modes()
+    pass
+    # test_experiments_function_additions()
+    # test_experiment_function_ui()
+    # test_invalid_arg_text()
+    # test_invalid_arg_text_when_object_arg()
+    # test_simple_experiment_show()
+    # test_view_modes()
+    # test_display_caching()
