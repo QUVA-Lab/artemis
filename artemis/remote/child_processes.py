@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import Queue
+from six.moves import queue
 import atexit
 import base64
 import inspect
@@ -282,7 +282,7 @@ def listen_on_port(port=7000):
     '''
     sock, port = get_socket("0.0.0.0", port=port)
     sock.listen(1)
-    main_input_queue = Queue.Queue()
+    main_input_queue = queue.Queue()
     t = threading.Thread(target=handle_socket_accepts,args=(sock, main_input_queue, None,1))
     t.setDaemon(True)
     t.start()
