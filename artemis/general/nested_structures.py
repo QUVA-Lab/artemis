@@ -8,7 +8,7 @@ from six import string_types, next
 
 __author__ = 'peter'
 
-_immutible_types = (int, float, basestring, bool, NoneType)
+_immutible_types = (int, float, bool, NoneType)+string_types
 
 
 def flatten_struct(struct, primatives = (int, float, np.ndarray, NoneType, bool)+string_types, custom_handlers = {},
