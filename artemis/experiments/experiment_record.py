@@ -348,8 +348,11 @@ def hold_current_experiment_record(experiment_record):
     _CURRENT_EXPERIMENT_RECORD = experiment_record
     try:
         yield
+    except Exception as err:
+        raise err
     finally:
         _CURRENT_EXPERIMENT_RECORD = None
+
 
 
 def is_matplotlib_imported():
