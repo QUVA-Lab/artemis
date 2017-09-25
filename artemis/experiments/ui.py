@@ -1,30 +1,17 @@
 import shlex
 from collections import OrderedDict
-# <<<<<<< HEAD
 import re
 from tabulate import tabulate
+from six.moves import input
 
 from artemis.experiments.experiment_management import pull_experiments, select_experiments, select_experiment_records, \
-    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments, get_experient_to_record_dict, run_multiple_experiments_with_slurm, \
-    _filter_experiment_record_list
+    select_experiment_records_from_list, interpret_numbers, run_multiple_experiments, get_experient_to_record_dict, run_multiple_experiments_with_slurm
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
-    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields
+    load_experiment_record, ExpInfoFields
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
     display_experiment_record
-# =======
-# from six.moves import input
-#
-# from tabulate import tabulate
-#
-# from artemis.experiments.experiment_management import (pull_experiments, select_experiments, select_experiment_records,
-#     select_experiment_records_from_list, interpret_numbers, run_multiple_experiments)
-# from artemis.experiments.experiment_record import (get_all_record_ids, clear_experiment_records,
-#     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields)
-# from artemis.experiments.experiment_record_view import (get_record_full_string, get_record_invalid_arg_string,
-#     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string,
-#     display_experiment_record)
-# >>>>>>> master
+
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.disk_memoize import memoize_to_disk_with_settings
 from artemis.general.display import IndentPrint, side_by_side
