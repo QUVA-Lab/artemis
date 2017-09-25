@@ -120,9 +120,6 @@ def get_record_invalid_arg_string(record, recursive=True, note_version = 'full')
         if record.info.has_field(ExpInfoFields.ARGS):
             last_run_args = record.get_args()
             current_args = record.get_experiment().get_args()
-
-            old_last_run_args, old_current_args = last_run_args, current_args
-
             validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
                 if recursive:
@@ -134,7 +131,7 @@ def get_record_invalid_arg_string(record, recursive=True, note_version = 'full')
                 if len(old_args)+len(new_args)==0:
                     print "WARNING: NEED TO FIX REPORT FOR NEW NESTED ARGS"
                 changestr = "{{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
-                notes = ("Args changed!: " if note_version=='full' else "") + changestr
+                notes = ("Change: " if note_version=='full' else "") + changestr
             elif validity is None:
                 notes = "Cannot Determine: Unhashable Args" if note_version=='full' else '<Unhashable Args>'
             else:
@@ -172,7 +169,7 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
 def display_experiment_record(record):
     # TODO: Remove..  Call show_record instead
     result = record.get_result(err_if_none=False)
-    display_func = record.get_experiment().display_function
+    display_func = record.get_experiment().show
     if display_func is None:
         print(deepstr(result))
     else:

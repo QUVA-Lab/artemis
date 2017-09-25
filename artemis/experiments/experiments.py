@@ -64,7 +64,7 @@ class Experiment(object):
         return get_partial_chain(self.function)[0]
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
-            display_results=True, notes = (), **experiment_record_kwargs):
+            display_results=False, notes = (), **experiment_record_kwargs):
         """
         Run the experiment, and return the ExperimentRecord that is generated.
 

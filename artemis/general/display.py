@@ -113,7 +113,7 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
         else:
             raise Exception('Should never be here')
 
-        max_indent = max(len(k) for k in keys)
+        max_indent = max(len(k) for k in keys) if len(keys)>0 else 0
 
         elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
         string_desc = '<{type} at {id}>\n'.format(type = type(obj).__name__, id=hex(id(obj))) + indent_string('\n'.join(elements), indent=indent)
@@ -258,7 +258,7 @@ def side_by_side(multiline_strings, gap=4, max_linewidth=None):
     if all(len(lines)==0 for lines in lineses):  # All strings are empty
         return ''
 
-    longests = [max(len(line) for line in lines) for lines in lineses]
+    longests = [max(len(line) for line in lines) if len(lines)>0 else 0 for lines in lineses]
 
     spacer = ' '*gap
     new_lines = []

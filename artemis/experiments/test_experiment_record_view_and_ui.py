@@ -53,11 +53,11 @@ def test_experiments_function_additions():
         assert get_oneline_result_string(my_xxxyyy_test_experiment.get_variant(b=17).get_latest_record()) == '<No result has been saved>'
 
         with CaptureStdOut() as cap:
-            display_experiment_record(my_xxxyyy_test_experiment.get_latest_record())
+            my_xxxyyy_test_experiment.show(my_xxxyyy_test_experiment.get_latest_record())
         assert cap.read() == '3aaa\n'
 
         with CaptureStdOut() as cap:
-            compare_experiment_results([my_xxxyyy_test_experiment, my_xxxyyy_test_experiment.get_variant('a2'), my_xxxyyy_test_experiment.get_variant(b=17)])
+            my_xxxyyy_test_experiment.compare([r1, r2])
         assert cap.read() == 'my_xxxyyy_test_experiment: 3, my_xxxyyy_test_experiment.a2: 4\n'
 
         print('='*100+'\n ARGTABLE \n'+'='*100)
@@ -85,16 +85,16 @@ def test_experiment_function_ui():
             my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
 
         with assert_things_are_printed(min_len=600, things=['my_xxxyyy_test_experiment: 3', 'my_xxxyyy_test_experiment.a2: 4']):
-            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='compare all', close_after=True)
+            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='compare all -r', close_after=True)
 
-        with assert_things_are_printed(things = ['Results', 'my_xxxyyy_test_experiment.a2'], min_len=800):
-            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='display all', close_after=True)
+        with assert_things_are_printed(min_len=1300, things=['Result', 'Logs', 'Ran Succesfully', 'Traceback']):
+            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all -o', close_after=True)
 
-        with assert_things_are_printed(min_len=10000, things=['3aaa', '4aaa', 'Result', 'Logs', 'Ran Succesfully', 'Traceback']):
-            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all', close_after=True)
+        with assert_things_are_printed(min_len=1300, things=['3aaa', '4aaa']):
+            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all -r', close_after=True)
 
-        with assert_things_are_printed(min_len=1700, things=['3aaa', 'Result', 'Logs', 'Ran Succesfully']):
-            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show 0', close_after=True)
+        with assert_things_are_printed(min_len=1700, things=['Result', 'Logs', 'Ran Succesfully']):
+            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show 0 -o', close_after=True)
 
 
 def test_invalid_arg_text():
@@ -106,21 +106,21 @@ def test_invalid_arg_text():
             return a+b['c']+b['d']
 
         record = my_invalid_arg_test.run()
-        assert get_record_invalid_arg_string(record, recursive=True) == 'Yes'
+        assert get_record_invalid_arg_string(record, recursive=True) == '<No Change>'
         clear_all_experiments()
 
         @experiment_function
         def my_invalid_arg_test(a=2, b={'c': 3, 'd': 4}):
             return a+b['c']+b['d']
 
-        assert get_record_invalid_arg_string(record, recursive=True) == 'No: Args changed!: {a:1}->{a:2}'
+        assert get_record_invalid_arg_string(record, recursive=True) == 'Change: {a:1}->{a:2}'
         clear_all_experiments()
 
         @experiment_function
         def my_invalid_arg_test(a=2, b={'c': 3, 'd': 2}):
             return a+b['c']+b['d']
 
-        assert get_record_invalid_arg_string(record, recursive=True) == "No: Args changed!: {a:1,b['d']:4}->{a:2,b['d']:2}"
+        assert get_record_invalid_arg_string(record, recursive=True) == "Change: {a:1,b['d']:4}->{a:2,b['d']:2}"
 
 
 class MyArgumentObject(object):
@@ -140,7 +140,7 @@ def test_invalid_arg_text_when_object_arg():
         record = my_unhashable_arg_test.run()
         assert record.get_result() == 5
 
-        assert get_record_invalid_arg_string(record, recursive=True) == 'Yes'
+        assert get_record_invalid_arg_string(record, recursive=True) == '<No Change>'
 
         # ---------------------
         clear_all_experiments()
@@ -149,7 +149,7 @@ def test_invalid_arg_text_when_object_arg():
         def my_unhashable_arg_test(a=MyArgumentObject(a=3)):
             return a.a+2
 
-        assert get_record_invalid_arg_string(record, recursive=True) == 'Yes'
+        assert get_record_invalid_arg_string(record, recursive=True) == '<No Change>'
 
         # ---------------------
         clear_all_experiments()
@@ -158,7 +158,7 @@ def test_invalid_arg_text_when_object_arg():
         def my_unhashable_arg_test(a=MyArgumentObject(a=4)):
             return a.a+2
 
-        assert get_record_invalid_arg_string(record, recursive=True) == 'No: Args changed!: {a.a:3}->{a.a:4}'
+        assert get_record_invalid_arg_string(record, recursive=True) == 'Change: {a.a:3}->{a.a:4}'
 
 
 def test_simple_experiment_show():

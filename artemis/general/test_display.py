@@ -91,6 +91,10 @@ def test_deepstr():
     obj['c'] = obj['bbbb']
     string_desc = deepstr(obj)
     print(string_desc)
+
+    obj = {}
+    string_desc = deepstr(obj)
+    print(string_desc)
     # For now, no assertions, because string contains IDS which will always change.  We can come up with some way to do this later with regular experessions if needed.
 
 

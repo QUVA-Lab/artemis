@@ -13,7 +13,7 @@ from artemis.experiments.experiment_management import pull_experiments, select_e
 from artemis.experiments.experiment_record import get_all_record_ids, clear_experiment_records, \
     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields, is_matplotlib_imported, ExpStatusOptions
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
-    print_experiment_record_argtable, compare_experiment_records, get_oneline_result_string
+    print_experiment_record_argtable, compare_experiment_records, get_oneline_result_string, show_record
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header
@@ -267,7 +267,10 @@ experiment records.  You can specify records in the following ways:
                         min_distance = min(edit_distances)
                         closest = func_dict.keys()[edit_distances.index(min_distance)]
                         suggestion = ' Did you mean "{}"?.  '.format(closest) if min_distance<=2 else ''
-                        response = raw_input('Unrecognised command: "{}". {}Type "h" for help or Enter to continue. >'.format(cmd, suggestion, closest))
+                        if self.close_after:
+                            raise Exception('Unrecognised command: "{}"'.format(cmd))
+                        else:
+                            response = raw_input('Unrecognised command: "{}". {}Type "h" for help or Enter to continue. >'.format(cmd, suggestion, closest))
                         if response.lower()=='h':
                             self.help()
                         out = None
@@ -399,18 +402,29 @@ experiment records.  You can specify records in the following ways:
         parser = argparse.ArgumentParser()
         parser.add_argument('user_range', action='store', help='A selection of experiment records to show. ')
         parser.add_argument('-l', action='store_true', help='Just select the last record from the list of experiments.')
+        parser.add_argument('-r', '--results', default=False, action = "store_true", help="Only show records with results.")
+        parser.add_argument('-o', '--original', default=False, action = "store_true", help="Use the original default show function: show_record")
         args = parser.parse_args(args)
         try:
             records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
+            if args.results:
+                records = [rec for rec in records if rec.has_result()]
+
             if is_matplotlib_imported():
                 with delay_show():
                     for rec in records:
                         exp = rec.get_experiment()
-                        exp.show(rec)
+                        if args.original:
+                            show_record(rec)
+                        else:
+                            exp.show(rec)
             else:
                 for rec in records:
                     exp = rec.get_experiment()
-                    exp.show(rec)
+                    if args.original:
+                        show_record(rec)
+                    else:
+                        exp.show(rec)
         except RecordSelectionError as err:
             print('FAILED!: {}'.format(str(err)))
         _warn_with_prompt(use_prompt=not self.close_after)
@@ -419,9 +433,11 @@ experiment records.  You can specify records in the following ways:
         parser = argparse.ArgumentParser()
         parser.add_argument('user_range', action='store', help='A selection of experiment records to compare.  Examples: "3" or "3-5", or "3,4,5"')
         parser.add_argument('-l', '--last', default=False, action = "store_true", help="Use this flag if you want to select Experiments instead of Experiment Records, and just show the last completed.")
+        parser.add_argument('-r', '--results', default=False, action = "store_true", help="Only compare records with results.")
         args = parser.parse_args(args)
 
         user_range = args.user_range if not args.last else args.user_range + '>finished>last'
+
 
 
         # if args.last:
@@ -434,6 +450,9 @@ experiment records.  You can specify records in the following ways:
 
         # records = select_last_record_of_experiments(user_range = user_range, exp_record_dict=self.exp_record_dict) if args.last else \
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+
+        if args.results:
+            records = [rec for rec in records if rec.has_result()]
 
         compare_funcs = [rec.get_experiment().compare for rec in records]
         assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
