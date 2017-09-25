@@ -314,9 +314,9 @@ experiment records.  You can specify records in the following ways:
         def remove_notes_if_no_notes(_record_rows):
             notes_column_index = headers.index(ExpRecordDisplayFields.NOTES) if ExpRecordDisplayFields.NOTES in headers else None
             # Remove the notes column if there are no notes!
-            if notes_column_index is not None and all(row[notes_column_index+1]=='' for row in _record_rows):
+            if notes_column_index is not None and all(row[notes_column_index]=='' for row in _record_rows):
                 for row in _record_rows:
-                    del row[notes_column_index+1]
+                    del row[notes_column_index]
 
         if self.display_format=='nested':
 
@@ -646,7 +646,7 @@ def _get_record_rows_cached(record_id, headers, raise_display_errors, truncate_t
     :param headers:
     :return:
     """
-    cache_key = compute_fixed_hash((record_id, headers, truncate_to, ignore_valid_keys))
+    cache_key = compute_fixed_hash((record_id, [h.value for h in headers], truncate_to, ignore_valid_keys))
     path = get_artemis_data_path(os.path.join('_ui_cache', cache_key), make_local_dir=True)
     if os.path.exists(path):
         try:
