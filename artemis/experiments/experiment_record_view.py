@@ -86,9 +86,9 @@ def get_record_invalid_arg_string(record, recursive=True,ignore_valid_keys=[]):
     experiment_id = record.get_experiment_id()
     if is_experiment_loadable(experiment_id):
         if record.info.has_field(ExpInfoFields.ARGS):
-            last_run_args = record.get_args()
-            current_args = record.get_experiment().get_args()
-            validity = record.args_valid(last_run_args=last_run_args, current_args=current_args, ignore_valid_keys=ignore_valid_keys)
+            last_run_args = OrderedDict([(k,v) for k,v in record.get_args().items() if k not in ignore_valid_keys])
+            current_args = OrderedDict([(k,v) for k,v in record.get_experiment().get_args().items() if k not in ignore_valid_keys])
+            validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
                 if recursive:
                     last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
@@ -96,6 +96,8 @@ def get_record_invalid_arg_string(record, recursive=True,ignore_valid_keys=[]):
                 last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.items()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
                 notes = "No: Args changed!: {{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+                if "worker_hosts" in notes:
+                    print("Stop")
             elif validity is None:
                 notes = "Cannot Determine: Unhashable Args"
             else:

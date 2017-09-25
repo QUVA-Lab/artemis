@@ -302,7 +302,7 @@ class ExperimentRecord(object):
         """
         shutil.rmtree(self._experiment_directory)
 
-    def args_valid(self, last_run_args=None, current_args=None, ignore_valid_keys=[]):
+    def args_valid(self, last_run_args=None, current_args=None):
         """
         :return: True if the experiment arguments have not changed
             False if they have changed
@@ -312,8 +312,6 @@ class ExperimentRecord(object):
             last_run_args = dict(self.info.get_field(ExpInfoFields.ARGS))
         if current_args is None:
             current_args = dict(self.get_experiment().get_args())
-        last_run_args = {k:v for k,v in last_run_args.items() if k not in ignore_valid_keys}
-        current_args = {k:v for k,v in current_args.items() if k not in ignore_valid_keys}
         try:
             return compute_fixed_hash(last_run_args, try_objects=True) == compute_fixed_hash(current_args, try_objects=True)
         except NotImplementedError:  # Happens when we have unhashable arguments
