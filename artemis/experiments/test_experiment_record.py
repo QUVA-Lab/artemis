@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import pytest
+from six.moves import xrange
 
 from artemis.experiments.decorators import experiment_function
 from artemis.experiments.deprecated import start_experiment, end_current_experiment
@@ -297,7 +298,7 @@ def test_parallel_run_errors():
             run_multiple_experiments(variants, parallel=True, raise_exceptions=True)
         print("^^^ Dont't worry, the above is not actually an error, we were just asserting that we caught the error.")
 
-        assert err.value.message == 'nononono'
+        assert str(err.value) == 'nononono'
 
 
 def test_invalid_arg_detection():
@@ -416,12 +417,12 @@ def test_current_experiment_access_functions():
             assert os.path.isdir(loc)
             assert loc.endswith(record_id)
 
-            with open_in_record_dir('somefile.pkl', 'w') as f:
+            with open_in_record_dir('somefile.pkl', 'wb') as f:
                 pickle.dump([1, 2, 3], f, protocol=pickle.HIGHEST_PROTOCOL)
 
             assert os.path.exists(os.path.join(loc, 'somefile.pkl'))
 
-            with open_in_record_dir('somefile.pkl') as f:
+            with open_in_record_dir('somefile.pkl', 'rb') as f:
                 assert pickle.load(f) == [1, 2, 3]
 
             exp = rec.get_experiment()

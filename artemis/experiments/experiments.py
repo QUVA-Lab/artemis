@@ -7,10 +7,13 @@ from datetime import datetime
 from functools import partial
 from getpass import getuser
 from uuid import getnode
+
+from six import string_types
+
 from artemis.experiments.experiment_record import ARTEMIS_LOGGER, \
     ExpInfoFields, record_experiment, ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
-from artemis.general.functional import infer_derived_arg_values, get_partial_chain
+from artemis.general.functional import infer_derived_arg_values, get_partial_root
 from artemis.general.test_mode import is_test_mode, set_test_mode
 
 
@@ -67,7 +70,7 @@ class Experiment(object):
         return infer_derived_arg_values(self.function)
 
     def get_root_function(self):
-        return get_partial_chain(self.function)[0]
+        return get_partial_root(self.function)
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
             display_results=True, **experiment_record_kwargs):
@@ -110,7 +113,7 @@ class Experiment(object):
                 exp_rec.info.set_field(ExpInfoFields.NAME, self.name)
                 exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
                 exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
-                exp_rec.info.set_field(EIF.ARGS, self.get_args().items())
+                exp_rec.info.set_field(EIF.ARGS, list(self.get_args().items()))
                 root_function = self.get_root_function()
                 exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
                 exp_rec.info.set_field(EIF.TIMESTAMP, str(date))
@@ -287,7 +290,7 @@ class Experiment(object):
         variants = []
         if include_self and (not self.is_root or include_roots):
             variants.append(self)
-        for name, v in self.variants.iteritems():
+        for name, v in self.variants.items():
             variants += v.get_all_variants(include_roots=include_roots, include_self=True)
         return variants
 
@@ -395,7 +398,7 @@ def load_experiment(experiment_id):
 
 
 def is_experiment_loadable(experiment_id):
-    assert isinstance(experiment_id, basestring), 'Expected a string for experiment_id, not {}'.format(experiment_id)
+    assert isinstance(experiment_id, string_types), 'Expected a string for experiment_id, not {}'.format(experiment_id)
     return experiment_id in _GLOBAL_EXPERIMENT_LIBRARY
 
 

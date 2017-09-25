@@ -1,5 +1,6 @@
 import shlex
 from collections import OrderedDict
+# <<<<<<< HEAD
 import re
 from tabulate import tabulate
 
@@ -11,6 +12,19 @@ from artemis.experiments.experiment_record import get_all_record_ids, clear_expe
 from artemis.experiments.experiment_record_view import get_record_full_string, get_record_invalid_arg_string, \
     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string, \
     display_experiment_record
+# =======
+# from six.moves import input
+#
+# from tabulate import tabulate
+#
+# from artemis.experiments.experiment_management import (pull_experiments, select_experiments, select_experiment_records,
+#     select_experiment_records_from_list, interpret_numbers, run_multiple_experiments)
+# from artemis.experiments.experiment_record import (get_all_record_ids, clear_experiment_records,
+#     experiment_id_to_record_ids, load_experiment_record, ExpInfoFields)
+# from artemis.experiments.experiment_record_view import (get_record_full_string, get_record_invalid_arg_string,
+#     print_experiment_record_argtable, compare_experiment_results, show_experiment_records, get_oneline_result_string,
+#     display_experiment_record)
+# >>>>>>> master
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.disk_memoize import memoize_to_disk_with_settings
 from artemis.general.display import IndentPrint, side_by_side
@@ -18,17 +32,17 @@ from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal
 
 try:
-    import readline  # Makes raw_input behave like interactive shell.
+    import readline  # Makes input() behave like interactive shell.
     # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
 except:
     pass  # readline not available
 
 
 def _warn_with_prompt(message= None, prompt = 'Press Enter to continue or q then Enter to quit', use_prompt=True):
-    if message is not None:
+    if message:
         print(message)
     if use_prompt:
-        out = raw_input('({}) >> '.format(prompt))
+        out = input('({}) >> '.format(prompt)).strip().lower()
         if out=='q':
             quit()
         else:
@@ -211,30 +225,16 @@ experiment records.  You can specify records in the following ways:
             all_experiments = self.reload_record_dict()
 
             print("==================== Experiments ====================")
-
-            if self._filter is None:
-                self.exp_record_dict = all_experiments
-            elif self._filter.startswith('rec:'):
-                # Not yet there all the way.
-                filtered_records = _filter_experiment_record_list(user_range=self._filter[4:], experiment_record_ids=get_all_record_ids(all_experiments))
-                self.exp_record_dict = OrderedDict((exp_name, [name for name, isin in zip(all_experiments[exp_name], filtered_records[exp_name]) if isin]) for exp_name in all_experiments)
-                # subselecet records
-            else:
-                self.exp_record_dict = OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
-
-            # self.exp_record_dict = all_experiments if self._filter is None else \
-            #     all_experiments if self._filter.startswith('rec:') else \
-            #     OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
-
-
+            self.exp_record_dict = all_experiments if self._filter is None else \
+                OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
             print(self.get_experiment_list_str(self.exp_record_dict))
             if self._filter is not None:
                 print('[Filtered with "{}" to show {}/{} experiments]'.format(self._filter, len(self.exp_record_dict), len(all_experiments)))
             print('-----------------------------------------------------')
             if command is None:
-                user_input = raw_input('Enter command or experiment # to run (h for help) >> ').lstrip(' ').rstrip(' ')
+                user_input = input('Enter command or experiment # to run (h for help) >> ').strip()
             else:
-                user_input=command
+                user_input = command
                 command = None
             with IndentPrint():
                 try:
@@ -259,16 +259,16 @@ experiment records.  You can specify records in the following ways:
                         min_distance = min(edit_distances)
                         closest = func_dict.keys()[edit_distances.index(min_distance)]
                         suggestion = ' Did you mean "{}"?.  '.format(closest) if min_distance<=2 else ''
-                        response = raw_input('Unrecognised command: "{}". {}Type "h" for help or Enter to continue. >'.format(cmd, suggestion, closest))
-                        if response.lower()=='h':
+                        response = input('Unrecognised command: "{}". {}Type "h" for help or Enter to continue. >'.format(cmd, suggestion, closest))
+                        if response.strip().lower()=='h':
                             self.help()
                         out = None
                     if out is self.QUIT or self.close_after:
                         break
                 except Exception as name:
                     if self.catch_errors:
-                        res = raw_input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (name.__class__.__name__, name.message))
-                        if res == 'e':
+                        res = input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (name.__class__.__name__, name.message))
+                        if res.strip().lower() == 'e':
                             raise
                     else:
                         raise
@@ -302,7 +302,7 @@ experiment records.  You can specify records in the following ways:
                     raise
                 return '<Display Error>'
 
-        for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
+        for i, (exp_id, record_ids) in enumerate(exp_record_dict.items()):
             if len(record_ids)==0:
                 if exp_id in exp_record_dict:
                     rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-4))
@@ -399,8 +399,8 @@ experiment records.  You can specify records in the following ways:
         print('{} out of {} Records will be deleted.'.format(len(records), sum(len(recs) for recs in self.exp_record_dict.values())))
         with IndentPrint():
             print(ExperimentRecordBrowser.get_record_table(records, ))
-        response = raw_input('Type "yes" to continue. >')
-        if response.lower() == 'yes':
+        response = input('Type "yes" to continue. >').strip().lower()
+        if response == 'yes':
             clear_experiment_records([record.get_id() for record in records])
             print('Records deleted.')
         else:
@@ -568,7 +568,7 @@ class ExperimentRecordBrowser(object):
 
             if self.experiment_names is not None or len(self.filters) != 0:
                 print('Not showing all experiments.  Type "showall" to see all experiments, or "viewfilters" to view current filters.')
-            user_input = raw_input('Enter Command (show # to show and experiment, or h for help) >>')
+            user_input = input('Enter Command (show # to show and experiment, or h for help) >>').strip()
             parts = shlex.split(user_input)
             if len(parts)==0:
                 print("You need to specify an command.  Press h for help.")
@@ -584,8 +584,8 @@ class ExperimentRecordBrowser(object):
                     if return_val==self.QUIT:
                         break
             except Exception as e:
-                res = raw_input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (e.__class__.__name__, e.message))
-                if res == 'e':
+                res = input('%s: %s\nEnter "e" to view the stacktrace, or anything else to continue.' % (e.__class__.__name__, e.message))
+                if res.strip().lower() == 'e':
                     raise
 
     def _select_records(self, user_range):
@@ -635,8 +635,8 @@ class ExperimentRecordBrowser(object):
         ids = self._select_records(user_range)
         print('We will delete the following experiments:')
         print(self.get_record_table(ids))
-        conf = raw_input("Going to clear {} of {} experiment records shown above.  Enter 'yes' to confirm: ".format(len(ids), len(self.record_ids)))
-        if conf=='yes':
+        conf = input("Going to clear {} of {} experiment records shown above.  Enter 'yes' to confirm: ".format(len(ids), len(self.record_ids)))
+        if conf.strip().lower() == 'yes':
             clear_experiment_records(ids=ids)
         else:
             _warn_with_prompt("Did not delete experiments")

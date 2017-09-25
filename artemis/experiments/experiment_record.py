@@ -7,7 +7,7 @@ import sys
 import tempfile
 import traceback
 from collections import OrderedDict
-from contextlib import contextmanager, nested
+from contextlib import contextmanager
 from datetime import datetime
 
 from artemis.config import get_artemis_config_value
@@ -15,6 +15,7 @@ from artemis.fileman.local_dir import format_filename, make_file_dir, get_artemi
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
 from artemis.general.hashing import compute_fixed_hash
+from artemis.general.should_be_builtins import nested
 from artemis.general.test_mode import is_test_mode
 
 try:
@@ -101,10 +102,10 @@ class ExperimentRecordInfo(object):
     def get_text(self):
         if ExpInfoFields.VERSION not in self.persistent_obj:  # Old version... we must adapt
             return '\n'.join(
-                '{}: {}'.format(key, self.get_field_text(key)) for key, value in self.persistent_obj.iteritems())
+                '{}: {}'.format(key, self.get_field_text(key)) for key, value in self.persistent_obj.items())
         else:
             return '\n'.join(
-                '{}: {}'.format(key.value, self.get_field_text(key)) for key, value in self.persistent_obj.iteritems())
+                '{}: {}'.format(key.value, self.get_field_text(key)) for key, value in self.persistent_obj.items())
 
     def get_field_text(self, field, replacement_if_none=''):
         assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
@@ -228,7 +229,7 @@ class ExperimentRecord(object):
         """
         result_loc = os.path.join(self._experiment_directory, 'result.pkl')
         if os.path.exists(result_loc):
-            with open(result_loc) as f:
+            with open(result_loc, 'rb') as f:
                 result = pickle.load(f)
             return result
         elif err_if_none:
@@ -239,7 +240,7 @@ class ExperimentRecord(object):
     def save_result(self, result):
         file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
         make_file_dir(file_path)
-        with open(file_path, 'w') as f:
+        with open(file_path, 'wb') as f:
             pickle.dump(result, f, protocol=2)
             print('Saving Result for Experiment "%s"' % (self.get_id(),))
 
@@ -291,7 +292,7 @@ class ExperimentRecord(object):
         figs = []
         for fig_path in locs:
             assert fig_path.endswith('.pkl'), 'Figure {} was not saved as a pickle, so it cannot be reloaded.'.format(fig_path)
-            with open(fig_path) as f:
+            with open(fig_path, 'rb') as f:
                 figs.append(pickle.load(f))
         return figs
 

@@ -45,9 +45,10 @@ def get_image(name, size = None):
     return im_array
 
 
-def get_new_size((cy, cx), new_size):
-    ny, nx = (None, None) if new_size is None else new_size
-    aspect_ratio = float(cy)/cx
+def get_new_size(cy_and_cx, new_size):
+    cy, cx = cy_and_cx
+    ny, nx = new_size or (None, None)
+    aspect_ratio = float(cy) / cx
     if ny is None and nx is None:
         return cy
     elif nx is None:

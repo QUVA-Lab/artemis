@@ -71,7 +71,7 @@ class Nanny(object):
         self.managed_child_processes[cp.get_id()] = ManagedChildProcess(cp, monitor_for_termination,monitor_if_stuck_timeout)
 
     def get_child_processes(self):
-        return {id:mcp.get_process() for id,mcp in self.managed_child_processes.iteritems()}
+        return {id:mcp.get_process() for id,mcp in self.managed_child_processes.items()}
 
     def execute_all_child_processes(self, time_out=1, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:False, blocking=True):
         '''
@@ -137,11 +137,11 @@ class Nanny(object):
 
         # Grace period for other threads to shutdown
         time.sleep(time_out)
-        for id,cp in self.managed_child_processes.iteritems():
+        for id,cp in self.managed_child_processes.items():
             if cp.is_alive():
                 print(("Child Process %s at %s did not terminate %s seconds after the first process in cluster terminated. Terminating now." %(cp.get_name(), cp.get_ip(), time_out)))
                 cp.deconstruct()
-        for id,cp in self.managed_child_processes.iteritems():
+        for id,cp in self.managed_child_processes.items():
             if cp.is_alive():
                 print(("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip())))
                 cp.deconstruct(signal.SIGKILL)

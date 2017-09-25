@@ -5,14 +5,13 @@ from collections import OrderedDict
 from functools import partial
 from importlib import import_module
 import os
+from six import string_types
+from six.moves import reduce, xrange
 
-import time
-
-from artemis.experiments.experiment_record import load_experiment_record, \
-    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id, get_all_record_ids, get_experiment_dir
-from artemis.experiments.experiments import load_experiment, get_global_experiment_library, Experiment
-from artemis.fileman.config_files import get_home_dir, set_non_persistent_config_value
-from artemis.fileman.local_dir import get_local_path
+from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
+    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id, get_all_record_ids, get_experiment_dir)
+from artemis.experiments.experiments import load_experiment, get_global_experiment_library
+from artemis.fileman.config_files import get_home_dir,set_non_persistent_config_value
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
 from artemis.remote.child_processes import SlurmPythonProcess, pickle_dumps_without_main_refs, PythonChildProcess, RemotePythonProcess
@@ -32,7 +31,7 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     import pexpect
     import sys
 
-    if isinstance(experiment_names, basestring):
+    if isinstance(experiment_names, string_types):
         experiment_names = [experiment_names]
 
     inclusions = ' '.join("--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names)
@@ -66,9 +65,9 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
     results = OrderedDict()
     for ex in experiments:
 
-        ex = load_experiment(ex) if isinstance(ex, basestring) else ex
+        ex = load_experiment(ex) if isinstance(ex, string_types) else ex
 
-        name = experiments[ex.get_id()] if isinstance(experiments, dict) else ex if isinstance(ex, basestring) else ex.get_id()
+        name = experiments[ex.get_id()] if isinstance(experiments, dict) else ex if isinstance(ex, string_types) else ex.get_id()
 
         record = ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True)
         if record is None:
@@ -158,7 +157,7 @@ def _filter_records(user_range, exp_record_dict):
             filter_set_3[k] = [(a or b) if op=='or' else (a and b) for a, b in izip_equal(filter_set_1[k], filter_set_2[k])]
         return filter_set_3
 
-    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.iteritems())
+    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.items())
     if user_range in exp_record_dict:  # User just lists an experiment
         base[user_range] = [True]*len(base[user_range])
         return base
@@ -168,7 +167,7 @@ def _filter_records(user_range, exp_record_dict):
     if '&' in user_range:
         return reduce(lambda a, b: _bitwise('and', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
     number_range = interpret_numbers(user_range)
-    keys = exp_record_dict.keys()
+    keys = list(exp_record_dict.keys())
     if number_range is not None:
         for i in number_range:
             base[keys[i]] = [True]*len(base[keys[i]])
@@ -177,24 +176,24 @@ def _filter_records(user_range, exp_record_dict):
         for exp_number, rec_number in exp_rec_pairs:
             base[keys[exp_number]][rec_number] = True
     elif user_range == 'old':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
     elif user_range == 'corrupt':
         for k, v in base.iteritems():
             base[k] = [load_experiment_record(rec_id).info.get_status_field()==ExpStatusOptions.CORRUPT for rec_id in exp_record_dict[k]]
     elif user_range == 'unfinished':
-        for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).info.get_status_field() != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
+        for k, v in base.items():
+            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
         # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
     elif user_range == 'invalid':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = [load_experiment_record(rec_id).args_valid() is False for rec_id in exp_record_dict[k]]
     elif user_range == 'all':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = [True]*len(v)
     elif user_range == 'errors':
-        for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).info.get_status_field() == ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
+        for k, v in base.items():
+            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
     else:
         raise Exception("Don't know how to interpret subset '{}'".format(user_range))
     return base

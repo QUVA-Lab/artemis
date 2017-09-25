@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from six.moves import xrange
 
 from artemis.experiments.decorators import ExperimentFunction
 

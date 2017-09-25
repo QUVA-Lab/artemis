@@ -4,6 +4,8 @@ from artemis.fileman.file_getter import get_file, unzip_gz
 from artemis.fileman.smart_io import smart_load
 import numpy as np
 import os
+from six.moves import xrange
+
 __author__ = 'peter'
 
 
