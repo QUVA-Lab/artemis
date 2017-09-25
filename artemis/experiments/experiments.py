@@ -3,22 +3,11 @@ import inspect
 from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
-<<<<<<< HEAD
-from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
-    get_all_record_ids, clear_experiment_records, run_and_record
-from artemis.general.functional import infer_derived_arg_values, get_partial_chain
-=======
-from getpass import getuser
-from uuid import getnode
-
 from six import string_types
-
-from artemis.experiments.experiment_record import ARTEMIS_LOGGER, \
-    ExpInfoFields, record_experiment, ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
+from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
+from artemis.experiments.experiment_record import run_and_record
 from artemis.general.functional import infer_derived_arg_values, get_partial_root
-from artemis.general.test_mode import is_test_mode, set_test_mode
->>>>>>> origin/master
 
 
 class Experiment(object):

@@ -352,7 +352,6 @@ def file_path_to_absolute_module(file_path):
 def assert_option(choice, possiblilties):
     assert choice in possiblilties, '"{}" was not in the list of possible choices: {}'.format(choice, possiblilties)
 
-<<<<<<< HEAD
 
 def insert_at(list1, list2, indices):
     """
@@ -383,7 +382,8 @@ def insert_at(list1, list2, indices):
 
     assert iter_stopped, 'Not all elements from list 2 got used!'
     return list3
-=======
+
+
 try:
     from contextlib import nested  # Python 2
 except ImportError:
@@ -398,4 +398,3 @@ except ImportError:
             for ctx in contexts:
                 stack.enter_context(ctx)
             yield contexts
->>>>>>> origin/master
