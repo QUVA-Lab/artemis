@@ -209,7 +209,7 @@ experiment records.  You can specify records in the following ways:
             descendents_of_root = set(ex.name for ex in self.root_experiment.get_all_variants(include_self=True))
             names = [name for name in names if name in descendents_of_root]
 
-        d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in names)
+        d = get_experient_to_record_dict(names)
         return d
 
     def launch(self, command=None):
