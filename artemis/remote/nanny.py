@@ -4,11 +4,6 @@ import sys
 import threading
 import time
 
-import os
-
-from artemis.experiments.experiment_record import get_current_experiment_id, get_current_record_dir
-
-
 class ManagedChildProcess(object):
     def __init__(self,cp,monitor_for_termination,monitor_if_stuck_timeout):
         self.cp = cp
@@ -53,7 +48,7 @@ class Nanny(object):
     '''
     Manages child processes. This class manages the start, live and deconstruction of child processes across different machines.
     '''
-    def __init__(self):
+    def __init__(self,name=""):
         self.managed_child_processes = {}
         self.stdout_threads = {}
         atexit.register(self.deconstruct)
@@ -201,12 +196,5 @@ class Nanny(object):
         if termination_request_event.is_set():
             return
 
-        try:
-            exp_name = get_current_experiment_id()
-            curr_dir = get_current_record_dir()
-            with open(os.path.join(curr_dir,"experiment_stuck"),"wb"):
-                pass
-        except:
-            exp_name=""
-        print(("Timeout occurred after %.1f min, process %s%s stuck"%(timeout/60., process_name, " from experiment %s"%exp_name if exp_name != "" else "")))
+        print("Timeout occurred after %.1f min, process %s from Nanny %s stuck"%(timeout/60., process_name, self.name))
         termination_request_event.set()
