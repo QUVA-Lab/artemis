@@ -2,7 +2,7 @@ import pickle
 import os
 
 import numpy as np
-from six.moves import xrange
+from six.moves import xrange, input
 
 from artemis.ml.datasets.datasets import DataSet, DataCollection
 from artemis.fileman.file_getter import get_file, get_archive
@@ -132,4 +132,4 @@ if __name__ == '__main__':
         'sampled training images': np.rollaxis(dataset.training_set.input[:n_samples], 1, 4),# np.swapaxes(dataset.training_set.input[:n_samples], 1, 3).reshape(10, 10, 32, 32, 3),
         'sampled training labels': dataset.training_set.target[:n_samples].reshape(10, 10)
         }, cmap = 'jet')
-    raw_input("Enter to exit")
+    input("Enter to exit")
