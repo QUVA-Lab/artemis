@@ -4,6 +4,7 @@ from artemis.experiments.experiment_record_view import display_experiment_record
     get_oneline_result_string, print_experiment_record_argtable, compare_experiment_records, get_record_invalid_arg_string
 from artemis.experiments.experiments import experiment_testing_context, clear_all_experiments
 from artemis.general.display import CaptureStdOut, assert_things_are_printed
+from artemis.general.profile import what_are_we_waiting_for
 
 
 def display_it(result):
