@@ -253,11 +253,6 @@ def _filter_records(user_range, exp_record_dict):
     elif user_range == 'finished':
         for k, v in base.iteritems():
             base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
-    # elif user_range == 'unfinished':
-    #     base = _filter_records('~finished', )
-    #     for k, v in base.iteritems():
-    #         base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
-        # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
     elif user_range == 'invalid':
         for k, v in base.iteritems():
             base[k] = [load_experiment_record(rec_id).args_valid() is False for rec_id in exp_record_dict[k]]

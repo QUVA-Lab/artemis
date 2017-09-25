@@ -432,8 +432,8 @@ experiment records.  You can specify records in the following ways:
         # else:
         #     records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
 
-        records = select_last_record_of_experiments(user_range = user_range, exp_record_dict=self.exp_record_dict) if args.last else \
-            select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
+        # records = select_last_record_of_experiments(user_range = user_range, exp_record_dict=self.exp_record_dict) if args.last else \
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
 
         compare_funcs = [rec.get_experiment().compare for rec in records]
         assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
@@ -540,7 +540,7 @@ def _show_notes(rec):
 
 _exp_record_field_getters = {
     ExpRecordDisplayFields.RUNS: lambda rec: rec.info.get_field_text(ExpInfoFields.TIMESTAMP),
-    ExpRecordDisplayFields.DURATION: lambda rec: rec.info.get_field_text(ExpInfoFields.RUNTIME),
+    ExpRecordDisplayFields.DURATION: lambda rec: '{:.3g}'.format(rec.info.get_field(ExpInfoFields.RUNTIME)),
     ExpRecordDisplayFields.STATUS: lambda rec: rec.info.get_field_text(ExpInfoFields.STATUS),
     ExpRecordDisplayFields.ARGS_CHANGED: get_record_invalid_arg_string,
     ExpRecordDisplayFields.RESULT_STR: get_oneline_result_string,
