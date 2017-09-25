@@ -44,7 +44,7 @@ class BaseStream(object):
             plot_data_dict(data_dict, plots = self._plots, hang = False, figure = self._fig)
         else:
             if name is None:  # Update all plots
-                for k, v in data_dict.iteritems():
+                for k, v in data_dict.items():
                     self._plots[k].update(v)
                     self._plots[k].plot()
             else:
@@ -106,7 +106,7 @@ class LiveStream(BaseStream):
 
     def _get_plots_from_first_data(self, first_data):
         return {k: get_plot_from_data(v, mode = self._plot_mode, **self._plot_preference_kwargs)
-            if k not in self._plot_types else self._plot_types[k] for k, v in first_data.iteritems()}
+            if k not in self._plot_types else self._plot_types[k] for k, v in first_data.items()}
 
 
 LivePlot = namedtuple('PlotBuilder', ['plot', 'cb'])
@@ -126,12 +126,12 @@ class LiveCanal(BaseStream):
         :param kwargs: Passed up to BaseStream
         """
         self._live_plots = live_plots
-        self._callbacks = {k: lp.cb if isinstance(lp, LivePlot) else lp for k, lp in live_plots.iteritems()}
+        self._callbacks = {k: lp.cb if isinstance(lp, LivePlot) else lp for k, lp in live_plots.items()}
         BaseStream.__init__(self, **kwargs)
 
     def _get_data_structure(self):
-        return {k: cb() for k, cb in self._callbacks.iteritems()}
+        return {k: cb() for k, cb in self._callbacks.items()}
 
     def _get_plots_from_first_data(self, first_data):
         # first_data = dict(first_data)
-        return {k: pb.plot if isinstance(pb, LivePlot) else get_plot_from_data(first_data[k], mode = 'live') for k, pb in self._live_plots.iteritems()}
+        return {k: pb.plot if isinstance(pb, LivePlot) else get_plot_from_data(first_data[k], mode = 'live') for k, pb in self._live_plots.items()}

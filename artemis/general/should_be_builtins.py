@@ -1,8 +1,9 @@
 import inspect
 from collections import OrderedDict
 import itertools
-
 import os
+
+from six.moves import xrange, zip_longest
 
 __author__ = 'peter'
 
@@ -16,7 +17,7 @@ def all_equal(elements):
     """
     element_iterator = iter(elements)
     try:
-        first = element_iterator.next() # Will throw exception
+        first = next(element_iterator) # Will throw exception
     except StopIteration:
         return True
     return all(a == first for a in element_iterator)
@@ -142,7 +143,7 @@ def izip_equal(*iterables):
     :return:
     """
     sentinel = object()
-    for combo in itertools.izip_longest(*iterables, fillvalue=sentinel):
+    for combo in zip_longest(*iterables, fillvalue=sentinel):
         if any(sentinel is c for c in combo):
             raise ValueError('Iterables have different lengths')
         yield combo
@@ -351,6 +352,7 @@ def file_path_to_absolute_module(file_path):
 def assert_option(choice, possiblilties):
     assert choice in possiblilties, '"{}" was not in the list of possible choices: {}'.format(choice, possiblilties)
 
+<<<<<<< HEAD
 
 def insert_at(list1, list2, indices):
     """
@@ -381,3 +383,19 @@ def insert_at(list1, list2, indices):
 
     assert iter_stopped, 'Not all elements from list 2 got used!'
     return list3
+=======
+try:
+    from contextlib import nested  # Python 2
+except ImportError:
+    from contextlib import ExitStack, contextmanager
+
+    @contextmanager
+    def nested(*contexts):
+        """
+        Reimplementation of nested in python 3.
+        """
+        with ExitStack() as stack:
+            for ctx in contexts:
+                stack.enter_context(ctx)
+            yield contexts
+>>>>>>> origin/master

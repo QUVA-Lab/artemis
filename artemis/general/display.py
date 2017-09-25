@@ -1,12 +1,12 @@
 import sys
 import textwrap
-from StringIO import StringIO
 from collections import OrderedDict
 from contextlib import contextmanager
-
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
+from six import string_types
+from six.moves import xrange, StringIO
 
 __author__ = 'peter'
 
@@ -295,8 +295,8 @@ def surround_with_header(string, width, char='-'):
     :param char: Character to repeat
     :return: A header, whose length will be
     """
-    left = (width-len(string)-1)/2
-    right = (width-len(string)-2)/2
+    left = (width-len(string)-1)//2
+    right = (width-len(string)-2)//2
     return char*left+' '+string+' '+char*right
 
 
@@ -318,7 +318,7 @@ def assert_things_are_printed(things, min_len=None):
     :return:
     """
 
-    if isinstance(things, basestring):
+    if isinstance(things, string_types):
         things = [things]
 
     with CaptureStdOut() as cap:

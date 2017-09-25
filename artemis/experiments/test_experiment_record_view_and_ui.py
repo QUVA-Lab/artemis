@@ -185,8 +185,8 @@ def test_view_modes():
         @experiment_function
         def my_simdfsffsdfsfs(a=1):
 
-            print 'xxxxx'
-            print 'yyyyy'
+            print('xxxxx')
+            print('yyyyy')
             return a+2
 
         my_simdfsffsdfsfs.add_variant(a=2)

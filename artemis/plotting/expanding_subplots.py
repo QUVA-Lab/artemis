@@ -93,7 +93,7 @@ def select_subplot(name, fig=None, layout=None, **subplot_args):
         plt.subplot(_subplots[name])
     else:
         if name is None:
-            name = _plot_name_generator.next()
+            name = next(_plot_name_generator)
         _subplots[name] = _create_subplot(fig=fig, layout=layout, **subplot_args)
     return _subplots[name]
 
@@ -127,7 +127,7 @@ class CaptureNewSubplots(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.new_subplots = OrderedDict((s, p) for s, p in _subplots.iteritems() if s not in self._old_subplots)
+        self.new_subplots = OrderedDict((s, p) for s, p in _subplots.items() if s not in self._old_subplots)
 
     def get_new_subplots(self):
         return self.new_subplots
