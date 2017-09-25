@@ -327,8 +327,6 @@ class SlurmPythonProcess(RemotePythonProcess):
         '''
         assert ip_address in get_local_ips(), "At the moment, we want you to start a slurm process only from localhost"
         assert slurm_command in ["srun"], "At the moment, we only support 'srun' for execution of slurm"
-        # for k,v in slurm_kwargs.iteritems():
-        #     assert k.startswith("--"), "At the moment, please make sure every slurm key-word starts with double dash '--'. You provided: %s"%(k)
         super(SlurmPythonProcess,self).__init__(function, ip_address, set_up_port_for_structured_back_communication, **kwargs)
         self.slurm_kwargs = slurm_kwargs
 
@@ -351,16 +349,10 @@ class SlurmPythonProcess(RemotePythonProcess):
             command = " ".join(pipes.quote(c) for c in command)
 
         final_command = " ".join((slurm_command,command))
-        # print(final_command)
-        # import sys
-        # sys.exit(0)
-
         if self.is_local():
             return final_command
         else:
             raise NotImplementedError()
-            # return self.get_extended_command(command)
-
 
 def pickle_dumps_without_main_refs(obj):
     """
@@ -375,8 +367,9 @@ def pickle_dumps_without_main_refs(obj):
         pickle_str = pickle.dumps(obj, protocol=0)
     except:
         print("Using Dill")
+        # TODO: @petered There is something very fishy going on here that I don't understand.
         import dill
-        pickle_str = dill.dumps(obj,protocol=0)
+        pickle_str = dill.dumps(obj, protocol=0)
 
     pickle_str = pickle_str.replace('__main__', module_path)  # Hack!
     return pickle_str

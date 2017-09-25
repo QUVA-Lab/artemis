@@ -272,43 +272,63 @@ def interpret_numbers(user_range):
     else:
         return None
 
+def run_experiment(experiment, slurm_job = False, experiment_path=None, **experiment_record_kwargs):
+    """
+    Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
+    You can run the experiment again later by calling show_experiment(location_string):
 
-def run_experiment(name, exp_dict='global', slurm_job = False, experiment_path=None, **experiment_record_kwargs):
+    :param experiment: The experiment object to be run
+    :param slurm_job: It True, this function is interpreted as being run from within a SLURM call.
+    :param experiment_path: If not None, the 'experiment_directory' option in the 'experiments' section of the .artemisrc file will be temporarily set to this value
+    :param experiment_record_kwargs: Passed to ExperimentRecord.
+
+    :return: A location_string, uniquely identifying the experiment.
+    """
+    if slurm_job:
+        """
+        If we run an experiment with slurm, then each subprocesses on the SLURM node will try to execute the experiment.
+        This has two implications:
+        1.) This run_experiment call is executed on a different processor than the processor on which the experiment UI is being executed. Consequently the environment is potentially different and 
+        all global variables are reset to their default at artemis load.
+        2.) Since we leave the distributed computation to the individual experiment to be executed, we catch these multiple executions here. Instead, we will only allow the first of the slurm nodes to proceed. All other nodes immediatly return.
+        The fact that all other nodes immediately return does not impact the SLURM call since the SLURM call is considered finished only when all SLURM nodes terminate.
+        I am aware that we could potentially save code and make this super slick by designing a subclass of Experiment which would be a 'DistributedSlurmExperiment', but this is future work.
+        For now, this works.
+        """
+        assert "SLURM_NODEID" in os.environ.keys(), "You indicated that the experiment '{}' is run within a SLURM call, however the environment variable 'SLURM_NODEID' could not be found".format(experiment.get_id())
+        if int(os.environ["SLURM_NODEID"]) > 0:
+            return
+    if experiment_path:
+        'As mentioned above, global variables are reset, so I reset the one element I actually use' #TODO: Make this more elegant
+        set_non_persistent_config_value(config_filename=".artemisrc", section="experiments", option="experiment_directory", value=experiment_path)
+
+    return experiment.run(**experiment_record_kwargs)
+
+
+def run_experiment_by_name(name, exp_dict='global', slurm_job=False, experiment_path=None, **experiment_record_kwargs):
     """
     Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
     You can run the experiment again later by calling show_experiment(location_string):
 
     :param name: The name for the experiment (must reference something in exp_dict)
     :param exp_dict: A dict<str:func> where funcs is a function with no arguments that run the experiment.
+    :param slurm_job: It True, this function is interpreted as being run from within a SLURM call.
+    :param experiment_path: If not None, the 'experiment_directory' option in the 'experiments' section of the .artemisrc file will be temporarily set to this value
     :param experiment_record_kwargs: Passed to ExperimentRecord.
 
     :return: A location_string, uniquely identifying the experiment.
     """
-    if slurm_job and int(os.environ["SLURM_NODEID"]) > 0:
-        return
-    if experiment_path:
-        set_non_persistent_config_value(config_filename=".artemisrc", section="experiments", option="experiment_directory", value=experiment_path)
-
-    if isinstance(name,basestring):
-        if exp_dict == 'global':
-            exp_dict = get_global_experiment_library()
-        experiment = exp_dict[name]
-    else:
-        assert isinstance(name, Experiment)
-        experiment = name
-    print("Running experiment %s"%(experiment.get_id()))
-    return experiment.run(**experiment_record_kwargs)
-
-# def run_experiment_by_object(experiment, **experiment_record_kwargs):
-#     return experiment.run(**experiment_record_kwargs)
+    if exp_dict == 'global':
+        exp_dict = get_global_experiment_library()
+    experiment = exp_dict[name]
+    return run_experiment(experiment,slurm_job, experiment_path, **experiment_record_kwargs)
 
 
 def run_experiment_ignoring_errors(name, **kwargs):
     try:
-        return run_experiment(name, **kwargs)
+        return run_experiment_by_name(name, **kwargs)
     except Exception as err:
         traceback.print_exc()
-
 
 
 def run_multiple_experiments_with_slurm(experiments, n_parallel=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
@@ -316,13 +336,13 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, raise_exce
     Run multiple experiments using slurm, optionally in parallel.
     '''
     if n_parallel and n_parallel > 1:
-        raise NotImplementedError("No parallel Slurm execution at the moment")
+        raise NotImplementedError("No parallel Slurm execution at the moment. Implement it!")
     else:
         for i,exp in enumerate(experiments):
             nanny = Nanny()
             func = run_experiment
             experiment_path = get_experiment_dir()
-            function_call = partial(func, name=exp, slurm_job=True, experiment_path=experiment_path,raise_exceptions=raise_exceptions,display_results=False, **run_args)
+            function_call = partial(func, experiment=exp, slurm_job=True, experiment_path=experiment_path,raise_exceptions=raise_exceptions,display_results=False, **run_args)
             spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
             # Using Nanny only for convenient stdout & stderr forwarding.
             nanny.register_child_process(spp,monitor_for_termination=False)
@@ -345,7 +365,7 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, rais
         experiment_identifiers = [ex.get_id() for ex in experiments]
         if cpu_count is None:
             cpu_count = multiprocessing.cpu_count()
-        func = run_experiment if raise_exceptions else run_experiment_ignoring_errors
+        func = run_experiment_by_name if raise_exceptions else run_experiment_ignoring_errors
         p = multiprocessing.Pool(processes=cpu_count)
         return p.map(partial(func, **run_args), experiment_identifiers)
     else:
