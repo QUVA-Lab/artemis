@@ -222,13 +222,6 @@ def _filter_records(user_range, exp_record_dict):
         _second_stage_filters = _filter_records(second_part, _new_dict)
         return _bitwise_filter_op('andcascade', _first_stage_filters, _second_stage_filters)
 
-        # subparts = user_range.split('>')
-        # _new_dict = exp_record_dict
-        # filters = []
-        # for part in subparts:
-        #     filters.append(_filter_records(part, _new_dict))
-        #     _new_dict = _select_record_ids_from_filters(filters[-1], _new_dict)
-        # return _bitwise_filter_op('andcascade', *filters)
     elif user_range.startswith('~'):
         return _bitwise_filter_op('not', _filter_records(user_range[1:], exp_record_dict))
 

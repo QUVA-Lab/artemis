@@ -15,19 +15,18 @@ from artemis.experiments.experiment_management import get_experient_to_record_di
 from artemis.experiments.experiment_management import (pull_experiments, select_experiments, select_experiment_records,
                                                        select_experiment_records_from_list, interpret_numbers,
                                                        run_multiple_experiments)
+from artemis.experiments.experiment_record import ExpStatusOptions
 from artemis.experiments.experiment_record import (get_all_record_ids, clear_experiment_records,
                                                    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields)
-from artemis.experiments.experiment_record import is_matplotlib_imported, ExpStatusOptions
-from artemis.experiments.experiment_record_view import compare_experiment_records, show_record
 from artemis.experiments.experiment_record_view import (get_record_full_string, get_record_invalid_arg_string,
                                                         print_experiment_record_argtable, get_oneline_result_string)
+from artemis.experiments.experiment_record_view import show_record, show_multiple_records
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header, format_duration
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.mymath import levenshtein_distance
-from artemis.general.should_be_builtins import all_equal, separate_common_items, izip_equal, insert_at
-from artemis.plotting.manage_plotting import delay_show
+from artemis.general.should_be_builtins import all_equal, insert_at, izip_equal, separate_common_items
 
 try:
     import readline  # Makes input() behave like interactive shell.
@@ -224,6 +223,7 @@ experiment records.  You can specify records in the following ways:
             'h': self.help,
             'filter': self.filter,
             'filterrec': self.filterrec,
+            'displayformat': self.displayformat,
             'explist': self.explist,
             'sidebyside': self.side_by_side,
             'argtable': self.argtable,
@@ -239,7 +239,7 @@ experiment records.  You can specify records in the following ways:
         while True:
             all_experiments = self.reload_record_dict()
 
-            # print("==================== Experiments ====================")
+            # Display Table:
             self.exp_record_dict = all_experiments if self._filter is None else \
                 OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
             if self._filterrec is not None:
@@ -250,12 +250,15 @@ experiment records.  You can specify records in the following ways:
                     len(self.exp_record_dict), len(all_experiments), self._filter,
                     sum(len(v) for v in self.exp_record_dict.values()), sum(len(v) for v in all_experiments.values()), self._filterrec
                     ))
-            # print('-----------------------------------------------------')
+
+            # Get command from user
             if command is None:
                 user_input = input('Enter command or experiment # to run (h for help) >> ').strip()
             else:
                 user_input = command
                 command = None
+
+            # Respond to user input
             with IndentPrint():
                 try:
                     split = user_input.split(' ')
@@ -317,52 +320,44 @@ experiment records.  You can specify records in the following ways:
                 for row in _record_rows:
                     del row[notes_column_index]
 
-        if self.display_format=='nested':
+        if self.display_format=='nested':  # New Display mode
 
             if self.show_args:
                 _, argdiff = separate_common_items([load_experiment(ex).get_args().items() for ex in exp_record_dict])
                 argdiff = {k: args for k, args in izip_equal(exp_record_dict.keys(), argdiff)}
-
             # Build a list of experiments and a list of records.
             full_headers = ['#']+header_names
             record_rows = []
             experiment_rows = []
             experiment_row_ixs = []
             counter = 1  # Start at 2 because record table has the headers.
-            for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
+            for i, (exp_id, record_ids) in enumerate(exp_record_dict.items()):
                 experiment_row_ixs.append(counter)
-
                 exp_identifier = exp_id if not self.show_args else ','.join('{}={}'.format(k, v) for k, v in argdiff[exp_id])
-
                 experiment_rows.append([i, exp_identifier])
-
                 for j, record_id in enumerate(record_ids):
                     record_rows.append([j]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to, ignore_valid_keys=self.ignore_valid_keys))
                     counter+=1
-
             remove_notes_if_no_notes(record_rows)
-
             # Merge the experiments table and record table.
             record_table_rows = tabulate(record_rows, headers=full_headers, tablefmt="pipe").split('\n')
             del record_table_rows[1]  # Get rid of that silly line.
             experiment_table_rows = tabulate(experiment_rows, numalign='left').split('\n')[1:-1]  # First and last are just borders
             longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(record_table_rows)>0 else 0
-            # experiment_table_rows = [r+' '+'-'*max(0, longest_row-len(r)-1) for r in experiment_table_rows]
-            # experiment_table_rows = ['-'*longest_row+'\n'+r+' '+'-'*max(0, longest_row-len(r)-1) for r in experiment_table_rows]
             record_table_rows = [r if len(r)==longest_row else r[:-1] + ' '*(longest_row-len(r)) + r[-1] for r in record_table_rows]
             experiment_table_rows = [('=' if i==0 else '-')*longest_row+'\n'+r + ' '*(longest_row-len(r)-1)+'|' for i, r in enumerate(experiment_table_rows)]
             all_rows = [surround_with_header('Experiments', width=longest_row, char='=')] + insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs) + ['='*longest_row]
             table = '\n'.join(all_rows)
+
         elif self.display_format=='flat':  # Display First record on same row
             full_headers = ['E#', 'R#', 'Experiment']+header_names
             rows = []
-            for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
+            for i, (exp_id, record_ids) in enumerate(exp_record_dict.items()):
                 if len(record_ids)==0:
                     rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-1))
                 else:
                     for j, record_id in enumerate(record_ids):
-                        rows.append([str(i) if j==0 else '', j, exp_id if j==0 else '']+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to, ignore_valid_keys=self.ignore_valid_keys))
-
+                        rows.append([str(i) if j==0 else '', j, exp_id if j==0 else '']+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to))
             remove_notes_if_no_notes(rows)
 
             table = tabulate(rows, headers=full_headers)
@@ -431,26 +426,13 @@ experiment records.  You can specify records in the following ways:
         args = parser.parse_args(args)
         try:
             records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
-            if args.results:
-                records = [rec for rec in records if rec.has_result()]
-
-            if is_matplotlib_imported():
-                with delay_show():
-                    for rec in records:
-                        exp = rec.get_experiment()
-                        if args.original:
-                            show_record(rec)
-                        else:
-                            exp.show(rec)
-            else:
-                for rec in records:
-                    exp = rec.get_experiment()
-                    if args.original:
-                        show_record(rec)
-                    else:
-                        exp.show(rec)
         except RecordSelectionError as err:
             print('FAILED!: {}'.format(str(err)))
+
+        if args.results:
+            records = [rec for rec in records if rec.has_result()]
+        func = show_record if args.original else None
+        show_multiple_records(records, func)
         _warn_with_prompt(use_prompt=not self.close_after)
 
     def compare(self, *args):
@@ -461,28 +443,18 @@ experiment records.  You can specify records in the following ways:
         args = parser.parse_args(args)
 
         user_range = args.user_range if not args.last else args.user_range + '>finished>last'
-
-
-
-        # if args.last:
-        #     experiments = select_experiments(user_range=args.user_range, exp_record_dict=self.exp_record_dict)
-        #     records = [load_experiment(ex).get_latest_record(only_completed=True, err_if_none=False) for ex in experiments]
-        #     if None in records:
-        #         print('WARNING: Experiments {} have no completed records.', [e for e, r in izip_equal(experiments, records) if r is None])
-        # else:
-        #     records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
-
-        # records = select_last_record_of_experiments(user_range = user_range, exp_record_dict=self.exp_record_dict) if args.last else \
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-
         if args.results:
             records = [rec for rec in records if rec.has_result()]
-
         compare_funcs = [rec.get_experiment().compare for rec in records]
         assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
         func = compare_funcs[0]
         func(records)
         _warn_with_prompt(use_prompt=not self.close_after)
+
+    def displayformat(self, new_format):
+        assert new_format in ('nested', 'flat'), "Display format must be 'nested' or 'flat', not '{}'".format(new_format)
+        self.display_format = new_format
 
     def errortrace(self, user_range):
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
@@ -823,7 +795,7 @@ class ExperimentRecordBrowser(object):
 
     def show(self, user_range):
         record_ids = self._select_records(user_range)
-        compare_experiment_records([load_experiment_record(rid) for rid in record_ids])
+        show_multiple_records([load_experiment_record(rid) for rid in record_ids])
         _warn_with_prompt('')
 
     def search(self, filter_text):

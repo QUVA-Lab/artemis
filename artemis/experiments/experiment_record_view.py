@@ -2,10 +2,9 @@ import re
 from collections import OrderedDict
 
 from tabulate import tabulate
-
 from artemis.experiments.experiment_management import load_lastest_experiment_results
 from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, \
-    load_experiment_record
+    load_experiment_record, is_matplotlib_imported
 from artemis.experiments.experiments import is_experiment_loadable, get_global_experiment_library
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, CaptureStdOut, \
     surround_with_header, section_with_header
@@ -169,27 +168,6 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
         array_float_format=array_float_format, oneline=True)
 
 
-def display_experiment_record(record):
-    # TODO: Remove..  Call show_record instead
-    result = record.get_result(err_if_none=False)
-    display_func = record.get_experiment().show
-    if display_func is None:
-        print(deepstr(result))
-    else:
-        display_func(result)
-
-
-def compare_experiment_results(experiments, error_if_no_result = False):
-    # TODO: Remove... Call compare_records instead
-    comp_functions = [ex.comparison_function for ex in experiments]
-    assert all_equal(comp_functions), 'Experiments must have same comparison functions.'
-    comp_function = comp_functions[0]
-    assert comp_function is not None, 'Cannot compare results, because you have not specified any comparison function for this experiment.  Use @ExperimentFunction(comparison_function = my_func)'
-    results = load_lastest_experiment_results(experiments, error_if_no_result=error_if_no_result)
-    assert len(results), 'Experments {} had no saved results!'.format([e.get_id() for e in experiments])
-    comp_function(results)
-
-
 def print_experiment_record_argtable(records):
     """
     Print a table comparing experiment arguments and their results.
@@ -247,6 +225,21 @@ def show_record(record, show_logs=True, truncate_logs=None, truncate_result=1000
         from artemis.plotting.saving_plots import interactive_matplotlib_context
         record.show_figures(hang=hang)
     print(string)
+
+
+def show_multiple_records(records, func = None):
+
+    if func is None:
+        func = lambda rec: rec.get_experiment().show(rec)
+
+    if is_matplotlib_imported():
+        from artemis.plotting.manage_plotting import delay_show
+        with delay_show():
+            for rec in records:
+                func(rec)
+    else:
+        for rec in records:
+            func(rec)
 
 
 def compare_experiment_records(records, parallel_text=None, show_logs=True, truncate_logs=None,
