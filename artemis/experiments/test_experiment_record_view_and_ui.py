@@ -199,29 +199,10 @@ def test_view_modes():
             my_simdfsffsdfsfs.browse(view_mode=view_mode, command = 'q')
 
 
-
-
-
-# def test_display_caching():
-
-@experiment_function
-def my_viwjbthn(a=1):
-    print('xxxxx')
-    print('yyyyy')
-    return a+2
-
-for a in range(50):
-    my_viwjbthn.add_variant(a=a)#.run()
-
-what_are_we_waiting_for('my_viwjbthn.browse(cache_result_string=True, command="q")', sort_by='cumtime')
-
-
-
 if __name__ == '__main__':
-    pass
-    # test_experiments_function_additions()
-    # test_experiment_function_ui()
-    # test_invalid_arg_text()
-    # test_invalid_arg_text_when_object_arg()
-    # test_simple_experiment_show()
-    # test_view_modes()
+    test_experiments_function_additions()
+    test_experiment_function_ui()
+    test_invalid_arg_text()
+    test_invalid_arg_text_when_object_arg()
+    test_simple_experiment_show()
+    test_view_modes()

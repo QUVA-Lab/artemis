@@ -563,7 +563,7 @@ def _show_notes(rec):
 
 _exp_record_field_getters = {
     ExpRecordDisplayFields.RUNS: lambda rec: rec.info.get_field_text(ExpInfoFields.TIMESTAMP),
-    ExpRecordDisplayFields.DURATION: lambda rec: '{:.3g}'.format(rec.info.get_field(ExpInfoFields.RUNTIME)),
+    ExpRecordDisplayFields.DURATION: lambda rec: '{:.3g}'.format(rec.info.get_field(ExpInfoFields.RUNTIME)) if rec.info.has_field(ExpInfoFields.RUNTIME) else '?',
     ExpRecordDisplayFields.STATUS: lambda rec: rec.info.get_field_text(ExpInfoFields.STATUS),
     ExpRecordDisplayFields.ARGS_CHANGED: get_record_invalid_arg_string,
     ExpRecordDisplayFields.RESULT_STR: get_oneline_result_string,
