@@ -441,23 +441,9 @@ experiment records.  You can specify records in the following ways:
         args = parser.parse_args(args)
 
         user_range = args.user_range if not args.last else args.user_range + '>finished>last'
-
-
-
-        # if args.last:
-        #     experiments = select_experiments(user_range=args.user_range, exp_record_dict=self.exp_record_dict)
-        #     records = [load_experiment(ex).get_latest_record(only_completed=True, err_if_none=False) for ex in experiments]
-        #     if None in records:
-        #         print('WARNING: Experiments {} have no completed records.', [e for e, r in izip_equal(experiments, records) if r is None])
-        # else:
-        #     records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
-
-        # records = select_last_record_of_experiments(user_range = user_range, exp_record_dict=self.exp_record_dict) if args.last else \
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-
         if args.results:
             records = [rec for rec in records if rec.has_result()]
-
         compare_funcs = [rec.get_experiment().compare for rec in records]
         assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
         func = compare_funcs[0]
