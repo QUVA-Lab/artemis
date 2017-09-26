@@ -608,7 +608,7 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
             exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
             root_function, args = infer_function_and_derived_arg_values(function)
-            exp_rec.info.set_field(EIF.ARGS, args.items())
+            exp_rec.info.set_field(EIF.ARGS, list(args.items()))
             # root_function = self.get_root_function()
             exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
             exp_rec.info.set_field(EIF.TIMESTAMP, str(date))
