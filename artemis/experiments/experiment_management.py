@@ -12,7 +12,7 @@ from artemis.experiments.experiment_record import (load_experiment_record, ExpIn
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix
+from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix, memoize
 
 
 def pull_experiments(user, ip, experiment_names, include_variants=True):
@@ -88,6 +88,14 @@ def select_experiments(user_range, exp_record_dict, return_dict=False):
         return [name for name in exp_record_dict if exp_filter[name]]
 
 
+def select_last_record_of_experiments(user_range, exp_record_dict):
+    experiments = select_experiments(user_range=user_range, exp_record_dict=exp_record_dict)
+    records = [load_experiment(ex).get_latest_record(only_completed=True, err_if_none=False) for ex in experiments]
+    if None in records:
+        print('WARNING: Experiments {} have no completed records.', [e for e, r in izip_equal(experiments, records) if r is None])
+    return records
+
+
 def _filter_experiments(user_range, exp_record_dict):
 
     if user_range in exp_record_dict:
@@ -125,7 +133,7 @@ def _filter_experiments(user_range, exp_record_dict):
     return OrderedDict((exp_id, exp_is_in) for exp_id, exp_is_in in izip_equal(exp_record_dict, is_in))
 
 
-def select_experiment_records(user_range, exp_record_dict, flat=True):
+def select_experiment_records(user_range, exp_record_dict, flat=True, load_records = True):
     """
     :param user_range:
     :param exp_record_dict: An OrderedDict<experiment_name: list<experiment_record_name>>
@@ -134,11 +142,60 @@ def select_experiment_records(user_range, exp_record_dict, flat=True):
         otherwise a list<experiment_record_name>
     """
     filters = _filter_records(user_range, exp_record_dict)
-    filtered_dict = OrderedDict((k, [load_experiment_record(record_id) for record_id, f in izip_equal(exp_record_dict[k], filters[k]) if f]) for k in exp_record_dict.keys())
+    filtered_dict = _select_record_from_filters(filters, exp_record_dict) if load_records else _select_record_ids_from_filters(filters, exp_record_dict)
     if flat:
         return [record_id for records in filtered_dict.values() for record_id in records]
     else:
         return filtered_dict
+
+
+def _select_record_from_filters(filters, exp_record_dict):
+    return OrderedDict((k, [load_experiment_record(record_id) for record_id, f in izip_equal(exp_record_dict[k], filters[k]) if f]) for k in exp_record_dict.keys())
+
+
+def _select_record_ids_from_filters(filters, exp_record_dict):
+    return OrderedDict((k, [record_id for record_id, f in izip_equal(exp_record_dict[k], filters[k]) if f]) for k in exp_record_dict.keys())
+
+
+def _bitwise_and(a, b):
+    return [a_ and b_ for a_, b_ in izip_equal(a, b)]
+
+
+def _bitwise_or(a, b):
+    return [a_ or b_ for a_, b_ in izip_equal(a, b)]
+
+
+def _bitwise_andcascade(a, b):
+    """
+    :param a: A list of booleans whose length matches the number of True elements in b
+    :param b: A list of booleans
+    :return: A list
+    """
+    assert sum(b) == len(a), 'The number of elements in b: {}, did not match the number of true elements in a: {}'.format(sum(b), len(a))
+    a_iter = iter(a)
+    return [b_ and next(a_iter) for b_ in b]
+
+
+def _bitwise_not(a):
+    return [not a_ for a_ in a]
+
+
+def _bitwise_filter_op(op, *filter_sets):
+
+    output_set = filter_sets[0].copy()
+    if op=='not':
+        assert len(filter_sets)==1
+        for k in output_set.keys():
+            output_set[k] = _bitwise_not(filter_sets[0][k])
+    elif op in ('and', 'or'):
+        for k in output_set.keys():
+            output_set[k] = reduce(_bitwise_and if op=='and' else _bitwise_or, [fs[k] for fs in filter_sets])
+    elif op=='andcascade':
+        for k in output_set.keys():
+            output_set[k] = reduce(_bitwise_andcascade, [fs[k] for fs in filter_sets[::-1]])
+    else:
+        raise AssertionError('op should be one of {}'.format(('and', 'or', 'andcascade', 'not')))
+    return output_set
 
 
 def _filter_records(user_range, exp_record_dict):
@@ -148,38 +205,49 @@ def _filter_records(user_range, exp_record_dict):
     :return: An OrderedDict<experiment_id -> list<True or False>> indicating whether each record from the given experiment passed the filter
     """
 
-    def _bitwise(op, filter_set_1, filter_set_2):
-        assert op in ('and', 'or')
-        filter_set_3 = filter_set_1.copy()
-        for k in filter_set_1.keys():
-            filter_set_3[k] = [(a or b) if op=='or' else (a and b) for a, b in izip_equal(filter_set_1[k], filter_set_2[k])]
-        return filter_set_3
+    if user_range=='unfinished':
+        return _filter_records('~finished', exp_record_dict)
+    elif user_range=='last':
+        return _filter_records('~old', exp_record_dict)
+    elif '|' in user_range:
+        return _bitwise_filter_op('or', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('|')])
+    elif '&' in user_range:
+        return _bitwise_filter_op('and', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
+    elif '>' in user_range:
+        ix = user_range.index('>')
+        first_part, second_part = user_range[:ix], user_range[ix+1:]
+        _first_stage_filters = _filter_records(first_part, exp_record_dict)
+        _new_dict = _select_record_ids_from_filters(_first_stage_filters, exp_record_dict)
+        _second_stage_filters = _filter_records(second_part, _new_dict)
+        return _bitwise_filter_op('andcascade', _first_stage_filters, _second_stage_filters)
+
+    elif user_range.startswith('~'):
+        return _bitwise_filter_op('not', _filter_records(user_range[1:], exp_record_dict))
 
     base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.items())
     if user_range in exp_record_dict:  # User just lists an experiment
         base[user_range] = [True]*len(base[user_range])
         return base
 
-    if '|' in user_range:
-        return reduce(lambda a, b: _bitwise('or', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('|')])
-    if '&' in user_range:
-        return reduce(lambda a, b: _bitwise('and', a, b), [_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
     number_range = interpret_numbers(user_range)
     keys = list(exp_record_dict.keys())
     if number_range is not None:
         for i in number_range:
+            if i>len(keys):
+                raise RecordSelectionError('Experiment {} does not exist (they go from 0 to {})'.format(i, len(keys)-1))
             base[keys[i]] = [True]*len(base[keys[i]])
     elif '.' in user_range:
         exp_rec_pairs = interpret_record_identifier(user_range)
         for exp_number, rec_number in exp_rec_pairs:
+            if rec_number>=len(base[keys[exp_number]]):
+                raise RecordSelectionError('Selection {}.{} does not exist.'.format(exp_number, rec_number))
             base[keys[exp_number]][rec_number] = True
     elif user_range == 'old':
         for k, v in base.items():
             base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
-    elif user_range == 'unfinished':
-        for k, v in base.items():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
-        # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
+    elif user_range == 'finished':
+        for k, v in base.iteritems():
+            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
     elif user_range == 'invalid':
         for k, v in base.items():
             base[k] = [load_experiment_record(rec_id).args_valid() is False for rec_id in exp_record_dict[k]]
@@ -190,8 +258,13 @@ def _filter_records(user_range, exp_record_dict):
         for k, v in base.items():
             base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
     else:
-        raise Exception("Don't know how to interpret subset '{}'".format(user_range))
+        raise RecordSelectionError("Don't know how to interpret subset '{}'".format(user_range))
     return base
+
+
+class RecordSelectionError(Exception):
+
+    pass
 
 
 def _filter_experiment_record_list(user_range, experiment_record_ids):
@@ -290,7 +363,7 @@ def run_experiment_ignoring_errors(name, **kwargs):
         traceback.print_exc()
 
 
-def run_multiple_experiments(experiments, parallel = False, cpu_count=None, raise_exceptions=True, run_args = {}):
+def run_multiple_experiments(experiments, parallel = False, cpu_count=None, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
     """
     Run multiple experiments, optionally in parallel with multiprocessing.
 
@@ -308,9 +381,9 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, rais
             cpu_count = multiprocessing.cpu_count()
         func = run_experiment if raise_exceptions else run_experiment_ignoring_errors
         p = multiprocessing.Pool(processes=cpu_count)
-        return p.map(partial(func, **run_args), experiment_identifiers)
+        return p.map(partial(func, notes=notes, **run_args), experiment_identifiers)
     else:
-        return [ex.run(raise_exceptions=raise_exceptions, display_results=False, **run_args) for ex in experiments]
+        return [ex.run(raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **run_args) for ex in experiments]
 
 
 def remove_common_results_prefix(results_dict):
@@ -325,3 +398,35 @@ def remove_common_results_prefix(results_dict):
     split_keys = [k.split('.') for k in results_dict.keys()]
     trimmed_keys = remove_common_prefix(split_keys)
     return OrderedDict((k, v) for k, v in izip_equal(trimmed_keys, results_dict.values()))
+
+
+def deprefix_experiment_ids(experiment_ids):
+    """
+    Given a list of experiment ids, removed the common root experiments from the list.
+    :param experiment_ids: A list of experiment ids.
+    :return: A list of experiment ids with the root prefix removed.
+    """
+
+    # First build dict mapping experiment_ids to their parents experiment_ids
+    glib = get_global_experiment_library()
+    exp_to_parent = {}
+    for eid in glib.keys():
+        ex = glib[eid]
+        for var in ex.get_variants():
+            exp_to_parent[var.get_id()] = ex.get_id()
+
+    @memoize
+    def get_experiment_tuple(exp_id):
+        if exp_id in exp_to_parent:
+            parent_id = exp_to_parent[exp_id]
+            parent_tuple = get_experiment_tuple(parent_id)
+            return parent_tuple + (exp_id[len(parent_id)+1:], )
+        else:
+            return (exp_id, )
+
+    # Then for each experiment in the list,
+    tuples = [get_experiment_tuple(eid) for eid in experiment_ids]
+    de_prefixed_tuples = remove_common_prefix(tuples, keep_base=False)
+    new_strings = ['.'+'.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
+    return new_strings
+

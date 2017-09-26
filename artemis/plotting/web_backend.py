@@ -1,4 +1,3 @@
-from tempfile import gettempdir
 import time
 from six.moves import _thread as thread
 from six.moves import SimpleHTTPServer, socketserver
@@ -10,6 +9,7 @@ import logging
 import atexit
 import shutil
 import uuid
+
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 

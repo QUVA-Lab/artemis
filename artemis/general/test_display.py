@@ -1,7 +1,8 @@
 import textwrap
+from collections import OrderedDict
 
 from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper, deepstr, \
-    str_with_arrayopts, surround_with_header
+    str_with_arrayopts, surround_with_header, sensible_str
 import numpy as np
 
 _desired = """
@@ -91,6 +92,10 @@ def test_deepstr():
     obj['c'] = obj['bbbb']
     string_desc = deepstr(obj)
     print(string_desc)
+
+    obj = {}
+    string_desc = deepstr(obj)
+    print(string_desc)
     # For now, no assertions, because string contains IDS which will always change.  We can come up with some way to do this later with regular experessions if needed.
 
 
@@ -132,6 +137,17 @@ def test_nested_capture():
     assert cap1.read()=='a\nb\nc\n'
 
 
+def test_sensible_str():
+
+    a = [1, 2, 3]
+    stra = sensible_str(a)
+    assert stra=='[1,2,3]'
+
+    a = OrderedDict([('a', [1,2,3]), ('b', (3, list(range(20)))), ('c', np.arange(20).reshape(4, 5)), ('d', np.arange(4).reshape(2, 2))])
+    stra = sensible_str(a, size_limit=4, compact=True)
+    assert stra=='OrderedDict([a:[1,2,3],b:(3,<len20-list>),c:<(4,5)ndarray>,d:ndarray([[01],[23]])])'
+
+
 if __name__ == '__main__':
     test_indent_print()
     test_side_by_side()
@@ -140,3 +156,4 @@ if __name__ == '__main__':
     test_str_with_arrayopts()
     test_surround_with_header()
     test_nested_capture()
+    test_sensible_str()
