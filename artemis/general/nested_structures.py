@@ -334,8 +334,8 @@ def structseq_to_seqstruct(structseq):
 
 class SequentialStructBuilder(object):
 
-    def __init__(self):
-        self._struct = None  # An OrderedDict<string: list<obj>>
+    def __init__(self, struct=None):
+        self._struct = struct  # An OrderedDict<string: list<obj>>
 
     def __getitem__(self, key):
         if self._struct is None:
@@ -376,17 +376,23 @@ class SequentialStructBuilder(object):
             self._struct = []
         else:
             assert isinstance(self._struct, list)
-
         self._struct.append(val)
 
+    def map(self, func):
+        if self.is_sequence is True:
+            return [func(x) for x in self._struct]
+        elif self.is_sequence is False:
+            return OrderedDict((name, func(val)) for name, val in self._struct.iteritems())
+        else:
+            return None
+
     def get_structs(self):
-        return nested_map(lambda v: v.get_structs() if isinstance(v, SequentialStructBuilder) else v, self._struct)
+        return self.map(lambda v: v.get_structs() if isinstance(v, SequentialStructBuilder) else v)
 
-    def to_struct(self, as_arrays=False):
-        return seqstruct_to_structseq(self.get_structs(), as_arrays=as_arrays)
+    def to_structseq(self, as_arrays=False):
+        structs = self.get_structs()
+        return nested_map(lambda s: seqstruct_to_structseq(s, as_arrays=as_arrays) if isinstance(s, list) else s, structs, is_container_func = lambda x: isinstance(x, dict))
 
-    def to_seq(self):
-        return structseq_to_seqstruct(self.get_structs())
-
-    # def get_flat_structs(self, as_array=False):
-    #     return OrderedDict((key, seqstruct_to_structseq(val, as_arrays=as_array)) for key, val in self._structs.items())
+    def to_seqstruct(self):
+        structs = self.get_structs()
+        return nested_map(lambda s: seqstruct_to_structseq(s) if isinstance(s, dict) else s, structs, is_container_func = lambda x: isinstance(x, list))
