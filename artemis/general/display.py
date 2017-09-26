@@ -1,12 +1,12 @@
 import sys
 import textwrap
-from StringIO import StringIO
 from collections import OrderedDict
 from contextlib import contextmanager
-
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
+from six import string_types
+from six.moves import xrange, StringIO
 
 __author__ = 'peter'
 
@@ -47,12 +47,12 @@ def sensible_str(data, size_limit=4, compact=True):
             string = '<len{}-{}>'.format(len(data), data.__class__.__name__)
         else:
             open, close = '[]' if isinstance(data, list) else '()'
-            string = '['+', '.join(sensible_str(x) for x in data[:size_limit]) + close
+            string = open +', '.join(sensible_str(x) for x in data[:size_limit]) + close
     elif isinstance(data, dict):
         if len(data)>size_limit:
             string = '<len{}-{}>'.format(len(data), data.__class__.__name__)
         else:
-            open, close = ('OrderedDict([', '])') if isinstance(dict, OrderedDict) else '{}'
+            open, close = ('OrderedDict([', '])') if isinstance(data, OrderedDict) else '{}'
             string = open+', '.join('{}:{}'.format(sensible_str(k), sensible_str(v)) for i, (k, v) in zip(range(size_limit), data.items())) + close
     else:
         string = str(data).replace('\n', '\\n')
@@ -113,7 +113,7 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
         else:
             raise Exception('Should never be here')
 
-        max_indent = max(len(k) for k in keys)
+        max_indent = max(len(k) for k in keys) if len(keys)>0 else 0
 
         elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
         string_desc = '<{type} at {id}>\n'.format(type = type(obj).__name__, id=hex(id(obj))) + indent_string('\n'.join(elements), indent=indent)
@@ -258,7 +258,7 @@ def side_by_side(multiline_strings, gap=4, max_linewidth=None):
     if all(len(lines)==0 for lines in lineses):  # All strings are empty
         return ''
 
-    longests = [max(len(line) for line in lines) for lines in lineses]
+    longests = [max(len(line) for line in lines) if len(lines)>0 else 0 for lines in lineses]
 
     spacer = ' '*gap
     new_lines = []
@@ -295,8 +295,8 @@ def surround_with_header(string, width, char='-'):
     :param char: Character to repeat
     :return: A header, whose length will be
     """
-    left = (width-len(string)-1)/2
-    right = (width-len(string)-2)/2
+    left = (width-len(string)-1)//2
+    right = (width-len(string)-2)//2
     return char*left+' '+string+' '+char*right
 
 
@@ -318,7 +318,7 @@ def assert_things_are_printed(things, min_len=None):
     :return:
     """
 
-    if isinstance(things, basestring):
+    if isinstance(things, string_types):
         things = [things]
 
     with CaptureStdOut() as cap:

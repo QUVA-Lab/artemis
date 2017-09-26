@@ -1,6 +1,7 @@
 import numpy as np
 from artemis.experiments import experiment_function
 from matplotlib import pyplot as plt
+from six.moves import xrange
 
 __author__ = 'peter'
 

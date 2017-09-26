@@ -3,9 +3,11 @@ import inspect
 from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
+from six import string_types
 from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
-    get_all_record_ids, clear_experiment_records, run_and_record
-from artemis.general.functional import infer_derived_arg_values, get_partial_chain
+    get_all_record_ids, clear_experiment_records
+from artemis.experiments.experiment_record import run_and_record
+from artemis.general.functional import infer_derived_arg_values, get_partial_root
 
 
 class Experiment(object):
@@ -61,10 +63,10 @@ class Experiment(object):
         return infer_derived_arg_values(self.function)
 
     def get_root_function(self):
-        return get_partial_chain(self.function)[0]
+        return get_partial_root(self.function)
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
-            display_results=True, notes = (), **experiment_record_kwargs):
+            display_results=False, notes = (), **experiment_record_kwargs):
         """
         Run the experiment, and return the ExperimentRecord that is generated.
 
@@ -99,6 +101,7 @@ class Experiment(object):
         )
         if display_results:
             self.show(exp_rec)
+
         return exp_rec
 
     def _create_experiment_variant(self, args, kwargs, is_root):
@@ -372,7 +375,7 @@ def load_experiment(experiment_id):
 
 
 def is_experiment_loadable(experiment_id):
-    assert isinstance(experiment_id, basestring), 'Expected a string for experiment_id, not {}'.format(experiment_id)
+    assert isinstance(experiment_id, string_types), 'Expected a string for experiment_id, not {}'.format(experiment_id)
     return experiment_id in _GLOBAL_EXPERIMENT_LIBRARY
 
 

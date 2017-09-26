@@ -2,6 +2,7 @@ import datetime
 from artemis.fileman.config_files import get_config_value
 from artemis.config import get_artemis_config_value
 import os
+from six.moves import xrange
 
 __author__ = 'peter'
 

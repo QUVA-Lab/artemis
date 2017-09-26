@@ -4,9 +4,11 @@ import traceback
 from collections import OrderedDict
 from functools import partial
 from importlib import import_module
+from six import string_types
+from six.moves import reduce, xrange
 
-from artemis.experiments.experiment_record import load_experiment_record, ExpInfoFields, \
-    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id
+from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
+    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id)
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.config_files import get_home_dir
 from artemis.general.hashing import compute_fixed_hash
@@ -26,7 +28,7 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     import pexpect
     import sys
 
-    if isinstance(experiment_names, basestring):
+    if isinstance(experiment_names, string_types):
         experiment_names = [experiment_names]
 
     inclusions = ' '.join("--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names)
@@ -53,11 +55,12 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
 
 def load_lastest_experiment_results(experiments, error_if_no_result = True):
     """
-    :param experiments:
-    :param error_if_no_result:
-    :return:
+    Given a list of experiments (or experiment ids), return an OrderedDict<record_id: result>
+    :param experiments: A list of Experiment objects (or strings identifying experiment ID is ok too)
+    :param error_if_no_result: Raise an error if an experiment has no completed results.
+    :return: OrderedDict<record_id: result>
     """
-    experiments = [load_experiment(ex) if isinstance(ex, basestring) else ex for ex in experiments]
+    experiments = [load_experiment(ex) if isinstance(ex, string_types) else ex for ex in experiments]
     records = [ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True) for ex in experiments]
     record_results = load_record_results([r for r in records if r is not None], err_if_no_result=error_if_no_result)
     experiment_latest_results = OrderedDict((rec.get_experiment_id(), val) for rec, val in record_results.items())
@@ -226,23 +229,16 @@ def _filter_records(user_range, exp_record_dict):
         _second_stage_filters = _filter_records(second_part, _new_dict)
         return _bitwise_filter_op('andcascade', _first_stage_filters, _second_stage_filters)
 
-        # subparts = user_range.split('>')
-        # _new_dict = exp_record_dict
-        # filters = []
-        # for part in subparts:
-        #     filters.append(_filter_records(part, _new_dict))
-        #     _new_dict = _select_record_ids_from_filters(filters[-1], _new_dict)
-        # return _bitwise_filter_op('andcascade', *filters)
     elif user_range.startswith('~'):
         return _bitwise_filter_op('not', _filter_records(user_range[1:], exp_record_dict))
 
-    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.iteritems())
+    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.items())
     if user_range in exp_record_dict:  # User just lists an experiment
         base[user_range] = [True]*len(base[user_range])
         return base
 
     number_range = interpret_numbers(user_range)
-    keys = exp_record_dict.keys()
+    keys = list(exp_record_dict.keys())
     if number_range is not None:
         for i in number_range:
             if i>len(keys):
@@ -255,24 +251,19 @@ def _filter_records(user_range, exp_record_dict):
                 raise RecordSelectionError('Selection {}.{} does not exist.'.format(exp_number, rec_number))
             base[keys[exp_number]][rec_number] = True
     elif user_range == 'old':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
     elif user_range == 'finished':
         for k, v in base.iteritems():
             base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
-    # elif user_range == 'unfinished':
-    #     base = _filter_records('~finished', )
-    #     for k, v in base.iteritems():
-    #         base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
-        # filtered_dict = OrderedDict((exp_id, [rec_id for rec_id in records if load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) != ExpStatusOptions.FINISHED]) for exp_id, records in exp_record_dict.iteritems())
     elif user_range == 'invalid':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = [load_experiment_record(rec_id).args_valid() is False for rec_id in exp_record_dict[k]]
     elif user_range == 'all':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = [True]*len(v)
     elif user_range == 'errors':
-        for k, v in base.iteritems():
+        for k, v in base.items():
             base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
     else:
         raise RecordSelectionError("Don't know how to interpret subset '{}'".format(user_range))

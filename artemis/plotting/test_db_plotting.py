@@ -9,6 +9,7 @@ from artemis.plotting.matplotlib_backend import LinePlot, HistogramPlot, MovingP
 import pytest
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
+from six.moves import xrange
 
 __author__ = 'peter'
 

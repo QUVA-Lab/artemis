@@ -1,4 +1,5 @@
 import numpy as np
+from six.moves import xrange
 
 from artemis.ml.tools.processors import RunningAverage
 

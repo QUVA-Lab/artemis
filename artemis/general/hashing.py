@@ -3,9 +3,10 @@ import pickle
 from collections import OrderedDict
 import itertools
 import numpy as np
+from six import string_types, next
 
-_ALREADY_SEEN_CODE = 'dbf056790fabd3c7b79c1ddab7b7ee49'
-_END_CODE = 'e0abd6b36d6e295b6c8859cdffc773df'
+_ALREADY_SEEN_CODE = 'dbf056790fabd3c7b79c1ddab7b7ee49'.encode('utf-8')
+_END_CODE = 'e0abd6b36d6e295b6c8859cdffc773df'.encode('utf-8')
 
 
 def fixed_hash_eq(obj1, obj2):
@@ -35,27 +36,27 @@ def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _co
     """
     if _memo is None:
         _memo = {}
-    elif not isinstance(obj, (np.ndarray, int, float, basestring, bool)) and id(obj) in _memo:
+    elif not isinstance(obj, (np.ndarray, int, float, bool)+string_types) and id(obj) in _memo:
         _hasher.update(_ALREADY_SEEN_CODE)
-        _hasher.update(str(_memo[id(obj)]))
+        _hasher.update(str(_memo[id(obj)]).encode('utf-8'))
         _hasher.update(_END_CODE)
         return _memo[id(obj)]
 
     if _count is None:
         _count = itertools.count()
-    _memo[id(obj)] = _count.next()
+    _memo[id(obj)] =next(_count)
 
     if _hasher is None:
         _hasher = hashlib.md5()
 
     kwargs = dict(_hasher=_hasher, try_objects=try_objects, _memo=_memo, _count=_count)
 
-    _hasher.update(obj.__class__.__name__)
+    _hasher.update(obj.__class__.__name__.encode('utf-8'))
     if isinstance(obj, np.ndarray):
         _hasher.update(pickle.dumps(obj.dtype, protocol=2))
         _hasher.update(pickle.dumps(obj.shape, protocol=2))
         _hasher.update(obj.tostring())
-    elif isinstance(obj, (int, basestring, float, bool)) or (obj is None) or (obj in (int, str, float, bool)):
+    elif isinstance(obj, (int, float, bool)+string_types) or (obj is None) or (obj in (int, str, float, bool)):
         _hasher.update(pickle.dumps(obj, protocol=2))
     elif isinstance(obj, (list, tuple)):
         for el in obj:

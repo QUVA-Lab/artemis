@@ -2,16 +2,16 @@ import re
 from collections import OrderedDict
 
 from tabulate import tabulate
-
 from artemis.experiments.experiment_management import load_lastest_experiment_results
 from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, \
-    load_experiment_record
+    load_experiment_record, is_matplotlib_imported
 from artemis.experiments.experiments import is_experiment_loadable, get_global_experiment_library
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, CaptureStdOut, \
     surround_with_header, section_with_header
 from artemis.general.nested_structures import flatten_struct
 from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value, izip_equal
 from artemis.general.tables import build_table
+from six import string_types
 
 
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False):
@@ -22,7 +22,7 @@ def get_record_result_string(record, func='deep', truncate_to = None, array_prin
     :return:
     """
     with hold_numpy_printoptions(threshold = array_print_threshold, formatter={'float': lambda x: '{{:{}}}'.format(array_float_format).format(x)}):
-        if isinstance(func, basestring):
+        if isinstance(func, string_types):
             func = {
                 'deep': deepstr,
                 'str': str,
@@ -120,21 +120,17 @@ def get_record_invalid_arg_string(record, recursive=True, note_version = 'full')
         if record.info.has_field(ExpInfoFields.ARGS):
             last_run_args = record.get_args()
             current_args = record.get_experiment().get_args()
-
-            old_last_run_args, old_current_args = last_run_args, current_args
-
             validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
                 if recursive:
                     last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
                     current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
-                last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.iteritems()] for argdict in (last_run_args, current_args)]
+                last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.items()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
-
                 if len(old_args)+len(new_args)==0:
-                    print "WARNING: NEED TO FIX REPORT FOR NEW NESTED ARGS"
+                    raise Exception('Error displaying different args.  Bug Peter.')
                 changestr = "{{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
-                notes = ("Args changed!: " if note_version=='full' else "") + changestr
+                notes = ("Change: " if note_version=='full' else "") + changestr
             elif validity is None:
                 notes = "Cannot Determine: Unhashable Args" if note_version=='full' else '<Unhashable Args>'
             else:
@@ -157,7 +153,7 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
     :param array_print_threshold:
     :return: A string with no newlines briefly describing the result of the record.
     """
-    if isinstance(record, basestring):
+    if isinstance(record, string_types):
         record = load_experiment_record(record)
     if not is_experiment_loadable(record.get_experiment_id()):
         one_liner_function=str
@@ -167,27 +163,6 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
             one_liner_function = str
     return get_record_result_string(record, func=one_liner_function, truncate_to=truncate_to, array_print_threshold=array_print_threshold,
         array_float_format=array_float_format, oneline=True)
-
-
-def display_experiment_record(record):
-    # TODO: Remove..  Call show_record instead
-    result = record.get_result(err_if_none=False)
-    display_func = record.get_experiment().display_function
-    if display_func is None:
-        print(deepstr(result))
-    else:
-        display_func(result)
-
-
-def compare_experiment_results(experiments, error_if_no_result = False):
-    # TODO: Remove... Call compare_records instead
-    comp_functions = [ex.comparison_function for ex in experiments]
-    assert all_equal(comp_functions), 'Experiments must have same comparison functions.'
-    comp_function = comp_functions[0]
-    assert comp_function is not None, 'Cannot compare results, because you have not specified any comparison function for this experiment.  Use @ExperimentFunction(comparison_function = my_func)'
-    results = load_lastest_experiment_results(experiments, error_if_no_result=error_if_no_result)
-    assert len(results), 'Experments {} had no saved results!'.format([e.get_id() for e in experiments])
-    comp_function(results)
 
 
 def print_experiment_record_argtable(records):
@@ -249,6 +224,21 @@ def show_record(record, show_logs=True, truncate_logs=None, truncate_result=1000
     print(string)
 
 
+def show_multiple_records(records, func = None):
+
+    if func is None:
+        func = lambda rec: rec.get_experiment().show(rec)
+
+    if is_matplotlib_imported():
+        from artemis.plotting.manage_plotting import delay_show
+        with delay_show():
+            for rec in records:
+                func(rec)
+    else:
+        for rec in records:
+            func(rec)
+
+
 def compare_experiment_records(records, parallel_text=None, show_logs=True, truncate_logs=None,
         truncate_result=10000, header_width=100, max_linewidth=128, show_result ='deep'):
     """
@@ -294,7 +284,7 @@ def find_experiment(*search_terms):
     :return:
     """
     global_lib = get_global_experiment_library()
-    found_experiments = OrderedDict((name, ex) for name, ex in global_lib.iteritems() if all(re.search(term, name) for term in search_terms))
+    found_experiments = OrderedDict((name, ex) for name, ex in global_lib.items() if all(re.search(term, name) for term in search_terms))
     if len(found_experiments)==0:
         raise Exception("None of the {} experiments matched the search: '{}'".format(len(global_lib), search_terms))
     elif len(found_experiments)>1:
