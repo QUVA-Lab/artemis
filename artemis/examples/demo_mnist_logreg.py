@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
     if demo_version == 'ui':
         # Open the experiment browser UI, from where you can run and view experiments:
-        demo_mnist_logreg.browse()
+        demo_mnist_logreg.browse(raise_display_errors=False)
         # Commands you can try (or press h to see a list of all commands):
         # run all          # Runs all experiments
         # show 2-3         # Show the output and figures from experiments 2 and 3
