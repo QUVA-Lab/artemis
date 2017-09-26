@@ -320,7 +320,7 @@ experiment records.  You can specify records in the following ways:
             experiment_rows = []
             experiment_row_ixs = []
             counter = 1  # Start at 2 because record table has the headers.
-            for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
+            for i, (exp_id, record_ids) in enumerate(exp_record_dict.items()):
                 experiment_row_ixs.append(counter)
 
                 exp_identifier = exp_id if not self.show_args else ','.join('{}={}'.format(k, v) for k, v in argdiff[exp_id])
@@ -347,7 +347,7 @@ experiment records.  You can specify records in the following ways:
         elif self.display_format=='flat':  # Display First record on same row
             full_headers = ['E#', 'R#', 'Experiment']+header_names
             rows = []
-            for i, (exp_id, record_ids) in enumerate(exp_record_dict.iteritems()):
+            for i, (exp_id, record_ids) in enumerate(exp_record_dict.items()):
                 if len(record_ids)==0:
                     rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-1))
                 else:
