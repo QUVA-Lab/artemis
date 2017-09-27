@@ -265,6 +265,9 @@ def _filter_records(user_range, exp_record_dict):
     elif user_range == 'errors':
         for k, v in base.items():
             base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
+    elif user_range == 'result':
+        for k, v in base.items():
+            base[k] = [load_experiment_record(rec_id).has_result() for rec_id in exp_record_dict[k]]
     else:
         raise RecordSelectionError("Don't know how to interpret subset '{}'".format(user_range))
     return base
