@@ -1,14 +1,12 @@
-import pickle
 import os
-
+import pickle
 import numpy as np
+from artemis.fileman.file_getter import get_file, get_archive
+from artemis.ml.datasets.datasets import DataSet, DataCollection
 from six.moves import xrange, input
 
-from artemis.ml.datasets.datasets import DataSet, DataCollection
-from artemis.fileman.file_getter import get_file, get_archive
-
-
 __author__ = 'peter'
+
 
 def get_cifar_100_dataset(n_training_samples=None, n_test_samples=None, whiten_individual_images=False, fine_labels=True):
     '''

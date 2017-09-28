@@ -1,8 +1,7 @@
 import numpy as np
+from artemis.experiments.decorators import experiment_function
 from matplotlib import pyplot as plt
 from six.moves import xrange
-
-from artemis.experiments.decorators import ExperimentFunction
 
 __author__ = 'peter'
 
@@ -31,8 +30,7 @@ class OnlineLinearRegressor:
         return x.dot(self.w)
 
 
-# @experiment_function
-@ExperimentFunction(is_root=False)
+@experiment_function
 def demo_linear_regression(
         n_in = 100,
         n_out = 4,
@@ -93,15 +91,13 @@ def demo_linear_regression(
 
     return {'training_cost': training_cost, 'test_cost': test_cost}
 
-demo_linear_regression.add_variant('fast-learn', eta=0.01)
 
+demo_linear_regression.add_variant('fast-learn', eta=0.01)
 demo_linear_regression.add_variant('large_input_space', n_in=1000)
 
 
 if __name__ == "__main__":
     # Open a menu that allows you to run experiments and view old ones.
-    slurm_kwargs = {"--gres":"gpu:1","-C":"TitanX", "-N":"1", "-t":"0-00:10:00"}
-    demo_linear_regression.browse(slurm_kwargs=slurm_kwargs, command="0 -slurm")
-    # demo_linear_regression.browse(command="run all -p")
+    demo_linear_regression.browse()
 
 
