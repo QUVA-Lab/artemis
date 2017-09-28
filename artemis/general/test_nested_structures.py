@@ -147,12 +147,12 @@ def test_sequential_struct_builder():
 
 
 if __name__ == '__main__':
-    # test_flatten_struct()
-    # test_get_meta_object()
-    # test_nested_type()
-    # test_seqstruct_to_structseq_and_inverse()
+    test_flatten_struct()
+    test_get_meta_object()
+    test_nested_type()
+    test_seqstruct_to_structseq_and_inverse()
     test_nested_map()
-    # test_get_leaf_values()
-    # test_nested_map_with_container_func()
-    # test_none_bug()
-    # test_sequential_struct_builder()
+    test_get_leaf_values()
+    test_nested_map_with_container_func()
+    test_none_bug()
+    test_sequential_struct_builder()
