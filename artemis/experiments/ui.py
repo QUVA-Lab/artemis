@@ -421,17 +421,22 @@ experiment records.  You can specify records in the following ways:
         """
         parser = argparse.ArgumentParser()
         parser.add_argument('user_range', action='store', help='A selection of experiment records to show. ')
-        parser.add_argument('-l', action='store_true', help='Just select the last record from the list of experiments.')
+        parser.add_argument('-l', '--last', action='store_true', help='Just select the last record from the list of experiments.')
         parser.add_argument('-r', '--results', default=False, action = "store_true", help="Only show records with results.")
         parser.add_argument('-o', '--original', default=False, action = "store_true", help="Use the original default show function: show_record")
         args = parser.parse_args(args)
+
+        user_range = args.user_range
+        if args.results:
+            user_range += '>result'
+        if args.last:
+            user_range += '>last'
+
         try:
-            records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
+            records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         except RecordSelectionError as err:
             print('FAILED!: {}'.format(str(err)))
 
-        if args.results:
-            records = [rec for rec in records if rec.has_result()]
         func = show_record if args.original else None
         show_multiple_records(records, func)
         _warn_with_prompt(use_prompt=not self.close_after)
@@ -510,10 +515,14 @@ experiment records.  You can specify records in the following ways:
     def records(self, ):
         browse_experiment_records(self.exp_record_dict.keys())
 
-    def pull(self, user_range, machine_name):
+    def pull(self, *args):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', help='A selection of experiments whose records to pull.  Examples: "3" or "3-5", or "3,4,5"')
+        parser.add_argument('machine_name', action='store', nargs = '?', default='all', help='Name of machine to pull from (must be listed in ~/.artemisrc)')
+        args = parser.parse_args(args)
         from artemis.remote.remote_machines import get_remote_machine_info
-        info = get_remote_machine_info(machine_name)
-        exp_names = select_experiments(user_range, self.exp_record_dict)
+        info = get_remote_machine_info(args.machine_name)
+        exp_names = select_experiments(args.user_range, self.exp_record_dict)
         output = pull_experiments(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False)
         print(output)
 

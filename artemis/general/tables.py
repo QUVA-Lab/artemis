@@ -92,5 +92,3 @@ def blank_out_repeats(sequence, replace_with=' '):
         if new_sequence[i]==new_sequence[i-1]:
             new_sequence[i] = replace_with
     return new_sequence
-
-

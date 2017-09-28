@@ -27,6 +27,10 @@ class IPlot(object):
     def plot(self):
         pass
 
+    def update_and_plot(self, data):
+        self.update(data)
+        self.plot()
+
 
 class HistoryFreePlot(IPlot):
 

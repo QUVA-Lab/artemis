@@ -1,6 +1,10 @@
 from collections import OrderedDict
+
+import logging
 import numpy as np
 from six import string_types, next
+
+from artemis.general.should_be_builtins import izip_equal, all_equal
 
 __author__ = 'peter'
 
@@ -227,7 +231,7 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
     return filled_object
 
 
-def nested_map(func, nested_obj, check_types=False, is_container_func = _is_primitive_container):
+def nested_map(func, *nested_objs, **kwargs):
     """
     An equivalent of pythons built-in map, but for nested objects.  This function crawls the object and applies func
     to the leaf nodes.
@@ -238,11 +242,16 @@ def nested_map(func, nested_obj, check_types=False, is_container_func = _is_prim
     :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
     :return: A nested objectect with the same structure, but func applied to every value.
     """
+    is_container_func = kwargs['is_container_func'] if 'is_container_func' in kwargs else _is_primitive_container
+    check_types = kwargs['check_types'] if 'check_types' in kwargs else False
+    assert len(nested_objs)>0, 'nested_map requires at least 2 args'
+
     assert callable(func), 'func must be a function with one argument.'
-    nested_type = NestedType.from_data(nested_obj, is_container_func=is_container_func)
-    leaf_values = nested_type.get_leaves(nested_obj, is_container_func=is_container_func, check_types=check_types)
-    new_leaf_values = [func(v) for v in leaf_values]
-    new_nested_obj = nested_type.expand_from_leaves(new_leaf_values, check_types=check_types, is_container_func=is_container_func)
+    nested_types = [NestedType.from_data(nested_obj, is_container_func=is_container_func) for nested_obj in nested_objs]
+    assert all_equal(nested_types), "The nested objects you provided had different data structures:\n{}".format('\n'.join(str(s) for s in nested_types))
+    leaf_values = zip(*[nested_type.get_leaves(nested_obj, is_container_func=is_container_func, check_types=check_types) for nested_type, nested_obj in zip(nested_types, nested_objs)])
+    new_leaf_values = [func(*v) for v in leaf_values]
+    new_nested_obj = nested_types[0].expand_from_leaves(new_leaf_values, check_types=check_types, is_container_func=is_container_func)
     return new_nested_obj
 
 
@@ -320,3 +329,84 @@ def structseq_to_seqstruct(structseq):
     sequence = zip(*leaf_data)
     seqstruct = [nested_type.expand_from_leaves(s, check_types=False) for s in sequence]
     return seqstruct
+
+
+class SequentialStructBuilder(object):
+    """
+    A convenient structure for storing results.
+    """
+    def __init__(self, struct=None):
+        self._struct = struct  # An OrderedDict<string: list<obj>>
+
+    def __getitem__(self, key):
+        if self._struct is None:
+            self._struct = OrderedDict()
+        if key not in self._struct:
+            self._struct[key] = SequentialStructBuilder()
+        return self._struct[key]
+
+    def __setitem__(self, key, value):
+        if self._struct is None:
+            self._struct = OrderedDict()
+        else:
+            assert isinstance(self._struct, OrderedDict)
+        self._struct[key] = value
+
+    @property
+    def is_sequence(self):
+        if isinstance(self._struct, OrderedDict):
+            return False
+        elif isinstance(self._struct, list):
+            return True
+        else:
+            assert self._struct is None
+            return None
+
+    def open_next(self):
+        """
+        Add a new element to this sequence, so that future calls to last return this element.
+        :return:
+        """
+        if self._struct is None:
+            self._struct = []
+        else:
+            assert self.is_sequence is True
+        self._struct.append(SequentialStructBuilder())
+        return self._struct[-1]
+
+    @property
+    def next(self):
+        logging.warn("Warning: next should only be set, not gotten")
+        return None
+
+    @property
+    def last(self):
+        assert self.is_sequence, 'last can only be accessed when this is a sequence.'
+        return self._struct[-1]
+
+    @next.setter
+    def next(self, val):
+        if self._struct is None:
+            self._struct = []
+        else:
+            assert isinstance(self._struct, list)
+        self._struct.append(val)
+
+    def map(self, func):
+        if self.is_sequence is True:
+            return [func(x) for x in self._struct]
+        elif self.is_sequence is False:
+            return OrderedDict((name, func(val)) for name, val in self._struct.items())
+        else:
+            return None
+
+    def get_structs(self):
+        return self.map(lambda v: v.get_structs() if isinstance(v, SequentialStructBuilder) else v)
+
+    def to_structseq(self, as_arrays=False):
+        structs = self.get_structs()
+        return nested_map(lambda s: seqstruct_to_structseq(s, as_arrays=as_arrays) if isinstance(s, list) else s, structs, is_container_func = lambda x: isinstance(x, dict))
+
+    def to_seqstruct(self):
+        structs = self.get_structs()
+        return nested_map(lambda s: seqstruct_to_structseq(s) if isinstance(s, dict) else s, structs, is_container_func = lambda x: isinstance(x, list))
