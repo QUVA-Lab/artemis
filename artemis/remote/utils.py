@@ -1,5 +1,5 @@
 from __future__ import print_function
-import SocketServer
+from six.moves import socketserver
 import getpass
 import logging
 import socket
@@ -7,7 +7,6 @@ import struct
 import sys
 
 import os
-import paramiko
 from six.moves import input
 
 from artemis.config import get_artemis_config_value
@@ -44,7 +43,7 @@ def get_socket(address, port):
         try:
             server_address = (address, port)
             sock.bind(server_address)
-        except SocketServer.socket.error as exc:
+        except socketserver.socket.error as exc:
             # ARTEMIS_LOGGER.info('Port', port, 'already in use')
             port += 1
             if exc.args[0] == 48 or exc.args[0] == 98:
@@ -60,7 +59,7 @@ def send_size(sock, data):
     try:
         sock.sendall(struct.pack('!I', len(data)))
         sock.sendall(data)
-    except SocketServer.socket.error as exc:
+    except socketserver.socket.error as exc:
         if exc.args[0] == 32:
             print("Broken pipe", file=sys.stderr)
             sys.exit(0)
@@ -73,7 +72,7 @@ def recv_bytes(sock, size):
     while size:
         try:
             newbuf = sock.recv(size)
-        except SocketServer.socket.error as exc:
+        except socketserver.socket.error as exc:
             if exc.args[0] == 54:
                 print("Connection reset by peer", file=sys.stderr)
                 sys.exit(0)
@@ -178,9 +177,8 @@ def get_ssh_connection(ip_address):
     :param ip_address:
     :return:
     '''
-
+    import paramiko
     path_to_private_key = os.path.join(os.path.expanduser("~"),".ssh/id_rsa")
-
     private_key = paramiko.RSAKey.from_private_key_file(os.path.expanduser(path_to_private_key))
     username = get_artemis_config_value(section=ip_address, option="username", default_generator=lambda: getpass.getuser())
     ssh_conn = paramiko.SSHClient()

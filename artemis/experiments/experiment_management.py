@@ -1,17 +1,19 @@
 import getpass
-import multiprocessing
 import traceback
 from collections import OrderedDict
 from functools import partial
 from importlib import import_module
+import os
+import multiprocessing
 from six import string_types
 from six.moves import reduce, xrange
-
 from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
-    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id)
+    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id, get_all_record_ids, get_experiment_dir)
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
-from artemis.fileman.config_files import get_home_dir
+from artemis.fileman.config_files import get_home_dir,set_non_persistent_config_value
 from artemis.general.hashing import compute_fixed_hash
+from artemis.remote.child_processes import SlurmPythonProcess
+from artemis.remote.nanny import Nanny
 from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix, memoize
 
 
@@ -80,7 +82,6 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
 
 
 def select_experiments(user_range, exp_record_dict, return_dict=False):
-
     exp_filter = _filter_experiments(user_range, exp_record_dict)
     if return_dict:
         return OrderedDict((name, exp_record_dict[name]) for name in exp_record_dict if exp_filter[name])
@@ -123,7 +124,7 @@ def _filter_experiments(user_range, exp_record_dict):
             phrase = user_range[len('hasnot:'):]
             # experiment_ids = [exp_id for exp_id in experiment_list if phrase not in exp_id]
             is_in = [phrase not in exp_id for exp_id in exp_record_dict]
-        elif user_range in ('unfinished', 'invalid'):  # Return all experiments where all records are unfinished/invalid
+        elif user_range in ('unfinished', 'invalid', 'corrupt'):  # Return all experiments where all records are unfinished/invalid/corrupt
             record_filters = _filter_records(user_range, exp_record_dict)
             # experiment_ids = [exp_id for exp_id in experiment_list if len(record_filters[exp_id])]
             is_in = [all(record_filters[exp_id]) for exp_id in exp_record_dict]
@@ -245,6 +246,9 @@ def _filter_records(user_range, exp_record_dict):
     elif user_range == 'old':
         for k, v in base.items():
             base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
+    elif user_range == 'corrupt':
+        for k, v in base.items():
+            base[k] = [load_experiment_record(rec_id).info.get_status_field()==ExpStatusOptions.CORRUPT for rec_id in exp_record_dict[k]]
     elif user_range == 'finished':
         for k, v in base.iteritems():
             base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
@@ -292,6 +296,7 @@ def _filter_experiment_record_list(user_range, experiment_record_ids):
             else:  # They must be old... lets kill them!
                 orphans.append(True)
         return orphans
+    # elif user_range
     else:
         which_ones = interpret_numbers(user_range)
         if which_ones is None:
@@ -338,14 +343,48 @@ def interpret_numbers(user_range):
     else:
         return None
 
-
-def run_experiment(name, exp_dict='global', **experiment_record_kwargs):
+def run_experiment(experiment, slurm_job = False, experiment_path=None, **experiment_record_kwargs):
     """
     Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
-    You can run the experiment agin later by calling show_experiment(location_string):
+    You can run the experiment again later by calling show_experiment(location_string):
+
+    :param experiment: The experiment object to be run
+    :param slurm_job: It True, this function is interpreted as being run from within a SLURM call.
+    :param experiment_path: If not None, the 'experiment_directory' option in the 'experiments' section of the .artemisrc file will be temporarily set to this value
+    :param experiment_record_kwargs: Passed to ExperimentRecord.
+
+    :return: A location_string, uniquely identifying the experiment.
+    """
+    if slurm_job:
+        """
+        If we run an experiment with slurm, then each subprocesses on the SLURM node will try to execute the experiment.
+        This has two implications:
+        1.) This run_experiment call is executed on a different processor than the processor on which the experiment UI is being executed. Consequently the environment is potentially different and 
+        all global variables are reset to their default at artemis load.
+        2.) Since we leave the distributed computation to the individual experiment to be executed, we catch these multiple executions here. Instead, we will only allow the first of the slurm nodes to proceed. All other nodes immediatly return.
+        The fact that all other nodes immediately return does not impact the SLURM call since the SLURM call is considered finished only when all SLURM nodes terminate.
+        I am aware that we could potentially save code and make this super slick by designing a subclass of Experiment which would be a 'DistributedSlurmExperiment', but this is future work.
+        For now, this works.
+        """
+        assert "SLURM_NODEID" in os.environ.keys(), "You indicated that the experiment '{}' is run within a SLURM call, however the environment variable 'SLURM_NODEID' could not be found".format(experiment.get_id())
+        if int(os.environ["SLURM_NODEID"]) > 0:
+            return
+    if experiment_path:
+        'As mentioned above, global variables are reset, so I reset the one element I actually use' #TODO: Make this more elegant
+        set_non_persistent_config_value(config_filename=".artemisrc", section="experiments", option="experiment_directory", value=experiment_path)
+
+    return experiment.run(**experiment_record_kwargs)
+
+
+def run_experiment_by_name(name, exp_dict='global', slurm_job=False, experiment_path=None, **experiment_record_kwargs):
+    """
+    Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
+    You can run the experiment again later by calling show_experiment(location_string):
 
     :param name: The name for the experiment (must reference something in exp_dict)
     :param exp_dict: A dict<str:func> where funcs is a function with no arguments that run the experiment.
+    :param slurm_job: It True, this function is interpreted as being run from within a SLURM call.
+    :param experiment_path: If not None, the 'experiment_directory' option in the 'experiments' section of the .artemisrc file will be temporarily set to this value
     :param experiment_record_kwargs: Passed to ExperimentRecord.
 
     :return: A location_string, uniquely identifying the experiment.
@@ -353,14 +392,32 @@ def run_experiment(name, exp_dict='global', **experiment_record_kwargs):
     if exp_dict == 'global':
         exp_dict = get_global_experiment_library()
     experiment = exp_dict[name]
-    return experiment.run(**experiment_record_kwargs)
+    return run_experiment(experiment,slurm_job, experiment_path, **experiment_record_kwargs)
 
 
 def run_experiment_ignoring_errors(name, **kwargs):
     try:
-        return run_experiment(name, **kwargs)
+        return run_experiment_by_name(name, **kwargs)
     except Exception as err:
         traceback.print_exc()
+
+
+def run_multiple_experiments_with_slurm(experiments, n_parallel=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
+    '''
+    Run multiple experiments using slurm, optionally in parallel.
+    '''
+    if n_parallel and n_parallel > 1:
+        raise NotImplementedError("No parallel Slurm execution at the moment. Implement it!")
+    else:
+        for i,exp in enumerate(experiments):
+            nanny = Nanny()
+            func = run_experiment
+            experiment_path = get_experiment_dir()
+            function_call = partial(func, experiment=exp, slurm_job=True, experiment_path=experiment_path,raise_exceptions=raise_exceptions,display_results=False, **run_args)
+            spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
+            # Using Nanny only for convenient stdout & stderr forwarding.
+            nanny.register_child_process(spp,monitor_for_termination=False)
+            nanny.execute_all_child_processes(time_out=2)
 
 
 def run_multiple_experiments(experiments, parallel = False, cpu_count=None, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
@@ -379,7 +436,7 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, disp
         experiment_identifiers = [ex.get_id() for ex in experiments]
         if cpu_count is None:
             cpu_count = multiprocessing.cpu_count()
-        func = run_experiment if raise_exceptions else run_experiment_ignoring_errors
+        func = run_experiment_by_name if raise_exceptions else run_experiment_ignoring_errors
         p = multiprocessing.Pool(processes=cpu_count)
         return p.map(partial(func, notes=notes, **run_args), experiment_identifiers)
     else:
@@ -398,6 +455,25 @@ def remove_common_results_prefix(results_dict):
     split_keys = [k.split('.') for k in results_dict.keys()]
     trimmed_keys = remove_common_prefix(split_keys)
     return OrderedDict((k, v) for k, v in izip_equal(trimmed_keys, results_dict.values()))
+
+
+def get_experient_to_record_dict(experiment_ids = None):
+    """
+    Given a list of experiment ids, return an OrderedDict whose keys are the experiment ids and whose values
+    are lists of experiment record ids.
+
+    :param experiment_ids: A list of experiment ids.  (Defaults to all imported experiments)
+    :return: A dict<experiment_id -> list<experiment_record_id>
+    """
+    if experiment_ids is None:
+        experiment_ids = get_global_experiment_library().keys()
+    record_ids = get_all_record_ids(experiment_ids)
+    exp_rec_dict = OrderedDict((exp_id, []) for exp_id in experiment_ids)
+    for rid in record_ids:
+        rec = load_experiment_record(rid)
+        exp_id = rec.get_experiment_id()
+        exp_rec_dict[exp_id].append(rid)
+    return exp_rec_dict
 
 
 def deprefix_experiment_ids(experiment_ids):
@@ -429,4 +505,3 @@ def deprefix_experiment_ids(experiment_ids):
     de_prefixed_tuples = remove_common_prefix(tuples, keep_base=False)
     new_strings = ['.'+'.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
     return new_strings
-
