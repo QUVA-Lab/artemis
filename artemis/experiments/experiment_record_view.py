@@ -109,7 +109,7 @@ def get_record_full_string(record, show_info = True, show_logs = True, truncate_
         return '\n'.join(parts)
 
 
-def get_record_invalid_arg_string(record, recursive=True, note_version = 'full'):
+def get_record_invalid_arg_string(record, recursive=True, ignore_valid_keys=(), note_version = 'full'):
     """
     Return a string identifying ig the arguments for this experiment are still valid.
     :return:
@@ -118,13 +118,16 @@ def get_record_invalid_arg_string(record, recursive=True, note_version = 'full')
     experiment_id = record.get_experiment_id()
     if is_experiment_loadable(experiment_id):
         if record.info.has_field(ExpInfoFields.ARGS):
-            last_run_args = record.get_args()
-            current_args = record.get_experiment().get_args()
+            last_run_args = OrderedDict([(k,v) for k,v in record.get_args().items() if k not in ignore_valid_keys])
+            current_args = OrderedDict([(k,v) for k,v in record.get_experiment().get_args().items() if k not in ignore_valid_keys])
+            if recursive:
+                last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
+                last_run_args = OrderedDict([(k, v) for k, v in last_run_args.items() if k not in ignore_valid_keys])
+                current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
+                current_args = OrderedDict([(k, v) for k, v in current_args.items() if k not in ignore_valid_keys])
+
             validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
-                if recursive:
-                    last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
-                    current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
                 last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.items()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
                 if len(old_args)+len(new_args)==0:

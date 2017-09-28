@@ -85,6 +85,12 @@ class ExperimentRecordInfo(object):
         assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
         return self.persistent_obj[field]
 
+    def get_status_field(self):
+        if self.has_field(ExpInfoFields.STATUS):
+            return self.persistent_obj[ExpInfoFields.STATUS]
+        else:
+            return ExpStatusOptions.CORRUPT
+
     def set_field(self, field, value):
         assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
         if field == ExpInfoFields.STATUS:
@@ -311,9 +317,9 @@ class ExperimentRecord(object):
             None if it cannot be determined because arguments are not hashable objects.
         """
         if last_run_args is None:  # Cast to dict (from OrderedDict) because different arg order shouldn't matter
-            last_run_args = self.info.get_field(ExpInfoFields.ARGS)
+            last_run_args = self.info.get_field(ExpInfoFields.ARGS)  # A list of 2-tuples
         if current_args is None:
-            current_args = self.get_experiment().get_args()
+            current_args = dict(self.get_experiment().get_args())
         try:
             return compute_fixed_hash(dict(last_run_args), try_objects=True) == compute_fixed_hash(dict(current_args), try_objects=True)
         except NotImplementedError:  # Happens when we have unhashable arguments

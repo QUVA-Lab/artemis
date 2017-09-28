@@ -79,7 +79,7 @@ def arg_signature(arg):
     elif isinstance(arg, list):
         return ('memoizationidentifier_list ',) + tuple(arg_signature(a) for a in arg)
     elif isinstance(arg, OrderedDict):
-        return ('memoizationidentifier_ordereddict ',) + tuple((arg_signature(k), arg_signature(v)) for k, v in arg.iteritems())
+        return ('memoizationidentifier_ordereddict ',) + tuple((arg_signature(k), arg_signature(v)) for k, v in arg.items())
     elif isinstance(arg, dict):
         return ('memoizationidentifier_dict ',) + tuple((arg_signature(k), arg_signature(arg[k])) for k in sorted(arg.keys()))
     else:

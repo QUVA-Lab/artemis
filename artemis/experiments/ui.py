@@ -10,7 +10,8 @@ from six.moves import input
 from tabulate import tabulate
 
 from artemis.experiments.experiment_management import deprefix_experiment_ids, \
-    RecordSelectionError
+    RecordSelectionError, run_multiple_experiments_with_slurm
+from artemis.experiments.experiment_management import get_experient_to_record_dict
 from artemis.experiments.experiment_management import (pull_experiments, select_experiments, select_experiment_records,
                                                        select_experiment_records_from_list, interpret_numbers,
                                                        run_multiple_experiments)
@@ -22,7 +23,7 @@ from artemis.experiments.experiment_record_view import (get_record_full_string, 
 from artemis.experiments.experiment_record_view import show_record, show_multiple_records
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.local_dir import get_artemis_data_path
-from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header
+from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header, format_duration
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal, insert_at, izip_equal, separate_common_items
@@ -154,7 +155,8 @@ experiment records.  You can specify records in the following ways:
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = False, remove_prefix = None, display_format='nested', show_args=False):
+            ignore_valid_keys=(), cache_result_string = False, slurm_kwargs={}, remove_prefix = None, display_format='nested',
+            show_args=False):
         """
         :param root_experiment: The Experiment whose (self and) children to browse
         :param catch_errors: Catch errors that arise while running experiments
@@ -166,8 +168,10 @@ experiment records.  You can specify records in the following ways:
         :param run_args: A dict of named arguments to pass on to Experiment.run
         :param keep_record: Keep a record of the experiment after running.
         :param truncate_result_to: An integer, indicating the maximum length of the result string to display.
+        :param ignore_valid_keys: When checking whether arguments are valid, ignore arguments with names in this list
         :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
             when opening up the menu - often when results are long lists).
+        :param slurm_kwargs:
         :param remove_prefix: Remove the common prefix on the experiment ids in the display.
         :param display_format: How experements and their records are displayed: 'nested' or 'flat'.  'nested' might be
             better for narrow console outputs.
@@ -190,6 +194,8 @@ experiment records.  You can specify records in the following ways:
         self.run_args = {} if run_args is None else run_args
         self.truncate_result_to = truncate_result_to
         self.cache_result_string = cache_result_string
+        self.ignore_valid_keys = ignore_valid_keys
+        self.slurm_kwargs = slurm_kwargs
         self.remove_prefix = remove_prefix
         self.display_format = display_format
         self.show_args = show_args
@@ -202,7 +208,7 @@ experiment records.  You can specify records in the following ways:
             descendents_of_root = set(ex.name for ex in self.root_experiment.get_all_variants(include_self=True))
             names = [name for name in names if name in descendents_of_root]
 
-        d= OrderedDict((name, experiment_id_to_record_ids(name)) for name in names)
+        d = get_experient_to_record_dict(names)
         return d
 
     def launch(self, command=None):
@@ -307,6 +313,7 @@ experiment records.  You can specify records in the following ways:
         row_func = _get_record_rows_cached if self.cache_result_string else _get_record_rows
         header_names = [h.value for h in headers]
 
+
         def remove_notes_if_no_notes(_record_rows):
             notes_column_index = headers.index(ExpRecordDisplayFields.NOTES) if ExpRecordDisplayFields.NOTES in headers else None
             # Remove the notes column if there are no notes!
@@ -330,7 +337,7 @@ experiment records.  You can specify records in the following ways:
                 exp_identifier = exp_id if not self.show_args else ','.join('{}={}'.format(k, v) for k, v in argdiff[exp_id])
                 experiment_rows.append([i, exp_identifier])
                 for j, record_id in enumerate(record_ids):
-                    record_rows.append([j]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to))
+                    record_rows.append([j]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to, ignore_valid_keys=self.ignore_valid_keys))
                     counter+=1
             remove_notes_if_no_notes(record_rows)
             # Merge the experiments table and record table.
@@ -351,7 +358,7 @@ experiment records.  You can specify records in the following ways:
                     rows.append([str(i), '', exp_id, '<No Records>'] + ['-']*(len(headers)-1))
                 else:
                     for j, record_id in enumerate(record_ids):
-                        rows.append([str(i) if j==0 else '', j, exp_id if j==0 else '']+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to))
+                        rows.append([str(i) if j==0 else '', j, exp_id if j==0 else '']+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to, ignore_valid_keys=self.ignore_valid_keys))
             remove_notes_if_no_notes(rows)
 
             table = tabulate(rows, headers=full_headers)
@@ -365,23 +372,34 @@ experiment records.  You can specify records in the following ways:
         parser = argparse.ArgumentParser()
         parser.add_argument('user_range', action='store', help='A selection of experiments to run.  Examples: "3" or "3-5", or "3,4,5"')
         parser.add_argument('-p', '--parallel', default=False, action = "store_true")
-        parser.add_argument('-c', '--cores')
+        parser.add_argument('-np', '--n_processes', default=1, type=int)
         parser.add_argument('-n', '--note')
         parser.add_argument('-e', '--raise_errors', default=False, action = "store_true")
         parser.add_argument('-d', '--display_results', default=False, action = "store_true")
-        args = parser.parse_args(args)
+        parser.add_argument('-s', '--slurm', default=False, action = "store_true", help='Run with slurm')
 
-        # assert mode in ('-s', '-e') or mode.startswith('-p')
+        args = parser.parse_args(args)
         ids = select_experiments(args.user_range, self.exp_record_dict)
-        run_multiple_experiments(
-            experiments=[load_experiment(eid) for eid in ids],
-            parallel=args.parallel,
-            cpu_count=args.cores,
-            raise_exceptions = args.raise_errors,
-            run_args=self.run_args,
-            notes=(args.note, ) if args.note is not None else (),
-            display_results=args.display_results
-            )
+
+        if args.slurm:
+            run_multiple_experiments_with_slurm(
+                experiments=[load_experiment(eid) for eid in ids],
+                n_parallel = args.n_processes,
+                raise_exceptions = args.raise_errors,
+                run_args=self.run_args,
+                slurm_kwargs=self.slurm_kwargs
+                )
+
+        else:
+            run_multiple_experiments(
+                experiments=[load_experiment(eid) for eid in ids],
+                parallel=args.parallel,
+                cpu_count=args.n_processes,
+                raise_exceptions = args.raise_errors,
+                run_args=self.run_args,
+                notes=(args.note, ) if args.note is not None else (),
+                display_results=args.display_results
+                )
 
         result = _warn_with_prompt('Finished running {} experiment{}.'.format(len(ids), '' if len(ids)==1 else 's'),
                 use_prompt=not self.close_after,
@@ -545,27 +563,50 @@ def _show_notes(rec):
         return ''
 
 
+
+
+class _DisplaySettings(object):
+
+    SETTINGS = {'ignore_valid_keys', ()}
+
+    def __init__(self, settings_dict):
+        self.settings_dict = settings_dict
+
+    def __enter__(self):
+        self.old_settings = _DisplaySettings.SETTINGS
+        _DisplaySettings.SETTINGS = self.settings_dict
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        _DisplaySettings.SETTINGS = self.old_settings
+
+    @classmethod
+    def get_setting(cls, name):
+        return _DisplaySettings.SETTINGS[name]
+
+
 _exp_record_field_getters = {
     ExpRecordDisplayFields.RUNS: lambda rec: rec.info.get_field_text(ExpInfoFields.TIMESTAMP),
-    ExpRecordDisplayFields.DURATION: lambda rec: '{:.3g}'.format(rec.info.get_field(ExpInfoFields.RUNTIME)) if rec.info.has_field(ExpInfoFields.RUNTIME) else '?',
+    ExpRecordDisplayFields.DURATION: lambda rec: format_duration(rec.info.get_field(ExpInfoFields.RUNTIME)),
     ExpRecordDisplayFields.STATUS: lambda rec: rec.info.get_field_text(ExpInfoFields.STATUS),
-    ExpRecordDisplayFields.ARGS_CHANGED: get_record_invalid_arg_string,
+    ExpRecordDisplayFields.ARGS_CHANGED: lambda rec: get_record_invalid_arg_string(rec, ignore_valid_keys=_DisplaySettings.get_setting('ignore_valid_keys')),
     ExpRecordDisplayFields.RESULT_STR: get_oneline_result_string,
     ExpRecordDisplayFields.NOTES: _show_notes
 }
 
 
-def _get_record_rows(record_id, headers, raise_display_errors, truncate_to):
+def _get_record_rows(record_id, headers, raise_display_errors, truncate_to, ignore_valid_keys = ()):
     rec = load_experiment_record(record_id)
-    if not raise_display_errors:
-        values = []
-        for h in headers:
-            try:
-                values.append(_exp_record_field_getters[h](rec))
-            except:
-                values.append('<Display Error>')
-    else:
-        values = [_exp_record_field_getters[h](rec) for h in headers]
+
+    with _DisplaySettings(dict(ignore_valid_keys=ignore_valid_keys)):
+        if not raise_display_errors:
+            values = []
+            for h in headers:
+                try:
+                    values.append(_exp_record_field_getters[h](rec))
+                except:
+                    values.append('<Display Error>')
+        else:
+            values = [_exp_record_field_getters[h](rec) for h in headers]
 
     if truncate_to is not None:
         values = [truncate_string(val, truncation=truncate_to, message='...') for val in values]
@@ -577,7 +618,7 @@ def clear_ui_cache():
     shutil.rmtree(get_artemis_data_path('_ui_cache/'))
 
 
-def _get_record_rows_cached(record_id, headers, raise_display_errors, truncate_to):
+def _get_record_rows_cached(record_id, headers, raise_display_errors, truncate_to, ignore_valid_keys = ()):
     """
     We want to load the saved row only if:
     - The record is complete
@@ -586,7 +627,7 @@ def _get_record_rows_cached(record_id, headers, raise_display_errors, truncate_t
     :param headers:
     :return:
     """
-    cache_key = compute_fixed_hash((record_id, [h.value for h in headers], truncate_to))
+    cache_key = compute_fixed_hash((record_id, [h.value for h in headers], truncate_to, ignore_valid_keys))
     path = get_artemis_data_path(os.path.join('_ui_cache', cache_key), make_local_dir=True)
     if os.path.exists(path):
         try:
@@ -597,7 +638,7 @@ def _get_record_rows_cached(record_id, headers, raise_display_errors, truncate_t
             logging.warn('Failed to load cached record info: {}'.format(record_id))
 
     info_plus_status = _get_record_rows(record_id=record_id, headers=headers+[ExpRecordDisplayFields.STATUS],
-                                        raise_display_errors=raise_display_errors, truncate_to=truncate_to)
+                                        raise_display_errors=raise_display_errors, truncate_to=truncate_to, ignore_valid_keys=ignore_valid_keys)
     info, status = info_plus_status[:-1], info_plus_status[-1]
     if status == ExpStatusOptions.STARTED:  # In this case it's still running (maybe) and we don't want to cache because it'll change
         return info
