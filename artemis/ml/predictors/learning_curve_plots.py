@@ -35,7 +35,7 @@ def plot_learning_curves(learning_curves, xscale = 'sqrt', yscale = 'linear', ha
 
     legend = []
 
-    for (record_name, record), colour in zip(learning_curves.iteritems(), cycle(colours)):
+    for (record_name, record), colour in zip(learning_curves.items(), cycle(colours)):
         times, scores = record.get_results()
         if np.array_equal(times.values()[0], [None]):  # Offline result... make a horizontal line
             assert all(len(s)==1 for s in scores.values())

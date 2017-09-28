@@ -1,5 +1,5 @@
 from __future__ import print_function
-import SocketServer
+from six.moves import socketserver
 import getpass
 import logging
 import socket
@@ -7,7 +7,7 @@ import struct
 import sys
 
 import os
-import paramiko
+from six.moves import input
 
 from artemis.config import get_artemis_config_value
 
@@ -22,20 +22,17 @@ def one_time_send_to(address, port, message):
     :param message: A string to send
     '''
 
-    if isinstance(port, basestring):
-        port = int(port)
-
-    server_address = (address, port)
+    server_address = (address, int(port))
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.connect(tuple(server_address))
     except:
         raise
 
-    send_size(sock,message)
+    send_size(sock, message)
 
 
-def get_socket(address,port):
+def get_socket(address, port):
     '''
     Returns a socket, bound to the next free port starting from the given port.
     :param port:
@@ -46,7 +43,7 @@ def get_socket(address,port):
         try:
             server_address = (address, port)
             sock.bind(server_address)
-        except SocketServer.socket.error as exc:
+        except socketserver.socket.error as exc:
             # ARTEMIS_LOGGER.info('Port', port, 'already in use')
             port += 1
             if exc.args[0] == 48 or exc.args[0] == 98:
@@ -62,7 +59,7 @@ def send_size(sock, data):
     try:
         sock.sendall(struct.pack('!I', len(data)))
         sock.sendall(data)
-    except SocketServer.socket.error as exc:
+    except socketserver.socket.error as exc:
         if exc.args[0] == 32:
             print("Broken pipe", file=sys.stderr)
             sys.exit(0)
@@ -75,7 +72,7 @@ def recv_bytes(sock, size):
     while size:
         try:
             newbuf = sock.recv(size)
-        except SocketServer.socket.error as exc:
+        except socketserver.socket.error as exc:
             if exc.args[0] == 54:
                 print("Connection reset by peer", file=sys.stderr)
                 sys.exit(0)
@@ -137,7 +134,7 @@ def get_remote_artemis_path(remote_ip):
     return get_artemis_config_value(
         section=remote_ip,
         option='artemis_path',
-        default_generator=lambda: raw_input('Specify Remote Artemis Installation Path: '),
+        default_generator=lambda: input('Specify Remote Artemis Installation Path: ').strip(),
         write_default=True
         )
 
@@ -180,9 +177,8 @@ def get_ssh_connection(ip_address):
     :param ip_address:
     :return:
     '''
-
+    import paramiko
     path_to_private_key = os.path.join(os.path.expanduser("~"),".ssh/id_rsa")
-
     private_key = paramiko.RSAKey.from_private_key_file(os.path.expanduser(path_to_private_key))
     username = get_artemis_config_value(section=ip_address, option="username", default_generator=lambda: getpass.getuser())
     ssh_conn = paramiko.SSHClient()

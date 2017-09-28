@@ -38,12 +38,12 @@ def test_checkpoint_minibatch_generator():
     for checkpoints in ([0, 20, 30, 63, 100], [20, 30, 63, 100]):
         for slice_when_possible in (True, False):
             iterator = checkpoint_minibatch_index_generator(n_samples=n_samples, checkpoints=checkpoints, slice_when_possible=slice_when_possible)
-            assert np.array_equal(data[iterator.next()], np.arange(20))
-            assert np.array_equal(data[iterator.next()], np.arange(20, 30))
-            assert np.array_equal(data[iterator.next()], np.arange(30, 63) % 48)
-            assert np.array_equal(data[iterator.next()], np.arange(63, 100) % 48)
+            assert np.array_equal(data[next(iterator)], np.arange(20))
+            assert np.array_equal(data[next(iterator)], np.arange(20, 30))
+            assert np.array_equal(data[next(iterator)], np.arange(30, 63) % 48)
+            assert np.array_equal(data[next(iterator)], np.arange(63, 100) % 48)
             try:
-                iterator.next()
+                next(iterator)
             except StopIteration:
                 pass
             except:
@@ -71,8 +71,8 @@ def test_minibatch_iterate_info():
 
             ixs = (np.arange(minibatch_size)+iterator*minibatch_size) % n_samples
             epoch = iterator * minibatch_size / float(n_samples)
-            print (epoch, info.epoch)
-            print info.done
+            print((epoch, info.epoch))
+            print(info.done)
             assert np.allclose(epoch, info.epoch)
             assert np.array_equal(ixs, np.arange(info.sample, info.sample+minibatch_size) % n_samples)
             assert np.array_equal(training_minibatch, training_arr[ixs])

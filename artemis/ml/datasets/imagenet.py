@@ -4,6 +4,8 @@ from artemis.fileman.file_getter import get_file, unzip_gz
 from artemis.fileman.smart_io import smart_load
 import numpy as np
 import os
+from six.moves import xrange
+
 __author__ = 'peter'
 
 
@@ -18,13 +20,13 @@ def get_imagenet_fall11_urls(n_images = None):
         data_transformation=unzip_gz
         )
 
-    print 'Loading %s image URLs....' % (n_images, )
+    print('Loading %s image URLs....' % (n_images, ))
     with open(imagenet_urls) as f:
         f.readline()
         lines = list(line for _, line in izip(xrange(n_images), f))
     indices = [s.index('\t') for s in lines]
     pairs = [(line[:s], line[s+1:-1]) for line, s in zip(lines, indices)]
-    print 'Done.'
+    print('Done.')
     return pairs
 
 
@@ -54,7 +56,7 @@ if __name__ == '__main__':
     import random
     from artemis.plotting.db_plotting import dbplot
     ixs = [random.randint(0, 999) for _ in xrange(4)]
-    print ixs
+    print(ixs)
     ims = get_imagenet_images(ixs)
     for i, (ix, im) in enumerate(zip(ixs, ims)):
         dbplot(im, 'Image %s' % i, hang = i==len(ims)-1)

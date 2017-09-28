@@ -1,4 +1,7 @@
 from collections import OrderedDict, namedtuple
+
+from six import string_types
+
 from artemis.config import get_artemis_config_value
 from artemis.plotting.matplotlib_backend import BarPlot
 from matplotlib.axes import Axes
@@ -10,7 +13,8 @@ from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
-from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
+from artemis.plotting.matplotlib_backend import LinePlot, ImagePlot, is_server_plotting_on
+
 if is_server_plotting_on():
     from artemis.remote.plotting.plotting_client import deconstruct_plotting_server
 
@@ -74,7 +78,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     if isinstance(fig, plt.Figure):
         assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
-        _DBPLOT_FIGURES[None] = fig
+        _DBPLOT_FIGURES[None] = _PlotWindow(figure=fig, subplots=OrderedDict(), axes={})
         fig = None
     elif fig not in _DBPLOT_FIGURES or not plt.fignum_exists(_DBPLOT_FIGURES[fig].figure.number):  # Second condition handles closed figures.
         _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
@@ -120,7 +124,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         if isinstance(axis, Axes):
             ax = axis
             ax_name = str(axis)
-        elif isinstance(axis, basestring) or axis is None:
+        elif isinstance(axis, string_types) or axis is None:
             ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
             ax_name = axis
             # ax.set_title(axis)
@@ -151,7 +155,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     if cornertext is not None:
         if not hasattr(_DBPLOT_FIGURES[fig].figure, '__cornertext'):
-            _DBPLOT_FIGURES[fig].figure.__cornertext = _DBPLOT_FIGURES[fig].subplots.values()[0].axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
+            _DBPLOT_FIGURES[fig].figure.__cornertext = next(iter(_DBPLOT_FIGURES[fig].subplots.values())).axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
         else:
             _DBPLOT_FIGURES[fig].figure.__cornertext.set_text(cornertext)
     if title is not None:
@@ -193,7 +197,7 @@ def reset_dbplot():
     if is_server_plotting_on():
         deconstruct_plotting_server()
     else:
-        for fig_name, plot_window in _DBPLOT_FIGURES.items():
+        for fig_name, plot_window in list(_DBPLOT_FIGURES.items()):
             plt.close(plot_window.figure)
             del _DBPLOT_FIGURES[fig_name]
 

@@ -1,8 +1,9 @@
 import inspect
 from collections import OrderedDict
 import itertools
-
 import os
+
+from six.moves import xrange, zip_longest
 
 __author__ = 'peter'
 
@@ -16,7 +17,7 @@ def all_equal(elements):
     """
     element_iterator = iter(elements)
     try:
-        first = element_iterator.next() # Will throw exception
+        first = next(element_iterator) # Will throw exception
     except StopIteration:
         return True
     return all(a == first for a in element_iterator)
@@ -78,7 +79,7 @@ def arg_signature(arg):
     elif isinstance(arg, list):
         return ('memoizationidentifier_list ',) + tuple(arg_signature(a) for a in arg)
     elif isinstance(arg, OrderedDict):
-        return ('memoizationidentifier_ordereddict ',) + tuple((arg_signature(k), arg_signature(v)) for k, v in arg.iteritems())
+        return ('memoizationidentifier_ordereddict ',) + tuple((arg_signature(k), arg_signature(v)) for k, v in arg.items())
     elif isinstance(arg, dict):
         return ('memoizationidentifier_dict ',) + tuple((arg_signature(k), arg_signature(arg[k])) for k in sorted(arg.keys()))
     else:
@@ -142,7 +143,7 @@ def izip_equal(*iterables):
     :return:
     """
     sentinel = object()
-    for combo in itertools.izip_longest(*iterables, fillvalue=sentinel):
+    for combo in zip_longest(*iterables, fillvalue=sentinel):
         if any(sentinel is c for c in combo):
             raise ValueError('Iterables have different lengths')
         yield combo
@@ -162,6 +163,20 @@ def remove_duplicates(sequence, hashable=True, key=None, keep_last=False):
     """
     is_dup = detect_duplicates(sequence, hashable=hashable, key=key, keep_last=keep_last)
     return [x for x, is_duplicate in zip(sequence, is_dup) if not is_duplicate]
+
+
+def uniquify_duplicates(sequence_of_strings):
+
+    counts = {}
+    new_strings = []
+    for string in sequence_of_strings:
+        if string in counts:
+            new_strings.append(string+'[{}]'.format(counts[string]))
+            counts[string] += 1
+        else:
+            counts[string]=1
+            new_strings.append(string)
+    return new_strings
 
 
 def detect_duplicates(sequence, hashable=True, key=None, keep_last=False):
@@ -266,7 +281,7 @@ def check(value, condition, string = ""):
     return value
 
 
-def remove_common_prefix(list_of_lists, max_elements=None):
+def remove_common_prefix(list_of_lists, max_elements=None, keep_base = True):
     """
     Remove common elements starting each list in the list of lists.
 
@@ -278,7 +293,10 @@ def remove_common_prefix(list_of_lists, max_elements=None):
     """
 
     count = 0
-    while max(len(parts) for parts in list_of_lists)>1:
+
+    min_len = 1 if keep_base else 0
+
+    while min(len(parts) for parts in list_of_lists)>min_len:
         if max_elements is not None and count >= max_elements:
             break
 
@@ -333,3 +351,50 @@ def file_path_to_absolute_module(file_path):
 
 def assert_option(choice, possiblilties):
     assert choice in possiblilties, '"{}" was not in the list of possible choices: {}'.format(choice, possiblilties)
+
+
+def insert_at(list1, list2, indices):
+    """
+    Create a new list by insert elements from list 2 into list 1 at the given indices.
+    (Note: this leaves list1 and list2 unchanged, unlike list.insert)
+    :param list1: A list
+    :param list2: Another list
+    :param indices: The indices of list1 into which elements from list2 will be inserted.
+    :return: A new list with len(list1)+len(list2) elements.
+    """
+    list3 = []
+    assert len(list2)==len(indices), 'List 2 has {} elements, but you provided {} indices.  They should have equal length'.format(len(list2), len(indices))
+    index_iterator = iter(sorted(indices))
+    list_2_iter = iter(list2)
+    next_ix = next(index_iterator)
+
+    iter_stopped = False
+    for i in xrange(len(list1)+1):
+        while i == next_ix:
+            list3.append(next(list_2_iter))
+            try:
+                next_ix = next(index_iterator)
+            except StopIteration:
+                next_ix = None
+                iter_stopped = True
+        if i<len(list1):
+            list3.append(list1[i])
+
+    assert iter_stopped, 'Not all elements from list 2 got used!'
+    return list3
+
+
+try:
+    from contextlib import nested  # Python 2
+except ImportError:
+    from contextlib import ExitStack, contextmanager
+
+    @contextmanager
+    def nested(*contexts):
+        """
+        Reimplementation of nested in python 3.
+        """
+        with ExitStack() as stack:
+            for ctx in contexts:
+                stack.enter_context(ctx)
+            yield contexts

@@ -3,6 +3,8 @@ import pytest
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import numpy as np
+from six.moves import xrange
+
 __author__ = 'peter'
 
 """

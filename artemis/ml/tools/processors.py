@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import numpy as np
+from six.moves import xrange
 
 __author__ = 'peter'
 
@@ -40,6 +41,29 @@ class RunningAverage(object):
         frac = 1./self._n_samples_seen
         self._average = (1-frac)*self._average + frac*data
         return self._average
+
+    @classmethod
+    def batch(cls, x):
+        ra = cls()
+        return np.array([ra(x_) for x_ in x])
+
+
+class RecentRunningAverage(object):
+
+    def __init__(self):
+        self._n_samples_seen = 0
+        self._average = 0
+
+    def __call__(self, data):
+        self._n_samples_seen+=1
+        frac = 1/self._n_samples_seen**.5
+        self._average = (1-frac)*self._average + frac*data
+        return self._average
+
+    @classmethod
+    def batch(cls, x):
+        ra = cls()
+        return np.array([ra(x_) for x_ in x])
 
 
 class RunningAverageWithBurnin(object):
@@ -144,11 +168,11 @@ def single_to_batch(fcn, *batch_inputs, **batch_kwargs):
     """
     n_samples = len(batch_inputs[0])
     assert all(len(b) == n_samples for b in batch_inputs)
-    first_out = fcn(*[b[0] for b in batch_inputs], **{k: b[0] for k, b in batch_kwargs.iteritems()})
+    first_out = fcn(*[b[0] for b in batch_inputs], **{k: b[0] for k, b in batch_kwargs.items()})
     if n_samples==1:
         return first_out[None]
     out = np.empty((n_samples, )+first_out.shape)
     out[0] = n_samples
     for i in xrange(1, n_samples):
-        out[i] = fcn(*[b[i] for b in batch_inputs], **{k: b[i] for k, b in batch_kwargs.iteritems()})
+        out[i] = fcn(*[b[i] for b in batch_inputs], **{k: b[i] for k, b in batch_kwargs.items()})
     return out

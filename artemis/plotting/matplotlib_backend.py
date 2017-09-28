@@ -1,11 +1,16 @@
 from abc import ABCMeta, abstractmethod
 from itertools import cycle
 
+from six import string_types
+
+from artemis.config import get_artemis_config_value
 from artemis.general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array, \
-    UnlimitedRecordBuffer
+from artemis.plotting.data_conversion import (put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array,
+    UnlimitedRecordBuffer)
 from matplotlib import pyplot as plt
 import numpy as np
+from six.moves import xrange
+
 
 __author__ = 'peter'
 
@@ -158,7 +163,7 @@ class LinePlot(HistoryFreePlot):
         self.axes_update_mode = axes_update_mode
         self.add_end_markers = add_end_markers
         self._end_markers = []
-        self.legend_entries = [legend_entries] if isinstance(legend_entries, basestring) else legend_entries
+        self.legend_entries = [legend_entries] if isinstance(legend_entries, string_types) else legend_entries
         self.legend_entry_size = legend_entry_size
         self.allow_axis_offset = allow_axis_offset
 
@@ -257,7 +262,9 @@ class LinePlot(HistoryFreePlot):
         # plt.legend(loc='best', framealpha=0.5, prop={'size': self.legend_entry_size})
 
 
-def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
+def _update_axes_bound(ax, left_and_right, lower_and_upper, mode = 'fit'):
+    left, right = left_and_right
+    lower, upper = lower_and_upper
     if mode=='fit':
         ax.set_xbound(left, right)
         ax.set_ybound(lower, upper)
@@ -319,8 +326,8 @@ class Moving2DPointPlot(LinePlot):
         self._y_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
         self._x_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
 
-    def update(self, (x_data, y_data)):
-
+    def update(self, x_data_and_y_data):
+        x_data, y_data = x_data_and_y_data
         x_buffer_data = self._x_buffer(x_data)
         y_buffer_data = self._y_buffer(y_data)
 
@@ -350,7 +357,7 @@ class TextPlot(IPlot):
         self._y_offset = {'bottom': 0.05, 'center': 0.5, 'top': 0.95}[self.vertical_alignment]
 
     def update(self, string):
-        if not isinstance(string, basestring):
+        if not isinstance(string, string_types):
             string = str(string)
         history = self._buffer(string)
         self._full_text = '\n'.join(history)
@@ -463,7 +470,7 @@ def get_live_plot_from_data(data, line_to_image_threshold = 8, cmap = 'gray'):
 
     # TODO: Maybe refactor that so that plot objects contain their own "data validation" code, and we can
     # simply ask plots in sequence whether they can handle the data.
-    if isinstance(data, basestring):
+    if isinstance(data, string_types):
         return TextPlot()
 
     if isinstance(data, list):
@@ -508,7 +515,7 @@ def get_live_plot_from_data(data, line_to_image_threshold = 8, cmap = 'gray'):
 
 def get_static_plot_from_data(data, line_to_image_threshold=8, cmap = 'gray'):
 
-    if isinstance(data, basestring):
+    if isinstance(data, string_types):
         return TextPlot()
 
     is_scalar = np.isscalar(data) or data.shape == ()
@@ -526,3 +533,23 @@ def get_static_plot_from_data(data, line_to_image_threshold=8, cmap = 'gray'):
         return LinePlot()
     else:
         return ImagePlot(cmap=cmap)
+
+
+_PLOTTING_SERVER = get_artemis_config_value(section='plotting', option='plotting_server', default_generator="")
+_USE_SERVER = _PLOTTING_SERVER != ""
+
+
+def is_server_plotting_on():
+    return _USE_SERVER
+
+
+def set_server_plotting(state):
+    global _USE_SERVER
+    _USE_SERVER = state
+
+
+def get_plotting_server_address():
+    return _PLOTTING_SERVER
+
+
+BACKEND = get_artemis_config_value(section='plotting', option='backend')

@@ -1,6 +1,6 @@
 import os
 import sys
-from ConfigParser import NoSectionError, NoOptionError, ConfigParser
+from six.moves.configparser import NoSectionError, NoOptionError, ConfigParser
 
 __author__ = 'peter'
 
@@ -131,6 +131,6 @@ def set_non_persistent_config_value(config_filename, section, option, value):
 
 if __name__ == '__main__':
     config_path = get_config_path('.artemisrc')
-    print 'Contents of {}:\n-------------\n'.format(config_path)
+    print('Contents of {}:\n-------------\n'.format(config_path))
     with open(config_path) as f:
-        print f.read()
+        print(f.read())

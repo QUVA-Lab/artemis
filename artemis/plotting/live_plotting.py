@@ -3,7 +3,9 @@ from abc import abstractmethod
 from artemis.general.nested_structures import flatten_struct
 from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.easy_plotting import plot_data_dict
-import artemis.plotting.plotting_backend as eplt
+from matplotlib import pyplot as plt
+
+from artemis.plotting.matplotlib_backend import get_plot_from_data
 
 __author__ = 'peter'
 
@@ -36,13 +38,13 @@ class BaseStream(object):
             if self._fig is not None:
                 self._fig.clf()
             else:
-                self._fig = eplt.figure()
+                self._fig = plt.figure()
             self._plots = self._get_plots_from_first_data(data_dict)
             self._plot_keys = set(self._plots.keys())
             plot_data_dict(data_dict, plots = self._plots, hang = False, figure = self._fig)
         else:
             if name is None:  # Update all plots
-                for k, v in data_dict.iteritems():
+                for k, v in data_dict.items():
                     self._plots[k].update(v)
                     self._plots[k].plot()
             else:
@@ -103,8 +105,8 @@ class LiveStream(BaseStream):
         return OrderedDict(flat_struct)
 
     def _get_plots_from_first_data(self, first_data):
-        return {k: eplt.get_plot_from_data(v, mode = self._plot_mode, **self._plot_preference_kwargs)
-            if k not in self._plot_types else self._plot_types[k] for k, v in first_data.iteritems()}
+        return {k: get_plot_from_data(v, mode = self._plot_mode, **self._plot_preference_kwargs)
+            if k not in self._plot_types else self._plot_types[k] for k, v in first_data.items()}
 
 
 LivePlot = namedtuple('PlotBuilder', ['plot', 'cb'])
@@ -124,12 +126,12 @@ class LiveCanal(BaseStream):
         :param kwargs: Passed up to BaseStream
         """
         self._live_plots = live_plots
-        self._callbacks = {k: lp.cb if isinstance(lp, LivePlot) else lp for k, lp in live_plots.iteritems()}
+        self._callbacks = {k: lp.cb if isinstance(lp, LivePlot) else lp for k, lp in live_plots.items()}
         BaseStream.__init__(self, **kwargs)
 
     def _get_data_structure(self):
-        return {k: cb() for k, cb in self._callbacks.iteritems()}
+        return {k: cb() for k, cb in self._callbacks.items()}
 
     def _get_plots_from_first_data(self, first_data):
         # first_data = dict(first_data)
-        return {k: pb.plot if isinstance(pb, LivePlot) else eplt.get_plot_from_data(first_data[k], mode = 'live') for k, pb in self._live_plots.iteritems()}
+        return {k: pb.plot if isinstance(pb, LivePlot) else get_plot_from_data(first_data[k], mode = 'live') for k, pb in self._live_plots.items()}

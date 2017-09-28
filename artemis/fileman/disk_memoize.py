@@ -1,6 +1,7 @@
 import logging
 import os
 from functools import partial
+from six.moves import input
 from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.functional import infer_arg_values
 from artemis.general.hashing import compute_fixed_hash
@@ -77,7 +78,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
                         LOGGER.info('Reading disk-memo from local cache for function %s' % (fcn.__name__, ))
                     return cached_local_results[filepath]
             if os.path.exists(filepath):
-                with open(filepath) as f:
+                with open(filepath, 'rb') as f:
                     try:
                         if not suppress_info:
                             LOGGER.info('Reading memo for function %s' % (fcn.__name__, ))
@@ -102,7 +103,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
             if result_computed:  # Result was computed, so write it down
                 filepath = get_function_hash_filename(fcn, full_args)
                 make_file_dir(filepath)
-                with open(filepath, 'w') as f:
+                with open(filepath, 'wb') as f:
                     if not suppress_info:
                         LOGGER.info('Writing disk-memo for function %s' % (fcn.__name__, ))
                     pickle.dump(result, f, protocol=2)
@@ -170,7 +171,7 @@ def clear_all_memos():
     all_memos = get_all_memos()
     for m in all_memos:
         os.remove(m)
-    print 'Removed %s memos.' % (len(all_memos))
+    print('Removed %s memos.' % (len(all_memos)))
 
 
 class DisableMemoReading(object):
@@ -219,7 +220,7 @@ class DisableMemos(object):
 
 if __name__ == '__main__':
 
-    cmd = raw_input('Type "clearall" to clear all memos: ')
+    cmd = input('Type "clearall" to clear all memos: ').strip().lower()
 
     if cmd == 'clearall':
         clear_all_memos()

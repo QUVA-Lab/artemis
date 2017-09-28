@@ -1,6 +1,7 @@
 import numpy as np
-from artemis.experiments import experiment_function
+from artemis.experiments.decorators import experiment_function
 from matplotlib import pyplot as plt
+from six.moves import xrange
 
 __author__ = 'peter'
 
@@ -73,7 +74,7 @@ def demo_linear_regression(
             training_cost = ((training_target-training_out)**2).sum(axis=1).mean(axis=0)
             test_out = predictor.predict(test_data)
             test_cost = ((test_target-test_out)**2).sum(axis=1).mean(axis=0)
-            print 'Epoch {epoch}: Test Cost: {test}, Training Cost: {train}'.format(epoch=float(i)/n_training_samples, test=test_cost, train=training_cost)
+            print('Epoch {epoch}: Test Cost: {test}, Training Cost: {train}'.format(epoch=float(i)/n_training_samples, test=test_cost, train=training_cost))
             epoch = float(i) / n_training_samples
             epoch_scores.append((epoch, training_cost, test_cost))
         predictor.train(training_data[[i % n_training_samples]], training_target[[i % n_training_samples]])
@@ -92,11 +93,11 @@ def demo_linear_regression(
 
 
 demo_linear_regression.add_variant('fast-learn', eta=0.01)
-
 demo_linear_regression.add_variant('large_input_space', n_in=1000)
 
 
 if __name__ == "__main__":
-
     # Open a menu that allows you to run experiments and view old ones.
     demo_linear_regression.browse()
+
+

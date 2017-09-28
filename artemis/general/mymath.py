@@ -6,6 +6,8 @@ try:
     from scipy import weave
 except ImportError:
     logging.warn("Could not import scipy.weave.  That's ok, ignore this unless you need it.")
+from six.moves import xrange
+
 __author__ = 'peter'
 
 # Note - this module used to be called math, but it somehow results in a numpy import error
@@ -337,7 +339,7 @@ def decaying_cumsum(x, memory, axis=-1):
     for i in xrange(1, x.shape[axis]):
         result[leading_indices+(i, )] = memory*result[leading_indices+(i-1, )] + one_minus_mem*x[leading_indices+(i, )]
     if np.max(np.abs(result)>1e9):
-        print 'sdfdsf: {}'.format(np.max(np.abs(x)))
+        print('sdfdsf: {}'.format(np.max(np.abs(x))))
 
     return result
 
@@ -405,8 +407,8 @@ def conv_fanout(input_len, kernel_len, conv_mode):
     :param conv_mode:
     :return:
     """
-    left_pad = kernel_len / 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
-    right_pad = (kernel_len-1) / 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
+    left_pad = kernel_len // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
+    right_pad = (kernel_len-1) // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
     full_range = np.arange(left_pad + input_len + right_pad)
     max_fanout = np.minimum(kernel_len, np.maximum(input_len-kernel_len+1+2*left_pad, 1))
     fanout_over_full_range = np.minimum(max_fanout, np.minimum(full_range+1, full_range[::-1]+1))
@@ -444,3 +446,20 @@ def levenshtein_distance(s1, s2):
                 distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
         distances = distances_
     return distances[-1]
+
+
+def onehotvector(ix, length):
+    """
+    Create a one-hot vector of length length with element ix 1 (and the rest 0)
+    :param ix: The element to be "hot".  Ot a vector of elememts.
+    :param length: The total length of the vector.
+    :return: If ix is scalar, a single vector.
+        If ix is a vector, a (len(ix), length) array where each row is a one-hot vector for an element of ix.
+    """
+    if isinstance(ix, int):
+        v = np.zeros(length)
+        v[ix] = 1
+    else:
+        v = np.zeros((len(ix), length))
+        v[np.arange(len(ix)), ix] = 1
+    return v

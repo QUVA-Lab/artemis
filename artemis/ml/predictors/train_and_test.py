@@ -2,6 +2,8 @@
 from collections import OrderedDict
 
 import numpy as np
+from six import string_types
+
 from artemis.general.mymath import softmax, cosine_distance
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
@@ -30,10 +32,10 @@ def train_online_predictor(predictor, training_set, minibatch_size, n_epochs = 1
     :param minibatch_size: An integer, or 'full' for full batch training
     :param n_epochs: Number of passes to make over the training set.
     """
-    print 'Training Predictor %s...' % (predictor, )
+    print('Training Predictor %s...' % (predictor, ))
     for (_, data, target) in training_set.minibatch_iterator(minibatch_size = minibatch_size, epochs = n_epochs, single_channel = True):
         predictor.train(data, target)
-    print 'Done.'
+    print('Done.')
 
 
 def evaluate_predictor(predictor, test_set, evaluation_function):
@@ -166,10 +168,12 @@ class ModelTestScore(object):
     def __init__(self, ):
         self.scores = OrderedDict()
 
-    def __getitem__(self, (data_subset, prediction_function_name, cost_name)):
+    def __getitem__(self, data_predfunc_cost):
+        data_subset, prediction_function_name, cost_name = data_predfunc_cost
         return self.scores[data_subset, prediction_function_name, cost_name]
 
-    def __setitem__(self, (data_subset, prediction_function_name, cost_name), value):
+    def __setitem__(self, data_predfunc_cost, value):
+        data_subset, prediction_function_name, cost_name = data_predfunc_cost
         self.scores[data_subset, prediction_function_name, cost_name] = value
 
     def keys(self):
@@ -178,8 +182,11 @@ class ModelTestScore(object):
     def values(self):
         return self.scores.values()
 
+    def items(self):
+        return self.scores.items()
+
     def iteritems(self):
-        return self.scores.iteritems()
+        return self.scores.items()
 
     def get_score(self, subset=None, prediction_function=None, cost_name=None):
         if subset is None:
@@ -229,7 +236,8 @@ class ModelTestScore(object):
     def get_table(self):
         # test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*self.scores.keys())]
 
-        def lookup( (test_pair_name_, function_name_), cost_name_):
+        def lookup( test_pair_name_and_function_name_, cost_name_):
+            test_pair_name_, function_name_ = test_pair_name_and_function_name_
             return self[test_pair_name_, function_name_, cost_name_]
 
         rows = build_table(
@@ -434,7 +442,7 @@ def plot_info_score_pairs_collection(info_score_pair_sequences, prediction_funct
         info_score_pair_sequences = OrderedDict((ix, ispc) for ix, ispc in enumerate(info_score_pair_sequences))
 
     colours = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
-    for (name, ispc), colour in zip(info_score_pair_sequences.iteritems(), colours):
+    for (name, ispc), colour in zip(info_score_pair_sequences.items(), colours):
         plot_info_score_pairs(ispc, prediction_function = prediction_function, score_measure=score_measure, show=False, name=name)
     if show:
         plt.show()
@@ -480,12 +488,12 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
         assert all(callable(f) for name, f in functions)
     if callable(costs):
         costs = [(costs.__name__, costs)]
-    elif isinstance(costs, basestring):
+    elif isinstance(costs, string_types):
         costs = [(costs, get_evaluation_function(costs))]
     elif isinstance(costs, dict):
         costs = costs.items()
     else:
-        costs = [(cost, get_evaluation_function(cost)) if isinstance(cost, basestring) else (cost.__name__, cost) if callable(cost) else cost for cost in costs]
+        costs = [(cost, get_evaluation_function(cost)) if isinstance(cost, string_types) else (cost.__name__, cost) if callable(cost) else cost for cost in costs]
     assert all(callable(cost) for name, cost in costs)
 
     results = ModelTestScore()
@@ -499,7 +507,7 @@ def assess_prediction_functions(test_pairs, functions, costs, print_results=Fals
                 results[test_pair_name, function_name, cost_name] = cost_function(predictions, y)
 
     if print_results:
-        print results.get_table()
+        print(results.get_table())
 
     return results
 
@@ -510,10 +518,10 @@ def print_score_results(score, info=None):
     :return:
     """
     if info is not None:
-        print 'Epoch {} (after {:.3g}s)'.format(info.epoch, info.time)
+        print('Epoch {} (after {:.3g}s)'.format(info.epoch, info.time))
     test_pair_names, function_names, cost_names = [remove_duplicates(k) for k in zip(*score.keys())]
     rows = build_table(
-        lookup_fcn=lambda (test_pair_name_, function_name_), cost_name_: score[test_pair_name_, function_name_, cost_name_],
+        lookup_fcn=lambda test_pair_name_and_function_name_, cost_name_: score[test_pair_name_and_function_name_[0], test_pair_name_and_function_name_[1], cost_name_],
         row_categories = [[test_pair_name for test_pair_name in test_pair_names], [function_name for function_name in function_names]],
         column_categories = [cost_name for cost_name in cost_names],
         row_header_labels=['Subset', 'Function'],
@@ -521,7 +529,7 @@ def print_score_results(score, info=None):
         remove_unchanging_cols=True
         )
     import tabulate
-    print tabulate.tabulate(rows)
+    print(tabulate.tabulate(rows))
 
 
 def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
@@ -560,7 +568,7 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
     for (x_mini, y_mini), info in zip_minibatch_iterate_info(dataset.training_set.xy, minibatch_size=minibatch_size, n_epochs=n_epochs, test_epochs=test_epochs):
         if info.test_now:
             rate = (info.time-last_time)/(info.epoch - last_epoch) if info.epoch>0 else float('nan')
-            print 'Epoch {}.  Rate: {:.3g}s/epoch'.format(info.epoch, rate)
+            print('Epoch {}.  Rate: {:.3g}s/epoch'.format(info.epoch, rate))
             last_epoch = info.epoch
             last_time = info.time
             test_pairs = _dataset_to_test_pair(dataset, include = test_on)
@@ -649,10 +657,10 @@ class ParameterSchedule(object):
 
     def get_new_value(self, epoch):
         if isinstance(self.schedule, dict):
-            new_value = self.schedule[(e for e in self._reverse_sorted_schedule_checkpoints if e <= epoch).next()]
+            new_value = self.schedule[next(e for e in self._reverse_sorted_schedule_checkpoints if e <= epoch)]
         else:
             new_value = self.schedule(epoch)
         if self.last_value != new_value and self.print_variable_name is not None:
-            print 'Epoch {}: {} = {}'.format(epoch, self.print_variable_name, new_value)
+            print('Epoch {}: {} = {}'.format(epoch, self.print_variable_name, new_value))
             self.last_value = new_value
         return new_value
