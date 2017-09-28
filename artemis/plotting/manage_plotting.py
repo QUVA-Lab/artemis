@@ -111,8 +111,6 @@ class ShowContext(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         plt.show = self.old
-        # print exc_type
-        # raise
 
 
 class DrawContext(object):

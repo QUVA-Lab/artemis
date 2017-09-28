@@ -47,12 +47,12 @@ def sensible_str(data, size_limit=4, compact=True):
             string = '<len{}-{}>'.format(len(data), data.__class__.__name__)
         else:
             open, close = '[]' if isinstance(data, list) else '()'
-            string = '['+', '.join(sensible_str(x) for x in data[:size_limit]) + close
+            string = open +', '.join(sensible_str(x) for x in data[:size_limit]) + close
     elif isinstance(data, dict):
         if len(data)>size_limit:
             string = '<len{}-{}>'.format(len(data), data.__class__.__name__)
         else:
-            open, close = ('OrderedDict([', '])') if isinstance(dict, OrderedDict) else '{}'
+            open, close = ('OrderedDict([', '])') if isinstance(data, OrderedDict) else '{}'
             string = open+', '.join('{}:{}'.format(sensible_str(k), sensible_str(v)) for i, (k, v) in zip(range(size_limit), data.items())) + close
     else:
         string = str(data).replace('\n', '\\n')
