@@ -352,6 +352,13 @@ class SequentialStructBuilder(object):
             assert isinstance(self._struct, OrderedDict)
         self._struct[key] = value
 
+    def __iter__(self):
+        assert self.is_sequence is True
+        return (s for s in self._struct)
+
+    def __len__(self):
+        return len(self._struct)
+
     @property
     def is_sequence(self):
         if isinstance(self._struct, OrderedDict):

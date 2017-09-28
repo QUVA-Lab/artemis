@@ -45,7 +45,8 @@ def _warn_with_prompt(message= None, prompt = 'Press Enter to continue or q then
     if message:
         print(message)
     if use_prompt:
-        out = input('({}) >> '.format(prompt)).strip().lower()
+        resp = input('({}) >> '.format(prompt))
+        out = resp.strip().lower()
         if out=='q':
             quit()
         else:
