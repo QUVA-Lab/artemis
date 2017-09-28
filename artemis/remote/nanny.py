@@ -51,6 +51,7 @@ class Nanny(object):
     def __init__(self,name=""):
         self.managed_child_processes = {}
         self.stdout_threads = {}
+        self.name = name
         atexit.register(self.deconstruct)
 
     def register_child_process(self, cp, monitor_for_termination=True, monitor_if_stuck_timeout=None):
