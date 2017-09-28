@@ -1,4 +1,6 @@
 from collections import OrderedDict
+
+import logging
 import numpy as np
 from six import string_types, next
 
@@ -330,7 +332,9 @@ def structseq_to_seqstruct(structseq):
 
 
 class SequentialStructBuilder(object):
-
+    """
+    A convenient structure for storing results.
+    """
     def __init__(self, struct=None):
         self._struct = struct  # An OrderedDict<string: list<obj>>
 
@@ -358,13 +362,26 @@ class SequentialStructBuilder(object):
             assert self._struct is None
             return None
 
-    @property
-    def next(self):
+    def open_next(self):
+        """
+        Add a new element to this sequence, so that future calls to last return this element.
+        :return:
+        """
         if self._struct is None:
             self._struct = []
         else:
-            assert isinstance(self._struct, [])
+            assert self.is_sequence is True
         self._struct.append(SequentialStructBuilder())
+        return self._struct[-1]
+
+    @property
+    def next(self):
+        logging.warn("Warning: next should only be set, not gotten")
+        return None
+
+    @property
+    def last(self):
+        assert self.is_sequence, 'last can only be accessed when this is a sequence.'
         return self._struct[-1]
 
     @next.setter
