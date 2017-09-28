@@ -419,9 +419,6 @@ experiment records.  You can specify records in the following ways:
         except RecordSelectionError as err:
             print('FAILED!: {}'.format(str(err)))
 
-        # if args.results:
-        #     records = [rec for rec in records if rec.has_result()]
-
         func = show_record if args.original else None
         show_multiple_records(records, func)
         _warn_with_prompt(use_prompt=not self.close_after)

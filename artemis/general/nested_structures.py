@@ -396,7 +396,7 @@ class SequentialStructBuilder(object):
         if self.is_sequence is True:
             return [func(x) for x in self._struct]
         elif self.is_sequence is False:
-            return OrderedDict((name, func(val)) for name, val in self._struct.iteritems())
+            return OrderedDict((name, func(val)) for name, val in self._struct.items())
         else:
             return None
 
