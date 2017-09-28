@@ -2,6 +2,7 @@ import sys
 import textwrap
 from collections import OrderedDict
 from contextlib import contextmanager
+import datetime
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
@@ -331,3 +332,24 @@ def assert_things_are_printed(things, min_len=None):
 
     for thing in things:
         assert thing in printed_text, '"{}" was not printed'.format(thing)
+
+def format_duration(seconds):
+    '''
+    Formats a float interpreted as seconds as a sensible time duration
+    :param seconds:
+    :return:
+    '''
+    if seconds < 1:
+        return '{:.5g} ms'.format(seconds*10)
+    elif seconds < 60:
+        return '{:.5g} s'.format(seconds)
+    elif seconds < 60*60:
+        return '{:02d}m{:02d}s'.format(int(seconds//60),int(seconds%60))
+    else:
+        res = str(datetime.timedelta(seconds=seconds))
+        if len(res.split(".")) > 1:
+            return ".".join(res.split(".")[:-1])
+        else:
+            return res
+
+
