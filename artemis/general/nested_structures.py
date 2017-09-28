@@ -251,7 +251,7 @@ def nested_map(func, *nested_objs, **kwargs):
     assert all_equal(nested_types), "The nested objects you provided had different data structures:\n{}".format('\n'.join(str(s) for s in nested_types))
     leaf_values = zip(*[nested_type.get_leaves(nested_obj, is_container_func=is_container_func, check_types=check_types) for nested_type, nested_obj in zip(nested_types, nested_objs)])
     new_leaf_values = [func(*v) for v in leaf_values]
-    new_nested_obj = nested_type.expand_from_leaves(new_leaf_values, check_types=check_types, is_container_func=is_container_func)
+    new_nested_obj = nested_types[0].expand_from_leaves(new_leaf_values, check_types=check_types, is_container_func=is_container_func)
     return new_nested_obj
 
 
