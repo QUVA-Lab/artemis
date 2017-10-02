@@ -333,7 +333,7 @@ def interpret_record_identifier(user_range):
         parts = user_range.split(',')
         return [pair for p in parts for pair in interpret_record_identifier(p)]
     if '.' not in user_range:
-        return None
+        raise RecordSelectionError('All record selections must have a "." - Your selection: "{}" did not.'.format(user_range))
     else:
         exp_number, record_numbers = user_range.split('.')
         return [(int(exp_number), rec_num) for rec_num in interpret_numbers(record_numbers)]
@@ -514,5 +514,6 @@ def deprefix_experiment_ids(experiment_ids):
     # Then for each experiment in the list,
     tuples = [get_experiment_tuple(eid) for eid in experiment_ids]
     de_prefixed_tuples = remove_common_prefix(tuples, keep_base=False)
-    new_strings = ['.'+'.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
+    start_with = '' if len(de_prefixed_tuples[0])==len(tuples[0]) else '.'
+    new_strings = [start_with+'.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
     return new_strings

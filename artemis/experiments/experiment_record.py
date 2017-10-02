@@ -107,6 +107,9 @@ class ExperimentRecordInfo(object):
         else:
             self.set_field(ExpInfoFields.NOTES, self.get_field(ExpInfoFields.NOTES) + [note])
 
+    def get_notes(self):
+        return [] if not self.has_field(ExpInfoFields.NOTES) else self.get_field(ExpInfoFields.NOTES)
+
     def get_text(self):
         if ExpInfoFields.VERSION not in self.persistent_obj:  # Old version... we must adapt
             return '\n'.join(

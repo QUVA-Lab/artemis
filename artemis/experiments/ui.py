@@ -19,7 +19,8 @@ from artemis.experiments.experiment_record import ExpStatusOptions
 from artemis.experiments.experiment_record import (get_all_record_ids, clear_experiment_records,
                                                    experiment_id_to_record_ids, load_experiment_record, ExpInfoFields)
 from artemis.experiments.experiment_record_view import (get_record_full_string, get_record_invalid_arg_string,
-                                                        print_experiment_record_argtable, get_oneline_result_string)
+                                                        print_experiment_record_argtable, get_oneline_result_string,
+                                                        compare_experiment_records)
 from artemis.experiments.experiment_record_view import show_record, show_multiple_records
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.local_dir import get_artemis_data_path
@@ -208,7 +209,6 @@ experiment records.  You can specify records in the following ways:
             # but we want to preserve the order in which experiments were created
             descendents_of_root = set(ex.name for ex in self.root_experiment.get_all_variants(include_self=True))
             names = [name for name in names if name in descendents_of_root]
-
         d = get_experient_to_record_dict(names)
         return d
 
@@ -433,10 +433,7 @@ experiment records.  You can specify records in the following ways:
         if args.last:
             user_range += '>last'
 
-        try:
-            records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
-        except RecordSelectionError as err:
-            print('FAILED!: {}'.format(str(err)))
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
 
         func = show_record if args.original else None
         show_multiple_records(records, func)
@@ -447,15 +444,19 @@ experiment records.  You can specify records in the following ways:
         parser.add_argument('user_range', action='store', help='A selection of experiment records to compare.  Examples: "3" or "3-5", or "3,4,5"')
         parser.add_argument('-l', '--last', default=False, action = "store_true", help="Use this flag if you want to select Experiments instead of Experiment Records, and just show the last completed.")
         parser.add_argument('-r', '--results', default=False, action = "store_true", help="Only compare records with results.")
+        parser.add_argument('-o', '--original', default=False, action = "store_true", help="Use original compare funcion")
         args = parser.parse_args(args)
 
         user_range = args.user_range if not args.last else args.user_range + '>finished>last'
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         if args.results:
             records = [rec for rec in records if rec.has_result()]
-        compare_funcs = [rec.get_experiment().compare for rec in records]
-        assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
-        func = compare_funcs[0]
+        if args.original:
+            func = compare_experiment_records
+        else:
+            compare_funcs = [rec.get_experiment().compare for rec in records]
+            assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
+            func = compare_funcs[0]
         func(records)
         _warn_with_prompt(use_prompt=not self.close_after)
 
