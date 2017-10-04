@@ -6,6 +6,7 @@ import datetime
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
+from si_prefix import si_format
 from six import string_types
 from six.moves import xrange, StringIO
 
@@ -333,23 +334,30 @@ def assert_things_are_printed(things, min_len=None):
     for thing in things:
         assert thing in printed_text, '"{}" was not printed'.format(thing)
 
+
+_seconds_in_day = 60*60*24
+
 def format_duration(seconds):
     '''
     Formats a float interpreted as seconds as a sensible time duration
     :param seconds:
     :return:
     '''
-    if seconds < 1:
-        return '{:.5g} ms'.format(seconds*10)
-    elif seconds < 60:
-        return '{:.5g} s'.format(seconds)
-    elif seconds < 60*60:
-        return '{:02d}m{:02d}s'.format(int(seconds//60),int(seconds%60))
-    else:
+    if seconds < 60:
+        return si_format(seconds, precision=1, format_str='{value}{prefix}s')
+
+        # return '{:.5g}ms'.format(seconds*10)
+        # return '{:.3g}.'
+    # elif seconds < 60:
+    #     return '{:.5g}s'.format(seconds)
+    # elif seconds < 60*60:
+    #     return '00:{:02d}:{:02d}'.format(int(seconds//60),int(seconds%60))
+    elif seconds<_seconds_in_day:
         res = str(datetime.timedelta(seconds=seconds))
         if len(res.split(".")) > 1:
             return ".".join(res.split(".")[:-1])
         else:
             return res
-
-
+    else:
+        days = seconds//_seconds_in_day
+        return '{:d}d,{}'.format(days, format_duration(seconds % _seconds_in_day))

@@ -627,7 +627,12 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STARTED)
             exp_rec.info.set_field(EIF.USER, getuser())
             exp_rec.info.set_field(EIF.MAC, ':'.join(("%012X" % getnode())[i:i+2] for i in range(0, 12, 2)))
-            results = function()
+            if inspect.isgeneratorfunction(root_function):
+                for result in function():
+                    exp_rec.save_result(result)
+            else:
+                result = function()
+                exp_rec.save_result(result)
             exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.FINISHED)
         except KeyboardInterrupt:
             exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STOPPED)
@@ -646,7 +651,6 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(EIF.N_FIGS, len(fig_locs))
             exp_rec.info.set_field(EIF.FIGS, fig_locs)
 
-    exp_rec.save_result(results)
     for n in notes:
         exp_rec.info.add_note(n)
 

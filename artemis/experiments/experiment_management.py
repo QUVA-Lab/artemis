@@ -5,6 +5,8 @@ from functools import partial
 from importlib import import_module
 import os
 import multiprocessing
+
+import subprocess
 from six import string_types
 from six.moves import reduce, xrange
 from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
@@ -43,16 +45,20 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
         ip=ip,
         home=home
         )
-    password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
-    child = pexpect.spawn(command)
-    code = child.expect([pexpect.TIMEOUT, 'password:'])
-    if code == 0:
-        print(("Got unexpected output: %s %s" % (child.before, child.after)))
-        sys.exit()
-    else:
-        child.sendline(password)
-    output = child.read()
+
+    output = subprocess.check_output(command.split(' '))
     return output
+
+    # password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
+    # child = pexpect.spawn(command)
+    # code = child.expect([pexpect.TIMEOUT, 'password:'])
+    # if code == 0:
+    #     print(("Got unexpected output: %s %s" % (child.before, child.after)))
+    #     sys.exit()
+    # # else:
+    # #     child.sendline(password)
+    # output = child.read()
+    # return output
 
 
 def load_lastest_experiment_results(experiments, error_if_no_result = True):
@@ -137,7 +143,7 @@ def _filter_experiments(user_range, exp_record_dict):
             # experiment_ids = [exp_id for exp_id in experiment_list if len(record_filters[exp_id])]
             is_in = [all(record_filters[exp_id]) for exp_id in exp_record_dict]
         else:
-            raise Exception("Don't know how to use input '{}' to select experiments".format(user_range))
+            raise RecordSelectionError("Don't know how to use input '{}' to select experiments".format(user_range))
 
     return OrderedDict((exp_id, exp_is_in) for exp_id, exp_is_in in izip_equal(exp_record_dict, is_in))
 
