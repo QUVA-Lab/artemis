@@ -19,7 +19,7 @@ MEMO_READ_ENABLED = True
 MEMO_DIR = get_artemis_data_path('memoize_to_disk')
 
 
-def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle = False, suppress_info = False):
+def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickle = False, suppress_info = False):
     """
     Save (memoize) computed results to disk, so that the same function, called with the
     same arguments, does not need to be recomputed.  This is useful if you have a long-running

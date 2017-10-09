@@ -5,7 +5,10 @@ import pickle
 import shlex
 import shutil
 from collections import OrderedDict
+from functools import partial
+from threading import Thread
 
+from multiprocessing import Process
 from six.moves import input
 from tabulate import tabulate
 
@@ -221,14 +224,16 @@ experiment records.  You can specify records in the following ways:
             try:
                 all_experiments = OrderedDict((exp_name, all_experiments[exp_name]) for exp_name in select_experiments(self._filter, all_experiments))
             except RecordSelectionError as err:
+                old_filter = self._filter
                 self._filter = None
-                raise RecordSelectionError("Failed to apply experiment filter: '{}' because {}.  Removing filter.".format(self._filter, err))
+                raise RecordSelectionError("Failed to apply experiment filter: '{}' because {}.  Removing filter.".format(old_filter, err))
         if self._filterrec is not None:
             try:
                 all_experiments = select_experiment_records(self._filterrec, all_experiments, load_records=False, flat=False)
             except RecordSelectionError as err:
+                old_filterrec = self._filterrec
                 self._filterrec = None
-                raise RecordSelectionError("Failed to apply record filter: '{}' because {}.  Removing filter.".format(self._filterrec, err))
+                raise RecordSelectionError("Failed to apply record filter: '{}' because {}.  Removing filter.".format(old_filterrec, err))
         return all_experiments
 
     def launch(self, command=None):
@@ -238,6 +243,7 @@ experiment records.  You can specify records in the following ways:
             'test': self.test,
             'show': self.show,
             'call': self.call,
+            'kill': self.kill,
             'selectexp': self.selectexp,
             'selectrec': self.selectrec,
             'view': self.view,
@@ -323,7 +329,7 @@ experiment records.  You can specify records in the following ways:
                 except Exception as err:
                     print "CAUGHT: {}".format(err)
                     if self.catch_errors or (isinstance(err, RecordSelectionError) and self.catch_selection_errors):
-                        res = input('{}\nEnter "e" to view the stacktrace, or anything else to continue.'.format(err))
+                        res = input('Enter "e" to view the stacktrace, or anything else to continue.')
                         if res.strip().lower() == 'e':
                             raise
                         display_again = True
@@ -421,8 +427,10 @@ experiment records.  You can specify records in the following ways:
                 )
 
         else:
+            exp_names = list(self.exp_record_dict.keys())
             run_multiple_experiments(
                 experiments=[load_experiment(eid) for eid in ids],
+                prefixes=[exp_names.index(eid) for eid in ids],
                 parallel=args.parallel,
                 cpu_count=args.n_processes,
                 raise_exceptions = args.raise_errors,
@@ -474,9 +482,10 @@ experiment records.  You can specify records in the following ways:
         parser.add_argument('-l', '--last', default=False, action = "store_true", help="Use this flag if you want to select Experiments instead of Experiment Records, and just show the last completed.")
         parser.add_argument('-r', '--results', default=False, action = "store_true", help="Only compare records with results.")
         parser.add_argument('-o', '--original', default=False, action = "store_true", help="Use original compare funcion")
+
         args = parser.parse_args(args)
 
-        user_range = args.user_range if not args.last else args.user_range + '>finished>last'
+        user_range = args.user_range if not args.last else args.user_range + '>result>last'
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         if args.results:
             records = [rec for rec in records if rec.has_result()]
@@ -489,6 +498,11 @@ experiment records.  You can specify records in the following ways:
             compare_funcs = [rec.get_experiment().compare for rec in records]
             assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
             func = compare_funcs[0]
+
+        # thread = Process(target = partial(func, records))
+        # thread.start()
+        # thread.join()
+
         func(records)
         _warn_with_prompt(use_prompt=False)
 
@@ -521,7 +535,7 @@ experiment records.  You can specify records in the following ways:
     def call(self, user_range):
         ids = select_experiments(user_range, self.exp_record_dict)
         for experiment_identifier in ids:
-            load_experiment(experiment_identifier)()
+            load_experiment(experiment_identifier).call()
 
     def selectexp(self, user_range):
         exps_to_records = select_experiments(user_range, self.exp_record_dict, return_dict=True)
@@ -562,6 +576,34 @@ experiment records.  You can specify records in the following ways:
         output = pull_experiments(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False)
         print(output)
         return ExperimentBrowser.REFRESH
+
+    def kill(self, *args):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', help='A selection of experiments whose records to pull.  Examples: "3" or "3-5", or "3,4,5"')
+        parser.add_argument('-s', '--skip', action='store_true', default=True, help='Skip the check that all selected records are currently running (just filter running ones)')
+        args = parser.parse_args(args)
+
+        records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
+
+        if not args.skip and (not all(record.get_status() is ExpStatusOptions.STARTED for record in records)):
+            raise RecordSelectionError('Not all records you selected to kill were running: \n- {}'.format('\n- '.join('{}: {}'.format(rec.get_id(), rec.get_status()) for rec in records)))
+        elif args.skip:
+            records = [rec for rec in records if rec.get_status() is ExpStatusOptions.STARTED]
+
+        if len(records)==0:
+            raise RecordSelectionError('Selection "{}" selected no active processes to kill'.format(args.user_range))
+
+        print('{} Running Experiments will be killed.'.format(len(records)))
+        with IndentPrint():
+            print(ExperimentRecordBrowser.get_record_table(records, ))
+        response = input('Type "yes" to continue. >').strip().lower()
+        if response == 'yes':
+            for rec in records:
+                rec.kill()
+            print('Experiments killed.')
+            return ExperimentBrowser.REFRESH
+        else:
+            _warn_with_prompt('Experiments were not killed.', use_prompt=False)
 
     def filter(self, user_range):
         self._filter = user_range if user_range not in ('-', '--clear') else None
@@ -627,9 +669,9 @@ class _DisplaySettings(object):
 _exp_record_field_getters = {
     ExpRecordDisplayFields.RUNS: lambda rec: rec.info.get_field_text(ExpInfoFields.TIMESTAMP),
     ExpRecordDisplayFields.DURATION: lambda rec: format_duration(rec.info.get_field(ExpInfoFields.RUNTIME)) if rec.info.has_field(ExpInfoFields.RUNTIME) else '-',
-    ExpRecordDisplayFields.STATUS: lambda rec: rec.info.get_field_text(ExpInfoFields.STATUS),
     ExpRecordDisplayFields.ARGS_CHANGED: lambda rec: get_record_invalid_arg_string(rec, ignore_valid_keys=_DisplaySettings.get_setting('ignore_valid_keys')),
     ExpRecordDisplayFields.RESULT_STR: get_oneline_result_string,
+    ExpRecordDisplayFields.STATUS: lambda rec: rec.info.get_field_text(ExpInfoFields.STATUS),
     ExpRecordDisplayFields.NOTES: _show_notes
 }
 

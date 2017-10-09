@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 import logging
 import numpy as np
+from artemis.general.display import sensible_str
 from six import string_types, next
 
 from artemis.general.should_be_builtins import izip_equal, all_equal
@@ -346,11 +347,18 @@ class SequentialStructBuilder(object):
         return self._struct[key]
 
     def __setitem__(self, key, value):
-        if self._struct is None:
-            self._struct = OrderedDict()
-        else:
-            assert isinstance(self._struct, OrderedDict)
-        self._struct[key] = value
+        try:
+            self._struct[key] = value
+        except TypeError:
+            if self._struct is None:
+                self._struct = OrderedDict()
+                self._struct[key] = value
+            else:
+                raise TypeError('{} has already been defined as a list, but you are trying to set a key "{}" as if it were a dict. '.format(self, key))
+
+        # else:
+        #     assert isinstance(self._struct, OrderedDict)
+        # self._struct[key] = value
 
     def __iter__(self):
         assert self.is_sequence is True
@@ -374,12 +382,10 @@ class SequentialStructBuilder(object):
         Add a new element to this sequence, so that future calls to last return this element.
         :return:
         """
-        if self._struct is None:
-            self._struct = []
-        else:
-            assert self.is_sequence is True
-        self._struct.append(SequentialStructBuilder())
-        return self._struct[-1]
+        self.next = SequentialStructBuilder()
+
+    def __str__(self):
+        return '{}({})'.format(self.__class__.__name__, sensible_str(self._struct))
 
     @property
     def next(self):
@@ -391,13 +397,20 @@ class SequentialStructBuilder(object):
         assert self.is_sequence, 'last can only be accessed when this is a sequence.'
         return self._struct[-1]
 
+    def as_array(self):
+        assert self.is_sequence, 'Can only call as_array when the SequentialStructBuilder has been used as a sequence.  It has not.'
+        return np.array(self.get_structs())
+
     @next.setter
     def next(self, val):
-        if self._struct is None:
-            self._struct = []
-        else:
-            assert isinstance(self._struct, list)
-        self._struct.append(val)
+        try:
+            self._struct.append(val)
+        except AttributeError:
+            if self._struct is None:
+                self._struct = []
+                self._struct.append(val)
+            else:
+                raise TypeError('{} has already been defined as a dict, but you are trying to append an element to it as if it were a list. '.format(self))
 
     def map(self, func):
         if self.is_sequence is True:

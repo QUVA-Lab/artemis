@@ -137,6 +137,19 @@ def test_nested_capture():
     assert cap1.read()=='a\nb\nc\n'
 
 
+def test_capture_prefix():
+
+    with CaptureStdOut() as cap1:
+        print('a')
+        with CaptureStdOut(prefix='abc:') as cap2:
+            print('b')
+        print('c')
+
+    print 'Done'
+    assert cap2.read()=='b\n'
+    assert cap1.read()=='a\nabc:b\nc\n'
+
+
 def test_sensible_str():
 
     a = [1, 2, 3]
@@ -162,12 +175,13 @@ def test_format_duration():
 
 
 if __name__ == '__main__':
-    test_indent_print()
-    test_side_by_side()
-    test_document_wrapper()
-    test_deepstr()
-    test_str_with_arrayopts()
-    test_surround_with_header()
-    test_nested_capture()
-    test_sensible_str()
-    test_format_duration()
+    # test_indent_print()
+    # test_side_by_side()
+    # test_document_wrapper()
+    # test_deepstr()
+    # test_str_with_arrayopts()
+    # test_surround_with_header()
+    # test_nested_capture()
+    test_capture_prefix()
+    # test_sensible_str()
+    # test_format_duration()

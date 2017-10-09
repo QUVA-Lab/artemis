@@ -7,6 +7,9 @@ import os
 import multiprocessing
 
 import subprocess
+from time import time
+
+from artemis.general.display import equalize_string_lengths
 from six import string_types
 from six.moves import reduce, xrange
 from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
@@ -35,18 +38,15 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     if isinstance(experiment_names, string_types):
         experiment_names = [experiment_names]
 
-    inclusions = ' '.join("--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names)
-
     home = get_home_dir()
 
-    command = "rsync -a -m -i {inclusions} --include='*/' --exclude='*' {user}@{ip}:~/.artemis/experiments/ {home}/.artemis/experiments/".format(
-        inclusions=inclusions,
-        user=user,
-        ip=ip,
-        home=home
-        )
+    command = ['rsync', '-a', '-m', '-i']\
+        +['{user}@{ip}:~/.artemis/experiments/'.format(user=user, ip=ip)] \
+        +['{home}/.artemis/experiments/'.format(home=home)]\
+        +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names] \
+        +["--include='*/'", "--exclude='*'"]
 
-    output = subprocess.check_output(command.split(' '))
+    output = subprocess.check_output(command)
     return output
 
     # password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
@@ -213,6 +213,16 @@ def _bitwise_filter_op(op, *filter_sets):
     return output_set
 
 
+_named_record_filters = {}
+_named_record_filters['old'] = lambda rec_ids: ([True]*(len(rec_ids)-1)+[False]) if len(rec_ids)>0 else []
+_named_record_filters['corrupt'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_status_field()==ExpStatusOptions.CORRUPT for rec_id in rec_ids]
+_named_record_filters['finished'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in rec_ids]
+_named_record_filters['invalid'] = lambda rec_ids: [load_experiment_record(rec_id).args_valid() is False for rec_id in rec_ids]
+_named_record_filters['all'] = lambda rec_ids: [True]*len(rec_ids)
+_named_record_filters['errors'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in rec_ids]
+_named_record_filters['result'] = lambda rec_ids: [load_experiment_record(rec_id).has_result() for rec_id in rec_ids]
+
+
 def _filter_records(user_range, exp_record_dict):
     """
     :param user_range:
@@ -246,40 +256,33 @@ def _filter_records(user_range, exp_record_dict):
 
     number_range = interpret_numbers(user_range)
     keys = list(exp_record_dict.keys())
-    if number_range is not None:
+
+    if user_range in _named_record_filters:  # e.g. 'finished'
+        for exp_id, _ in base.items():
+            base[exp_id] = _named_record_filters[user_range](exp_record_dict[exp_id])
+    elif number_range is not None:  # e.g. '6-12'
         for i in number_range:
             if i>len(keys):
                 raise RecordSelectionError('Experiment {} does not exist (they go from 0 to {})'.format(i, len(keys)-1))
             base[keys[i]] = [True]*len(base[keys[i]])
-    elif '.' in user_range:
+    elif '.' in user_range:  # e.b. 6.3-4
         exp_rec_pairs = interpret_record_identifier(user_range)
         for exp_number, rec_number in exp_rec_pairs:
             if rec_number>=len(base[keys[exp_number]]):
                 raise RecordSelectionError('Selection {}.{} does not exist.'.format(exp_number, rec_number))
             base[keys[exp_number]][rec_number] = True
-    elif user_range == 'old':
-        for k, v in base.items():
-            base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
-    elif user_range == 'corrupt':
-        for k, v in base.items():
-            base[k] = [load_experiment_record(rec_id).info.get_status_field()==ExpStatusOptions.CORRUPT for rec_id in exp_record_dict[k]]
-    elif user_range == 'finished':
-        for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
-    elif user_range == 'invalid':
-        for k, v in base.items():
-            base[k] = [load_experiment_record(rec_id).args_valid() is False for rec_id in exp_record_dict[k]]
-    elif user_range == 'all':
-        for k, v in base.items():
-            base[k] = [True]*len(v)
-    elif user_range == 'errors':
-        for k, v in base.items():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
-    elif user_range == 'result':
-        for k, v in base.items():
-            base[k] = [load_experiment_record(rec_id).has_result() for rec_id in exp_record_dict[k]]
+    elif user_range.startswith('since:'):  # eg. 'since:24'
+        time_id = user_range[len('since:'):]
+        try:
+            seconds_ago = int(time_id)*3600
+        except:
+            raise RecordSelectionError('Cannot interpret "{}" as a time.  Currently, it should be an integer, which means "within the last X hours"'.format(time_id))
+        current_time = time()
+        for exp_id, rec_ids in base.items():
+            base[exp_id] = [(current_time - load_experiment_record(rec_id).get_timestamp())<seconds_ago for rec_id in exp_record_dict[exp_id]]
+
     else:
-        raise RecordSelectionError("Don't know how to interpret subset '{}'".format(user_range))
+        raise RecordSelectionError("Don't know how to interpret subset '{}'.  Possible subsets: {}".format(user_range, list(_named_record_filters.keys())))
     return base
 
 
@@ -437,7 +440,15 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, raise_exce
             nanny.execute_all_child_processes(time_out=2)
 
 
-def run_multiple_experiments(experiments, parallel = False, cpu_count=None, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
+def _parallel_run_target(experiment_id_and_prefix, raise_exceptions, **kwargs):
+    experiment_id, prefix = experiment_id_and_prefix
+    if raise_exceptions:
+        run_experiment_by_name(experiment_id, prefix=prefix, **kwargs)
+    else:
+        run_experiment_ignoring_errors(experiment_id, prefix=prefix, **kwargs)
+
+
+def run_multiple_experiments(experiments, prefixes = None, parallel = False, cpu_count=None, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
     """
     Run multiple experiments, optionally in parallel with multiprocessing.
 
@@ -451,11 +462,21 @@ def run_multiple_experiments(experiments, parallel = False, cpu_count=None, disp
 
     if parallel:
         experiment_identifiers = [ex.get_id() for ex in experiments]
+        if prefixes is None:
+            prefixes = range(len(experiment_identifiers))
+        prefixes = [s+': ' for s in equalize_string_lengths(prefixes, side='right')]
+        print 'Prefix key: \n'+'\n'.join('{}{}'.format(p, eid) for p, eid in izip_equal(prefixes, experiment_identifiers))
+
         if cpu_count is None:
             cpu_count = multiprocessing.cpu_count()
-        func = run_experiment_by_name if raise_exceptions else run_experiment_ignoring_errors
+
+        target_func = partial(_parallel_run_target, notes=notes, raise_exceptions=raise_exceptions, **run_args)
+
+        # func = run_experiment_by_name if raise_exceptions else run_experiment_ignoring_errors
         p = multiprocessing.Pool(processes=cpu_count)
-        return p.map(partial(func, notes=notes, **run_args), experiment_identifiers)
+
+
+        return p.map(target_func, zip(experiment_identifiers, prefixes))
     else:
         return [ex.run(raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **run_args) for ex in experiments]
 

@@ -31,6 +31,22 @@ def arraystr(arr, print_threshold, summary_threshold):
             type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, id=hex(id(arr)))
 
 
+def equalize_string_lengths(arr, side = 'left'):
+    """
+    Equalize the lengths of the string representations of the contents of the array.
+    :param arr:
+    :return:
+    """
+    assert side in ('left', 'right')
+    strings = [str(x) for x in arr]
+    longest = max(len(x) for x in strings)
+    if side=='left':
+        strings = [string.ljust(longest) for string in strings]
+    else:
+        strings = [string.rjust(longest) for string in strings]
+    return strings
+
+
 def sensible_str(data, size_limit=4, compact=True):
     """
     Crawl through an data structure and try to make a sensible compact representation of it.
@@ -136,7 +152,7 @@ class CaptureStdOut(object):
     An logger that both prints to stdout and writes to file.
     """
 
-    def __init__(self, log_file_path = None, print_to_console = True):
+    def __init__(self, log_file_path = None, print_to_console = True, prefix = None):
         """
         :param log_file_path: The path to save the records, or None if you just want to keep it in memory
         :param print_to_console:
@@ -150,6 +166,7 @@ class CaptureStdOut(object):
             self.log = StringIO()
         self._log_file_path = log_file_path
         self.old_stdout = _ORIGINAL_STDOUT
+        self.prefix = None if prefix is None else prefix
 
     def __enter__(self):
 
@@ -173,7 +190,7 @@ class CaptureStdOut(object):
 
     def write(self, message):
         if self._print_to_console:
-            self.old_stdout.write(message)
+            self.old_stdout.write(message if self.prefix is None or message=='\n' else self.prefix+message)
         self.log.write(message)
         self.log.flush()
 

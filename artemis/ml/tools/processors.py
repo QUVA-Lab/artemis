@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import numpy as np
+from artemis.general.mymath import recent_moving_average
 from six.moves import xrange
 
 __author__ = 'peter'
@@ -44,8 +45,9 @@ class RunningAverage(object):
 
     @classmethod
     def batch(cls, x):
-        ra = cls()
-        return np.array([ra(x_) for x_ in x])
+        return np.cumsum(x, axis=0)/np.arange(1, len(x)+1).astype(np.float)[(slice(None), )+(None, )*(x.ndim-1)]
+        # ra = cls()
+        # return np.array([ra(x_) for x_ in x])
 
 
 
@@ -84,8 +86,10 @@ class RecentRunningAverage(object):
 
     @classmethod
     def batch(cls, x):
-        ra = cls()
-        return np.array([ra(x_) for x_ in x])
+        return recent_moving_average(x, axis=0)
+
+        # ra = cls()
+        # return np.array([ra(x_) for x_ in x])
 
 
 class RunningAverageWithBurnin(object):
