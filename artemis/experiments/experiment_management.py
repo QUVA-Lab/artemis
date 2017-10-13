@@ -467,8 +467,10 @@ def run_multiple_experiments(experiments, prefixes = None, parallel = False, cpu
         prefixes = [s+': ' for s in equalize_string_lengths(prefixes, side='right')]
         print 'Prefix key: \n'+'\n'.join('{}{}'.format(p, eid) for p, eid in izip_equal(prefixes, experiment_identifiers))
 
-        if cpu_count is None:
+        if cpu_count in ('all', None):
             cpu_count = multiprocessing.cpu_count()
+        else:
+            assert isinstance(cpu_count, int)
 
         target_func = partial(_parallel_run_target, notes=notes, raise_exceptions=raise_exceptions, **run_args)
 

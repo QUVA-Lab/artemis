@@ -32,6 +32,16 @@ def test_minibatch_index_generator():
         assert i == int(expected_total_samples/minibatch_size) * minibatch_size == 70
 
 
+def test_minibatch_index_even():
+
+    n_samples = 5
+    n_epochs=2
+
+    ixs = list(minibatch_index_generator(n_samples=n_samples, n_epochs=n_epochs, minibatch_size=1, slice_when_possible=False, final_treatment='truncate'))
+
+    assert ixs==[[i%n_samples] for i in range(n_samples*n_epochs)]
+
+
 def test_checkpoint_minibatch_generator():
     n_samples = 48
     data = np.arange(n_samples)
@@ -102,7 +112,9 @@ def test_minibatch_process():
 
     assert np.allclose(y1, y2)  # weird numpy rounding makes it not exactly equal
 
+
 if __name__ == '__main__':
+    test_minibatch_index_even()
     test_minibatch_process()
     test_minibatch_iterate_info()
     test_minibatch_index_generator()

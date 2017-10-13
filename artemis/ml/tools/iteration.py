@@ -43,7 +43,7 @@ def minibatch_index_generator(n_samples, minibatch_size, n_epochs = 1, final_tre
     base_indices = np.arange(minibatch_size)
     standard_indices = (lambda: slice(i, i+minibatch_size)) if slice_when_possible else (lambda: base_indices+i)
     i = 0
-    while True:
+    while remaining_samples>0:
         next_i = i + true_minibatch_size
         if remaining_samples < minibatch_size:  # Final minibatch case
             if final_treatment == 'stop':
@@ -263,9 +263,13 @@ def minibatch_process(f, minibatch_size, mb_args = (), mb_kwargs = {}, fixed_kwa
     index_generator = minibatch_index_generator(n_samples = n_samples, n_epochs=1, minibatch_size=minibatch_size, final_treatment='truncate')
     ix = next(index_generator)
     first_output = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
-    output_shape = first_output.shape if minibatch_size==SINGLE_MINIBATCH_SIZE else first_output.shape[1:]
-    results = np.empty((n_samples, )+output_shape, dtype=first_output.dtype)
-    results[:len(first_output)] = first_output
-    for ix in index_generator:
-        results[ix] = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
-    return results
+    if first_output is None:
+        for ix in index_generator:
+            f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
+    else:
+        output_shape = first_output.shape if minibatch_size==SINGLE_MINIBATCH_SIZE else first_output.shape[1:]
+        results = np.empty((n_samples, )+output_shape, dtype=first_output.dtype)
+        results[:len(first_output)] = first_output
+        for ix in index_generator:
+            results[ix] = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
+        return results

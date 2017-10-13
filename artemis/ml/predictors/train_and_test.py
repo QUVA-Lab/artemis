@@ -1,9 +1,11 @@
 # coding=utf-8
 from collections import OrderedDict
 
+import itertools
 import numpy as np
 from six import string_types
 
+from artemis.general.checkpoint_counter import Checkpoints
 from artemis.general.mymath import softmax, cosine_distance
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
@@ -532,7 +534,7 @@ def print_score_results(score, info=None):
     print(tabulate.tabulate(rows))
 
 
-def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_size, n_epochs=None, test_epochs=None,
+def train_and_test_online_predictor_checkpoints(dataset, train_fcn, predict_fcn, minibatch_size, checkpoint_generator = None, n_epochs=None, test_epochs=None,
             score_measure='percent_argmax_correct', test_callback=None, training_callback = None, score_collection = None,
             test_on = 'training+test', pass_iteration_info_to_training = False, predict_in_minibatches=False):
     """
@@ -563,8 +565,10 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
             prediction_function is identifies the prediction function (usually None, but can be used if you specify multiple prediction functions)
             cost_function is identifiers the cost function.
     """
+
     last_time = last_epoch = 0
     info_score_pairs = InfoScorePairSequence() if score_collection is None else score_collection
+
     for (x_mini, y_mini), info in zip_minibatch_iterate_info(dataset.training_set.xy, minibatch_size=minibatch_size, n_epochs=n_epochs, test_epochs=test_epochs):
         if info.test_now:
             rate = (info.time-last_time)/(info.epoch - last_epoch) if info.epoch>0 else float('nan')
@@ -578,6 +582,7 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
             # print p.get_table(remove_headers=len(info_score_pairs)>1)
             if test_callback is not None:
                 test_callback(info, score)
+            yield info_score_pairs
         if not info.done:
             if pass_iteration_info_to_training:
                 train_fcn(x_mini, y_mini, info)
@@ -585,6 +590,14 @@ def train_and_test_online_predictor(dataset, train_fcn, predict_fcn, minibatch_s
                 train_fcn(x_mini, y_mini)
             if training_callback is not None:
                 training_callback(info, x_mini, y_mini)
+        else:
+            yield info_score_pairs
+
+
+def train_and_test_online_predictor(*args, **kwargs):
+
+    for info_score_pairs in train_and_test_online_predictor_checkpoints(*args, **kwargs):
+        pass
     return info_score_pairs
 
 

@@ -5,10 +5,7 @@ import pickle
 import shlex
 import shutil
 from collections import OrderedDict
-from functools import partial
-from threading import Thread
 
-from multiprocessing import Process
 from six.moves import input
 from tabulate import tabulate
 
@@ -20,7 +17,7 @@ from artemis.experiments.experiment_management import (pull_experiments, select_
                                                        run_multiple_experiments)
 from artemis.experiments.experiment_record import ExpStatusOptions
 from artemis.experiments.experiment_record import (get_all_record_ids, clear_experiment_records,
-                                                   experiment_id_to_record_ids, load_experiment_record, ExpInfoFields)
+                                                   load_experiment_record, ExpInfoFields)
 from artemis.experiments.experiment_record_view import (get_record_full_string, get_record_invalid_arg_string,
                                                         print_experiment_record_argtable, get_oneline_result_string,
                                                         compare_experiment_records)
@@ -30,8 +27,7 @@ from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header, format_duration
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.mymath import levenshtein_distance
-from artemis.general.should_be_builtins import all_equal, insert_at, izip_equal, separate_common_items
-
+from artemis.general.should_be_builtins import all_equal, insert_at, izip_equal, separate_common_items, bad_value
 
 try:
     import readline  # Makes input() behave like interactive shell.
@@ -351,7 +347,7 @@ experiment records.  You can specify records in the following ways:
 
 
         def remove_notes_if_no_notes(_record_rows):
-            notes_column_index = headers.index(ExpRecordDisplayFields.NOTES) if ExpRecordDisplayFields.NOTES in headers else None
+            notes_column_index = full_headers.index(ExpRecordDisplayFields.NOTES.value) if ExpRecordDisplayFields.NOTES.value in full_headers else None
             # Remove the notes column if there are no notes!
             if notes_column_index is not None and all(row[notes_column_index]=='' for row in _record_rows):
                 for row in _record_rows:
@@ -407,32 +403,36 @@ experiment records.  You can specify records in the following ways:
 
         parser = argparse.ArgumentParser()
         parser.add_argument('user_range', action='store', help='A selection of experiments to run.  Examples: "3" or "3-5", or "3,4,5"')
-        parser.add_argument('-p', '--parallel', default=False, action = "store_true")
-        parser.add_argument('-np', '--n_processes', default=None, type=int)
+        parser.add_argument('-p', '--parallel', default=False, nargs='*')
         parser.add_argument('-n', '--note')
         parser.add_argument('-e', '--raise_errors', default=False, action = "store_true")
         parser.add_argument('-d', '--display_results', default=False, action = "store_true")
         parser.add_argument('-s', '--slurm', default=False, action = "store_true", help='Run with slurm')
-
         args = parser.parse_args(args)
+
+        n_processes = \
+            None if args.parallel is False else \
+            'all' if len(args.parallel)==0 else \
+            int(args.parallel[0]) if len(args.parallel)==1 else \
+            bad_value(args.parallel, '-p can have 0 or 1 arguments.  Got: {}'.format(args.parallel))
+
         ids = select_experiments(args.user_range, self.exp_record_dict)
 
         if args.slurm:
             run_multiple_experiments_with_slurm(
                 experiments=[load_experiment(eid) for eid in ids],
-                n_parallel = args.n_processes,
+                n_parallel = n_processes,
                 raise_exceptions = args.raise_errors,
                 run_args=self.run_args,
                 slurm_kwargs=self.slurm_kwargs
                 )
-
         else:
             exp_names = list(self.exp_record_dict.keys())
             run_multiple_experiments(
                 experiments=[load_experiment(eid) for eid in ids],
                 prefixes=[exp_names.index(eid) for eid in ids],
-                parallel=args.parallel,
-                cpu_count=args.n_processes,
+                parallel=n_processes is not None,
+                cpu_count=n_processes,
                 raise_exceptions = args.raise_errors,
                 run_args=self.run_args,
                 notes=(args.note, ) if args.note is not None else (),

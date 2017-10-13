@@ -68,18 +68,18 @@ class Experiment(object):
     def is_generator(self):
         return inspect.isgeneratorfunction(self.get_root_function())
 
-    def call(self):
+    def call(self, *args, **kwargs):
         """
         Call the experiment function without running as an experiment.  If the experiment is a function, this is the same
         as just result = my_exp_func().  If it's defined as a generator, it loops and returns the last result.
-        :return:
+        :return: The last result
         """
         if self.is_generator():
             result = None
-            for x in self():
+            for x in self(*args, **kwargs):
                 result = x
         else:
-            result = self()
+            result = self(*args, **kwargs)
         return result
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
