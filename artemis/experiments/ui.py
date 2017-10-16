@@ -462,6 +462,7 @@ experiment records.  You can specify records in the following ways:
         parser.add_argument('-l', '--last', action='store_true', help='Just select the last record from the list of experiments.')
         parser.add_argument('-r', '--results', default=False, action = "store_true", help="Only show records with results.")
         parser.add_argument('-o', '--original', default=False, action = "store_true", help="Use the original default show function: show_record")
+        parser.add_argument('-p', '--process', default=False, action = "store_true", help="Launch show in new process")
         args = parser.parse_args(args)
 
         user_range = args.user_range
@@ -473,7 +474,10 @@ experiment records.  You can specify records in the following ways:
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
 
         func = show_record if args.original else None
-        show_multiple_records(records, func)
+        if args.process:
+            Process(target=partial(show_multiple_records, records, func)).start()
+        else:
+            show_multiple_records(records, func)
         _warn_with_prompt(use_prompt=False)
 
     def compare(self, *args):
