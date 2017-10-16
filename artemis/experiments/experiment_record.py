@@ -9,6 +9,7 @@ import traceback
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
+import signal
 from uuid import getnode
 from getpass import getuser
 import inspect
@@ -55,6 +56,7 @@ class ExpInfoFields(Enum):
     NOTES = 'Notes'
     USER = 'User'
     MAC = 'MAC Address'
+    PID = 'Process ID'
 
 
 class ExpStatusOptions(Enum):
@@ -275,6 +277,12 @@ class ExperimentRecord(object):
     def get_experiment_id(self):
         return self.get_id()[27:]
 
+    def get_timestamp(self):
+        try:  # Faster, since we don't need to load the info object
+            return time.mktime(datetime.strptime(self.get_id()[:26], '%Y.%m.%dT%H.%M.%S.%f').timetuple())
+        except:
+            return time.mktime(datetime.strptime(self.info.get_field(ExpInfoFields.TIMESTAMP), '%Y-%m-%d %H:%M:%S.%f').timetuple())
+
     def get_dir(self):
         """
         :return: The directory associated with this experiment record.
@@ -349,6 +357,19 @@ class ExperimentRecord(object):
         if print_too:
             print(error_text)
 
+    def kill(self, assert_alive = True):
+        status = self.info.get_field(ExpInfoFields.STATUS)
+        if status is ExpStatusOptions.STARTED:
+            pid = self.info.get_field(ExpInfoFields.PID)
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                print('Process {} appears to be already dead.  '.format(pid))
+            self.info.set_field(ExpInfoFields.STATUS, ExpStatusOptions.STOPPED)
+        elif assert_alive:
+            raise Exception('Cannot kill a process with status "{}", for it is already dead.'.format(status))
+
+
 _CURRENT_EXPERIMENT_RECORD = None
 
 
@@ -372,7 +393,7 @@ def is_matplotlib_imported():
 
 @contextmanager
 def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True, show_figs=None,
-                      save_figs=True, saved_figure_ext='.fig.pkl', use_temp_dir=False, date=None):
+                      save_figs=True, saved_figure_ext='.fig.pkl', use_temp_dir=False, date=None, prefix=None):
     """
     :param identifier: The string that uniquely identifies this experiment record.  Convention is that it should be in
         the format
@@ -407,7 +428,7 @@ def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True,
     # and the context which captures stdout (print statements) and logs them.
     contexts = [
         hold_current_experiment_record(this_record),
-        CaptureStdOut(log_file_path=os.path.join(experiment_directory, 'output.txt'), print_to_console=print_to_console)
+        CaptureStdOut(log_file_path=os.path.join(experiment_directory, 'output.txt'), print_to_console=print_to_console, prefix=prefix)
         ]
 
     if is_matplotlib_imported():
@@ -582,7 +603,7 @@ def save_figure_in_record(name, fig=None, default_ext='.pkl'):
 
 
 def run_and_record(function, experiment_id, print_to_console=True, show_figs=None, test_mode=None, keep_record=None,
-        raise_exceptions=True, notes = (), **experiment_record_kwargs):
+        raise_exceptions=True, notes = (), prefix=None, **experiment_record_kwargs):
     """
     Run an experiment function.  Save the console output, return values, and any matplotlib figures generated to a new
     experiment folder in ~/.artemis/experiments
@@ -609,7 +630,7 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
     EIF = ExpInfoFields
     date = datetime.now()
     with record_experiment(name=experiment_id, print_to_console=print_to_console, show_figs=show_figs,
-            use_temp_dir=not keep_record, date=date, **experiment_record_kwargs) as exp_rec:
+            use_temp_dir=not keep_record, date=date, prefix=prefix, **experiment_record_kwargs) as exp_rec:
         start_time = time.time()
         try:
 
@@ -627,7 +648,13 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STARTED)
             exp_rec.info.set_field(EIF.USER, getuser())
             exp_rec.info.set_field(EIF.MAC, ':'.join(("%012X" % getnode())[i:i+2] for i in range(0, 12, 2)))
-            results = function()
+            exp_rec.info.set_field(EIF.PID, os.getpid())
+            if inspect.isgeneratorfunction(root_function):
+                for result in function():
+                    exp_rec.save_result(result)
+            else:
+                result = function()
+                exp_rec.save_result(result)
             exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.FINISHED)
         except KeyboardInterrupt:
             exp_rec.info.set_field(EIF.STATUS, ExpStatusOptions.STOPPED)
@@ -646,7 +673,6 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(EIF.N_FIGS, len(fig_locs))
             exp_rec.info.set_field(EIF.FIGS, fig_locs)
 
-    exp_rec.save_result(results)
     for n in notes:
         exp_rec.info.add_note(n)
 

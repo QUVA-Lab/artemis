@@ -3,7 +3,7 @@ from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
 from scipy.stats import norm, mode as sp_mode
 try:
-    from scipy import weave
+    import weave
 except ImportError:
     logging.warn("Could not import scipy.weave.  That's ok, ignore this unless you need it.")
 from six.moves import xrange
@@ -119,7 +119,7 @@ def normalize(x, axis=None, degree = 2, avoid_nans = False):
     assert degree in (1, 2), "Give me a reason and I'll give you more degrees"
 
     if degree == 1:
-        z = np.sum(np.abs(x), axis = axis, keepdims=True)
+        z = np.sum(np.abs(x.astype(np.float)), axis = axis, keepdims=True)
     else:
         z = np.sum(x**degree, axis = axis, keepdims=True)**(1./degree)
     normed = x/z
@@ -177,6 +177,38 @@ def cummode(x, weights = None, axis = 1):
     weave.inline(code, ['element_ids', 'result', 'n_unique', 'counts', 'weights'], compiler = 'gcc')
     mode_values = all_values[result]
     return mode_values
+
+
+def recent_moving_average(x, axis = 0):
+    """
+    Fast computation of recent moving average, where
+
+        frac = 1/sqrt(t)
+        a[t] = (1-frac)*a[t-1] + frac*x[t]
+    """
+
+    if x.ndim!=2:
+        y = recent_moving_average(x.reshape(x.shape[0], x.size//x.shape[0]), axis=0)
+        return y.reshape(x.shape)
+
+    assert x.ndim == 2 and axis == 0, 'Only implemented for a special case!'
+    result = np.zeros(x.shape)
+    code = """
+    int n_samples = Nx[0];
+    int n_dim = Nx[1];
+    for (int i=0; i<n_dim; i++)
+        result[i] = x[i];
+    int ix=n_dim;
+    for (int t=1; t<n_samples; t++){
+        float frac = 1./sqrt(t+1);
+        for (int i=0; i<n_dim; i++){
+            result[ix] = (1-frac)*result[ix-n_dim] + frac*x[ix];
+        }
+        ix += 1;
+    }
+    """
+    weave.inline(code, ['x', 'result'], compiler = 'gcc')
+    return result
 
 
 def angle_between(a, b, axis=None, in_degrees = False):

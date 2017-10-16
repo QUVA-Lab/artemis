@@ -2,7 +2,7 @@ import textwrap
 from collections import OrderedDict
 
 from artemis.general.display import IndentPrint, CaptureStdOut, side_by_side, DocumentWrapper, deepstr, \
-    str_with_arrayopts, surround_with_header, sensible_str
+    str_with_arrayopts, surround_with_header, sensible_str, format_duration
 import numpy as np
 
 _desired = """
@@ -137,6 +137,19 @@ def test_nested_capture():
     assert cap1.read()=='a\nb\nc\n'
 
 
+def test_capture_prefix():
+
+    with CaptureStdOut() as cap1:
+        print('a')
+        with CaptureStdOut(prefix='abc:') as cap2:
+            print('b')
+        print('c')
+
+    print 'Done'
+    assert cap2.read()=='b\n'
+    assert cap1.read()=='a\nabc:b\nc\n'
+
+
 def test_sensible_str():
 
     a = [1, 2, 3]
@@ -148,12 +161,27 @@ def test_sensible_str():
     assert stra=='OrderedDict([a:[1,2,3],b:(3,<len20-list>),c:<(4,5)ndarray>,d:ndarray([[01],[23]])])'
 
 
+def test_format_duration():
+    assert format_duration(0.0025) == '2.5ms'
+    assert format_duration(0.25) == '250.0ms'
+    assert format_duration(25) == '25.0s'
+    assert format_duration(250) == '0:04:10'
+    assert format_duration(2500) == '0:41:40'
+    assert format_duration(25000) == '6:56:40'
+    assert format_duration(250000) == '2d,21:26:40'
+    assert format_duration(2500000) == '28d,22:26:40'
+    assert format_duration(25000000) == '289d,8:26:40'
+    assert format_duration(250000000) == '2893d,12:26:40'
+
+
 if __name__ == '__main__':
-    test_indent_print()
-    test_side_by_side()
-    test_document_wrapper()
-    test_deepstr()
-    test_str_with_arrayopts()
-    test_surround_with_header()
-    test_nested_capture()
-    test_sensible_str()
+    # test_indent_print()
+    # test_side_by_side()
+    # test_document_wrapper()
+    # test_deepstr()
+    # test_str_with_arrayopts()
+    # test_surround_with_header()
+    # test_nested_capture()
+    test_capture_prefix()
+    # test_sensible_str()
+    # test_format_duration()

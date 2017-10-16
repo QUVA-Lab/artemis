@@ -132,6 +132,8 @@ def test_sequential_struct_builder():
     assert np.array_equal(b['thing1']['a'], np.arange(10))
     assert np.array_equal(b['thing1']['b'], np.arange(10, 20))
     assert np.array_equal(b['thing2'], np.arange(20, 30))
+    with pytest.raises(TypeError):
+        a.next = 4
 
     # Another way to do the same thing.
     a = SequentialStructBuilder()
@@ -144,6 +146,9 @@ def test_sequential_struct_builder():
     assert np.array_equal(b['thing1']['a'], np.arange(10))
     assert np.array_equal(b['thing1']['b'], np.arange(10, 20))
     assert np.array_equal(b['thing2'], np.arange(20, 30))
+
+    with pytest.raises(TypeError):
+        a['aaaaa']=5
 
 
 if __name__ == '__main__':
