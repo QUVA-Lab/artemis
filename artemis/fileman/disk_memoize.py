@@ -220,9 +220,23 @@ class DisableMemos(object):
 
 if __name__ == '__main__':
 
-    cmd = input('Type "clearall" to clear all memos: ').strip().lower()
+    all_memos = get_all_memos()
 
-    if cmd == 'clearall':
-        clear_all_memos()
+    all_memos = sorted(all_memos, key = os.path.getmtime)
+
+    print '\n'.join('{}: {}'.format(i, os.path.split(p)[1]) for i, p in enumerate(all_memos))
+
+    cmd = input('Enter memos to delete. e.g. (1-3, all, 5)>>').strip().lower()
+
+    if cmd=='all':
+        ixs = range(all_memos)
+    elif '-' in cmd:
+        start, end = cmd.split('-')
+        ixs = range(int(start), int(end)+1)
     else:
-        raise Exception('Bad command or file name.')
+        ixs = [int(cmd)]
+
+    for i in ixs:
+        os.remove(all_memos[i])
+
+    print 'Deleted {} memos'.format(len(ixs))
