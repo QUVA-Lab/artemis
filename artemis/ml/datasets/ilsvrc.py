@@ -21,10 +21,12 @@ def load_ilsvrc_video(identifier, size = None, resize_mode='scale_crop', cut_edg
     :return:
     """
 
+    print 'Downloading ILSVER2015... this may take a while...'
     archive_folder_path = get_archive(
         relative_path='data/ILSVRC2015',
         url='http://vision.cs.unc.edu/ilsvrc2015/ILSVRC2015_VID_snippets_final.tar.gz'
         )
+    print 'Done.'
     subpath = \
         'ILSVRC2015/Data/VID/snippets/test' if 'test' in identifier else \
         'ILSVRC2015/Data/VID/snippets/val' if 'val' in identifier else \
