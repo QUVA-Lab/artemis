@@ -31,14 +31,25 @@ def crawl_directory(directory, ignore_hidden = True):
 class DirectoryCrawler(object):
 
     def __init__(self, directory, ignore_hidden=True):
+        if isinstance(directory, (list, tuple)):
+            directory = os.path.join(*directory)
+        assert os.path.exists(directory), 'Directory "{}" does not exist.'.format(directory)
         self.directory = directory
-        self._items = os.listdir(self.directory)
+        self._contents = None
         self.ignore_hidden = ignore_hidden
-        if ignore_hidden:
-            self._items = [item for item in self._items if not item.startswith('.')]
+
+    def refresh(self):
+        self._contents = None
+
+    def listdir(self):
+        if self._contents is None:
+            self._contents = os.listdir(self.directory)
+            if self.ignore_hidden:
+                self._contents = [item for item in self._contents if not item.startswith('.')]
+        return self._contents
 
     def __iter__(self):
-        for item in self._items:
+        for item in self.listdir():
             yield item
 
     def values(self):
@@ -59,8 +70,10 @@ class DirectoryCrawler(object):
         full_path = os.path.join(self.directory, item)
         if os.path.isdir(full_path):
             return DirectoryCrawler(full_path, ignore_hidden=self.ignore_hidden)
-        else:
+        elif os.path.exists(full_path):
             return full_path
+        else:
+            raise Exception('No such file or directory: "{}"'.format(full_path))
 
     def __str__(self):
         return '{}({}, ignore_hidden={})'.format(self.__class__.__name__, self.directory, self.ignore_hidden)

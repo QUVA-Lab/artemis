@@ -1,9 +1,10 @@
 import pytest
+from _pytest.python import raises
 
 from artemis.general.mymath import (softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize,
                                     is_parallel,
                                     align_curves, angle_between, fixed_diff, decaying_cumsum, geosum, selective_sum,
-                                    conv_fanout, conv2_fanout_map, walsh_matrix)
+                                    conv_fanout, conv2_fanout_map, proportional_random_assignment)
 import numpy as np
 from six.moves import xrange
 
@@ -259,6 +260,29 @@ def test_conv2_fanout_map():
         ]))
 
 
+def test_proportional_random_assignment():
+
+    ass = proportional_random_assignment(10, split=.7, rng=1234)
+    assert len(ass)==10
+    assert sum(ass==0)==7
+    assert sum(ass==1)==3
+
+    ass = proportional_random_assignment(33, split=[.7, .2], rng=1234)
+    assert len(ass)==33
+    assert sum(ass==0)==23
+    assert sum(ass==1)==7
+    assert sum(ass==2)==3
+
+    ass = proportional_random_assignment(33, split=[.7, .2, .1], rng=1234)
+    assert len(ass)==33
+    assert sum(ass==0)==23
+    assert sum(ass==1)==7
+    assert sum(ass==2)==3
+
+    with raises(AssertionError):
+        ass = proportional_random_assignment(33, split=20., rng=1234)
+
+
 if __name__ == '__main__':
     test_decaying_cumsum()
     test_fixed_diff()
@@ -277,3 +301,4 @@ if __name__ == '__main__':
     test_selective_sum()
     test_fanout_map()
     test_conv2_fanout_map()
+    test_proportional_random_assignment()

@@ -1,4 +1,6 @@
 import logging
+
+from artemis.general.numpy_helpers import get_rng
 from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
 from scipy.stats import norm, mode as sp_mode
@@ -495,3 +497,37 @@ def onehotvector(ix, length):
         v = np.zeros((len(ix), length))
         v[np.arange(len(ix)), ix] = 1
     return v
+
+
+def proportional_random_assignment(length, split, rng):
+    """
+    Generate an integer array of the given length, with elements randomly assigned to 0...len(split), with
+    frequency of elements with value i proporational to split[i].
+
+    This is useful for splitting training/test sets.  e.g.
+
+        n_samples = 1000
+        x = np.random.randn(n_samples, 4)
+        y = np.random.randn(n_samples)
+        subsets = proportional_random_assignment(n_samples, split=0.7, rng=1234)
+        x_train = x[subsets==0]
+        y_train = y[subsets==0]
+        x_test = x[subsets==1]
+        y_test = y[subsets==1]
+
+    :param length: The length of the output array
+    :param split: Either a list of ratios to assign to each group (must add to <1), or a single float in (0, 1),
+        which will indicate that we split into 2 groups.
+    :param rng: A random number generator or seed.
+    :return: An integer array.
+    """
+    rng = get_rng(rng)
+    if isinstance(split, float):
+        split = [split]
+    assert 0<=np.sum(split)<=1, "The sum of elements in split: {} must be in [0, 1].  Got {}".format(split, np.sum(split))
+    arr = np.zeros(length, dtype=int)
+    cut_points = np.concatenate([np.round(np.cumsum(split)*length).astype(int), [length]])
+    scrambled_indices = rng.permutation(length)
+    for i, (c_start, c_end) in enumerate(zip(cut_points[:-1], cut_points[1:])):
+        arr[scrambled_indices[c_start:c_end]] = i+1  # Note we skip zero since arrays already inited to 0
+    return arr
