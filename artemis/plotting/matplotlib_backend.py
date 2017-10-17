@@ -1,6 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from itertools import cycle
 
+from matplotlib.image import AxesImage
+
 from six import string_types
 
 from artemis.config import get_artemis_config_value
@@ -289,14 +291,26 @@ class BoundingBoxPlot(LinePlot):
 
     def __init__(self, axes_update_mode='expand', **kwargs):
         super(BoundingBoxPlot, self).__init__(axes_update_mode=axes_update_mode, **kwargs)
+        self._image_handle = None
+        self._last_extent = None
 
     def update(self, data):
         """
         :param data: A (left, bottom, right, top) bounding box.
         """
+        # if self._image_handle is None:
+        #     self._image_handle = next(c for c in plt.gca().get_children() if isinstance(c, AxesImage))
+        #
+        # extent = self._image_handle.get_extent()
+        # if extent != self._last_extent:
+        #     plt.gca().set_xlim(extent[:2])
+        #     plt.gca().set_ylim(extent[2:])
+        #     self._last_extent = extent
+
         l, b, r, t = data
         x = np.array([l+.5, l+.5, r+.5, r+.5, l+.5])
         y = np.array([t+.5, b+.5, b+.5, t+.5, t+.5])
+
         LinePlot.update(self, (x, y))
 
 
