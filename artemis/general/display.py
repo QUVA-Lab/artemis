@@ -106,7 +106,7 @@ def str_with_arrayopts(obj, float_format='.3g', threshold=8, **kwargs):
         return str(obj)
 
 
-def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, indent ='  ', float_format = ''):
+def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, max_expansion = None, indent ='  ', float_format = ''):
     """
     A recursive, readable print of a data structure.
     """
@@ -120,7 +120,7 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
     if isinstance(obj, np.ndarray):
         string_desc = arraystr(obj, print_threshold=array_print_threhold, summary_threshold=array_summary_threshold)
     elif isinstance(obj, (list, tuple, set, dict)):
-        kwargs = dict(memo=memo, array_print_threhold=array_print_threhold, array_summary_threshold=array_summary_threshold, indent=indent, float_format=float_format)
+        kwargs = dict(memo=memo, array_print_threhold=array_print_threhold, max_expansion=max_expansion, array_summary_threshold=array_summary_threshold, indent=indent, float_format=float_format)
 
         if isinstance(obj, (list, tuple)):
             keys, values = [str(i) for i in xrange(len(obj))], obj
@@ -130,10 +130,12 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
             keys, values = ['- ']*len(obj), obj
         else:
             raise Exception('Should never be here')
-
         max_indent = max(len(k) for k in keys) if len(keys)>0 else 0
-
-        elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
+        if max_expansion is not None and len(keys)>max_expansion:
+            elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys[:max_expansion-1]+[keys[-1]], values[:max_expansion-1]+[values[-1]])]
+            elements.insert(-1, '... Skipping {} of {} elements ...'.format(len(keys)-len(elements), len(keys)))
+        else:
+            elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
         string_desc = '<{type} at {id}>\n'.format(type = type(obj).__name__, id=hex(id(obj))) + indent_string('\n'.join(elements), indent=indent)
         return string_desc
     elif isinstance(obj, float):

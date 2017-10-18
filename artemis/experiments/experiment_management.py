@@ -79,7 +79,8 @@ def load_record_results(records, err_if_no_result =True, index_by_id = False):
     """
     Given a list of experiment records, return an OrderedDict<record: result>
     :param records: A list of ExperimentRecord objects
-    :param err_if_no_result: True to raise an error if a record has no result.
+    :param err_if_no_result: True to raise an error if a record has no result.  If False, you will just be warned that
+        the result does not exist for this record.
     :return:  OrderedDict<ExperimentRecord: result>
     """
     results = OrderedDict()

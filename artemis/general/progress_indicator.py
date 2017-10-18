@@ -36,10 +36,10 @@ class ProgressIndicator(object):
         self._current_time = time.time()
         if progress is None:
             progress = self._i
+        frac = float(progress)/(self._expected_iterations-1)
         if self._should_update() or progress == self._expected_iterations-1:
             elapsed = self._current_time - self._start_time
-            frac = float(progress)/(self._expected_iterations-1)
-            if self.just_use_last:
+            if self.just_use_last is True:
                 remaining = (self._current_time - self._last_time)/(frac - self._last_progress) * (1-frac) if frac > 0 else float('NaN')
             else:
                 remaining = elapsed * (1 / frac - 1) if frac > 0 else float('NaN')
@@ -55,7 +55,7 @@ class ProgressIndicator(object):
                 ))
         self._i += 1
 
-        if self.just_use_last:
+        if self.just_use_last is True:
             self._last_time = self._current_time
             self._last_progress = frac
 

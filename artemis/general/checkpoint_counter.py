@@ -64,18 +64,25 @@ class Checkpoints(object):
                 checkpoint_generator = (interval*i for i in itertools.count(1))
             elif distribution == 'exp':
                 first, growth = checkpoint_generator[1:]
-                checkpoint_generator = (first*i*(1+growth)**(i-1) for i in itertools.count(1))
+                checkpoint_generator = (first*i*(1+growth)**(i-1) for i in itertools.count(0))
             else:
                 raise Exception("Can't make a checkpoint generator {}".format(checkpoint_generator))
         elif isinstance(checkpoint_generator, (list, tuple, np.ndarray)):
             checkpoint_generator = iter(checkpoint_generator)
         self.checkpoint_generator = checkpoint_generator
         self._next_checkpoint = float('inf') if checkpoint_generator is None else next(checkpoint_generator)
+        self._counter = 0
 
-    def __call__(self, t):
+    def __call__(self, t=None):
+        if t is None:
+            t = self._counter
+        self._counter += 1
         if t >= self._next_checkpoint:
-            while self._next_checkpoint<t:
+            while t >= self._next_checkpoint:
                 self._next_checkpoint = next(self.checkpoint_generator)
             return True
         else:
             return False
+
+    def get_count(self):
+        return self._counter

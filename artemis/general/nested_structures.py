@@ -401,6 +401,16 @@ class SequentialStructBuilder(object):
         assert self.is_sequence, 'Can only call as_array when the SequentialStructBuilder has been used as a sequence.  It has not.'
         return np.array(self.get_structs())
 
+    def is_arrayable(self):
+        return self.is_sequence and all(isinstance(s, (int, list, float, np.ndarray)) or (isinstance(s, SequentialStructBuilder) and s.is_arrayable()) for s in self)
+
+    def to_struct_arrays(self):
+        """
+        Recursively convert this structure into ndarrays wherever possible.
+        :return: A nested structure with arrays at the leaves.
+        """
+        return self.as_array() if self.is_arrayable() else self.map(lambda el: el.to_struct_arrays() if isinstance(el, SequentialStructBuilder) else el)
+
     @next.setter
     def next(self, val):
         try:

@@ -3,7 +3,7 @@ from collections import OrderedDict, namedtuple
 from six import string_types
 
 from artemis.config import get_artemis_config_value
-from artemis.plotting.matplotlib_backend import BarPlot
+from artemis.plotting.matplotlib_backend import BarPlot, BoundingBoxPlot
 from matplotlib.axes import Axes
 from matplotlib.gridspec import SubplotSpec
 from contextlib import contextmanager
@@ -97,6 +97,9 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
                 'line': LinePlot,
                 'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
                 'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+                'bbox': lambda: BoundingBoxPlot(linewidth=2, color='r', axes_update_mode='expand'),
+                # 'bbox_r': lambda: BoundingBoxPlot(linewidth=2, color='r'),
+                # 'bbox_b': lambda: BoundingBoxPlot(linewidth=2, color='b'),
                 # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
                 'bar': BarPlot,
                 'img': ImagePlot,

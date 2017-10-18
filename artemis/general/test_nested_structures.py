@@ -151,6 +151,28 @@ def test_sequential_struct_builder():
         a['aaaaa']=5
 
 
+def test_sequential_struct_builder_ndarray():
+
+    n_rows=5
+    n_cols = 7
+
+    m = SequentialStructBuilder()
+    for i in range(n_rows):
+        m['ixs'].open_next()
+        for j in range(n_cols):
+            m['ixs'].last.next = i*n_cols + j
+        m['rows'].next = i
+
+    data = m.to_struct_arrays()
+
+    assert isinstance(data['ixs'], np.ndarray)
+    assert data['ixs'].shape == (n_rows, n_cols)
+    assert np.array_equal(data['ixs'], np.arange(n_rows*n_cols).reshape(n_rows, n_cols))
+
+    assert data['rows'].shape==(n_rows, )
+    assert np.array_equal(data['rows'], np.arange(n_rows))
+
+
 if __name__ == '__main__':
     test_flatten_struct()
     test_get_meta_object()
@@ -161,3 +183,4 @@ if __name__ == '__main__':
     test_nested_map_with_container_func()
     test_none_bug()
     test_sequential_struct_builder()
+    test_sequential_struct_builder_ndarray()
