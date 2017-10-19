@@ -59,6 +59,9 @@ class ProgressIndicator(object):
             self._last_time = self._current_time
             self._last_progress = frac
 
+    def get_elapsed(self):
+        return time.time() - self._start_time
+
     def _should_update_time(self):
         return self._current_time-self._last_update > self._update_interval
 

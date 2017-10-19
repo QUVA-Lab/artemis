@@ -531,3 +531,8 @@ def proportional_random_assignment(length, split, rng):
     for i, (c_start, c_end) in enumerate(zip(cut_points[:-1], cut_points[1:])):
         arr[scrambled_indices[c_start:c_end]] = i+1  # Note we skip zero since arrays already inited to 0
     return arr
+
+
+def argmaxnd(x):
+    ix = np.argmax(x.flatten())
+    return np.unravel_index(ix, dims=x.shape)
