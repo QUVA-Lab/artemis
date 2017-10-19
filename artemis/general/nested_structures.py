@@ -399,7 +399,7 @@ class SequentialStructBuilder(object):
 
     def as_array(self):
         assert self.is_sequence, 'Can only call as_array when the SequentialStructBuilder has been used as a sequence.  It has not.'
-        return np.array(self.get_structs())
+        return np.array(self.to_struct())
 
     def is_arrayable(self):
         return self.is_sequence and all(isinstance(s, (int, list, float, np.ndarray)) or (isinstance(s, SequentialStructBuilder) and s.is_arrayable()) for s in self)
@@ -430,13 +430,13 @@ class SequentialStructBuilder(object):
         else:
             return None
 
-    def get_structs(self):
-        return self.map(lambda v: v.get_structs() if isinstance(v, SequentialStructBuilder) else v)
+    def to_struct(self):
+        return self.map(lambda v: v.to_struct() if isinstance(v, SequentialStructBuilder) else v)
 
     def to_structseq(self, as_arrays=False):
-        structs = self.get_structs()
+        structs = self.to_struct()
         return nested_map(lambda s: seqstruct_to_structseq(s, as_arrays=as_arrays) if isinstance(s, list) else s, structs, is_container_func = lambda x: isinstance(x, dict))
 
     def to_seqstruct(self):
-        structs = self.get_structs()
+        structs = self.to_struct()
         return nested_map(lambda s: seqstruct_to_structseq(s) if isinstance(s, dict) else s, structs, is_container_func = lambda x: isinstance(x, list))
