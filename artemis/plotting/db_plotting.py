@@ -98,6 +98,8 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
                 'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
                 'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
                 'bbox': lambda: BoundingBoxPlot(linewidth=2, axes_update_mode='expand'),
+                'bbox_r': lambda: BoundingBoxPlot(linewidth=2, color='r', axes_update_mode='expand'),
+                'bbox_b': lambda: BoundingBoxPlot(linewidth=2, color='b', axes_update_mode='expand'),
                 # 'bbox_r': lambda: BoundingBoxPlot(linewidth=2, color='r'),
                 # 'bbox_b': lambda: BoundingBoxPlot(linewidth=2, color='b'),
                 # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
