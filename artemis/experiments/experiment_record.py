@@ -444,6 +444,13 @@ def record_experiment(identifier='%T-%N', name='unnamed', print_to_console=True,
         yield this_record
 
 
+def is_in_experiment():
+    """
+    :return: True if this function is called from within a running experiment, False otherwise.
+    """
+    return _CURRENT_EXPERIMENT_RECORD is not None
+
+
 def get_current_experiment_record():
     if _CURRENT_EXPERIMENT_RECORD is None:
         raise Exception("No experiment is currently running!")

@@ -50,7 +50,7 @@ class Checkpoints(object):
     An object where you specify checkpoints and return true every time one of those checkpoints is passed.
     """
 
-    def __init__(self, checkpoint_generator, default_units = 'iter'):
+    def __init__(self, checkpoint_generator, default_units = None):
         """
         :param checkpoint_generator: Can be:
             A generator object returning checkpoints
@@ -59,6 +59,15 @@ class Checkpoints(object):
             ('exp', first, growth)
             None
         """
+
+        if isinstance(checkpoint_generator, str):
+            assert default_units in ('sec', None)
+            assert checkpoint_generator.endswith('s')
+            checkpoint_generator = int(checkpoint_generator[:-1])
+            default_units = 'sec'
+        elif default_units is None:
+            default_units = 'iter'
+
         assert default_units in ('iter', 'sec')
         self.default_units = default_units
         if isinstance(checkpoint_generator, tuple):
@@ -102,7 +111,7 @@ class Checkpoints(object):
 _COUNTERS_DICT = {}
 
 
-def do_every(interval, counter_id=None, units ='iter'):
+def do_every(interval, counter_id=None, units = None):
     """
     Return true periodically.  Eg.
 
