@@ -1,7 +1,10 @@
 import itertools
+import time
+import types
 
 __author__ = 'peter'
 import numpy as np
+
 
 class CheckPointCounter(object):
     """
@@ -47,7 +50,7 @@ class Checkpoints(object):
     An object where you specify checkpoints and return true every time one of those checkpoints is passed.
     """
 
-    def __init__(self, checkpoint_generator):
+    def __init__(self, checkpoint_generator, default_units = 'iter'):
         """
         :param checkpoint_generator: Can be:
             A generator object returning checkpoints
@@ -56,7 +59,8 @@ class Checkpoints(object):
             ('exp', first, growth)
             None
         """
-
+        assert default_units in ('iter', 'sec')
+        self.default_units = default_units
         if isinstance(checkpoint_generator, tuple):
             distribution = checkpoint_generator[0]
             if distribution == 'even':
@@ -69,13 +73,20 @@ class Checkpoints(object):
                 raise Exception("Can't make a checkpoint generator {}".format(checkpoint_generator))
         elif isinstance(checkpoint_generator, (list, tuple, np.ndarray)):
             checkpoint_generator = iter(checkpoint_generator)
+        elif isinstance(checkpoint_generator, (int, float)):
+            step = checkpoint_generator
+            checkpoint_generator = (step*i for i in itertools.count(0))
+        else:
+            assert isinstance(checkpoint_generator, types.GeneratorType)
+
         self.checkpoint_generator = checkpoint_generator
         self._next_checkpoint = float('inf') if checkpoint_generator is None else next(checkpoint_generator)
         self._counter = 0
+        self._start_time = time.time()
 
     def __call__(self, t=None):
         if t is None:
-            t = self._counter
+            t = self._counter if self.default_units == 'iter' else time.time() - self._start_time
         self._counter += 1
         if t >= self._next_checkpoint:
             while t >= self._next_checkpoint:
@@ -86,3 +97,26 @@ class Checkpoints(object):
 
     def get_count(self):
         return self._counter
+
+
+_COUNTERS_DICT = {}
+
+
+def do_every(interval, counter_id=None, units ='iter'):
+    """
+    Return true periodically.  Eg.
+
+        # Plot every 100'th image.
+        for im in images:
+            if do_every(100):
+                plot(current_image)
+
+    :param interval: A number saying how often to return true.
+    :param counter_id: ID used to uniquely identify this call to do_every.  (useful if you have more than
+        one do_every call)
+    :param units: 'iter' or 'sec'
+    :return: True if checkpoint has just been passed, otherwise false.
+    """
+    if counter_id not in _COUNTERS_DICT:
+        _COUNTERS_DICT[counter_id] = Checkpoints(checkpoint_generator=interval, default_units=units)
+    return _COUNTERS_DICT[counter_id]()
