@@ -22,7 +22,8 @@ from artemis.experiments.experiment_record_view import (get_record_full_string, 
                                                         print_experiment_record_argtable, get_oneline_result_string,
                                                         compare_experiment_records)
 from artemis.experiments.experiment_record_view import show_record, show_multiple_records
-from artemis.experiments.experiments import load_experiment, get_global_experiment_library
+from artemis.experiments.experiments import load_experiment, get_global_experiment_library, \
+    get_nonroot_global_experiment_library
 from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header, format_duration
 from artemis.general.hashing import compute_fixed_hash
@@ -205,7 +206,7 @@ experiment records.  You can specify records in the following ways:
         self.catch_selection_errors = catch_selection_errors
 
     def _reload_record_dict(self):
-        names = get_global_experiment_library().keys()
+        names = get_nonroot_global_experiment_library().keys()
         if self.root_experiment is not None:
             # We could just go [ex.name for ex in self.root_experiment.get_all_variants(include_self=True)]
             # but we want to preserve the order in which experiments were created
@@ -405,10 +406,12 @@ experiment records.  You can specify records in the following ways:
         parser.add_argument('user_range', action='store', help='A selection of experiments to run.  Examples: "3" or "3-5", or "3,4,5"')
         parser.add_argument('-p', '--parallel', default=False, nargs='*')
         parser.add_argument('-n', '--note')
-        parser.add_argument('-e', '--raise_errors', default=False, action = "store_true")
+        parser.add_argument('-e', '--raise_errors', default=None, action = "store_true")
         parser.add_argument('-d', '--display_results', default=False, action = "store_true")
         parser.add_argument('-s', '--slurm', default=False, action = "store_true", help='Run with slurm')
         args = parser.parse_args(args)
+
+        raise_errors = (not self.catch_errors) if args.raise_errors is None else args.raise_errors
 
         n_processes = \
             None if args.parallel is False else \
@@ -422,7 +425,7 @@ experiment records.  You can specify records in the following ways:
             run_multiple_experiments_with_slurm(
                 experiments=[load_experiment(eid) for eid in ids],
                 n_parallel = n_processes,
-                raise_exceptions = args.raise_errors,
+                raise_exceptions = raise_errors,
                 run_args=self.run_args,
                 slurm_kwargs=self.slurm_kwargs
                 )
@@ -433,7 +436,7 @@ experiment records.  You can specify records in the following ways:
                 prefixes=[exp_names.index(eid) for eid in ids],
                 parallel=n_processes is not None,
                 cpu_count=n_processes,
-                raise_exceptions = args.raise_errors,
+                raise_exceptions = raise_errors,
                 run_args=self.run_args,
                 notes=(args.note, ) if args.note is not None else (),
                 display_results=args.display_results

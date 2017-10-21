@@ -79,13 +79,15 @@ def initialize_weight_matrix(n_in, n_out, mag='xavier', base_dist='normal', scal
     return w_base * (mag_number*scale)
 
 
-def initialize_conv_kernel(kernel_shape, mag = 'xaver', rng = None):
+def initialize_conv_kernel(kernel_shape, mag = 'xavier', rng = None):
     rng = get_rng(rng)
     if mag=='xavier':
         n_kern_out, n_kern_in, k_size_y, k_size_x = kernel_shape
         fan_in = k_size_y*k_size_x*n_kern_in
         fan_out = n_kern_out*k_size_y+k_size_x
         mag = np.sqrt(2./(fan_in+fan_out))
+    else:
+        assert isinstance(mag, (int, float)), mag
     return mag*rng.randn(*kernel_shape)
 
 

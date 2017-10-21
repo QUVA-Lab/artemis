@@ -34,8 +34,7 @@ class Experiment(object):
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
-        if not is_root:
-            _register_experiment(self)
+        _register_experiment(self)
 
     @property
     def show(self):
@@ -378,6 +377,10 @@ def capture_created_experiments():
 def _register_experiment(experiment):
     assert experiment.name not in _GLOBAL_EXPERIMENT_LIBRARY, 'You have already registered an experiment named {} in {}'.format(experiment.name, inspect.getmodule(experiment.get_root_function()).__name__)
     _GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
+
+
+def get_nonroot_global_experiment_library():
+    return OrderedDict((name, exp) for name, exp in _GLOBAL_EXPERIMENT_LIBRARY.items() if not exp.is_root)
 
 
 def get_experiment_info(name):
