@@ -154,7 +154,7 @@ experiment records.  You can specify records in the following ways:
     ~invalid        Select all records that are not invalid (the '~' can be used to negate any of the above)
     invalid|errors  Select all records that are invalid or ended in error (the '|' can be used to "or" any of the above)
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
-    finished>last   Select the last finished record of each experiment (the '>' can be used to cascade any of the above)
+    finished@last   Select the last finished record of each experiment (the '@' can be used to cascade any of the above)
 """
 
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, filterexp=None, filterrec = None,
@@ -470,9 +470,9 @@ experiment records.  You can specify records in the following ways:
 
         user_range = args.user_range
         if args.results:
-            user_range += '>result'
+            user_range += '@result'
         if args.last:
-            user_range += '>last'
+            user_range += '@last'
 
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
 
@@ -492,7 +492,7 @@ experiment records.  You can specify records in the following ways:
 
         args = parser.parse_args(args)
 
-        user_range = args.user_range if not args.last else args.user_range + '>result>last'
+        user_range = args.user_range if not args.last else args.user_range + '@result@last'
         records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
         if args.results:
             records = [rec for rec in records if rec.has_result()]

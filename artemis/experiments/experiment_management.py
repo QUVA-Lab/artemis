@@ -222,6 +222,7 @@ _named_record_filters['invalid'] = lambda rec_ids: [load_experiment_record(rec_i
 _named_record_filters['all'] = lambda rec_ids: [True]*len(rec_ids)
 _named_record_filters['errors'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in rec_ids]
 _named_record_filters['result'] = lambda rec_ids: [load_experiment_record(rec_id).has_result() for rec_id in rec_ids]
+_named_record_filters['running'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.STARTED for rec_id in rec_ids]
 
 
 def _filter_records(user_range, exp_record_dict):
@@ -239,8 +240,8 @@ def _filter_records(user_range, exp_record_dict):
         return _bitwise_filter_op('or', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('|')])
     elif '&' in user_range:
         return _bitwise_filter_op('and', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
-    elif '>' in user_range:
-        ix = user_range.index('>')
+    elif '@' in user_range:
+        ix = user_range.index('@')
         first_part, second_part = user_range[:ix], user_range[ix+1:]
         _first_stage_filters = _filter_records(first_part, exp_record_dict)
         _new_dict = _select_record_ids_from_filters(_first_stage_filters, exp_record_dict)
@@ -279,9 +280,18 @@ def _filter_records(user_range, exp_record_dict):
         except:
             raise RecordSelectionError('Cannot interpret "{}" as a time.  Currently, it should be an integer, which means "within the last X hours"'.format(time_id))
         current_time = time()
-        for exp_id, rec_ids in base.items():
+        for exp_id, _ in base.items():
             base[exp_id] = [(current_time - load_experiment_record(rec_id).get_timestamp())<seconds_ago for rec_id in exp_record_dict[exp_id]]
-
+    elif user_range.startswith('dur'):  # Eg dur<25  Means "All records that ran less than 25s"
+        try:
+            sign = user_range[3]
+            assert sign in ('<', '>')
+            seconds = int(user_range[4:])
+        except:
+            raise RecordSelectionError('Could not interpret "{}" as a duration.  Example is dur<25 to select all experiments that ran less than 25s.'.format(user_range))
+        for exp_id, _ in base.items():
+            durations = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.RUNTIME, default = None) for rec_id in exp_record_dict[exp_id]]
+            base[exp_id] = [False if dur is None else dur<seconds if sign=='<' else dur>seconds for dur in durations]
     else:
         raise RecordSelectionError("Don't know how to interpret subset '{}'.  Possible subsets: {}".format(user_range, list(_named_record_filters.keys())))
     return base

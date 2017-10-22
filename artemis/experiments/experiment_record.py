@@ -67,7 +67,11 @@ class ExpStatusOptions(Enum):
     CORRUPT = 'Corrupt'
 
 
+ERROR_FLAG = object()
+
+
 class ExperimentRecordInfo(object):
+
 
     def __init__(self, file_path, write_text_version=True):
         before, ext = os.path.splitext(file_path)
@@ -79,13 +83,19 @@ class ExperimentRecordInfo(object):
         assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
         return field in self.persistent_obj
 
-    def get_field(self, field):
+    def get_field(self, field, default = ERROR_FLAG):
         """
         :param field: A member of ExperimentRecordInfo.FIELDS
-        :return:
+        :param default: Default to return if field does not exist (if left unspecified, we raise error)
+        :return: The info for that field.
         """
-        assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
-        return self.persistent_obj[field]
+        try:
+            return self.persistent_obj[field]
+        except KeyError:
+            if default is ERROR_FLAG:
+                raise
+            else:
+                return default
 
     def get_status_field(self):
         if self.has_field(ExpInfoFields.STATUS):

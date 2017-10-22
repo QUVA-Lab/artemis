@@ -3,6 +3,7 @@ import itertools
 
 from six import string_types
 
+from artemis.general.numpy_helpers import fast_array
 from artemis.general.should_be_builtins import bad_value
 import numpy as np
 from six.moves import xrange, zip
@@ -273,3 +274,42 @@ def minibatch_process(f, minibatch_size, mb_args = (), mb_kwargs = {}, fixed_kwa
         for ix in index_generator:
             results[ix] = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
         return results
+
+
+def generator_pool(generator_generator):
+    for generator in generator_generator:
+        yield generator
+
+
+def batchify_generator(generator_generator, batch_size, out_format ='array'):
+    """
+    Best understood by example.
+
+    generator_genererator corresponds to a collection of videos
+    It generates frame_generators, which produce the frames in a given movie.
+
+    :param generator_generator:
+    :param batch_size:
+    :param out_format:
+    :return:
+    """
+
+    total = batch_size
+
+    assert out_format in ('array', 'tuple_of_arrays')
+    generators = [next(generator_generator) for _ in range(batch_size)]
+    while True:
+        items = []
+        for i in range(batch_size):
+            while True:
+                try:
+                    items.append(next(generators[i]))
+                    break
+                except StopIteration:
+                    total+=1
+                    generators[i] = next(generator_generator)  # This will rais StopIteration when we're out of generators
+        if out_format=='array':
+            yield np.array(items)
+            # yield fast_array(items)
+        else:
+            yield tuple(np.array(x) for x in zip(*items))
