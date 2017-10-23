@@ -106,6 +106,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
                 # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
                 'bar': BarPlot,
                 'img': ImagePlot,
+                'cimg': lambda: ImagePlot(channel_first=True),
                 'line_history': MovingPointPlot,
                 'img_stable': lambda: ImagePlot(only_grow_clims=True),
                 'colour': lambda: ImagePlot(is_colour_data=True),

@@ -179,6 +179,22 @@ def uniquify_duplicates(sequence_of_strings):
     return new_strings
 
 
+def get_unique_name(name, taken_names):
+    """
+    Given a name, if it is already in the list of taken names, append with name(1), then name(2)
+    :param name:
+    :param taken_names:
+    :return:
+    """
+    if name in taken_names:
+        for i in itertools.count(1):
+            new_name = name+'({})'.format(i)
+            if new_name not in taken_names:
+                name = new_name
+                break
+    return name
+
+
 def detect_duplicates(sequence, hashable=True, key=None, keep_last=False):
     """
     Identify whether each element in a sequence is a duplicate of a previously existing element.

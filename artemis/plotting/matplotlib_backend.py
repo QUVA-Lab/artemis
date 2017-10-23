@@ -52,7 +52,9 @@ colour_cycle = 'bgrmcyk'
 
 class ImagePlot(HistoryFreePlot):
 
-    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = False, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = False,
+            channel_first = False, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+
         """
         :param interpolation: How to interpolate array to form the image {'none', 'nearest', ''bilinear', 'bicubic', ... (see plt.imshow)}
         :param show_axes: Show axes marks (numbers along the side showing pixel locations)
@@ -74,10 +76,21 @@ class ImagePlot(HistoryFreePlot):
         self._is_colour_data = is_colour_data
         self.show_clims = show_clims
         self.only_grow_clims = only_grow_clims
+        self.channel_first = channel_first
         if only_grow_clims:
             self._old_clims = (float('inf'), -float('inf'))
 
     def _plot_last_data(self, data):
+
+        if self.channel_first:
+            if data.ndim==3:
+                assert data.shape[0] in (1, 3)
+                data = np.rollaxis(data, 0, 3)
+            elif data.ndim==4:
+                assert data.shape[1] in (1, 3)
+                data = np.rollaxis(data, 1, 4)
+            else:
+                print 'Image should be 3D (3, size_y, size_x) or 4D (n_images, 3, size_y, size_x) for channel-first-mode.'
 
         if len(data)==0:
             plottable_data = np.zeros((16, 16, 3), dtype = np.uint8)
