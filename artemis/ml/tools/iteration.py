@@ -4,7 +4,7 @@ import itertools
 from six import string_types
 
 from artemis.general.numpy_helpers import fast_array
-from artemis.general.should_be_builtins import bad_value
+from artemis.general.should_be_builtins import bad_value, izip_equal
 import numpy as np
 from six.moves import xrange, zip
 import time
@@ -281,7 +281,7 @@ def generator_pool(generator_generator):
         yield generator
 
 
-def batchify_generator(generator_generator, batch_size, out_format ='array'):
+def batchify_generator(generator_generator, batch_size, receive_input=False, out_format ='array'):
     """
     Best understood by example.
 
@@ -293,6 +293,7 @@ def batchify_generator(generator_generator, batch_size, out_format ='array'):
     :param out_format:
     :return:
     """
+    assert receive_input in (False, 'post'), 'pre-receive not yet implemented'
 
     total = batch_size
 
@@ -308,8 +309,19 @@ def batchify_generator(generator_generator, batch_size, out_format ='array'):
                 except StopIteration:
                     total+=1
                     generators[i] = next(generator_generator)  # This will rais StopIteration when we're out of generators
+
         if out_format=='array':
-            yield np.array(items)
+            output= np.array(items)
             # yield fast_array(items)
         else:
-            yield tuple(np.array(x) for x in zip(*items))
+            output = tuple(np.array(x) for x in zip(*items))
+
+        if not receive_input:
+            yield output
+        elif receive_input=='post':
+            received_signal = (yield output)  # Assume in_format=='array'
+            for gen, sig in izip_equal(generators, received_signal):
+                gen.send(sig)
+            yield None
+        else:
+            raise Exception(receive_input)

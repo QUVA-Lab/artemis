@@ -576,11 +576,13 @@ experiment records.  You can specify records in the following ways:
         parser = argparse.ArgumentParser()
         parser.add_argument('user_range', action='store', help='A selection of experiments whose records to pull.  Examples: "3" or "3-5", or "3,4,5"')
         parser.add_argument('machine_name', action='store', nargs = '?', default='all', help='Name of machine to pull from (must be listed in ~/.artemisrc)')
+        # Following -p thing is temporary until we figure out how to deal with password only if needed
+        parser.add_argument('-p', '--need_password', action='store_true', default=False, help='Put this flag if you need a password (leave it out if you have keys set up)')
         args = parser.parse_args(args)
         from artemis.remote.remote_machines import get_remote_machine_info
         info = get_remote_machine_info(args.machine_name)
         exp_names = select_experiments(args.user_range, self.exp_record_dict)
-        output = pull_experiments(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False)
+        output = pull_experiments(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False, need_pass=args.need_password)
         print(output)
         return ExperimentBrowser.REFRESH
 

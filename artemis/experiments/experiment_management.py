@@ -22,7 +22,7 @@ from artemis.remote.nanny import Nanny
 from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix, memoize
 
 
-def pull_experiments(user, ip, experiment_names, include_variants=True):
+def pull_experiments(user, ip, experiment_names, include_variants=True, need_pass = False):
     """
     Pull experiments from another computer matching the given experiment name.
 
@@ -40,25 +40,28 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
 
     home = get_home_dir()
 
+    # This one works if you have keys set up
     command = ['rsync', '-a', '-m', '-i']\
         +['{user}@{ip}:~/.artemis/experiments/'.format(user=user, ip=ip)] \
         +['{home}/.artemis/experiments/'.format(home=home)]\
         +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names] \
         +["--include='*/'", "--exclude='*'"]
 
-    output = subprocess.check_output(command)
-    return output
-
-    # password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
-    # child = pexpect.spawn(command)
-    # code = child.expect([pexpect.TIMEOUT, 'password:'])
-    # if code == 0:
-    #     print(("Got unexpected output: %s %s" % (child.before, child.after)))
-    #     sys.exit()
-    # # else:
-    # #     child.sendline(password)
-    # output = child.read()
-    # return output
+    if not need_pass:
+        output = subprocess.check_output(command)
+        return output
+    else:
+        # This one works if you need a password
+        password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
+        child = pexpect.spawn(' '.join(command))
+        code = child.expect([pexpect.TIMEOUT, 'password:'])
+        if code == 0:
+            print(("Got unexpected output: %s %s" % (child.before, child.after)))
+            sys.exit()
+        else:
+            child.sendline(password)
+        output = child.read()
+        return output
 
 
 def load_lastest_experiment_results(experiments, error_if_no_result = True):
