@@ -382,7 +382,9 @@ class SequentialStructBuilder(object):
         Add a new element to this sequence, so that future calls to last return this element.
         :return:
         """
-        self.next = SequentialStructBuilder()
+        new_chapter = SequentialStructBuilder()
+        self.next = new_chapter
+        return new_chapter
 
     def __str__(self):
         return '{}({})'.format(self.__class__.__name__, sensible_str(self._struct))
