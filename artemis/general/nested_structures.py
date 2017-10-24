@@ -365,7 +365,7 @@ class SequentialStructBuilder(object):
         return (s for s in self._struct)
 
     def __len__(self):
-        return len(self._struct)
+        return len(self._struct) if self._struct is not None else 0
 
     @property
     def is_sequence(self):

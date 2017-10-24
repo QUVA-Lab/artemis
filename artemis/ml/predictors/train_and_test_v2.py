@@ -39,7 +39,9 @@ def train_and_test_predictor(
             if post_test_callback is not None:
                 post_test_callback(this_test_measures)
             yield measures.to_struct_arrays()
+
         f_train(inputs, targets)
+        pi.print_update()
 
 
 def do_test(test_subset_generators, f_predict, loss_dict, n_test_iters, collapse_loss = 'mean', in_test_callback = None):
@@ -64,6 +66,7 @@ def do_test(test_subset_generators, f_predict, loss_dict, n_test_iters, collapse
         if collapse_loss is not None:
             collapse_func = {'mean': np.mean}[collapse_loss]
             for loss_name, f_loss in loss_dict.items():
+                assert len(these_test_results[subset_name][loss_name])>0, "It appears that subset '{}' had no tests!".format(subset_name)
                 these_test_results[subset_name][loss_name] = collapse_func(these_test_results[subset_name][loss_name].as_array())
         these_test_results[subset_name]['time'] = time.time() - start_time
     return these_test_results.to_struct_arrays()
