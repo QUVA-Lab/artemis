@@ -63,6 +63,7 @@ def do_test(test_subset_generators, f_predict, loss_dict, n_test_iters, collapse
             pi.print_update()
             if in_test_callback is not None:
                 in_test_callback(inputs=inputs, targets=targets, outputs=outputs)
+
         if collapse_loss is not None:
             collapse_func = {'mean': np.mean}[collapse_loss]
             for loss_name, f_loss in loss_dict.items():
