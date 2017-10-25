@@ -1,3 +1,4 @@
+from cycler import cycler
 import matplotlib.pyplot as plt
 import logging
 import numpy as np
@@ -5,7 +6,7 @@ import matplotlib.colors as colors
 from matplotlib.cm import register_cmap
 from matplotlib.colors import LinearSegmentedColormap
 from si_prefix import si_format
-
+import matplotlib
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
@@ -61,6 +62,12 @@ _lines_colour_cycle = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
 
 def get_lines_color_cycle():
     return _lines_colour_cycle
+
+
+def set_lines_color_cycle_map(name, length):
+    cmap = getattr(plt.cm, name)
+    c = cycler('color', cmap(np.linspace(0, 1, length)))
+    matplotlib.rcParams['axes.prop_cycle'] = c
 
 
 def get_line_color(ix, modifier=None):

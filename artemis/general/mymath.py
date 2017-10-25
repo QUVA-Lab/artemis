@@ -441,15 +441,19 @@ def conv_fanout(input_len, kernel_len, conv_mode):
     :param conv_mode:
     :return:
     """
-    if conv_mode=='half':
-        conv_mode='same'
-    left_pad = kernel_len // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
-    right_pad = (kernel_len-1) // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
-    full_range = np.arange(left_pad + input_len + right_pad)
-    max_fanout = np.minimum(kernel_len, np.maximum(input_len-kernel_len+1+2*left_pad, 1))
-    fanout_over_full_range = np.minimum(max_fanout, np.minimum(full_range+1, full_range[::-1]+1))
-    fanout = fanout_over_full_range[left_pad:len(full_range)-right_pad]
-    return fanout
+
+    if conv_mode=='full':
+        return kernel_len*np.ones(input_len)
+    else:
+        if conv_mode=='half':
+            conv_mode='same'
+        left_pad = kernel_len // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
+        right_pad = (kernel_len-1) // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
+        full_range = np.arange(left_pad + input_len + right_pad)
+        max_fanout = np.minimum(kernel_len, np.maximum(input_len-kernel_len+1+2*left_pad, 1))
+        fanout_over_full_range = np.minimum(max_fanout, np.minimum(full_range+1, full_range[::-1]+1))
+        fanout = fanout_over_full_range[left_pad:len(full_range)-right_pad]
+        return fanout
 
 
 def conv2_fanout_map(input_shape, kernel_shape, conv_mode):

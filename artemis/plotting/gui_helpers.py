@@ -38,3 +38,15 @@ def select_image(images, selection_callback):
 
     plt.gcf().canvas.callbacks.connect('button_press_event', callback)
     plt.show()
+
+
+def select_pixel(image, selection_callback):
+
+    # plt.figure()
+    plt.imshow(image)
+
+    def callback(event):
+        selection_callback((int(event.ydata), int(event.xdata)))
+
+    plt.gcf().canvas.callbacks.connect('button_press_event', callback)
+    plt.show()

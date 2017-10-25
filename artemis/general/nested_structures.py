@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 import logging
 import numpy as np
-from artemis.general.display import sensible_str
+from artemis.general.display import sensible_str, deepstr
 from six import string_types, next
 
 from artemis.general.should_be_builtins import izip_equal, all_equal
@@ -377,6 +377,10 @@ class SequentialStructBuilder(object):
             assert self._struct is None
             return None
 
+    def items(self):
+        assert self.is_sequence is False, 'You can only call "items" when the Structure has been defined as a dict'
+        return self._struct.items()
+
     def open_next(self):
         """
         Add a new element to this sequence, so that future calls to last return this element.
@@ -389,19 +393,45 @@ class SequentialStructBuilder(object):
     def __str__(self):
         return '{}({})'.format(self.__class__.__name__, sensible_str(self._struct))
 
+    def description(self):
+        print self.__class__.__name__ +":" + deepstr(self.to_struct())
+
+    def values(self):
+        return self if self.is_sequence else self._struct.values()
+
     @property
     def next(self):
         logging.warn("Warning: next should only be set, not gotten")
         return None
 
     @property
+    def each_next(self):
+        logging.warn("Warning: next should only be set, not gotten")
+        return None
+
+    @each_next.setter
+    def each_next(self, dict_of_items):
+        assert self.is_sequence is not True, 'each_next can only be applied to a dict-type object'
+        if self.is_sequence is None:
+            for k, v in dict_of_items.items():
+                self[k] = []
+        for k, v in dict_of_items.items():
+            assert k in self._struct, "You previously called each_next with a different data structure."
+            self[k].append(v)
+
+    @property
     def last(self):
         assert self.is_sequence, 'last can only be accessed when this is a sequence.'
         return self._struct[-1]
 
-    def as_array(self):
-        assert self.is_sequence, 'Can only call as_array when the SequentialStructBuilder has been used as a sequence.  It has not.'
-        return np.array(self.to_struct())
+    def to_array(self):
+        items = [item.to_array() if isinstance(item, SequentialStructBuilder) else item for item in self.values()]
+        return np.array(items)
+
+        #     return np.array([item.to_array() if isinstance(item, SequentialStructBuilder) else item for item in self])
+        # else:
+        #     return np.array(self.to_struct().values())
+        # assert self.is_sequence, 'Can only call to_array when the SequentialStructBuilder has been used as a sequence.  It has not.'
 
     def is_arrayable(self):
         return self.is_sequence and all(isinstance(s, (int, list, float, np.ndarray)) or (isinstance(s, SequentialStructBuilder) and s.is_arrayable()) for s in self)
@@ -411,7 +441,7 @@ class SequentialStructBuilder(object):
         Recursively convert this structure into ndarrays wherever possible.
         :return: A nested structure with arrays at the leaves.
         """
-        return self.as_array() if self.is_arrayable() else self.map(lambda el: el.to_struct_arrays() if isinstance(el, SequentialStructBuilder) else el)
+        return self.to_array() if self.is_arrayable() else self.map(lambda el: el.to_struct_arrays() if isinstance(el, SequentialStructBuilder) else el)
 
     @next.setter
     def next(self, val):
@@ -426,14 +456,18 @@ class SequentialStructBuilder(object):
 
     def map(self, func):
         if self.is_sequence is True:
-            return [func(x) for x in self._struct]
+            return SequentialStructBuilder([func(x) for x in self._struct])
         elif self.is_sequence is False:
-            return OrderedDict((name, func(val)) for name, val in self._struct.items())
+            return SequentialStructBuilder(OrderedDict((name, func(val)) for name, val in self._struct.items()))
         else:
             return None
 
     def to_struct(self):
-        return self.map(lambda v: v.to_struct() if isinstance(v, SequentialStructBuilder) else v)
+        """
+        Recursively transform this object into a nested struct.
+        :return: A nested struct of OrderedDicts and lists
+        """
+        return self.map(lambda v: v.to_struct() if isinstance(v, SequentialStructBuilder) else v)._struct
 
     def to_structseq(self, as_arrays=False):
         structs = self.to_struct()

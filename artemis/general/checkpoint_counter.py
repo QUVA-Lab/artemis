@@ -50,7 +50,7 @@ class Checkpoints(object):
     An object where you specify checkpoints and return true every time one of those checkpoints is passed.
     """
 
-    def __init__(self, checkpoint_generator, default_units = None):
+    def __init__(self, checkpoint_generator, default_units = None, skip_first = False):
         """
         :param checkpoint_generator: Can be:
             A generator object returning checkpoints
@@ -87,6 +87,9 @@ class Checkpoints(object):
             checkpoint_generator = (step*i for i in itertools.count(0))
         else:
             assert isinstance(checkpoint_generator, types.GeneratorType)
+
+        if skip_first:
+            next(checkpoint_generator)
 
         self.checkpoint_generator = checkpoint_generator
         self._next_checkpoint = float('inf') if checkpoint_generator is None else next(checkpoint_generator)

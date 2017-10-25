@@ -17,15 +17,18 @@ def train_and_test_predictor(
         collapse_loss = 'mean',
         progress_update_period = '5s',
         in_test_callback = None,
-        post_test_callback = None
+        post_test_callback = None,
+        post_train_callback = None,
+        measures = None
         ):
 
-    measures = SequentialStructBuilder()
+    if measures is None:
+        measures = SequentialStructBuilder()
     is_test_time = Checkpoints(test_checkpoints) if not isinstance(test_checkpoints, Checkpoints) else test_checkpoints
     pi = ProgressIndicator(n_training_iters, "Training", update_every=progress_update_period)
     for inputs, targets in training_data_gen:
         if is_test_time():
-            this_test_measures = measures.open_next()
+            this_test_measures = measures['test'].open_next()
             this_test_measures['iter'] = pi.get_iterations()
             this_test_measures['time'] = pi.get_elapsed()
             this_test_measures['results'] = do_test(
@@ -42,6 +45,8 @@ def train_and_test_predictor(
 
         f_train(inputs, targets)
         pi.print_update()
+        if post_train_callback:
+            post_train_callback(inputs=inputs, targets=targets, iter=pi.get_iterations(), training_measures=measures['training'])
 
 
 def do_test(test_subset_generators, f_predict, loss_dict, n_test_iters, collapse_loss = 'mean', in_test_callback = None):
@@ -64,10 +69,12 @@ def do_test(test_subset_generators, f_predict, loss_dict, n_test_iters, collapse
             if in_test_callback is not None:
                 in_test_callback(inputs=inputs, targets=targets, outputs=outputs)
 
+        n_tests = len(these_test_results[subset_name][loss_name])
+        assert n_tests>0, "It appears that subset '{}' had no tests!".format(subset_name)
+        these_test_results[subset_name]['n_tests'] = n_tests
         if collapse_loss is not None:
             collapse_func = {'mean': np.mean}[collapse_loss]
             for loss_name, f_loss in loss_dict.items():
-                assert len(these_test_results[subset_name][loss_name])>0, "It appears that subset '{}' had no tests!".format(subset_name)
-                these_test_results[subset_name][loss_name] = collapse_func(these_test_results[subset_name][loss_name].as_array())
+                these_test_results[subset_name][loss_name] = collapse_func(these_test_results[subset_name][loss_name].to_array())
         these_test_results[subset_name]['time'] = time.time() - start_time
     return these_test_results.to_struct_arrays()

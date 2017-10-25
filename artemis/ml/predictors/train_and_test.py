@@ -150,7 +150,7 @@ def collapse_onehot_if_necessary(output_data):
     :return: An (n_samples, ) array.
     """
 
-    output_data = np.squeeze(output_data)
+    # output_data = np.squeeze(output_data)
 
     if output_data.ndim == 2:
         return np.argmax(output_data, axis = 1)

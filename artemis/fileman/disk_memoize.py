@@ -139,6 +139,7 @@ def memoize_to_disk_and_cache_test(fcn):
 def get_function_hash_filename(fcn, argname_argvalue_list):
     args_code = compute_fixed_hash(argname_argvalue_list)
     # TODO: Include function path in hash?  Or module path, which would allow memos to be shareable.
+    # TODO: Consider making memo-dir for each function name.  Would make erasing memos easier.
     return os.path.join(MEMO_DIR, '%s-%s.pkl' % (fcn.__name__, args_code))
 
 
@@ -229,7 +230,7 @@ if __name__ == '__main__':
     cmd = input('Enter memos to delete. e.g. (1-3, all, 5)>>').strip().lower()
 
     if cmd=='all':
-        ixs = range(all_memos)
+        ixs = range(len(all_memos))
     elif '-' in cmd:
         start, end = cmd.split('-')
         ixs = range(int(start), int(end)+1)

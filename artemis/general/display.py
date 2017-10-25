@@ -130,12 +130,12 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
             keys, values = ['- ']*len(obj), obj
         else:
             raise Exception('Should never be here')
-        max_indent = max(len(k) for k in keys) if len(keys)>0 else 0
+        max_indent = max(len(str(k)) for k in keys) if len(keys)>0 else 0
         if max_expansion is not None and len(keys)>max_expansion:
             elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys[:max_expansion-1]+[keys[-1]], values[:max_expansion-1]+[values[-1]])]
             elements.insert(-1, '... Skipping {} of {} elements ...'.format(len(keys)-len(elements), len(keys)))
         else:
-            elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
+            elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(str(k))) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
         string_desc = '<{type} at {id}>\n'.format(type = type(obj).__name__, id=hex(id(obj))) + indent_string('\n'.join(elements), indent=indent)
         return string_desc
     elif isinstance(obj, float):
