@@ -420,9 +420,14 @@ class SequentialStructBuilder(object):
             self[k].append(v)
 
     @property
+    def first(self):
+        assert self.is_sequence is not None, "Structure is empty"
+        return self._struct[0] if self.is_sequence else self._struct.values()[0]
+
+    @property
     def last(self):
-        assert self.is_sequence, 'last can only be accessed when this is a sequence.'
-        return self._struct[-1]
+        assert self.is_sequence is not None, "Structure is empty"
+        return self._struct[-1] if self.is_sequence else self._struct.values()[-1]
 
     def to_array(self):
         items = [item.to_array() if isinstance(item, SequentialStructBuilder) else item for item in self.values()]

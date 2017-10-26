@@ -1,7 +1,9 @@
+from collections import OrderedDict
+
 import pytest
 
 from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items, remove_duplicates, \
-    detect_duplicates, remove_common_prefix, all_equal, get_absolute_module, insert_at
+    detect_duplicates, remove_common_prefix, all_equal, get_absolute_module, insert_at, get_shifted_key_value
 
 __author__ = 'peter'
 
@@ -98,6 +100,16 @@ def test_insert_at():
     assert r == [0, 1, 2, 3, 4]
 
 
+def test_get_shifted_key_value():
+
+    dic = OrderedDict([('a', 1), ('b', 2), ('c', 3), ('d', 4)])
+    assert get_shifted_key_value(dic, 'c', -2)==1
+    assert get_shifted_key_value(dic, 'c', -1)==2
+    assert get_shifted_key_value(dic, 'c', 0)==3
+    assert get_shifted_key_value(dic, 'c', 1)==4
+    assert get_shifted_key_value(dic, 'a', 1)==2
+
+
 if __name__ == '__main__':
     test_separate_common_items()
     test_reducemap()
@@ -108,3 +120,4 @@ if __name__ == '__main__':
     test_all_equal()
     test_get_absolute_module()
     test_insert_at()
+    test_get_shifted_key_value()

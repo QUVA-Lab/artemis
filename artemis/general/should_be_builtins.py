@@ -188,7 +188,7 @@ def get_unique_name(name, taken_names):
     """
     if name in taken_names:
         for i in itertools.count(1):
-            new_name = name+'({})'.format(i)
+            new_name = name+'({})'.format(i) if isinstance(name, str) else name + (i, ) if isinstance(name, tuple) else bad_value(name)
             if new_name not in taken_names:
                 name = new_name
                 break
@@ -414,3 +414,18 @@ except ImportError:
             for ctx in contexts:
                 stack.enter_context(ctx)
             yield contexts
+
+
+def get_shifted_key_value(orderd_dict, key, shift):
+    """
+    Given an OrderedDict, get the value at a key which is offset from the given key by shift.
+    :param orderd_dict:
+    :param key:
+    :param shift:
+    :return: The value at the shifted key
+    """
+    assert isinstance(orderd_dict, OrderedDict)
+    keylist = list(orderd_dict.keys())
+    key_ix = keylist.index(key)
+    new_key = keylist[key_ix+shift]
+    return orderd_dict[new_key]
