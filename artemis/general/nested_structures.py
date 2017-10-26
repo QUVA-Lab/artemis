@@ -441,7 +441,7 @@ class SequentialStructBuilder(object):
         Recursively convert this structure into ndarrays wherever possible.
         :return: A nested structure with arrays at the leaves.
         """
-        return self.to_array() if self.is_arrayable() else self.map(lambda el: el.to_struct_arrays() if isinstance(el, SequentialStructBuilder) else el)
+        return self.to_array() if self.is_arrayable() else self.map(lambda el: el.to_struct_arrays() if isinstance(el, SequentialStructBuilder) else el).to_struct()
 
     @next.setter
     def next(self, val):
