@@ -78,3 +78,20 @@ def do_test(test_subset_generators, f_predict, loss_dict, n_test_iters, collapse
                 these_test_results[subset_name][loss_name] = collapse_func(these_test_results[subset_name][loss_name].to_array())
         these_test_results[subset_name]['time'] = time.time() - start_time
     return these_test_results.to_struct_arrays()
+
+
+#
+# def training_results_oneline_summary(results):
+#
+#     for subset in results['test'].keys():
+#         for loss_name, loss_value in results['test'][subset].items():
+#
+#
+#     train_overlaps = result['train']['mean_overlap']
+#     test_overlaps = result['test']['mean_overlap']
+#     # losses = result['test']['mean_loss']
+#     # return '{} Tests.  Mean Overlap: {:.3g} -> {:.3g}, Loss {:.3g} -> {:.3g}'.format(len(overlaps), overlaps[0], overlaps[-1], losses[0], losses[-1])
+#     return '{} Tests.  Overlaps: Test: {:.3g} -> {:.3g}, Train: {:.3g} -> {:.3g}'.format(len(test_overlaps), test_overlaps[0], test_overlaps[-1], train_overlaps[0], train_overlaps[-1])
+#
+#
+# # def plot_results()
