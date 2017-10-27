@@ -416,6 +416,12 @@ except ImportError:
             yield contexts
 
 
+def get_shifted_element(list_of_elements, element, shift):
+    key_ix = list_of_elements.index(element)
+    new_key = list_of_elements[key_ix+shift]
+    return new_key
+
+
 def get_shifted_key_value(orderd_dict, key, shift):
     """
     Given an OrderedDict, get the value at a key which is offset from the given key by shift.
