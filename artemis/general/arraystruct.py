@@ -242,14 +242,14 @@ class ArrayStruct(UniversalCollection):
 
         if isinstance(selecting_key, tuple):
             if len(selecting_key)==0:
-                self._struct = value
+                self._struct = value._struct if isinstance(value, ArrayStruct) else value
+                return
             elif isinstance(selecting_key[-1], slice) or selecting_key[-1] is Ellipsis:
                 open_keys = [s==slice(None) or s is Ellipsis for s in selecting_key]
                 first_open_key_index = open_keys.index(True, )
                 assert all(open_keys[first_open_key_index:]), "You can only assign slices and elipses at the end!.  Got {}".fiormat(selecting_key)
                 return self.__setitem__(selecting_key[:first_open_key_index], ArrayStruct(value, recurse=len(selecting_key)-first_open_key_index))
             elif selecting_key[-1] is Ellipsis:
-
                 return self.__setitem__(selecting_key[:first_key], ArrayStruct(value, recurse=len(selecting_key)-first_key))
             else:
                 first_key = selecting_key[0]

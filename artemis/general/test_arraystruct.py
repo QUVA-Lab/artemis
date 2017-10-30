@@ -51,6 +51,15 @@ def test_array_struct():
         assert same_struct['b', :, :].to_struct() == [OrderedDict([('subfield1', 4), ('subfield2', 5)]), OrderedDict([('subfield1', 6), ('subfield2', 7)]), OrderedDict([('subfield2', 9), ('subfield1', 8)])]
         assert same_struct['b', 1:, :].to_struct() == [OrderedDict([('subfield1', 6), ('subfield2', 7)]), OrderedDict([('subfield2', 9), ('subfield1', 8)])]
 
+        with pytest.raises(KeyError):
+            x = same_struct['a', 'aa3']
+
+        with pytest.raises(KeyError):
+            x = same_struct['a', 1, 'subfield1']
+
+        with pytest.raises(IndexError):
+            x = same_struct['b', 4, 'subfield1']
+
         with pytest.raises(KeyError):  # This should raise an error because key 'a' does not have subkeys 1, 'subfield1'
             x = same_struct[:, 1, 'subfield1']
 
@@ -63,6 +72,13 @@ def test_array_struct():
         assert np.array_equal(new_struct['b', 'subfield2'], [5, 7, 9])
 
 
+def test_simple_growing():
+    a = ArrayStruct()
+    for i in range(10):
+        a[next] = i*2
+    assert np.array_equal(a.to_array(), np.arange(0, 20, 2))
+
 
 if __name__ == '__main__':
     test_array_struct()
+    test_simple_growing()
