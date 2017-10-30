@@ -1,11 +1,20 @@
-from collections import OrderedDict
+rom collections import OrderedDict
 
 import logging
 import numpy as np
+
 from artemis.general.display import sensible_str, deepstr
 from six import string_types, next
 
-from artemis.general.should_be_builtins import izip_equal, all_equal
+from artemis.general.should_be_builtins import all_equal
+import logging
+from collections import OrderedDict
+
+import numpy as np
+from six import string_types, next
+
+from artemis.general.display import sensible_str, deepstr
+from artemis.general.should_be_builtins import all_equal
 
 __author__ = 'peter'
 

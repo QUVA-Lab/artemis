@@ -3,6 +3,7 @@ from six import string_types
 from artemis.general.nested_structures import (flatten_struct, get_meta_object, NestedType,
                                                seqstruct_to_structseq, structseq_to_seqstruct, nested_map,
                                                get_leaf_values, SequentialStructBuilder)
+from artemis.general.arraystruct import ArrayStruct
 import numpy as np
 from pytest import raises
 from six.moves import xrange
@@ -171,6 +172,8 @@ def test_sequential_struct_builder_ndarray():
 
     assert data['rows'].shape==(n_rows, )
     assert np.array_equal(data['rows'], np.arange(n_rows))
+
+
 
 
 if __name__ == '__main__':
