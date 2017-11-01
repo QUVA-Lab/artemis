@@ -3,7 +3,7 @@ import logging
 from artemis.general.numpy_helpers import get_rng
 from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
-from scipy.stats import norm, mode as sp_mode
+
 try:
     import weave
 except ImportError:
@@ -89,6 +89,7 @@ def expected_sigm_of_norm(mean, std, method = 'probit'):
     :param std: Standard Deviation of the normal distribution
     :return: An approximation to Expectation(sigm(N(mu, sigma**2)))
     """
+    from scipy.stats import norm
     if method == 'maclauren-2':
         eu = np.exp(-mean)
         approx_exp = 1/(eu+1) + 0.5*(eu-1)*eu/((eu+1)**3) * std**2
@@ -132,6 +133,7 @@ def normalize(x, axis=None, degree = 2, avoid_nans = False):
 
 
 def mode(x, axis = None, keepdims = False):
+    from scipy.stats import mode as sp_mode
     mode_x, _ = sp_mode(x, axis = axis)
     if not keepdims:
         mode_x = np.take(mode_x, 0, axis = axis)
@@ -542,3 +544,13 @@ def proportional_random_assignment(length, split, rng):
 def argmaxnd(x):
     ix = np.argmax(x.flatten())
     return np.unravel_index(ix, dims=x.shape)
+
+
+def clip_to_sum(vec, total):
+    new_vec = np.array(vec)  # Yes this is horribly inefficient but I do not care.
+    current_total = np.sum(vec)
+    while current_total > total:
+        i = np.argmax(new_vec)
+        new_vec[i] -= 1
+        current_total -= 1
+    return new_vec

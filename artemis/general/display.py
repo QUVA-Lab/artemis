@@ -380,3 +380,25 @@ def format_duration(seconds):
     else:
         days = seconds//_seconds_in_day
         return '{:d}d,{}'.format(days, format_duration(seconds % _seconds_in_day))
+
+
+def interleave_strings_into_table(table, rows, ixs, header_length, division_char = '-', do_first_division = False):
+    """
+    Very-special-purpose thing for our Artemis experiments...
+    :param table:
+    :param header_length:
+    :param division_char:
+    :param do_first_division:
+    :return:
+    """
+
+    table_rows = table.split('\n')
+
+    row_len = len(table_rows[0])
+
+    assert len(ixs)==len(rows)
+
+    # rows =
+
+
+    # table_width =

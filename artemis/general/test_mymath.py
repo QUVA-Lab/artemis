@@ -1,10 +1,10 @@
 import pytest
-from _pytest.python import raises
+from pytest import raises
 
 from artemis.general.mymath import (softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize,
                                     is_parallel,
                                     align_curves, angle_between, fixed_diff, decaying_cumsum, geosum, selective_sum,
-                                    conv_fanout, conv2_fanout_map, proportional_random_assignment)
+                                    conv_fanout, conv2_fanout_map, proportional_random_assignment, clip_to_sum)
 import numpy as np
 from six.moves import xrange
 
@@ -283,22 +283,36 @@ def test_proportional_random_assignment():
         ass = proportional_random_assignment(33, split=20., rng=1234)
 
 
+def test_clip_to_sum():
+    # Test snatched from Divakar: https://stackoverflow.com/a/47043362/851699
+
+    assert np.array_equal(clip_to_sum([0, 10, 20, 0], 25), [0, 10, 15, 0])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 10), [1,3,3,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 11), [1,3,4,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 12), [1,4,4,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 14), [1,4,6,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 16), [1,4,8,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 20), [1,4,8,3])
+
+
+
 if __name__ == '__main__':
-    test_decaying_cumsum()
-    test_fixed_diff()
-    test_angle_between()
-    test_align_curves()
-    test_is_parallel()
-    test_normalize()
-    test_cummode_weighted()
-    test_cummode()
-    test_mode()
-    test_exp_sig_of_norm()
-    test_cumvar()
-    test_cummean()
-    test_softmax()
-    test_geosum()
-    test_selective_sum()
-    test_fanout_map()
-    test_conv2_fanout_map()
-    test_proportional_random_assignment()
+    # test_decaying_cumsum()
+    # test_fixed_diff()
+    # test_angle_between()
+    # test_align_curves()
+    # test_is_parallel()
+    # test_normalize()
+    # test_cummode_weighted()
+    # test_cummode()
+    # test_mode()
+    # test_exp_sig_of_norm()
+    # test_cumvar()
+    # test_cummean()
+    # test_softmax()
+    # test_geosum()
+    # test_selective_sum()
+    # test_fanout_map()
+    # test_conv2_fanout_map()
+    # test_proportional_random_assignment()
+    test_clip_to_sum()

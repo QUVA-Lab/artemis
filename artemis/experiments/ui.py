@@ -30,6 +30,7 @@ from artemis.general.hashing import compute_fixed_hash
 from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal, insert_at, izip_equal, separate_common_items, bad_value
 
+
 try:
     import readline  # Makes input() behave like interactive shell.
     # http://stackoverflow.com/questions/15416054/command-line-in-python-with-history
@@ -160,7 +161,7 @@ experiment records.  You can specify records in the following ways:
     def __init__(self, root_experiment = None, catch_errors = False, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
             ignore_valid_keys=(), cache_result_string = False, slurm_kwargs={}, remove_prefix = None, display_format='nested',
-            show_args=False, catch_selection_errors=True):
+            show_args=False, catch_selection_errors=True, max_width=None, table_package = 'tabulate'):
         """
         :param root_experiment: The Experiment whose (self and) children to browse
         :param catch_errors: Catch errors that arise while running experiments
@@ -204,6 +205,8 @@ experiment records.  You can specify records in the following ways:
         self.display_format = display_format
         self.show_args = show_args
         self.catch_selection_errors = catch_selection_errors
+        self.max_width = max_width
+        self.table_package = table_package
 
     def _reload_record_dict(self):
         names = get_nonroot_global_experiment_library().keys()
@@ -347,12 +350,14 @@ experiment records.  You can specify records in the following ways:
         header_names = [h.value for h in headers]
 
 
-        def remove_notes_if_no_notes(_record_rows):
+        def remove_notes_if_no_notes(_record_rows, _record_headers):
             notes_column_index = full_headers.index(ExpRecordDisplayFields.NOTES.value) if ExpRecordDisplayFields.NOTES.value in full_headers else None
             # Remove the notes column if there are no notes!
             if notes_column_index is not None and all(row[notes_column_index]=='' for row in _record_rows):
                 for row in _record_rows:
                     del row[notes_column_index]
+                del _record_headers[notes_column_index]
+            return _record_rows, _record_headers
 
         if self.display_format=='nested':  # New Display mode
 
@@ -372,16 +377,20 @@ experiment records.  You can specify records in the following ways:
                 for j, record_id in enumerate(record_ids):
                     record_rows.append([j]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to, ignore_valid_keys=self.ignore_valid_keys))
                     counter+=1
-            remove_notes_if_no_notes(record_rows)
+            record_rows, full_headers = remove_notes_if_no_notes(record_rows, full_headers)
             # Merge the experiments table and record table.
-            record_table_rows = tabulate(record_rows, headers=full_headers, tablefmt="pipe").split('\n')
-            del record_table_rows[1]  # Get rid of that silly line.
-            experiment_table_rows = tabulate(experiment_rows, numalign='left').split('\n')[1:-1]  # First and last are just borders
-            longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(record_table_rows)>0 else 0
-            record_table_rows = [r if len(r)==longest_row else r[:-1] + ' '*(longest_row-len(r)) + r[-1] for r in record_table_rows]
-            experiment_table_rows = [('=' if i==0 else '-')*longest_row+'\n'+r + ' '*(longest_row-len(r)-1)+'|' for i, r in enumerate(experiment_table_rows)]
-            all_rows = [surround_with_header('Experiments', width=longest_row, char='=')] + insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs) + ['='*longest_row]
-            table = '\n'.join(all_rows)
+
+            if self.table_package=='tabulate':
+                record_table_rows = tabulate(record_rows, headers=full_headers, tablefmt="pipe").split('\n')
+                # del record_table_rows[1]  # Get rid of that silly line.
+                experiment_table_rows = tabulate(experiment_rows, numalign='left').split('\n')[1:-1]  # First and last are just borders
+                longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(record_table_rows)>0 else 0
+                record_table_rows = [r if len(r)==longest_row else r[:-1] + ' '*(longest_row-len(r)) + r[-1] for r in record_table_rows]
+                experiment_table_rows = [('=' if i==0 else '-')*longest_row+'\n'+r + ' '*(longest_row-len(r)-1)+'|' for i, r in enumerate(experiment_table_rows)]
+                all_rows = [surround_with_header('Experiments', width=longest_row, char='=')] + insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs) + ['='*longest_row]
+                table = '\n'.join(all_rows)
+            else:
+                raise NotImplementedError(self.table_package)
 
         elif self.display_format=='flat':  # Display First record on same row
             full_headers = ['E#', 'R#', 'Experiment']+header_names
@@ -392,9 +401,15 @@ experiment records.  You can specify records in the following ways:
                 else:
                     for j, record_id in enumerate(record_ids):
                         rows.append([str(i) if j==0 else '', j, exp_id if j==0 else '']+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to, ignore_valid_keys=self.ignore_valid_keys))
-            remove_notes_if_no_notes(rows)
+            rows, full_headers = remove_notes_if_no_notes(rows, full_headers)
 
-            table = tabulate(rows, headers=full_headers)
+            if self.table_package == 'pretty_table':
+                from prettytable.prettytable import PrettyTable
+                table = str(PrettyTable(rows, field_names=full_headers, align='l', max_table_width=self.max_width))
+            elif self.table_package == 'tabulate':
+                table = tabulate(rows, headers=full_headers)
+            else:
+                raise NotImplementedError(self.table_package)
         else:
             raise NotImplementedError(self.display_format)
 
