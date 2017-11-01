@@ -72,7 +72,6 @@ ERROR_FLAG = object()
 
 class ExperimentRecordInfo(object):
 
-
     def __init__(self, file_path, write_text_version=True):
         before, ext = os.path.splitext(file_path)
         assert ext == '.pkl', 'Your file-path must be a pickle'
