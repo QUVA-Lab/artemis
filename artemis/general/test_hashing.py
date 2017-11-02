@@ -48,6 +48,6 @@ def test_fixed_hash_eq():
 
 
 if __name__ == '__main__':
-    # test_compute_fixed_hash()
-    # test_compute_fixed_hash_terminates()
+    test_compute_fixed_hash()
+    test_compute_fixed_hash_terminates()
     test_fixed_hash_eq()

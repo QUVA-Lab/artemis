@@ -175,13 +175,13 @@ def test_format_duration():
 
 
 if __name__ == '__main__':
-    # test_indent_print()
-    # test_side_by_side()
-    # test_document_wrapper()
-    # test_deepstr()
-    # test_str_with_arrayopts()
-    # test_surround_with_header()
-    # test_nested_capture()
+    test_indent_print()
+    test_side_by_side()
+    test_document_wrapper()
+    test_deepstr()
+    test_str_with_arrayopts()
+    test_surround_with_header()
+    test_nested_capture()
     test_capture_prefix()
-    # test_sensible_str()
-    # test_format_duration()
+    test_sensible_str()
+    test_format_duration()
