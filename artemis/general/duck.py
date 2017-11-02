@@ -216,8 +216,10 @@ class UniversalOrderedStruct(UniversalCollection):
     def __getitem__(self, selector):
         if isinstance(selector, (list, slice, np.ndarray)):
             if isinstance(selector, slice):
-                assert selector.step is None, "Can't handle stepped slices yet (from selector {})".format(selector)
-                keys = [k for k in self._heart.keys() if selector.start<=k and selector.stop is None or selector.stop<k]
+                all_keys = list(self.keys())
+                start_index = all_keys.index(selector.start) if selector.start is not None else None
+                stop_index = all_keys.index(selector.stop) if selector.stop is not None else None
+                keys = all_keys[start_index:stop_index:selector.step]
             else:
                 keys = selector
             return UniversalOrderedStruct((k, self[k]) for k in keys)
@@ -235,7 +237,7 @@ class UniversalOrderedStruct(UniversalCollection):
         return self._heart.__len__()
 
     def has_key(self, key):
-        return self._heart.has_key(key)
+        return key in self._heart
 
     def keys(self):
         return self._heart.keys()

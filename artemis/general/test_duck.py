@@ -50,6 +50,18 @@ def test_dict_assignment():
     assert list(a[1].keys()) == [char for char in 'abcdefghijklmnopqrstuvwxyz']
     assert list(a[1].values()) == list(range(27, 27+26))
 
+    # also, lets just use this test for slice indexing too:
+
+
+def test_string_slices():
+
+    a = Duck()
+    for i, char in enumerate('abcdefghijklmnopqrstuvwxyz'[::-1]):  # Note the reverse
+        a[char]=26-i
+    assert list(a['q':'m'].items()) == [('q', 17), ('p', 16), ('o', 15), ('n', 14)]
+    assert list(a['m':'q'].items()) == []
+    assert list(a['m':'q':-1].items()) == [('m', 13), ('n', 14), ('o', 15), ('p', 16)]
+
 
 def test_dictarraylist():
 
@@ -429,3 +441,4 @@ if __name__ == '__main__':
     test_split_get_assign()
     test_assign_from_struct()
     test_arrayify_axis_demo()
+    test_string_slices()
