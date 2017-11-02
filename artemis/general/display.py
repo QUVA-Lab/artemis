@@ -2,7 +2,8 @@ import sys
 import textwrap
 from collections import OrderedDict
 from contextlib import contextmanager
-import datetime
+from datetime import datetime
+import time
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
@@ -352,4 +353,13 @@ def format_duration(seconds):
         else:
             return res
 
+def format_time_stamp(time_stamp):
+    if isinstance(time_stamp,str):
+        return time_stamp
+    elif isinstance(time_stamp,datetime):
+        return time_stamp.strftime("%b %d, %H:%M:%S")
+    elif isinstance(time_stamp,float):
+        return time.strftime("%b %d, %H:%M:%S", time.gmtime(time_stamp))
+    else:
+        return str(time_stamp)
 
