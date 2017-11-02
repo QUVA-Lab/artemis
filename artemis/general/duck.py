@@ -8,6 +8,25 @@ from artemis.general.should_be_builtins import izip_equal
 import sys
 
 
+
+
+class CollectionIsEmptyException(Exception):
+    pass
+
+
+class InvalidKeyError(KeyError):
+    pass
+
+
+class InvalidInitializerError(Exception):
+    pass
+
+
+class InitializerTooShallowError(Exception):
+    pass
+
+
+
 class UniversalCollection(object):
 
     __metaclass__ = ABCMeta
@@ -71,7 +90,7 @@ class UniversalCollection(object):
         elif struct is None or isinstance(struct, EmptyCollection):
             return EmptyCollection()
         else:
-            raise Exception("Don't know how to load a Universal Collection from {}".format(struct))
+            raise InvalidInitializerError("Don't know how to load a Universal Collection from initializer: {}".format(struct))
 
     def map(self, f):
         new_obj = self.__class__()
@@ -80,17 +99,16 @@ class UniversalCollection(object):
         return new_obj
 
 
-class CollectionIsEmptyException(Exception):
-    pass
-
-
 class EmptyCollection(UniversalCollection):
 
     def has_key(self, key):
         return False
 
     def __getitem__(self, ix):
-        raise CollectionIsEmptyException()
+        if isinstance(ix, slice):
+            return []
+        else:
+            raise CollectionIsEmptyException()
 
     def __setitem__(self, ix, val):
         raise CollectionIsEmptyException()
@@ -122,11 +140,14 @@ class EmptyCollection(UniversalCollection):
         return iter([])
 
 
-class InvalidKeyError(KeyError):
-    pass
-
-
 class DynamicSequence(list, UniversalCollection):
+    """
+    This mostly behaves like a list, except
+    - It's also extended to have the key, value methods of an OrderedDict.
+    - It also supports numpy-like indexing with a list of integers.
+    - It allows you to assign with the built-in "next" as an index.  Eg "a[next] = 3" which means
+      "append 3 to the list"
+    """
 
     def values(self):
         return self
@@ -174,6 +195,10 @@ class DynamicSequence(list, UniversalCollection):
 
 
 class UniversalOrderedStruct(UniversalCollection):
+    """
+    Mostly like an OrderedDict, but it behaves like a list, in that (for x in struct) and (x in struct) looks over
+    values, not keys.
+    """
 
     def __init__(self, *initializer):
         if len(initializer)==1 and type(initializer[0]) is dict:
@@ -229,95 +254,97 @@ class UniversalOrderedStruct(UniversalCollection):
 class Duck(UniversalCollection):
     """
     A dynamic data structure that makes it easy to store and query entries.  It's a cross between a dict, an array, and
-    a list.
+    a list.  It behaves similarly to a numpy array, but does not require that data be regularly sized.
 
-    It behaves similarly to a numpy array, but does not require that data be regularly sized.
+        a = Duck()
+        a['a', 'aa1'] = 1
+        a['a', 'aa2'] = 2
+        a['b', 0, 'subfield1'] = 4
+        a['b', 0, 'subfield2'] = 5
+        a['b', 1, 'subfield1'] = 6
+        a['b', 1, 'subfield2'] = 7
 
-            a = ArrayStruct()
-            a['a', 'aa1'] = 1
-            a['a', 'aa2'] = 2
-            a['b', 0, 'bb1'] = 4
-            a['b', 0, 'bb2'] = 5
-            a['b', 1, 'bb1'] = 6
-            a['b', 1, 'bb2'] = 7
-
-            assert a['b', :, 'bb1'].values() == [4, 6]
-            assert a['b', :, :].values() == [4, 6]
+        assert list(a['b', 1, :]) == [6, 7]
+        assert a['b', :, 'subfield1'] == [4, 6]
 
     """
     def __init__(self, initial_struct = None, recurse = False):
-        if recurse:
+        if recurse is True:  # How many layers deep to recurse.  0=just the initial struct, 1=break into initial_struct_keys, ...
             self._struct = UniversalCollection.from_struct(initial_struct).map(
                 (lambda x: (Duck(x, recurse=recurse if recurse is True else recurse - 1)
-                    if isinstance(x, (list, tuple, OrderedDict, UniversalCollection, type(None))) else x)))
+                    if isinstance(x, (dict, list, tuple, UniversalCollection, type(None))) else x)))
+        elif isinstance(recurse, int) and recurse>0:  # How many layers deep to recurse.  0=just the initial struct, 1=break into initial_struct_keys, ...
+            try:
+                self._struct = UniversalCollection.from_struct(initial_struct).map((lambda x: (Duck(x, recurse=recurse - 1))))
+            except InitializerTooShallowError:
+                raise InitializerTooShallowError('Tried to initialize a Duck by breaking {} levels into an object, but the not all branches of go {} levels deep.  The object: {}'.format(recurse+1, recurse+1, initial_struct))
         elif isinstance(initial_struct, Duck):
             raise Exception('fdsf')
             # self._struct = DictArrayList.from_struct()
         elif isinstance(initial_struct, UniversalCollection):
             self._struct = initial_struct
         else:
-            self._struct = UniversalCollection.from_struct(initial_struct)
+            try:
+                self._struct = UniversalCollection.from_struct(initial_struct)
+            except InvalidInitializerError:
+                raise InitializerTooShallowError('Initializer {} has no depth, and so cannot be used to initialize a Duct.'.format(initial_struct))
 
-    def __setitem__(self, selecting_key, value):
-
-        if isinstance(selecting_key, tuple):
-            if len(selecting_key)==0:
-                self._struct = value._struct if isinstance(value, Duck) else value
-                return
-            elif isinstance(selecting_key[-1], slice) or selecting_key[-1] is Ellipsis:
-                open_keys = [s==slice(None) or s is Ellipsis for s in selecting_key]
-                first_open_key_index = open_keys.index(True, )
-                assert all(open_keys[first_open_key_index:]), "You can only assign slices and elipses at the end!.  Got {}".format(selecting_key)
-                return self.__setitem__(selecting_key[:first_open_key_index], Duck(value, recurse=True if selecting_key[-1] is Ellipsis else len(selecting_key) - first_open_key_index))
-            else:
-                first_key = selecting_key[0]
-                subkeys = selecting_key[1:]
-        else:
-            first_key = selecting_key
-            subkeys = ()
-
-        assert not isinstance(first_key, slice), "Currently, sliced assignment is only supported at the end of the indices."
-
-        try:
-            if len(subkeys)==0:  # You assign directly to this object
-                self._struct[first_key] = value
-            else:  # This is just getting a container for an assignment
-                assert not isinstance(first_key, slice), 'Sliced assignment currently not supported'
-                if not self._struct.has_key(first_key):
-                    self._struct[first_key] = Duck()
-                self._struct[first_key][subkeys] = value
-        except CollectionIsEmptyException:
-            self._struct = UniversalCollection.from_first_key(first_key)
-            self.__setitem__(selecting_key, value)
-
-    def __getitem__(self, selectors):
+    def __setitem__(self, indices, value):
         """
-        :param selectors: A tuple of indices (as you would use to access an element in an array)
+        :param indices: A tuple of indices (as you would use to access an element in an array)
+        :param value: An arbitrary object to place at those indices.  If it is another Duck, it will be considered a child node of this Duck.
+        """
+        key_chain = indices if isinstance(indices, tuple) else (indices,)
+        if len(key_chain)==0:  # e.g.  a[()]=4   Typically this happens when assigning to a slice.  ie a[:]=[1,2,3] becomes a[()]=Duck([1,2,3]).  Similar syntax in numpy
+            self._struct = value._struct if isinstance(value, Duck) else value  # Possibly weird edge cases could arise here...
+        elif any(isinstance(k, slice) or k is Ellipsis for k in key_chain):  # When training elements are slices, ellipses.
+            open_keys = [s==slice(None) or s is Ellipsis for s in key_chain]
+            first_open_key_index = open_keys.index(True, )
+            if not all(open_keys[first_open_key_index:]):
+                raise InvalidKeyError("Currently, sliced assignment is only supported for the final indices.  Got {}".format(key_chain))
+            self.__setitem__(key_chain[:first_open_key_index], Duck(value, recurse=True if key_chain[-1] is Ellipsis else len(key_chain) - first_open_key_index - 1))
+        else:  # The common case: an unsliced assignment
+            first_key, subkeys = key_chain[0], key_chain[1:]
+            try:
+                if len(subkeys)==0:  # You assign directly to this object
+                    self._struct[first_key] = value
+                else:  # This is just getting a container for an assignment
+                    assert not isinstance(first_key, slice), 'Sliced assignment currently not supported'
+                    if not self._struct.has_key(first_key):
+                        self._struct[first_key] = Duck()
+                    self._struct[first_key][subkeys] = value
+            except CollectionIsEmptyException:
+                self._struct = UniversalCollection.from_first_key(first_key)
+                self.__setitem__(indices, value)
+
+    def __getitem__(self, indices):
+        """
+        :param indices: A tuple of indices (as you would use to access an element in an array)
         :return: Either
             a) A New Duck (if the selectors specifiy a range of elements in the current Duck
             b) An element at a leaf node (if the selectors specify a partucular item)
         """
-        if selectors == ():
+        if indices == ():
             return self
-        first_selector, selectors = (selectors[0], selectors) if isinstance(selectors, tuple) else (selectors, (selectors, ))
+        first_selector, indices = (indices[0], indices) if isinstance(indices, tuple) else (indices, (indices,))
+
+        if self._struct is None:
+            raise Exception('No value has ever been assigned to this Duck, but you are trying to extract index {} from it.'.format(indices))
+
         try:
             new_substruct = self._struct[first_selector]
             if isinstance(new_substruct, UniversalCollection) and not isinstance(new_substruct, Duck):  # This will happen if the selector is a slice or something...
                 new_substruct = Duck(new_substruct, recurse=False)
-            if len(selectors)==1:  # Case 1: Simple... this is the last selector, so we can just return it.
+            if len(indices)==1:  # Case 1: Simple... this is the last selector, so we can just return it.
                 return new_substruct
             else:  # Case 2:
                 # assert isinstance(new_substruct, ArrayStruct), 'You are selecting with {}, which indicates a depth of {}, but the structure has no more depth.'.format(list(':' if s==slice(None) else s for s in selectors), len(selectors))
                 if isinstance(first_selector, (list, np.ndarray, slice)):  # Sliced selection, with more sub-indices
-                    return new_substruct.map(lambda x: x.__getitem__(selectors[1:]))
+                    return new_substruct.map(lambda x: x.__getitem__(indices[1:]))
                 else:  # Simple selection, with more sub-indices
-                    return new_substruct[selectors[1:]]
+                    return new_substruct[indices[1:]]
         except CollectionIsEmptyException:
-            if first_selector==slice(None):
-                return EmptyCollection()
-            else:
-                self[(first_selector, )] = UniversalCollection.from_first_key(first_selector)
-                return self.__getitem__(selectors)
+            raise Exception('No value has ever been assigned to this Duck, but you are trying to extract index {} from it.'.format(indices))
 
     def deepvalues(self):
         return [(v.deepvalues() if isinstance(v, Duck) else v.values() if isinstance(v, UniversalCollection) else v) for v in self._struct]
@@ -328,12 +355,10 @@ class Duck(UniversalCollection):
     def _first_element_keys(self):
 
         these_keys = list(self.keys())
-
         try:
             first_el = next(iter(self._struct))  # Try to get the keys of the first element
         except StopIteration:
             return (these_keys, )  # If there is no first element, there're no keys to get
-            # raise Exception("Can't get keys from struct {}".format(self._struct))
         if isinstance(first_el, Duck):
             return (these_keys, )+first_el._first_element_keys()
         else:
@@ -354,10 +379,33 @@ class Duck(UniversalCollection):
         return keys, arr
 
     def to_array(self):
+        """
+        Turn the object into a numpy array.  This will fail unless all sub-branches have the same structure (ie
+        the object is non-ragged)
+        :return: A numpy array
+        """
         _, arr = self.to_array_and_keys()
         return arr
 
     def arrayify_axis(self, axis, subkeys = (), inplace=False):
+        """
+        Take a particular axis (depth) of this object, concatenate it into an array for each leaf node.  This requires
+        that all values along this axis have the same structure.  Best understood by the following example:
+
+            a = Duck()
+            a[0, 'x'] = 1
+            a[0, 'y'] = 2
+            a[1, 'x'] = 3
+            a[1, 'y'] = 4
+            b = a.arrayify_axis(axis=0)
+            assert np.array_equal(b['x'], [1, 3])
+            assert np.array_equal(b['y'], [2, 4])
+
+        :param axis: The depth at which you'd like to concatenate.
+        :param subkeys: A sub-branch of struct to do this along (ie. only do it on branch ('subkey', 'subsubkey'))
+        :param inplace: Do the operation in-place (ie change this object (saves you from copying a new object))
+        :return: A new Duck, with the given axis shifted to the end.
+        """
         b = Duck.from_struct(self.to_struct()) if not inplace else self
         if not isinstance(subkeys, tuple):
             subkeys = (subkeys,)
@@ -390,9 +438,13 @@ class Duck(UniversalCollection):
         return self._struct.__len__()
 
     def __eq__(self, other):
+        """
+        We define equality as both keys and values matching for the full depth.
+        :param other: Another Duck, or nested object.
+        :return: True if equal, False if not.
+        """
         if len(self) != len(other):
             return False
-        # assert isinstance(other, self.__class__)
         if not len(self)==len(other):
             return False
         if not isinstance(other, (UniversalCollection, list, OrderedDict, np.ndarray)):
@@ -449,26 +501,27 @@ class Duck(UniversalCollection):
             inner_description = [str(k) for k in keys]
         return '<{} with {} keys: {}>'.format(self.__class__.__name__, len(keys), inner_description)
 
-    def description(self, max_expansion=4, skip_intro=False):
-        full_string = '' if skip_intro else (str(self) + '')
+    def description(self, max_expansion=4, _skip_intro=False):
+        """
+        :param max_expansion: Maximum amount to break into structures
+        :param _skip_intro: For internal use in recursion
+        :return: A string describing the structure of this Duck.
+        """
+        full_string = '' if _skip_intro else (str(self) + '')
         key_value_string = ''
         for i, (k, v) in enumerate(self._struct.items()):
             if i>max_expansion:
                 key_value_string += '\n(... Omitting {} of {} elements ...)'.format(len(self._struct)-max_expansion, len(self._struct))
             else:
-                # max_expansion = max_dict_expansion if isinstance(self._struct, UniversalOrderedStruct) else
                 if isinstance(v, Duck):
-                    value_string = v.description(max_expansion=max_expansion, skip_intro=True)
+                    value_string = v.description(max_expansion=max_expansion, _skip_intro=True)
                 elif isinstance(v, np.ndarray):
                     value_string = arraystr(v)
                 else:
                     value_string = str(v)
-                # key_value_string += '\n{}: {}'.format(str(k), indent_string(value_string, include_first=False, indent='  '))
                 key_value_string += '\n{}: {}'.format(str(k), value_string)
-
             full_string += key_value_string
 
             if i>max_expansion:
                 break
-
-        return ('' if skip_intro else (str(self) + '')) + indent_string(key_value_string, indent='| ', include_first=False)
+        return ('' if _skip_intro else (str(self) + '')) + indent_string(key_value_string, indent='| ', include_first=False)

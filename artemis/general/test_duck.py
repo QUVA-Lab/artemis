@@ -1,8 +1,9 @@
 from collections import OrderedDict
 
 import pytest
+from pytest import raises
 
-from artemis.general.duck import Duck, InvalidKeyError
+from artemis.general.duck import Duck, InvalidKeyError, InitializerTooShallowError
 from artemis.general.hashing import compute_fixed_hash
 import numpy as np
 
@@ -19,10 +20,10 @@ def _get_standard_test_duck():
     a['b', 1, 'subfield2'] = 7
     return a
 
+
 def test_so_demo():
 
     a = Duck()
-
     a['a', 'aa1'] = 1
     a['a', 'aa2'] = 2
     a['b', 0, 'subfield1'] = 4
@@ -30,9 +31,9 @@ def test_so_demo():
     a['b', 1, 'subfield1'] = 6
     a['b', 1, 'subfield2'] = 7
 
-    assert a['a', 'aa2'] == 2
-    assert list(a['b', 1, :].values()) == [6, 7]
+    assert list(a['b', 1, :]) == [6, 7]
     assert a['b', :, 'subfield1'] == [4, 6]
+    assert a['a', 'aa2'] == 2
     assert np.array_equal(a['b'].to_array(), [[4, 5], [6, 7]])
 
     with pytest.raises(KeyError):  # This should raise an error because key 'a' does not have subkeys 1, 'subfield1'
@@ -212,6 +213,45 @@ def test_next_elipsis_assignment():
     assert np.array_equal(a.arrayify_axis(axis=1, subkeys='a')['a', 'b'], [[1, 2], [3, 4]])
 
 
+def test_slice_assignment():
+
+    deep_struct = {'a': [1,{'c': 2, 'd': 3}], 'b': [1, 2]}
+
+    a = Duck()
+    a[:] = deep_struct
+    assert list(a.items(depth='full')) == [
+        (('a', ), [1,{'c': 2, 'd': 3}]),
+        (('b', ), [1, 2])
+        ]
+    a = Duck()
+    a[:, :] = deep_struct
+    assert list(a.items(depth='full')) == [
+        (('a', 0), 1),
+        (('a', 1), {'c': 2, 'd': 3}),
+        (('b', 0), 1),
+        (('b', 1), 2)
+        ]
+    a = Duck()
+    with raises(InitializerTooShallowError):
+        a[:, :, :] = deep_struct
+
+    a = Duck()
+    a[...] = deep_struct
+    assert list(a.items(depth='full')) == [
+        (('a', 0), 1),
+        (('a', 1, 'c'), 2),
+        (('a', 1, 'd'), 3),
+        (('b', 0), 1),
+        (('b', 1), 2)
+        ]
+
+    a = Duck()
+    with raises(InvalidKeyError):  # It would be nice to add this functionality, but maybe later.
+        a[..., next] = deep_struct
+        # This commant would mean "turn every leaf node in deep_struct into a list".  It has the nice property
+        # of automatically asserting that deep_struct maintains the same structure between iterations.
+
+
 def test_arrayify_empty_stuct():
 
     a = Duck.from_struct(OrderedDict([('a', [])]))
@@ -318,6 +358,57 @@ def test_description():
     assert a.description()==_extended_expected_description
 
 
+def test_duck_array_build():
+
+    a = Duck()
+    count = 0
+    for i in range(3):
+        for j in range(4):
+            a[i, j] = count
+            count+=1
+    desired_array = np.arange(12).reshape(3, 4)
+    assert a==desired_array
+    assert np.array_equal(a.to_array(), desired_array)
+
+
+def test_split_get_assign():
+
+    a = Duck()
+    c=0
+    for i in ['a', 'b']:
+        for j in [0, 1]:
+            for k in ['c', 'd']:
+                a[i, j, k] = c
+                c+=1
+    b = a[:, 1, :]
+    print a[:, 1, :].description()
+    assert list(b.items(depth='full')) == [(('a', 'c'), 2), (('a', 'd'), 3), (('b', 'c'), 6), (('b', 'd'), 7)]
+
+    with pytest.raises(InvalidKeyError):
+        a[:, 1, :] = b
+
+
+def test_assign_from_struct():
+
+    a = Duck()
+    a[:] = [2, 3, 4, 5]
+    assert list(a.items()) == [(0, 2), (1, 3), (2, 4), (3, 5)]
+    a[:] = dict(a=1, b=2, c=3)
+    assert list(a.items()) == [('a', 1), ('b', 2), ('c', 3)]
+
+
+def test_arrayify_axis_demo():
+
+    a = Duck()
+    a[0, 'x'] = 1
+    a[0, 'y'] = 2
+    a[1, 'x'] = 3
+    a[1, 'y'] = 4
+    b = a.arrayify_axis(axis=0)
+    assert np.array_equal(b['x'], [1, 3])
+    assert np.array_equal(b['y'], [2, 4])
+
+
 if __name__ == '__main__':
     test_so_demo()
     test_dict_assignment()
@@ -327,9 +418,14 @@ if __name__ == '__main__':
     test_open_next()
     test_to_struct()
     test_next_elipsis_assignment()
+    test_slice_assignment()
     test_arrayify_empty_stuct()
     test_slice_on_start()
     test_assign_tuple_keys()
     test_broadcast_bug()
     test_key_values()
     test_description()
+    test_duck_array_build()
+    test_split_get_assign()
+    test_assign_from_struct()
+    test_arrayify_axis_demo()
