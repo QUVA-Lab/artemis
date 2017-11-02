@@ -90,7 +90,7 @@ class ImagePlot(HistoryFreePlot):
                 assert data.shape[1] in (1, 3)
                 data = np.rollaxis(data, 1, 4)
             else:
-                print 'Image should be 3D (3, size_y, size_x) or 4D (n_images, 3, size_y, size_x) for channel-first-mode.'
+                print('Image should be 3D (3, size_y, size_x) or 4D (n_images, 3, size_y, size_x) for channel-first-mode.')
 
         if len(data)==0:
             plottable_data = np.zeros((16, 16, 3), dtype = np.uint8)

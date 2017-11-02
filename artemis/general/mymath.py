@@ -7,7 +7,7 @@ import numpy as np
 try:
     import weave
 except ImportError:
-    logging.warn("Could not import scipy.weave.  That's ok, ignore this unless you need it.")
+    logging.warn("Could not import weave.  That's ok, ignore this unless you need it.")
 from six.moves import xrange
 
 __author__ = 'peter'

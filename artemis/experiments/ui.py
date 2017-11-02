@@ -327,7 +327,7 @@ experiment records.  You can specify records in the following ways:
                         display_again = True
 
                 except Exception as err:
-                    print "CAUGHT: {}".format(err)
+                    print ("CAUGHT: {}".format(err))
                     if self.catch_errors or (isinstance(err, RecordSelectionError) and self.catch_selection_errors):
                         res = input('Enter "e" to view the stacktrace, or anything else to continue.')
                         if res.strip().lower() == 'e':

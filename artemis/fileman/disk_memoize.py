@@ -225,7 +225,7 @@ if __name__ == '__main__':
 
     all_memos = sorted(all_memos, key = os.path.getmtime)
 
-    print '\n'.join('{}: {}'.format(i, os.path.split(p)[1]) for i, p in enumerate(all_memos))
+    print('\n'.join('{}: {}'.format(i, os.path.split(p)[1]) for i, p in enumerate(all_memos)))
 
     cmd = input('Enter memos to delete. e.g. (1-3, all, 5)>>').strip().lower()
 
@@ -240,4 +240,4 @@ if __name__ == '__main__':
     for i in ixs:
         os.remove(all_memos[i])
 
-    print 'Deleted {} memos'.format(len(ixs))
+    print('Deleted {} memos'.format(len(ixs)))

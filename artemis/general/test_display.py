@@ -145,7 +145,7 @@ def test_capture_prefix():
             print('b')
         print('c')
 
-    print 'Done'
+    print ('Done')
     assert cap2.read()=='b\n'
     assert cap1.read()=='a\nabc:b\nc\n'
 

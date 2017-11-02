@@ -88,7 +88,7 @@ def test_dictarraylist():
 
     for i, same_struct in enumerate([a, b, c, d, e, f, g]):
 
-        print 'Test {}'.format(i)
+        print ('Test {}'.format(i))
         assert a.to_struct()==same_struct.to_struct()
         assert a==same_struct
         assert compute_fixed_hash(a.to_struct()) == compute_fixed_hash(b.to_struct())
@@ -381,7 +381,7 @@ def test_split_get_assign():
                 a[i, j, k] = c
                 c+=1
     b = a[:, 1, :]
-    print a[:, 1, :].description()
+    print (a[:, 1, :].description())
     assert list(b.items(depth='full')) == [(('a', 'c'), 2), (('a', 'd'), 3), (('b', 'c'), 6), (('b', 'd'), 7)]
 
     with pytest.raises(InvalidKeyError):
