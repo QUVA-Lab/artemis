@@ -86,10 +86,9 @@ class RecentRunningAverage(object):
 
     @classmethod
     def batch(cls, x):
-        return recent_moving_average(x, axis=0)
-
-        # ra = cls()
-        # return np.array([ra(x_) for x_ in x])
+        # return recent_moving_average(x, axis=0)  # Works only for python 2.X, with weave
+        ra = cls()
+        return np.array([ra(x_) for x_ in x])
 
 
 class RunningAverageWithBurnin(object):

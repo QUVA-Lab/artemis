@@ -141,8 +141,8 @@ class DirectoryCrawlerUI(object):
         redraw = True
         while True:
             if redraw:
-                print surround_with_header('Contents of {}'.format(self.dc.directory), width=100)
-                print self._list_directory_contents()
+                print(surround_with_header('Contents of {}'.format(self.dc.directory), width=100))
+                print(self._list_directory_contents())
             redraw = True
             command = input('Enter Command, or h for help >>')
             cmd_and_args = command.split(' ')
@@ -158,7 +158,7 @@ class DirectoryCrawlerUI(object):
                 commands[cmd](*args)
 
     def help(self):
-        print self.__doc__
+        print(self.__doc__)
         input('Press Enter to continue >>')
 
     def sortby(self, arg):

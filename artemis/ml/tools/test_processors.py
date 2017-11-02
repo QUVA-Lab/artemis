@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from six.moves import xrange
 
 from artemis.ml.tools.processors import RunningAverage, RecentRunningAverage
@@ -20,6 +21,7 @@ def test_running_average():
     assert all(np.allclose(out[i], np.mean(inp[:i+1], axis = 0)) for i in xrange(len(inp)))
 
 
+@pytest.mark.skipif(True, reason='Depends on weave, which is deprecated for python 3')
 def test_recent_running_average():
 
     inp = np.arange(5)
