@@ -1,4 +1,4 @@
-from artemis.general.dictarraylist import Duck
+from artemis.general.duck import Duck
 from artemis.general.progress_indicator import ProgressIndicator
 from artemis.general.checkpoint_counter import Checkpoints
 import numpy as np

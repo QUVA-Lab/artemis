@@ -6,6 +6,18 @@ from artemis.general.duck import Duck, InvalidKeyError
 from artemis.general.hashing import compute_fixed_hash
 import numpy as np
 
+from artemis.general.should_be_builtins import izip_equal
+
+
+def _get_standard_test_duck():
+    a = Duck()
+    a['a', 'aa1'] = 1
+    a['a', 'aa2'] = 2
+    a['b', 0, 'subfield1'] = 4
+    a['b', 0, 'subfield2'] = 5
+    a['b', 1, 'subfield1'] = 6
+    a['b', 1, 'subfield2'] = 7
+    return a
 
 def test_so_demo():
 
@@ -25,6 +37,17 @@ def test_so_demo():
 
     with pytest.raises(KeyError):  # This should raise an error because key 'a' does not have subkeys 1, 'subfield1'
         x = a[:, 1, 'subfield1']
+
+
+def test_dict_assignment():
+
+    a = Duck()  # When assigning with a dict we first sort keys.  Here we just verify that keys remain sorted
+    a[next, :] = {letter: number for letter, number in izip_equal('abcdefghijklmnopqrstuvwxyz', range(1, 27))}
+    a[next, :] = {letter: number for letter, number in izip_equal('abcdefghijklmnopqrstuvwxyz', range(27, 27+26))}
+    assert list(a[0].keys()) == [char for char in 'abcdefghijklmnopqrstuvwxyz']
+    assert list(a[0].values()) == list(range(1, 27))
+    assert list(a[1].keys()) == [char for char in 'abcdefghijklmnopqrstuvwxyz']
+    assert list(a[1].values()) == list(range(27, 27+26))
 
 
 def test_dictarraylist():
@@ -132,13 +155,7 @@ def test_open_next():
 
 def test_to_struct():
 
-    a = Duck()
-    a['a', 'aa1'] = 1
-    a['a', 'aa2'] = 2
-    a['b', 0, 'subfield1'] = 4
-    a['b', 0, 'subfield2'] = 5
-    a['b', 1, 'subfield1'] = 6
-    a['b', 1, 'subfield2'] = 7
+    a = _get_standard_test_duck()
 
     b = a.to_struct()
     assert b==OrderedDict([
@@ -232,14 +249,7 @@ def test_assign_tuple_keys():
 
 def test_broadcast_bug():
 
-    a = Duck()
-
-    a['a', 'aa1'] = 1
-    a['a', 'aa2'] = 2
-    a['b', 0, 'subfield1'] = 4
-    a['b', 0, 'subfield2'] = 5
-    a['b', 1, 'subfield1'] = 6
-    a['b', 1, 'subfield2'] = 7
+    a = _get_standard_test_duck()
 
     assert isinstance(a['b', :], Duck)
     assert np.array_equal(a['b'].to_array(), [[4, 5], [6, 7]])
@@ -249,13 +259,7 @@ def test_broadcast_bug():
 
 def test_key_values():
 
-    a = Duck()
-    a['a', 'aa1'] = 1
-    a['a', 'aa2'] = 2
-    a['b', 0, 'subfield1'] = 4
-    a['b', 0, 'subfield2'] = 5
-    a['b', 1, 'subfield1'] = 6
-    a['b', 1, 'subfield2'] = 7
+    a = _get_standard_test_duck()
 
     assert list(a.keys()) == ['a', 'b']
     assert list(a.values()) == [a['a'], a['b']]
@@ -268,8 +272,55 @@ def test_key_values():
     assert list(a.items(depth='full')) == list(zip(a.keys(depth='full'), a.values(depth='full')))
 
 
+_expected_description = """<Duck with 2 keys: ['a', 'b']>
+| a: 
+| | aa1: 1
+| | aa2: 2
+| b: 
+| | 0: 
+| | | subfield1: 4
+| | | subfield2: 5
+| | 1: 
+| | | subfield1: 6
+| | | subfield2: 7"""
+
+
+_extended_expected_description = """<Duck with 2 keys: ['a', 'b']>
+| a: 
+| | aa1: 1
+| | aa2: 2
+| b: 
+| | 0: 
+| | | subfield1: 4
+| | | subfield2: 5
+| | 1: 
+| | | subfield1: 6
+| | | subfield2: 7
+| | 2: 
+| | | subfield1: 5
+| | 3: 
+| | | subfield1: 5
+| | 4: 
+| | | subfield1: 5
+| | (... Omitting 2 of 6 elements ...)"""
+
+
+
+def test_description():
+    a = _get_standard_test_duck()
+    assert a.description()==_expected_description
+
+    a['b', 2, 'subfield1']=5
+    a['b', 3, 'subfield1']=5
+    a['b', 4, 'subfield1']=5
+    a['b', 5, 'subfield1']=5
+
+    assert a.description()==_extended_expected_description
+
+
 if __name__ == '__main__':
     test_so_demo()
+    test_dict_assignment()
     test_dictarraylist()
     test_simple_growing()
     test_open_key()
@@ -281,3 +332,4 @@ if __name__ == '__main__':
     test_assign_tuple_keys()
     test_broadcast_bug()
     test_key_values()
+    test_description()

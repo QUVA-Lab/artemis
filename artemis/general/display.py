@@ -212,11 +212,13 @@ class CaptureStdOut(object):
         return getattr(self.old_stdout, item)
 
 
-def indent_string(str, indent = '  ', include_first = True):
+def indent_string(str, indent = '  ', include_first = True, include_last = False):
+    base = str.replace('\n', '\n'+indent)
     if include_first:
-        return indent + str.replace('\n', '\n'+indent)
-    else:
-        return str.replace('\n', '\n'+indent)
+        base = indent + base
+    if not include_last and base.endswith('\n'+indent):
+        base = base[:-len(indent)]
+    return base
 
 
 class IndentPrint(object):
@@ -356,6 +358,7 @@ def assert_things_are_printed(things, min_len=None):
 
 _seconds_in_day = 60*60*24
 
+
 def format_duration(seconds):
     '''
     Formats a float interpreted as seconds as a sensible time duration
@@ -364,13 +367,6 @@ def format_duration(seconds):
     '''
     if seconds < 60:
         return si_format(seconds, precision=1, format_str='{value}{prefix}s')
-
-        # return '{:.5g}ms'.format(seconds*10)
-        # return '{:.3g}.'
-    # elif seconds < 60:
-    #     return '{:.5g}s'.format(seconds)
-    # elif seconds < 60*60:
-    #     return '00:{:02d}:{:02d}'.format(int(seconds//60),int(seconds%60))
     elif seconds<_seconds_in_day:
         res = str(datetime.timedelta(seconds=seconds))
         if len(res.split(".")) > 1:

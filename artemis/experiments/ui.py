@@ -7,6 +7,7 @@ import shutil
 from collections import OrderedDict
 from functools import partial
 from multiprocessing import Process
+
 from six.moves import input
 from tabulate import tabulate
 
@@ -23,14 +24,12 @@ from artemis.experiments.experiment_record_view import (get_record_full_string, 
                                                         print_experiment_record_argtable, get_oneline_result_string,
                                                         compare_experiment_records)
 from artemis.experiments.experiment_record_view import show_record, show_multiple_records
-from artemis.experiments.experiments import load_experiment, get_global_experiment_library, \
-    get_nonroot_global_experiment_library
+from artemis.experiments.experiments import load_experiment, get_nonroot_global_experiment_library
 from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header, format_duration
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal, insert_at, izip_equal, separate_common_items, bad_value
-
 
 try:
     import readline  # Makes input() behave like interactive shell.
@@ -672,8 +671,6 @@ def _show_notes(rec):
             return ';'.join(rec.info.get_field(ExpInfoFields.NOTES)).replace('\n', ';;')
     else:
         return ''
-
-
 
 
 class _DisplaySettings(object):

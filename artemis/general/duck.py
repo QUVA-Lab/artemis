@@ -2,8 +2,11 @@ from collections import OrderedDict
 import itertools
 import numpy as np
 from abc import ABCMeta, abstractmethod
+
+from artemis.general.display import IndentPrint, arraystr, indent_string
 from artemis.general.should_be_builtins import izip_equal
 import sys
+
 
 class UniversalCollection(object):
 
@@ -63,7 +66,7 @@ class UniversalCollection(object):
     def from_struct(cls, struct):
         if isinstance(struct, (list, tuple)):
             return DynamicSequence(struct)
-        elif isinstance(struct, OrderedDict):
+        elif isinstance(struct, dict):
             return UniversalOrderedStruct(struct)
         elif struct is None or isinstance(struct, EmptyCollection):
             return EmptyCollection()
@@ -173,6 +176,10 @@ class DynamicSequence(list, UniversalCollection):
 class UniversalOrderedStruct(UniversalCollection):
 
     def __init__(self, *initializer):
+        if len(initializer)==1 and type(initializer[0]) is dict:
+            d = initializer[0]
+            initializer = [OrderedDict((k, d[k]) for k in sorted(d.keys()))]
+
         self._heart = OrderedDict(*initializer)
 
     def __contains__(self, item):
@@ -260,7 +267,7 @@ class Duck(UniversalCollection):
             elif isinstance(selecting_key[-1], slice) or selecting_key[-1] is Ellipsis:
                 open_keys = [s==slice(None) or s is Ellipsis for s in selecting_key]
                 first_open_key_index = open_keys.index(True, )
-                assert all(open_keys[first_open_key_index:]), "You can only assign slices and elipses at the end!.  Got {}".fiormat(selecting_key)
+                assert all(open_keys[first_open_key_index:]), "You can only assign slices and elipses at the end!.  Got {}".format(selecting_key)
                 return self.__setitem__(selecting_key[:first_open_key_index], Duck(value, recurse=True if selecting_key[-1] is Ellipsis else len(selecting_key) - first_open_key_index))
             else:
                 first_key = selecting_key[0]
@@ -433,3 +440,35 @@ class Duck(UniversalCollection):
     def items(self, depth=None):
         for k in self.keys(depth=depth):
             yield k, self[k]
+
+    def __str__(self, max_key_len=4):
+        keys = list(self.keys())
+        if len(keys)>max_key_len:
+            inner_description = [str(k) for k in keys[:max_key_len-1]]+['...']
+        else:
+            inner_description = [str(k) for k in keys]
+        return '<{} with {} keys: {}>'.format(self.__class__.__name__, len(keys), inner_description)
+
+    def description(self, max_expansion=4, skip_intro=False):
+        full_string = '' if skip_intro else (str(self) + '')
+        key_value_string = ''
+        for i, (k, v) in enumerate(self._struct.items()):
+            if i>max_expansion:
+                key_value_string += '\n(... Omitting {} of {} elements ...)'.format(len(self._struct)-max_expansion, len(self._struct))
+            else:
+                # max_expansion = max_dict_expansion if isinstance(self._struct, UniversalOrderedStruct) else
+                if isinstance(v, Duck):
+                    value_string = v.description(max_expansion=max_expansion, skip_intro=True)
+                elif isinstance(v, np.ndarray):
+                    value_string = arraystr(v)
+                else:
+                    value_string = str(v)
+                # key_value_string += '\n{}: {}'.format(str(k), indent_string(value_string, include_first=False, indent='  '))
+                key_value_string += '\n{}: {}'.format(str(k), value_string)
+
+            full_string += key_value_string
+
+            if i>max_expansion:
+                break
+
+        return ('' if skip_intro else (str(self) + '')) + indent_string(key_value_string, indent='| ', include_first=False)

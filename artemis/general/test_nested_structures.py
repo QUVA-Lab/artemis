@@ -6,7 +6,7 @@ from six.moves import xrange
 
 from artemis.general.nested_structures import (flatten_struct, get_meta_object, NestedType,
                                                seqstruct_to_structseq, structseq_to_seqstruct, nested_map,
-                                               get_leaf_values, SequentialStructBuilder)
+                                               get_leaf_values)
 
 
 def test_flatten_struct():
@@ -123,59 +123,6 @@ def test_none_bug():
     assert dict(fa) == {'a': 1, 'b': None, 'c[0]': 1, 'c[1]': 2, 'c[2]': None}
 
 
-def test_sequential_struct_builder():
-
-    a = SequentialStructBuilder()
-    for t in range(10):
-        a['thing1'].next = {'a': t, 'b': t+10}
-        a['thing2'].next = t+20
-    b = a.to_structseq(as_arrays=True)
-    assert np.array_equal(b['thing1']['a'], np.arange(10))
-    assert np.array_equal(b['thing1']['b'], np.arange(10, 20))
-    assert np.array_equal(b['thing2'], np.arange(20, 30))
-    with pytest.raises(TypeError):
-        a.next = 4
-
-    # Another way to do the same thing.
-    a = SequentialStructBuilder()
-    for t in range(10):
-        a.open_next()
-        a.last['thing1']['a']=t
-        a.last['thing1']['b']=t+10
-        a.last['thing2']=t+20
-    b = a.to_structseq(as_arrays=True)
-    assert np.array_equal(b['thing1']['a'], np.arange(10))
-    assert np.array_equal(b['thing1']['b'], np.arange(10, 20))
-    assert np.array_equal(b['thing2'], np.arange(20, 30))
-
-    with pytest.raises(TypeError):
-        a['aaaaa']=5
-
-
-def test_sequential_struct_builder_ndarray():
-
-    n_rows=5
-    n_cols = 7
-
-    m = SequentialStructBuilder()
-    for i in range(n_rows):
-        m['ixs'].open_next()
-        for j in range(n_cols):
-            m['ixs'].last.next = i*n_cols + j
-        m['rows'].next = i
-
-    data = m.to_struct_arrays()
-
-    assert isinstance(data['ixs'], np.ndarray)
-    assert data['ixs'].shape == (n_rows, n_cols)
-    assert np.array_equal(data['ixs'], np.arange(n_rows*n_cols).reshape(n_rows, n_cols))
-
-    assert data['rows'].shape==(n_rows, )
-    assert np.array_equal(data['rows'], np.arange(n_rows))
-
-
-
-
 if __name__ == '__main__':
     test_flatten_struct()
     test_get_meta_object()
@@ -185,5 +132,3 @@ if __name__ == '__main__':
     test_get_leaf_values()
     test_nested_map_with_container_func()
     test_none_bug()
-    test_sequential_struct_builder()
-    test_sequential_struct_builder_ndarray()
