@@ -6,7 +6,7 @@ from six import string_types
 
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
-from artemis.ml.costs import get_evaluation_function
+from artemis.ml.tools.costs import get_evaluation_function
 from artemis.ml.datasets.datasets import DataSet
 from artemis.ml.tools.iteration import zip_minibatch_iterate_info, IterationInfo, minibatch_process
 

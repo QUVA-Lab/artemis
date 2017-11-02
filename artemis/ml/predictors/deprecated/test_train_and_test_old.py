@@ -1,5 +1,5 @@
 from artemis.general.mymath import sigm
-from artemis.ml.costs import mean_squared_error, percent_argmax_correct
+from artemis.ml.tools.costs import mean_squared_error, percent_argmax_correct
 from artemis.ml.datasets.synthetic_clusters import get_synthetic_clusters_dataset
 from artemis.ml.datasets.synthetic_linear import get_synthethic_linear_dataset
 from artemis.ml.predictors.deprecated.train_and_test_old import assess_prediction_functions, \

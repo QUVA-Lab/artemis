@@ -457,9 +457,9 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, raise_exce
 def _parallel_run_target(experiment_id_and_prefix, raise_exceptions, **kwargs):
     experiment_id, prefix = experiment_id_and_prefix
     if raise_exceptions:
-        run_experiment_by_name(experiment_id, prefix=prefix, **kwargs)
+        return run_experiment_by_name(experiment_id, prefix=prefix, **kwargs)
     else:
-        run_experiment_ignoring_errors(experiment_id, prefix=prefix, **kwargs)
+        return run_experiment_ignoring_errors(experiment_id, prefix=prefix, **kwargs)
 
 
 def run_multiple_experiments(experiments, prefixes = None, parallel = False, cpu_count=None, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
@@ -490,7 +490,6 @@ def run_multiple_experiments(experiments, prefixes = None, parallel = False, cpu
 
         # func = run_experiment_by_name if raise_exceptions else run_experiment_ignoring_errors
         p = multiprocessing.Pool(processes=cpu_count)
-
 
         return p.map(target_func, zip(experiment_identifiers, prefixes))
     else:

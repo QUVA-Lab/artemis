@@ -2,14 +2,14 @@ from collections import OrderedDict
 
 import pytest
 
-from artemis.general.dictarraylist import DictArrayList, InvalidKeyError
+from artemis.general.duck import Duck, InvalidKeyError
 from artemis.general.hashing import compute_fixed_hash
 import numpy as np
 
 
 def test_so_demo():
 
-    a = DictArrayList()
+    a = Duck()
 
     a['a', 'aa1'] = 1
     a['a', 'aa2'] = 2
@@ -19,7 +19,7 @@ def test_so_demo():
     a['b', 1, 'subfield2'] = 7
 
     assert a['a', 'aa2'] == 2
-    assert a['b', 1, :].values() == [6, 7]
+    assert list(a['b', 1, :].values()) == [6, 7]
     assert a['b', :, 'subfield1'] == [4, 6]
     assert np.array_equal(a['b'].to_array(), [[4, 5], [6, 7]])
 
@@ -31,7 +31,7 @@ def test_dictarraylist():
 
     # We build the same thing in four different ways
 
-    a = DictArrayList()
+    a = Duck()
     a['a', 'aa1'] = 1
     a['a', 'aa2'] = 2
     a['b', 0, 'subfield1'] = 4
@@ -41,24 +41,28 @@ def test_dictarraylist():
     a['b', 2, 'subfield2'] = 9  # Note: Out of order assignment here!
     a['b', 2, 'subfield1'] = 8
 
-    b = DictArrayList.from_struct(a.to_struct())
+    b = Duck.from_struct(a.to_struct())
     assert a.to_struct() == b.to_struct()
 
-    c = DictArrayList()
+    c = Duck()
     c['a', :] = OrderedDict([('aa1', 1), ('aa2', 2)])
     c['b', next, :] = OrderedDict([('subfield1', 4), ('subfield2', 5)])
     c['b', next, :] = OrderedDict([('subfield1', 6), ('subfield2', 7)])
     c['b', next, :] = OrderedDict([('subfield2', 9), ('subfield1', 8)])
 
-    d = DictArrayList()
+    d = Duck()
     d['a', :] = OrderedDict([('aa1', 1), ('aa2', 2)])
     d['b', :, :] = [OrderedDict([('subfield1', 4), ('subfield2', 5)]), OrderedDict([('subfield1', 6), ('subfield2', 7)]), OrderedDict([('subfield2', 9), ('subfield1', 8)])]
 
-    e = DictArrayList()
+    e = Duck()
     e['a', ...] = OrderedDict([('aa1', 1), ('aa2', 2)])
     e['b', ...] = [OrderedDict([('subfield1', 4), ('subfield2', 5)]), OrderedDict([('subfield1', 6), ('subfield2', 7)]), OrderedDict([('subfield2', 9), ('subfield1', 8)])]
 
-    for i, same_struct in enumerate([a, b, c, d, e]):
+    f = a[:]
+
+    g = a[:, :]
+
+    for i, same_struct in enumerate([a, b, c, d, e, f, g]):
 
         print 'Test {}'.format(i)
         assert a.to_struct()==same_struct.to_struct()
@@ -66,8 +70,8 @@ def test_dictarraylist():
         assert compute_fixed_hash(a.to_struct()) == compute_fixed_hash(b.to_struct())
 
         assert same_struct['a', 'aa2'] == 2
-        assert same_struct['b', 1, :].values() == [6, 7]
-        assert same_struct['b', :, 'subfield1'].values() == [4, 6, 8]
+        assert list(same_struct['b', 1, :].values()) == [6, 7]
+        assert list(same_struct['b', :, 'subfield1'].values()) == [4, 6, 8]
         assert same_struct['b', :, :].deepvalues() == [[4, 5], [6, 7], [9, 8]]  # Note that the order-switching gets through.
         assert same_struct['b', :, ['subfield1', 'subfield2']].deepvalues() == [[4, 5], [6, 7], [8, 9]]
         assert same_struct['b', :, :].to_struct() == [OrderedDict([('subfield1', 4), ('subfield2', 5)]), OrderedDict([('subfield1', 6), ('subfield2', 7)]), OrderedDict([('subfield2', 9), ('subfield1', 8)])]
@@ -95,7 +99,7 @@ def test_dictarraylist():
 
 
 def test_simple_growing():
-    a = DictArrayList()
+    a = Duck()
     for i in range(10):
         a[next] = i*2
     assert np.array_equal(a.to_array(), np.arange(0, 20, 2))
@@ -103,7 +107,7 @@ def test_simple_growing():
 
 def test_open_key():
 
-    a = DictArrayList()
+    a = Duck()
     a['a', :] = [3, 4]
     with pytest.raises(KeyError):
         a['b']
@@ -116,8 +120,8 @@ def test_open_key():
 
 def test_open_next():
 
-    a = DictArrayList()
-    a['a'] = DictArrayList()
+    a = Duck()
+    a['a'] = Duck()
     aa = a['a'].open(next)
     aa['c'] = 4
     aa['4'] = 5
@@ -128,7 +132,7 @@ def test_open_next():
 
 def test_to_struct():
 
-    a = DictArrayList()
+    a = Duck()
     a['a', 'aa1'] = 1
     a['a', 'aa2'] = 2
     a['b', 0, 'subfield1'] = 4
@@ -147,7 +151,7 @@ def test_to_struct():
 
 def test_next_elipsis_assignment():
 
-    a = DictArrayList()
+    a = Duck()
     a['a', next, ...] = OrderedDict([('b', [1, 2])])
     a['a', next, ...] = OrderedDict([('b', [3, 4])])
     # Should lead to form:
@@ -170,7 +174,7 @@ def test_next_elipsis_assignment():
     #     1: [2, 4]
     assert np.array_equal(a.arrayify_axis(axis=1, subkeys='a')['a', 'b'], [[1, 3], [2, 4]])
 
-    a = DictArrayList()
+    a = Duck()
     a['a', next, ...] = OrderedDict([('b', np.array([1, 2]))])
     a['a', next, ...] = OrderedDict([('b', np.array([3, 4]))])
 
@@ -193,12 +197,12 @@ def test_next_elipsis_assignment():
 
 def test_arrayify_empty_stuct():
 
-    a = DictArrayList.from_struct(OrderedDict([('a', [])]))
+    a = Duck.from_struct(OrderedDict([('a', [])]))
     b = a.arrayify_axis(axis=1, subkeys='a')
     assert isinstance(b['a'], np.ndarray)
     assert np.array_equal(b['a'], [])
 
-    a = DictArrayList.from_struct(OrderedDict([('a', [1, 2])]))
+    a = Duck.from_struct(OrderedDict([('a', [1, 2])]))
     b = a.arrayify_axis(axis=1, subkeys='a')
     assert isinstance(b['a'], np.ndarray)
     assert np.array_equal(b['a'], [1, 2])
@@ -206,16 +210,16 @@ def test_arrayify_empty_stuct():
 
 def test_slice_on_start():
 
-    a = DictArrayList()
-    a['testing'] = DictArrayList()
+    a = Duck()
+    a['testing'] = Duck()
     b = a.arrayify_axis(axis=1, subkeys='testing')
     assert np.array_equal(b['testing'], [])
 
 
 def test_assign_tuple_keys():
 
-    a = DictArrayList()
-    a['training'] = DictArrayList()
+    a = Duck()
+    a['training'] = Duck()
     a['testing', next]=4
     b = a.arrayify_axis(axis=1, subkeys='testing')
     b = b.arrayify_axis(axis=1, subkeys='training', inplace=True).to_struct()
@@ -228,7 +232,7 @@ def test_assign_tuple_keys():
 
 def test_broadcast_bug():
 
-    a = DictArrayList()
+    a = Duck()
 
     a['a', 'aa1'] = 1
     a['a', 'aa2'] = 2
@@ -237,10 +241,31 @@ def test_broadcast_bug():
     a['b', 1, 'subfield1'] = 6
     a['b', 1, 'subfield2'] = 7
 
-    assert isinstance(a['b', :], DictArrayList)
+    assert isinstance(a['b', :], Duck)
     assert np.array_equal(a['b'].to_array(), [[4, 5], [6, 7]])
     assert a['b']==a['b', :, :]
     assert np.array_equal(a['b', :, :].to_array(), [[4, 5], [6, 7]])  # This failed, but now is fixed.
+
+
+def test_key_values():
+
+    a = Duck()
+    a['a', 'aa1'] = 1
+    a['a', 'aa2'] = 2
+    a['b', 0, 'subfield1'] = 4
+    a['b', 0, 'subfield2'] = 5
+    a['b', 1, 'subfield1'] = 6
+    a['b', 1, 'subfield2'] = 7
+
+    assert list(a.keys()) == ['a', 'b']
+    assert list(a.values()) == [a['a'], a['b']]
+    assert list(a.keys(depth=1)) == [('a', ), ('b', )]
+    assert list(a.values(depth=1)) == [a['a'], a['b']]
+    assert list(a.keys(depth=2)) == [('a', 'aa1'), ('a', 'aa2'), ('b', 0), ('b', 1)]
+    assert list(a.values(depth=2)) == [1, 2, a['b', 0], a['b', 1]]
+    assert list(a.keys(depth='full')) == [('a', 'aa1'), ('a', 'aa2'), ('b', 0, 'subfield1'), ('b', 0, 'subfield2'), ('b', 1, 'subfield1'), ('b', 1, 'subfield2')]
+    assert list(a.values(depth='full')) == [1, 2, 4, 5, 6, 7]
+    assert list(a.items(depth='full')) == list(zip(a.keys(depth='full'), a.values(depth='full')))
 
 
 if __name__ == '__main__':
@@ -255,3 +280,4 @@ if __name__ == '__main__':
     test_slice_on_start()
     test_assign_tuple_keys()
     test_broadcast_bug()
+    test_key_values()

@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 from abc import ABCMeta, abstractmethod
 from artemis.general.should_be_builtins import izip_equal
-
+import sys
 
 class UniversalCollection(object):
 
@@ -219,9 +219,10 @@ class UniversalOrderedStruct(UniversalCollection):
         return cls(struct)
 
 
-class DictArrayList(UniversalCollection):
+class Duck(UniversalCollection):
     """
-    A dynamic data structure that makes it easy to store and query entries.
+    A dynamic data structure that makes it easy to store and query entries.  It's a cross between a dict, an array, and
+    a list.
 
     It behaves similarly to a numpy array, but does not require that data be regularly sized.
 
@@ -238,13 +239,11 @@ class DictArrayList(UniversalCollection):
 
     """
     def __init__(self, initial_struct = None, recurse = False):
-
-
         if recurse:
             self._struct = UniversalCollection.from_struct(initial_struct).map(
-                (lambda x: (DictArrayList(x, recurse=recurse if recurse is True else recurse - 1)
+                (lambda x: (Duck(x, recurse=recurse if recurse is True else recurse - 1)
                     if isinstance(x, (list, tuple, OrderedDict, UniversalCollection, type(None))) else x)))
-        elif isinstance(initial_struct, DictArrayList):
+        elif isinstance(initial_struct, Duck):
             raise Exception('fdsf')
             # self._struct = DictArrayList.from_struct()
         elif isinstance(initial_struct, UniversalCollection):
@@ -256,13 +255,13 @@ class DictArrayList(UniversalCollection):
 
         if isinstance(selecting_key, tuple):
             if len(selecting_key)==0:
-                self._struct = value._struct if isinstance(value, DictArrayList) else value
+                self._struct = value._struct if isinstance(value, Duck) else value
                 return
             elif isinstance(selecting_key[-1], slice) or selecting_key[-1] is Ellipsis:
                 open_keys = [s==slice(None) or s is Ellipsis for s in selecting_key]
                 first_open_key_index = open_keys.index(True, )
                 assert all(open_keys[first_open_key_index:]), "You can only assign slices and elipses at the end!.  Got {}".fiormat(selecting_key)
-                return self.__setitem__(selecting_key[:first_open_key_index], DictArrayList(value, recurse=True if selecting_key[-1] is Ellipsis else len(selecting_key) - first_open_key_index))
+                return self.__setitem__(selecting_key[:first_open_key_index], Duck(value, recurse=True if selecting_key[-1] is Ellipsis else len(selecting_key) - first_open_key_index))
             else:
                 first_key = selecting_key[0]
                 subkeys = selecting_key[1:]
@@ -278,24 +277,29 @@ class DictArrayList(UniversalCollection):
             else:  # This is just getting a container for an assignment
                 assert not isinstance(first_key, slice), 'Sliced assignment currently not supported'
                 if not self._struct.has_key(first_key):
-                    self._struct[first_key] = DictArrayList()
+                    self._struct[first_key] = Duck()
                 self._struct[first_key][subkeys] = value
         except CollectionIsEmptyException:
             self._struct = UniversalCollection.from_first_key(first_key)
             self.__setitem__(selecting_key, value)
 
     def __getitem__(self, selectors):
-
+        """
+        :param selectors: A tuple of indices (as you would use to access an element in an array)
+        :return: Either
+            a) A New Duck (if the selectors specifiy a range of elements in the current Duck
+            b) An element at a leaf node (if the selectors specify a partucular item)
+        """
         if selectors == ():
             return self
         first_selector, selectors = (selectors[0], selectors) if isinstance(selectors, tuple) else (selectors, (selectors, ))
         try:
             new_substruct = self._struct[first_selector]
-            if isinstance(new_substruct, UniversalCollection) and not isinstance(new_substruct, DictArrayList):  # This will happen if the selector is a slice or something...
-                new_substruct = DictArrayList(new_substruct, recurse=False)
-            if len(selectors)==1:  # Case 1: Simple, just return substruct
+            if isinstance(new_substruct, UniversalCollection) and not isinstance(new_substruct, Duck):  # This will happen if the selector is a slice or something...
+                new_substruct = Duck(new_substruct, recurse=False)
+            if len(selectors)==1:  # Case 1: Simple... this is the last selector, so we can just return it.
                 return new_substruct
-            else:
+            else:  # Case 2:
                 # assert isinstance(new_substruct, ArrayStruct), 'You are selecting with {}, which indicates a depth of {}, but the structure has no more depth.'.format(list(':' if s==slice(None) else s for s in selectors), len(selectors))
                 if isinstance(first_selector, (list, np.ndarray, slice)):  # Sliced selection, with more sub-indices
                     return new_substruct.map(lambda x: x.__getitem__(selectors[1:]))
@@ -309,10 +313,61 @@ class DictArrayList(UniversalCollection):
                 return self.__getitem__(selectors)
 
     def deepvalues(self):
-        return [(v.deepvalues() if isinstance(v, DictArrayList) else v.values() if isinstance(v, UniversalCollection) else v) for v in self._struct]
+        return [(v.deepvalues() if isinstance(v, Duck) else v.values() if isinstance(v, UniversalCollection) else v) for v in self._struct]
 
     def map(self, f):
-        return DictArrayList(self._struct.map(f))
+        return Duck(self._struct.map(f))
+
+    def _first_element_keys(self):
+
+        these_keys = list(self.keys())
+
+        try:
+            first_el = next(iter(self._struct))  # Try to get the keys of the first element
+        except StopIteration:
+            return (these_keys, )  # If there is no first element, there're no keys to get
+            # raise Exception("Can't get keys from struct {}".format(self._struct))
+        if isinstance(first_el, Duck):
+            return (these_keys, )+first_el._first_element_keys()
+        else:
+            return (these_keys, )
+
+    def to_array_and_keys(self):
+        keys = self._first_element_keys()
+        first = True
+        key_indices = tuple(range(len(k)) for k in keys)
+        for numeric_ix, key_ix in izip_equal(itertools.product(*key_indices), itertools.product(*keys)):
+            if first:
+                this_data = np.array(self[key_ix])
+                arr = np.zeros(tuple(len(k) for k in keys)+this_data.shape, dtype=this_data.dtype)
+                arr[numeric_ix] = this_data
+                first = False
+            else:
+                arr[numeric_ix] = self[key_ix]
+        return keys, arr
+
+    def to_array(self):
+        _, arr = self.to_array_and_keys()
+        return arr
+
+    def arrayify_axis(self, axis, subkeys = (), inplace=False):
+        b = Duck.from_struct(self.to_struct()) if not inplace else self
+        if not isinstance(subkeys, tuple):
+            subkeys = (subkeys,)
+        indexing_keys = list(self[subkeys]._first_element_keys())
+        indexing_keys[axis - len(subkeys)] = (slice(None),)
+        indexing_keys = tuple(indexing_keys)
+        assigning_keys = list(indexing_keys)
+        del assigning_keys[axis - len(subkeys)]
+        if len(assigning_keys)==0:
+            assert len(indexing_keys)==1
+            substruct = np.array(self[subkeys+indexing_keys[0]])
+        else:
+            substruct = Duck()
+            for src_key, dest_key in izip_equal(itertools.product(*indexing_keys), itertools.product(*assigning_keys)):
+                substruct[dest_key] = np.array(self[subkeys + src_key])
+        b[subkeys] = substruct
+        return b
 
     def to_struct(self):
         return self._struct.map(lambda x: x.to_struct() if isinstance(x, UniversalCollection) else x).to_struct()
@@ -320,9 +375,6 @@ class DictArrayList(UniversalCollection):
     @classmethod
     def from_struct(cls, struct):
         return cls(initial_struct=struct, recurse=True)
-
-    def keys(self):
-        return self._struct.keys()
 
     def __contains__(self, item):
         return self._struct.__contains__(item)
@@ -350,60 +402,34 @@ class DictArrayList(UniversalCollection):
         return self._struct.__iter__()
 
     def open(self, *ixs):
-        self[ixs] = DictArrayList()
+        self[ixs] = Duck()
         ixs = tuple(-1 if ix is next else ix for ix in ixs)
         return self[ixs]
 
-    def has_key(self, key):
+    def has_key(self, *key_chain):
         return self._struct.has_key()
 
-    def values(self):
-        return self._struct.values()
-
-    def _first_element_keys(self):
-        try:
-            first_el = next(iter(self._struct))  # Try to get the keys of the first element
-        except StopIteration:
-            return (self.keys(), )  # If there is no first element, there're no keys to get
-            # raise Exception("Can't get keys from struct {}".format(self._struct))
-        if isinstance(first_el, DictArrayList):
-            return (self.keys(), )+first_el._first_element_keys()
+    def keys(self, depth=None):
+        if depth is None:
+            for k in self._struct.keys():
+                yield k
+        elif depth=='full' or depth>0:
+            if isinstance(depth, str):
+                assert depth=='full'
+                depth = sys.maxsize
+            for k, v in self._struct.items():
+                if isinstance(v, Duck) and depth>1:
+                    for subkey in v.keys(depth=depth-1):
+                        yield (k, )+subkey
+                else:
+                    yield (k, )
         else:
-            return (self.keys(), )
+            raise Exception('"depth" can be "full", None, or an integer >= 1.  Got {}'.format(depth))
 
-    def to_array_and_keys(self):
-        keys = self._first_element_keys()
-        first = True
-        key_indices = tuple(range(len(k)) for k in keys)
-        for numeric_ix, key_ix in izip_equal(itertools.product(*key_indices), itertools.product(*keys)):
-            if first:
-                this_data = np.array(self[key_ix])
-                arr = np.zeros(tuple(len(k) for k in keys)+this_data.shape, dtype=this_data.dtype)
-                arr[numeric_ix] = this_data
-                first = False
-            else:
-                arr[numeric_ix] = self[key_ix]
-        return keys, arr
+    def values(self, depth=None):
+        for k in self.keys(depth=depth):
+            yield self[k]
 
-    def to_array(self):
-        _, arr = self.to_array_and_keys()
-        return arr
-
-    def arrayify_axis(self, axis, subkeys = (), inplace=False):
-        b = DictArrayList.from_struct(self.to_struct()) if not inplace else self
-        if not isinstance(subkeys, tuple):
-            subkeys = (subkeys,)
-        indexing_keys = list(self[subkeys]._first_element_keys())
-        indexing_keys[axis - len(subkeys)] = (slice(None),)
-        indexing_keys = tuple(indexing_keys)
-        assigning_keys = list(indexing_keys)
-        del assigning_keys[axis - len(subkeys)]
-        if len(assigning_keys)==0:
-            assert len(indexing_keys)==1
-            substruct = np.array(self[subkeys+indexing_keys[0]])
-        else:
-            substruct = DictArrayList()
-            for src_key, dest_key in izip_equal(itertools.product(*indexing_keys), itertools.product(*assigning_keys)):
-                substruct[dest_key] = np.array(self[subkeys + src_key])
-        b[subkeys] = substruct
-        return b
+    def items(self, depth=None):
+        for k in self.keys(depth=depth):
+            yield k, self[k]

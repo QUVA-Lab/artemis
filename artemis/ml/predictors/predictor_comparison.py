@@ -5,7 +5,7 @@ import numpy as np
 
 from artemis.general.checkpoint_counter import CheckPointCounter
 from artemis.general.should_be_builtins import bad_value
-from artemis.ml.predictors.train_and_test import get_evaluation_function
+from artemis.ml.tools.costs import get_evaluation_function
 from artemis.ml.tools.iteration import checkpoint_minibatch_index_generator
 from artemis.general.mymath import sqrtspace
 from artemis.ml.tools.processors import RunningAverage

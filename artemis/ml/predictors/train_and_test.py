@@ -1,4 +1,4 @@
-from artemis.general.dictarraylist import DictArrayList
+from artemis.general.dictarraylist import Duck
 from artemis.general.progress_indicator import ProgressIndicator
 from artemis.general.checkpoint_counter import Checkpoints
 import numpy as np
@@ -60,11 +60,11 @@ def train_and_test_predictor(
     """
 
     if measures is None:
-        measures = DictArrayList()
+        measures = Duck()
     if 'training' not in measures:
-        measures['training'] = DictArrayList()
+        measures['training'] = Duck()
     if 'testing' not in measures:
-        measures['testing'] = DictArrayList()
+        measures['testing'] = Duck()
 
     is_test_time = Checkpoints(test_checkpoints) if not isinstance(test_checkpoints, Checkpoints) else test_checkpoints
     pi = ProgressIndicator(n_training_iters, "Training", update_every=progress_update_period)
@@ -107,7 +107,7 @@ def do_test(test_subset_generators, f_predict, loss_dict, n_test_iters, collapse
     if callable(loss_dict):
         loss_dict = dict(loss=loss_dict)
 
-    these_test_results = DictArrayList()
+    these_test_results = Duck()
     losses = {}
     pi = ProgressIndicator(n_test_iters, "Testing")
     for subset_name, subset_generator in test_subset_generators.items():

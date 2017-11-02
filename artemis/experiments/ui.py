@@ -159,7 +159,7 @@ experiment records.  You can specify records in the following ways:
     finished@last   Select the last finished record of each experiment (the '@' can be used to cascade any of the above)
 """
 
-    def __init__(self, root_experiment = None, catch_errors = False, close_after = False, filterexp=None, filterrec = None,
+    def __init__(self, root_experiment = None, catch_errors = True, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
             ignore_valid_keys=(), cache_result_string = False, slurm_kwargs={}, remove_prefix = None, display_format='nested',
             show_args=False, catch_selection_errors=True, max_width=None, table_package = 'tabulate'):
@@ -383,7 +383,7 @@ experiment records.  You can specify records in the following ways:
 
             if self.table_package=='tabulate':
                 record_table_rows = tabulate(record_rows, headers=full_headers, tablefmt="pipe").split('\n')
-                # del record_table_rows[1]  # Get rid of that silly line.
+                del record_table_rows[1]  # Get rid of that silly line.
                 experiment_table_rows = tabulate(experiment_rows, numalign='left').split('\n')[1:-1]  # First and last are just borders
                 longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(record_table_rows)>0 else 0
                 record_table_rows = [r if len(r)==longest_row else r[:-1] + ' '*(longest_row-len(r)) + r[-1] for r in record_table_rows]
@@ -422,12 +422,10 @@ experiment records.  You can specify records in the following ways:
         parser.add_argument('user_range', action='store', help='A selection of experiments to run.  Examples: "3" or "3-5", or "3,4,5"')
         parser.add_argument('-p', '--parallel', default=False, nargs='*')
         parser.add_argument('-n', '--note')
-        parser.add_argument('-e', '--raise_errors', default=None, action = "store_true")
+        parser.add_argument('-e', '--raise_errors', default='single', nargs='*', help='By default, error are only raised if a single experiment is run.  Set "-e" to always rays errors.  "-e 0" to never raise errors.')
         parser.add_argument('-d', '--display_results', default=False, action = "store_true")
         parser.add_argument('-s', '--slurm', default=False, action = "store_true", help='Run with slurm')
         args = parser.parse_args(args)
-
-        raise_errors = (not self.catch_errors) if args.raise_errors is None else args.raise_errors
 
         n_processes = \
             None if args.parallel is False else \
@@ -436,6 +434,12 @@ experiment records.  You can specify records in the following ways:
             bad_value(args.parallel, '-p can have 0 or 1 arguments.  Got: {}'.format(args.parallel))
 
         ids = select_experiments(args.user_range, self.exp_record_dict)
+
+        # Raise errors if:
+        # -e
+        # -e 1
+        # No arg, and only 1 experiment running
+        raise_errors = (len(args.raise_errors)==0 or (len(args.raise_errors)==1 and args.raise_errors[0]=='1') or (args.raise_errors == 'single' and len(ids)==1))
 
         if args.slurm:
             run_multiple_experiments_with_slurm(

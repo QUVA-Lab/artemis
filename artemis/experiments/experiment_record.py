@@ -1,31 +1,29 @@
 import atexit
+import inspect
 import logging
 import os
 import pickle
 import shutil
+import signal
 import sys
 import tempfile
+import time
 import traceback
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
-import signal
-from uuid import getnode
 from getpass import getuser
-import inspect
-
-import time
+from uuid import getnode
 
 from artemis.config import get_artemis_config_value
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_artemis_data_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
-from artemis.general.functional import infer_derived_arg_values, get_partial_chain, \
-    infer_function_and_derived_arg_values
+from artemis.general.functional import infer_function_and_derived_arg_values
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.test_mode import set_test_mode
 from artemis.general.should_be_builtins import nested
 from artemis.general.test_mode import is_test_mode
+from artemis.general.test_mode import set_test_mode
 
 try:
     from enum import Enum
@@ -264,7 +262,7 @@ class ExperimentRecord(object):
         make_file_dir(file_path)
         with open(file_path, 'wb') as f:
             pickle.dump(result, f, protocol=2)
-            print('Saving Result for Experiment "%s"' % (self.get_id(),))
+            ARTEMIS_LOGGER.info('Saving Result for Experiment "{}"'.format(self.get_id(),))
 
     def get_id(self):
         """
@@ -393,7 +391,6 @@ def hold_current_experiment_record(experiment_record):
         raise err
     finally:
         _CURRENT_EXPERIMENT_RECORD = None
-
 
 
 def is_matplotlib_imported():
