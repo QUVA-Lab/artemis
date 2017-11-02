@@ -9,6 +9,8 @@ import multiprocessing
 import subprocess
 from time import time
 
+import math
+
 from artemis.general.display import equalize_string_lengths
 from six import string_types
 from six.moves import reduce, xrange
@@ -19,7 +21,8 @@ from artemis.fileman.config_files import get_home_dir,set_non_persistent_config_
 from artemis.general.hashing import compute_fixed_hash
 from artemis.remote.child_processes import SlurmPythonProcess
 from artemis.remote.nanny import Nanny
-from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix, memoize
+from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix, memoize, \
+    divide_into_subsets
 
 
 def pull_experiments(user, ip, experiment_names, include_variants=True, need_pass = False):
@@ -436,24 +439,22 @@ def run_experiment_ignoring_errors(name, **kwargs):
         traceback.print_exc()
 
 
-def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_cores_per_node=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
+def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_processes_per_node=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
     '''
     Run multiple experiments using slurm, optionally in parallel.
     '''
     if n_parallel and n_parallel > 1:
         # raise NotImplementedError("No parallel Slurm execution at the moment. Implement it!")
         print ('Warning... parallel-slurm integration is very beta. Use with caution')
-        exp_gen = (exp for exp in experiments)
-        experiment_subsets = [[next(exp_gen) for exp, _ in zip(exp_gen, range(n_parallel))] for _ in range(len(experiments)//n_parallel)]
+        experiment_subsets = divide_into_subsets(experiments, subset_size=n_parallel)
         for i, exp_subset in enumerate(experiment_subsets):
             nanny = Nanny()
             function_call = partial(run_multiple_experiments,
-                    experiments=exp_subset,
-                    parallel=True,
-                    cpu_count=n_parallel if max_cores_per_node is None else max_cores_per_node,
-                    display_results=False,
-                    run_args = run_args
-                    )
+                experiments=exp_subset,
+                parallel=n_parallel if max_processes_per_node is None else max_processes_per_node,
+                display_results=False,
+                run_args = run_args
+                )
             spp = SlurmPythonProcess(name="Group %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
             # Using Nanny only for convenient stdout & stderr forwarding.
             nanny.register_child_process(spp,monitor_for_termination=False)
@@ -477,34 +478,32 @@ def _parallel_run_target(experiment_id_and_prefix, raise_exceptions, **kwargs):
         return run_experiment_ignoring_errors(experiment_id, prefix=prefix, **kwargs)
 
 
-def run_multiple_experiments(experiments, prefixes = None, parallel = False, cpu_count=None, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
+def run_multiple_experiments(experiments, prefixes = None, parallel = False, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
     """
     Run multiple experiments, optionally in parallel with multiprocessing.
 
     :param experiments: A collection of experiments
-    :param parallel: True to run in parallel, with multiprocessing
-    :param cpu_count: If parallel, number of CPUs to use (defaults to all)
+    :param parallel: Can be:
+        True/'all': Run in parallel with as many processes as CPUs
+        An integer indicating the number of processes to run
+        False/None Don't run in parallel.
     :param raise_exceptions: Terminate exectution when one experiment fails.
     :param run_args: Other args to pass to Experiment.run()
     :return: A collection of experiment records.
     """
 
     if parallel:
+        if parallel in (True, 'all'):
+            parallel = multiprocessing.cpu_count()
+        else:
+            assert isinstance(parallel, int)
         experiment_identifiers = [ex.get_id() for ex in experiments]
         if prefixes is None:
             prefixes = range(len(experiment_identifiers))
         prefixes = [s+': ' for s in equalize_string_lengths(prefixes, side='right')]
         print ('Prefix key: \n'+'\n'.join('{}{}'.format(p, eid) for p, eid in izip_equal(prefixes, experiment_identifiers)))
-
-        if cpu_count in ('all', None):
-            cpu_count = multiprocessing.cpu_count()
-        else:
-            assert isinstance(cpu_count, int)
-
         target_func = partial(_parallel_run_target, notes=notes, raise_exceptions=raise_exceptions, **run_args)
-
-        # func = run_experiment_by_name if raise_exceptions else run_experiment_ignoring_errors
-        p = multiprocessing.Pool(processes=cpu_count)
+        p = multiprocessing.Pool(processes=parallel)
 
         return p.map(target_func, zip(experiment_identifiers, prefixes))
     else:

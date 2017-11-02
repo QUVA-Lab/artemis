@@ -453,8 +453,7 @@ experiment records.  You can specify records in the following ways:
             run_multiple_experiments(
                 experiments=[load_experiment(eid) for eid in ids],
                 prefixes=[exp_names.index(eid) for eid in ids],
-                parallel=n_processes is not None,
-                cpu_count=n_processes,
+                parallel=n_processes,
                 raise_exceptions = raise_errors,
                 run_args=self.run_args,
                 notes=(args.note, ) if args.note is not None else (),

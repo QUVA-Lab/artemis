@@ -3,6 +3,7 @@ from collections import OrderedDict
 import itertools
 import os
 
+import math
 from six.moves import xrange, zip_longest
 
 __author__ = 'peter'
@@ -435,3 +436,14 @@ def get_shifted_key_value(orderd_dict, key, shift):
     key_ix = keylist.index(key)
     new_key = keylist[key_ix+shift]
     return orderd_dict[new_key]
+
+
+def divide_into_subsets(list_of_element, subset_size):
+    """
+    Given a list of elements, divide into subsets.  e.g. divide_into_subsets([1,2,3,4,5], subset_size=2) == [[1, 2], [3, 4], [5]]
+    :param list_of_element:
+    :param subset_size:
+    :return:
+    """
+    element_gen = (el for el in list_of_element)
+    return [[nextel for _, nextel in zip(range(subset_size), element_gen)] for _ in range(int(math.ceil(float(len(list_of_element))/subset_size)))]
