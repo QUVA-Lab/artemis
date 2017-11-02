@@ -295,7 +295,6 @@ def test_clip_to_sum():
     assert np.array_equal(clip_to_sum([1,4,8,3], 20), [1,4,8,3])
 
 
-
 if __name__ == '__main__':
     # test_decaying_cumsum()
     # test_fixed_diff()
