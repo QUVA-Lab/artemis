@@ -4,10 +4,6 @@ from artemis.general.numpy_helpers import get_rng
 from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
 
-try:
-    import weave
-except ImportError:
-    logging.warn("Could not import weave.  That's ok, ignore this unless you need it.")
 from six.moves import xrange
 
 __author__ = 'peter'
@@ -145,6 +141,7 @@ def cummode(x, weights = None, axis = 1):
     Cumulative mode along an axis.  Ties give priority to the first value to achieve the
     given count.
     """
+    import weave  # ONLY WORKS IN PYTHON 2.X !!!
 
     assert x.ndim == 2 and axis == 1, 'Only implemented for a special case!'
     all_values, element_ids = np.unique(x, return_inverse=True)
