@@ -436,18 +436,33 @@ def run_experiment_ignoring_errors(name, **kwargs):
         traceback.print_exc()
 
 
-def run_multiple_experiments_with_slurm(experiments, n_parallel=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
+def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_cores_per_node=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
     '''
     Run multiple experiments using slurm, optionally in parallel.
     '''
     if n_parallel and n_parallel > 1:
-        raise NotImplementedError("No parallel Slurm execution at the moment. Implement it!")
+        # raise NotImplementedError("No parallel Slurm execution at the moment. Implement it!")
+        print ('Warning... parallel-slurm integration is very beta. Use with caution')
+        exp_gen = (exp for exp in experiments)
+        experiment_subsets = [[next(exp_gen) for exp, _ in zip(exp_gen, range(n_parallel))] for _ in range(len(experiments)//n_parallel)]
+        for i, exp_subset in enumerate(experiment_subsets):
+            nanny = Nanny()
+            function_call = partial(run_multiple_experiments,
+                    experiments=exp_subset,
+                    parallel=True,
+                    cpu_count=n_parallel if max_cores_per_node is None else max_cores_per_node,
+                    display_results=False,
+                    run_args = run_args
+                    )
+            spp = SlurmPythonProcess(name="Group %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
+            # Using Nanny only for convenient stdout & stderr forwarding.
+            nanny.register_child_process(spp,monitor_for_termination=False)
+            nanny.execute_all_child_processes(time_out=2)
     else:
         for i,exp in enumerate(experiments):
             nanny = Nanny()
-            func = run_experiment
-            experiment_path = get_experiment_dir()
-            function_call = partial(func, experiment=exp, slurm_job=True, experiment_path=experiment_path,raise_exceptions=raise_exceptions,display_results=False, **run_args)
+            function_call = partial(run_experiment, experiment=exp, slurm_job=True, experiment_path=get_experiment_dir(),
+                raise_exceptions=raise_exceptions,display_results=False, **run_args)
             spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
             # Using Nanny only for convenient stdout & stderr forwarding.
             nanny.register_child_process(spp,monitor_for_termination=False)
