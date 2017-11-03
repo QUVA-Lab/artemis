@@ -391,6 +391,6 @@ def format_time_stamp(time_stamp):
             format = "%b %d %Y, %H:%M:%S"
         else:
             format = "%b %d, %H:%M:%S"
-        return time.strftime(format, time_stamp)
+        return time_stamp.strftime(format)
 
 
