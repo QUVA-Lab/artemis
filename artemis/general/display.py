@@ -384,10 +384,10 @@ def format_time_stamp(time_stamp):
         return time_stamp
     else:
         if isinstance(time_stamp,float):
-            time_stamp = time.gmtime(time_stamp)
+            time_stamp = datetime.datetime.utcfromtimestamp(time_stamp)
         else:
             assert isinstance(time_stamp,datetime.datetime), "Time Stamp not understood"
-        if time_stamp.tm_year != time.gmtime(time.time()).tm_year:
+        if time_stamp.year != time.gmtime(time.time()).tm_year:
             format = "%b %d %Y, %H:%M:%S"
         else:
             format = "%b %d, %H:%M:%S"
