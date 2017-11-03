@@ -168,10 +168,10 @@ class DynamicSequence(list, UniversalCollection):
         elif ix>=len(self):
             if ix==len(self):
                 self.append(val)
-            elif isinstance(ix, int):
-                raise InvalidKeyError('If you assign to a DynamicSequence, the index must be no greater than the length of the sequence.  Got index {} for length {}'.format(ix, len(self)))
-            else:
+            elif not isinstance(ix, int):
                 raise InvalidKeyError('Cannot index a DynamicSequence with non-integer index: {}'.format(ix))
+            else:
+                raise InvalidKeyError('If you assign to a DynamicSequence, the index must be no greater than the length of the sequence.  Got index {} for length {}'.format(ix, len(self)))
         else:
             list.__setitem__(self, ix, val)
 
