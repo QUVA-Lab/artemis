@@ -23,7 +23,6 @@ class InitializerTooShallowError(Exception):
     pass
 
 
-
 class UniversalCollection(object):
 
     __metaclass__ = ABCMeta
@@ -167,8 +166,12 @@ class DynamicSequence(list, UniversalCollection):
         if ix is next:
             self.append(val)
         elif ix>=len(self):
-            assert ix==len(self), 'If you assign to a DynamicSequence, the index must be no greater than the length of the sequence.  Got index {} for length {}'.format(ix, len(self))
-            self.append(val)
+            if ix==len(self):
+                self.append(val)
+            elif isinstance(ix, int):
+                raise InvalidKeyError('If you assign to a DynamicSequence, the index must be no greater than the length of the sequence.  Got index {} for length {}'.format(ix, len(self)))
+            else:
+                raise InvalidKeyError('Cannot index a DynamicSequence with non-integer index: {}'.format(ix))
         else:
             list.__setitem__(self, ix, val)
 
@@ -208,6 +211,8 @@ class UniversalOrderedStruct(UniversalCollection):
         return item in self._heart.values()
 
     def __setitem__(self, key, value):
+        if key is next or isinstance(key, int):
+            raise InvalidKeyError('This sequence is an {}, and cannot be given {} key: {}'.format(self.__class__.__name__, key.__class__.__name__, key))
         self._heart.__setitem__(key, value)
 
     def __getitem__(self, selector):

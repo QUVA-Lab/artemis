@@ -23,6 +23,7 @@ def _get_standard_test_duck():
 
 def test_so_demo():
 
+    # Demo 1: Dynamic assignment
     a = Duck()
     a['a', 'aa1'] = 1
     a['a', 'aa2'] = 2
@@ -35,9 +36,18 @@ def test_so_demo():
     assert a['b', :, 'subfield1'] == [4, 6]
     assert a['a', 'aa2'] == 2
     assert np.array_equal(a['b'].to_array(), [[4, 5], [6, 7]])
-
     with pytest.raises(KeyError):  # This should raise an error because key 'a' does not have subkeys 1, 'subfield1'
         x = a[:, 1, 'subfield1']
+
+    # Demo 2: Sequential and Sliced Assignment
+    # Here we show another way to create the same structure as above
+    # 1) You can assign to a slice
+    # 2) You can use the "next" builtin like an index to append to the structure.
+    b = Duck()
+    b['a', :] = {'aa1': 1, 'aa2': 2}  # Note: when assigning with dict, keys are sorted before insertion (OrderedDict order is kept though).
+    b['b', next, :] = {'subfield1': 4, 'subfield2': 5}
+    b['b', next, :] = {'subfield1': 6, 'subfield2': 7}
+    assert b==a
 
 
 def test_dict_assignment():
@@ -50,7 +60,22 @@ def test_dict_assignment():
     assert list(a[1].keys()) == [char for char in 'abcdefghijklmnopqrstuvwxyz']
     assert list(a[1].values()) == list(range(27, 27+26))
 
-    # also, lets just use this test for slice indexing too:
+
+def test_reasonable_errors_on_wrong_keys():
+
+    a = Duck()
+    a['a']=1
+    with pytest.raises(InvalidKeyError):
+        a[1] = 'a'
+    with pytest.raises(InvalidKeyError):
+        a[next]='a'
+
+    a = Duck()
+    a[next] = 'a'
+    with pytest.raises(InvalidKeyError):
+        a['a'] = 1
+    with pytest.raises(InvalidKeyError):
+        a[10] = 'a'  # Too high!
 
 
 def test_string_slices():
@@ -442,3 +467,4 @@ if __name__ == '__main__':
     test_assign_from_struct()
     test_arrayify_axis_demo()
     test_string_slices()
+    test_reasonable_errors_on_wrong_keys()
