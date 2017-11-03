@@ -349,15 +349,18 @@ experiment records.  You can specify records in the following ways:
         row_func = _get_record_rows_cached if self.cache_result_string else _get_record_rows
         header_names = [h.value for h in headers]
 
-
         def remove_notes_if_no_notes(_record_rows, _record_headers):
-            notes_column_index = full_headers.index(ExpRecordDisplayFields.NOTES.value) if ExpRecordDisplayFields.NOTES.value in full_headers else None
+            notes_column_index = _record_headers.index(ExpRecordDisplayFields.NOTES.value) if ExpRecordDisplayFields.NOTES.value in _record_headers else None
             # Remove the notes column if there are no notes!
-            if notes_column_index is not None and all(row[notes_column_index]=='' for row in _record_rows):
+            if notes_column_index is not None and all(row[notes_column_index]=='' or row[notes_column_index]=='-' for row in _record_rows):
+                new_rows = []
                 for row in _record_rows:
-                    del row[notes_column_index]
-                del _record_headers[notes_column_index]
-            return _record_rows, _record_headers
+                    new_rows.append(row[:notes_column_index]+row[notes_column_index+1:])
+                new_headers = _record_headers[:notes_column_index]+_record_headers[:notes_column_index+1:]
+            else:
+                new_rows = _record_rows
+                new_headers = _record_headers
+            return new_rows, new_headers
 
         if self.display_format=='nested':  # New Display mode
 
