@@ -382,10 +382,15 @@ def format_duration(seconds):
 def format_time_stamp(time_stamp):
     if isinstance(time_stamp,str):
         return time_stamp
-    elif isinstance(time_stamp,datetime.datetime):
-        return time_stamp.strftime("%b %d, %H:%M:%S")
-    elif isinstance(time_stamp,float):
-        return time.strftime("%b %d, %H:%M:%S", time.gmtime(time_stamp))
     else:
-        return str(time_stamp)
+        if isinstance(time_stamp,float):
+            time_stamp = time.gmtime(time_stamp)
+        else:
+            assert isinstance(time_stamp,datetime.datetime), "Time Stamp not understood"
+        if time_stamp.tm_year != time.gmtime(time.time()).tm_year:
+            format = "%b %d %Y, %H:%M:%S"
+        else:
+            format = "%b %d, %H:%M:%S"
+        return time.strftime(format, time_stamp)
+
 
