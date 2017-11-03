@@ -283,15 +283,27 @@ def generator_pool(generator_generator):
 
 def batchify_generator(generator_generator, batch_size, receive_input=False, out_format ='array'):
     """
-    Best understood by example.
+    Best understood by example:
 
-    generator_genererator corresponds to a collection of videos
-    It generates frame_generators, which produce the frames in a given movie.
+    Suppose we want to get batches of frames from video data.  Where the batch[t][i] is the frame after batch[t-1][i].
 
-    :param generator_generator:
-    :param batch_size:
-    :param out_format:
-    :return:
+    e.g. Suppose we have 7 videos.  In the following, each column represents a batch of data, and rows represent the
+    index within a batch.
+
+        -------vid-1---------|-------vid-5-------|--vid-7--
+        -----------vid-2-----------|--------vid-6---------|
+        -----vid-3-------|----------vid-4------------------
+
+    generator_genererator yields 7 generators, corresponding to each of the movies.
+    Each of those generators is a frame-generator, which produces the frames in a given video.
+    Here, we generate frames from each movie, and start a new movies whenever an old one stops, until there are no
+    new movies to start.
+
+    :param generator_generator: An generator which generates generators
+    :param batch_size: The size if the batch you want to yield
+    :param receive_input: Expect a "send" to this generatoer AFTER it yields.  (see Python coroutines)
+    :param out_format: 'array' or 'tuple_of_arrays' currently supported.
+    :yield: An array consisting of batch_size of the outputs of the subgenerator, batched together.
     """
     assert receive_input in (False, 'post'), 'pre-receive not yet implemented'
 
@@ -312,7 +324,6 @@ def batchify_generator(generator_generator, batch_size, receive_input=False, out
 
         if out_format=='array':
             output= np.array(items)
-            # yield fast_array(items)
         else:
             output = tuple(np.array(x) for x in zip(*items))
 

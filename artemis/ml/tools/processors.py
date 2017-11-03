@@ -46,30 +46,6 @@ class RunningAverage(object):
     @classmethod
     def batch(cls, x):
         return np.cumsum(x, axis=0)/np.arange(1, len(x)+1).astype(np.float)[(slice(None), )+(None, )*(x.ndim-1)]
-        # ra = cls()
-        # return np.array([ra(x_) for x_ in x])
-
-
-
-class RunningMeanVar(object):
-    # TODO: FINISH
-
-    def __init__(self):
-        self._n_samples_seen = 0
-        self.mean_last = 0
-        self.s_last = 0
-
-    def __call__(self, data):
-        self._n_samples_seen+=1
-        frac = 1./self._n_samples_seen
-
-        mean_new = frac*data + (1-frac)*self.mean_last
-
-        s_new = self.s_last + (data - self.mean_last) * (data - mean_new)
-        self.mean_last = mean_new
-        self.s_last = s_new
-
-        # var =
 
 
 class RecentRunningAverage(object):

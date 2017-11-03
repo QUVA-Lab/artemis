@@ -2,12 +2,9 @@ from collections import OrderedDict
 import itertools
 import numpy as np
 from abc import ABCMeta, abstractmethod
-
-from artemis.general.display import IndentPrint, arraystr, indent_string
+from artemis.general.display import arraystr, indent_string
 from artemis.general.should_be_builtins import izip_equal
 import sys
-
-
 
 
 class CollectionIsEmptyException(Exception):

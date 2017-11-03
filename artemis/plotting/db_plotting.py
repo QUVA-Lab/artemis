@@ -93,35 +93,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     if name not in suplot_dict:
 
         if isinstance(plot_type, str):
-            plot = {
-                'line': LinePlot,
-                'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
-                'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-                'bbox': lambda: BoundingBoxPlot(linewidth=2, axes_update_mode='expand'),
-                'bbox_r': lambda: BoundingBoxPlot(linewidth=2, color='r', axes_update_mode='expand'),
-                'bbox_b': lambda: BoundingBoxPlot(linewidth=2, color='b', axes_update_mode='expand'),
-                'bbox_g': lambda: BoundingBoxPlot(linewidth=2, color='g', axes_update_mode='expand'),
-                # 'bbox_r': lambda: BoundingBoxPlot(linewidth=2, color='r'),
-                # 'bbox_b': lambda: BoundingBoxPlot(linewidth=2, color='b'),
-                # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
-                'bar': BarPlot,
-                'img': ImagePlot,
-                'cimg': lambda: ImagePlot(channel_first=True),
-                'line_history': MovingPointPlot,
-                'img_stable': lambda: ImagePlot(only_grow_clims=True),
-                'colour': lambda: ImagePlot(is_colour_data=True),
-                'equal_aspect': lambda: ImagePlot(aspect='equal'),
-                'image_history': lambda: MovingImagePlot(),
-                'fixed_line_history': lambda: MovingPointPlot(buffer_len=100),
-                'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
-                'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
-                'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-                'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
-                'trajectory': lambda: Moving2DPointPlot(axes_update_mode='expand'),
-                'trajectory+': lambda: Moving2DPointPlot(axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
-                'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
-                'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
-                }[plot_type]()
+            plot = PLOT_CONSTRUCTORS[plot_type]()
         elif plot_type is None:
             plot = get_plot_from_data(data, mode=plot_mode)
         else:
@@ -200,6 +172,34 @@ _hold_plots = False
 _hold_plot_counter = 0
 
 _default_layout = 'grid'
+
+
+PLOT_CONSTRUCTORS = {
+    'line': LinePlot,
+    'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
+    'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+    'bbox': lambda: BoundingBoxPlot(linewidth=2, axes_update_mode='expand'),
+    'bbox_r': lambda: BoundingBoxPlot(linewidth=2, color='r', axes_update_mode='expand'),
+    'bbox_b': lambda: BoundingBoxPlot(linewidth=2, color='b', axes_update_mode='expand'),
+    'bbox_g': lambda: BoundingBoxPlot(linewidth=2, color='g', axes_update_mode='expand'),
+    'bar': BarPlot,
+    'img': ImagePlot,
+    'cimg': lambda: ImagePlot(channel_first=True),
+    'line_history': MovingPointPlot,
+    'img_stable': lambda: ImagePlot(only_grow_clims=True),
+    'colour': lambda: ImagePlot(is_colour_data=True),
+    'equal_aspect': lambda: ImagePlot(aspect='equal'),
+    'image_history': lambda: MovingImagePlot(),
+    'fixed_line_history': lambda: MovingPointPlot(buffer_len=100),
+    'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
+    'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
+    'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+    'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
+    'trajectory': lambda: Moving2DPointPlot(axes_update_mode='expand'),
+    'trajectory+': lambda: Moving2DPointPlot(axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
+    'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
+    'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
+    }
 
 
 def reset_dbplot():

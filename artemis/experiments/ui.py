@@ -524,6 +524,9 @@ experiment records.  You can specify records in the following ways:
             assert all_equal(compare_funcs), "Your records have different comparison functions - {} - so you can't compare them".format(set(compare_funcs))
             func = compare_funcs[0]
 
+        # The following could be used to launch comparisons in a  new process.  We don't do this now because
+        # comparison function often use matplotlib, and matplotlib's Tkinter backend hangs when trying to create
+        # a new figure in a new thread.
         # thread = Process(target = partial(func, records))
         # thread.start()
         # thread.join()
