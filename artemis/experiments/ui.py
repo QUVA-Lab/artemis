@@ -352,7 +352,7 @@ experiment records.  You can specify records in the following ways:
         def remove_notes_if_no_notes(_record_rows, _record_headers):
             notes_column_index = _record_headers.index(ExpRecordDisplayFields.NOTES.value) if ExpRecordDisplayFields.NOTES.value in _record_headers else None
             # Remove the notes column if there are no notes!
-            if notes_column_index is not None and all(row[notes_column_index]=='' for row in _record_rows):
+            if notes_column_index is not None and all(row[notes_column_index]=='' or row[notes_column_index]=='-' for row in _record_rows):
                 new_rows = []
                 for row in _record_rows:
                     new_rows.append(row[:notes_column_index]+row[notes_column_index+1:])
