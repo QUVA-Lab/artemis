@@ -377,7 +377,7 @@ experiment records.  You can specify records in the following ways:
                 for j, record_id in enumerate(record_ids):
                     record_rows.append([j]+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to, ignore_valid_keys=self.ignore_valid_keys))
                     counter+=1
-            # record_rows, full_headers = remove_notes_if_no_notes(record_rows, full_headers)
+            record_rows, full_headers = remove_notes_if_no_notes(record_rows, full_headers)
             # Merge the experiments table and record table.
 
             if self.table_package=='tabulate':
