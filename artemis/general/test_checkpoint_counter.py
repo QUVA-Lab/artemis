@@ -1,5 +1,5 @@
 from itertools import count
-from artemis.general.checkpoint_counter import CheckPointCounter
+from artemis.general.checkpoint_counter import CheckPointCounter, Checkpoints
 
 __author__ = 'peter'
 
@@ -24,5 +24,12 @@ def test_checkpoint_counter():
     # More generally len(checkpoints) will be <= len(points)
 
 
+def test_checkpoints():
+
+    is_test = Checkpoints(('exp', 10, .1))
+
+    assert [a for a in range(100) if is_test()]==[0, 10, 22, 37, 54, 74, 97]
+
 if __name__ == '__main__':
     test_checkpoint_counter()
+    test_checkpoints()

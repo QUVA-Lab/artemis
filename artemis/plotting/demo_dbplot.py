@@ -1,5 +1,4 @@
 from functools import partial
-
 from artemis.plotting.db_plotting import dbplot, hold_dbplots, set_dbplot_figure_size
 import numpy as np
 from artemis.plotting.matplotlib_backend import MovingPointPlot

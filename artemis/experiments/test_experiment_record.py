@@ -10,7 +10,7 @@ import pickle
 import pytest
 from six.moves import xrange
 
-from artemis.experiments.decorators import experiment_function
+from artemis.experiments.decorators import experiment_function, experiment_root
 from artemis.experiments.deprecated import start_experiment, end_current_experiment
 from artemis.experiments.experiment_management import run_multiple_experiments
 from artemis.experiments.experiment_record import \
@@ -438,6 +438,26 @@ def test_current_experiment_access_functions():
         v.run()
 
 
+def test_generator_experiment():
+
+    with experiment_testing_context(new_experiment_lib=True):
+        @experiment_root
+        def my_generator_exp(n_steps, poison_4 = False):
+            for i in range(n_steps):
+                if poison_4 and i==4:
+                    raise Exception('Unlucky Number!')
+                yield i
+
+        X1 = my_generator_exp.add_variant(n_steps=5)
+        X2 = my_generator_exp.add_variant(n_steps=5, poison_4 = True)
+
+        rec1 = X1.run()
+        rec2 = X2.run(raise_exceptions = False)
+
+        assert rec1.get_result() == 4
+        assert rec2.get_result() == 3
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
@@ -459,3 +479,4 @@ if __name__ == '__main__':
     test_experiment_errors()
     test_experiment_corrupt_detection()
     test_current_experiment_access_functions()
+    test_generator_experiment()

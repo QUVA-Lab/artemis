@@ -28,8 +28,8 @@ class PersistentOrderedDict(OrderedDict):
             try:
                 with open(self.file_path, 'rb') as f:
                     items = pickle.load(f)
-            except:
-                logging.critical("WARNING: Failed to unpickle file: {}.  Starting from scratch instead".format(self.file_path))
+            except Exception as err:
+                logging.critical("WARNING: Failed to unpickle file: {} when loading PersistentOrderedDict, due to {}:{}.  Starting from scratch instead".format(self.file_path, err.__class__.__name__, err))
                 items = []
         else:
             items = []

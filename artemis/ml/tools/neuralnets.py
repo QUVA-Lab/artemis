@@ -17,7 +17,7 @@ Or, you know, a "mainstream" library, like Keras: https://keras.io/
 """
 
 
-def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal', include_biases = True, scale=1., rng=None):
+def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal', last_layer_zero = False, include_biases = True, scale=1., rng=None):
     """
     Initialize parameters for a fully-connected neural network.
 
@@ -40,6 +40,8 @@ def initialize_network_params(layer_sizes, mag='xavier-both', base_dist='normal'
     """
     rng = get_rng(rng)
     ws = [initialize_weight_matrix(n_in, n_out, mag=mag, base_dist=base_dist, scale=scale, rng=rng) for n_in, n_out in zip(layer_sizes[:-1], layer_sizes[1:])]
+    if last_layer_zero:
+        ws[-1][:] = 0
     if include_biases:
         bs = [np.zeros(n_out) for n_out in layer_sizes[1:]]
         return zip(ws, bs)
@@ -75,6 +77,18 @@ def initialize_weight_matrix(n_in, n_out, mag='xavier', base_dist='normal', scal
         bad_value(mag)
 
     return w_base * (mag_number*scale)
+
+
+def initialize_conv_kernel(kernel_shape, mag = 'xavier', rng = None):
+    rng = get_rng(rng)
+    if mag=='xavier':
+        n_kern_out, n_kern_in, k_size_y, k_size_x = kernel_shape
+        fan_in = k_size_y*k_size_x*n_kern_in
+        fan_out = n_kern_out*k_size_y+k_size_x
+        mag = np.sqrt(2./(fan_in+fan_out))
+    else:
+        assert isinstance(mag, (int, float)), mag
+    return mag*rng.randn(*kernel_shape)
 
 
 def activation_function(data, function_name):

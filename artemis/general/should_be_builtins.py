@@ -3,6 +3,7 @@ from collections import OrderedDict
 import itertools
 import os
 
+import math
 from six.moves import xrange, zip_longest
 
 __author__ = 'peter'
@@ -177,6 +178,22 @@ def uniquify_duplicates(sequence_of_strings):
             counts[string]=1
             new_strings.append(string)
     return new_strings
+
+
+def get_unique_name(name, taken_names):
+    """
+    Given a name, if it is already in the list of taken names, append with name(1), then name(2)
+    :param name:
+    :param taken_names:
+    :return:
+    """
+    if name in taken_names:
+        for i in itertools.count(1):
+            new_name = name+'({})'.format(i) if isinstance(name, str) else name + (i, ) if isinstance(name, tuple) else bad_value(name)
+            if new_name not in taken_names:
+                name = new_name
+                break
+    return name
 
 
 def detect_duplicates(sequence, hashable=True, key=None, keep_last=False):
@@ -398,3 +415,35 @@ except ImportError:
             for ctx in contexts:
                 stack.enter_context(ctx)
             yield contexts
+
+
+def get_shifted_element(list_of_elements, element, shift):
+    key_ix = list_of_elements.index(element)
+    new_key = list_of_elements[key_ix+shift]
+    return new_key
+
+
+def get_shifted_key_value(orderd_dict, key, shift):
+    """
+    Given an OrderedDict, get the value at a key which is offset from the given key by shift.
+    :param orderd_dict:
+    :param key:
+    :param shift:
+    :return: The value at the shifted key
+    """
+    assert isinstance(orderd_dict, OrderedDict)
+    keylist = list(orderd_dict.keys())
+    key_ix = keylist.index(key)
+    new_key = keylist[key_ix+shift]
+    return orderd_dict[new_key]
+
+
+def divide_into_subsets(list_of_element, subset_size):
+    """
+    Given a list of elements, divide into subsets.  e.g. divide_into_subsets([1,2,3,4,5], subset_size=2) == [[1, 2], [3, 4], [5]]
+    :param list_of_element:
+    :param subset_size:
+    :return:
+    """
+    element_gen = (el for el in list_of_element)
+    return [[nextel for _, nextel in zip(range(subset_size), element_gen)] for _ in range(int(math.ceil(float(len(list_of_element))/subset_size)))]

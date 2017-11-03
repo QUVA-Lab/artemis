@@ -1,10 +1,9 @@
 from collections import OrderedDict
 
-import logging
 import numpy as np
 from six import string_types, next
 
-from artemis.general.should_be_builtins import izip_equal, all_equal
+from artemis.general.should_be_builtins import all_equal
 
 __author__ = 'peter'
 
@@ -331,82 +330,3 @@ def structseq_to_seqstruct(structseq):
     return seqstruct
 
 
-class SequentialStructBuilder(object):
-    """
-    A convenient structure for storing results.
-    """
-    def __init__(self, struct=None):
-        self._struct = struct  # An OrderedDict<string: list<obj>>
-
-    def __getitem__(self, key):
-        if self._struct is None:
-            self._struct = OrderedDict()
-        if key not in self._struct:
-            self._struct[key] = SequentialStructBuilder()
-        return self._struct[key]
-
-    def __setitem__(self, key, value):
-        if self._struct is None:
-            self._struct = OrderedDict()
-        else:
-            assert isinstance(self._struct, OrderedDict)
-        self._struct[key] = value
-
-    @property
-    def is_sequence(self):
-        if isinstance(self._struct, OrderedDict):
-            return False
-        elif isinstance(self._struct, list):
-            return True
-        else:
-            assert self._struct is None
-            return None
-
-    def open_next(self):
-        """
-        Add a new element to this sequence, so that future calls to last return this element.
-        :return:
-        """
-        if self._struct is None:
-            self._struct = []
-        else:
-            assert self.is_sequence is True
-        self._struct.append(SequentialStructBuilder())
-        return self._struct[-1]
-
-    @property
-    def next(self):
-        logging.warn("Warning: next should only be set, not gotten")
-        return None
-
-    @property
-    def last(self):
-        assert self.is_sequence, 'last can only be accessed when this is a sequence.'
-        return self._struct[-1]
-
-    @next.setter
-    def next(self, val):
-        if self._struct is None:
-            self._struct = []
-        else:
-            assert isinstance(self._struct, list)
-        self._struct.append(val)
-
-    def map(self, func):
-        if self.is_sequence is True:
-            return [func(x) for x in self._struct]
-        elif self.is_sequence is False:
-            return OrderedDict((name, func(val)) for name, val in self._struct.items())
-        else:
-            return None
-
-    def get_structs(self):
-        return self.map(lambda v: v.get_structs() if isinstance(v, SequentialStructBuilder) else v)
-
-    def to_structseq(self, as_arrays=False):
-        structs = self.get_structs()
-        return nested_map(lambda s: seqstruct_to_structseq(s, as_arrays=as_arrays) if isinstance(s, list) else s, structs, is_container_func = lambda x: isinstance(x, dict))
-
-    def to_seqstruct(self):
-        structs = self.get_structs()
-        return nested_map(lambda s: seqstruct_to_structseq(s) if isinstance(s, dict) else s, structs, is_container_func = lambda x: isinstance(x, list))

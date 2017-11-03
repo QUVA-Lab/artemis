@@ -34,8 +34,7 @@ class Experiment(object):
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
-        if not is_root:
-            _register_experiment(self)
+        _register_experiment(self)
 
     @property
     def show(self):
@@ -64,6 +63,23 @@ class Experiment(object):
 
     def get_root_function(self):
         return get_partial_root(self.function)
+
+    def is_generator(self):
+        return inspect.isgeneratorfunction(self.get_root_function())
+
+    def call(self, *args, **kwargs):
+        """
+        Call the experiment function without running as an experiment.  If the experiment is a function, this is the same
+        as just result = my_exp_func().  If it's defined as a generator, it loops and returns the last result.
+        :return: The last result
+        """
+        if self.is_generator():
+            result = None
+            for x in self(*args, **kwargs):
+                result = x
+        else:
+            result = self(*args, **kwargs)
+        return result
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
             display_results=False, notes = (), **experiment_record_kwargs):
@@ -107,6 +123,7 @@ class Experiment(object):
     def _create_experiment_variant(self, args, kwargs, is_root):
         assert len(args) in (0, 1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
+        assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
         ex = Experiment(
             name=self.name + '.' + name,
@@ -360,6 +377,10 @@ def capture_created_experiments():
 def _register_experiment(experiment):
     assert experiment.name not in _GLOBAL_EXPERIMENT_LIBRARY, 'You have already registered an experiment named {} in {}'.format(experiment.name, inspect.getmodule(experiment.get_root_function()).__name__)
     _GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
+
+
+def get_nonroot_global_experiment_library():
+    return OrderedDict((name, exp) for name, exp in _GLOBAL_EXPERIMENT_LIBRARY.items() if not exp.is_root)
 
 
 def get_experiment_info(name):

@@ -1,4 +1,4 @@
-from artemis.general.hashing import compute_fixed_hash
+from artemis.general.hashing import compute_fixed_hash, fixed_hash_eq
 import numpy as np
 import sys
 
@@ -37,6 +37,17 @@ def test_compute_fixed_hash_terminates():
     assert code == 'cffaee424a62cd1893825a5811c34b8d'
 
 
+def test_fixed_hash_eq():
+
+    obj1 = [1, 'd', {'a': 4, 'b': np.arange(10)}, (7, [1, 2, 3, 4, 5])]
+    obj2 = [1, 'd', {'a': 4, 'b': np.arange(10)}, (7, [1, 2, 3, 4, 5])]
+    obj3 = [1, 'd', {'a': 4, 'b': np.arange(10)}, (7, [1, 2, 3, 4, 5])]
+    obj3[2]['b'][4] = 0
+    assert fixed_hash_eq(obj1, obj2)
+    assert not fixed_hash_eq(obj1, obj3)
+
+
 if __name__ == '__main__':
     test_compute_fixed_hash()
     test_compute_fixed_hash_terminates()
+    test_fixed_hash_eq()

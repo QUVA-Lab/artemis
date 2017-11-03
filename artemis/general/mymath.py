@@ -1,11 +1,9 @@
 import logging
+
+from artemis.general.numpy_helpers import get_rng
 from artemis.general.should_be_builtins import memoize, bad_value
 import numpy as np
-from scipy.stats import norm, mode as sp_mode
-try:
-    from scipy import weave
-except ImportError:
-    logging.warn("Could not import scipy.weave.  That's ok, ignore this unless you need it.")
+
 from six.moves import xrange
 
 __author__ = 'peter'
@@ -87,6 +85,7 @@ def expected_sigm_of_norm(mean, std, method = 'probit'):
     :param std: Standard Deviation of the normal distribution
     :return: An approximation to Expectation(sigm(N(mu, sigma**2)))
     """
+    from scipy.stats import norm
     if method == 'maclauren-2':
         eu = np.exp(-mean)
         approx_exp = 1/(eu+1) + 0.5*(eu-1)*eu/((eu+1)**3) * std**2
@@ -119,7 +118,7 @@ def normalize(x, axis=None, degree = 2, avoid_nans = False):
     assert degree in (1, 2), "Give me a reason and I'll give you more degrees"
 
     if degree == 1:
-        z = np.sum(np.abs(x), axis = axis, keepdims=True)
+        z = np.sum(np.abs(x.astype(np.float)), axis = axis, keepdims=True)
     else:
         z = np.sum(x**degree, axis = axis, keepdims=True)**(1./degree)
     normed = x/z
@@ -130,6 +129,7 @@ def normalize(x, axis=None, degree = 2, avoid_nans = False):
 
 
 def mode(x, axis = None, keepdims = False):
+    from scipy.stats import mode as sp_mode
     mode_x, _ = sp_mode(x, axis = axis)
     if not keepdims:
         mode_x = np.take(mode_x, 0, axis = axis)
@@ -141,6 +141,7 @@ def cummode(x, weights = None, axis = 1):
     Cumulative mode along an axis.  Ties give priority to the first value to achieve the
     given count.
     """
+    import weave  # ONLY WORKS IN PYTHON 2.X !!!
 
     assert x.ndim == 2 and axis == 1, 'Only implemented for a special case!'
     all_values, element_ids = np.unique(x, return_inverse=True)
@@ -177,6 +178,39 @@ def cummode(x, weights = None, axis = 1):
     weave.inline(code, ['element_ids', 'result', 'n_unique', 'counts', 'weights'], compiler = 'gcc')
     mode_values = all_values[result]
     return mode_values
+
+
+def recent_moving_average(x, axis = 0):
+    """
+    Fast computation of recent moving average, where
+
+        frac = 1/sqrt(t)
+        a[t] = (1-frac)*a[t-1] + frac*x[t]
+    """
+
+    import weave  # ONLY WORKS IN PYTHON 2.X !!!
+    if x.ndim!=2:
+        y = recent_moving_average(x.reshape(x.shape[0], x.size//x.shape[0]), axis=0)
+        return y.reshape(x.shape)
+
+    assert x.ndim == 2 and axis == 0, 'Only implemented for a special case!'
+    result = np.zeros(x.shape)
+    code = """
+    int n_samples = Nx[0];
+    int n_dim = Nx[1];
+    for (int i=0; i<n_dim; i++)
+        result[i] = x[i];
+    int ix=n_dim;
+    for (int t=1; t<n_samples; t++){
+        float frac = 1./sqrt(t+1);
+        for (int i=0; i<n_dim; i++){
+            result[ix] = (1-frac)*result[ix-n_dim] + frac*x[ix];
+        }
+        ix += 1;
+    }
+    """
+    weave.inline(code, ['x', 'result'], compiler = 'gcc')
+    return result
 
 
 def angle_between(a, b, axis=None, in_degrees = False):
@@ -407,13 +441,19 @@ def conv_fanout(input_len, kernel_len, conv_mode):
     :param conv_mode:
     :return:
     """
-    left_pad = kernel_len // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
-    right_pad = (kernel_len-1) // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
-    full_range = np.arange(left_pad + input_len + right_pad)
-    max_fanout = np.minimum(kernel_len, np.maximum(input_len-kernel_len+1+2*left_pad, 1))
-    fanout_over_full_range = np.minimum(max_fanout, np.minimum(full_range+1, full_range[::-1]+1))
-    fanout = fanout_over_full_range[left_pad:len(full_range)-right_pad]
-    return fanout
+
+    if conv_mode=='full':
+        return kernel_len*np.ones(input_len)
+    else:
+        if conv_mode=='half':
+            conv_mode='same'
+        left_pad = kernel_len // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
+        right_pad = (kernel_len-1) // 2 if conv_mode == 'same' else 0 if conv_mode == 'valid' else conv_mode if isinstance(conv_mode, int) else bad_value(conv_mode)
+        full_range = np.arange(left_pad + input_len + right_pad)
+        max_fanout = np.minimum(kernel_len, np.maximum(input_len-kernel_len+1+2*left_pad, 1))
+        fanout_over_full_range = np.minimum(max_fanout, np.minimum(full_range+1, full_range[::-1]+1))
+        fanout = fanout_over_full_range[left_pad:len(full_range)-right_pad]
+        return fanout
 
 
 def conv2_fanout_map(input_shape, kernel_shape, conv_mode):
@@ -463,3 +503,52 @@ def onehotvector(ix, length):
         v = np.zeros((len(ix), length))
         v[np.arange(len(ix)), ix] = 1
     return v
+
+
+def proportional_random_assignment(length, split, rng):
+    """
+    Generate an integer array of the given length, with elements randomly assigned to 0...len(split), with
+    frequency of elements with value i proporational to split[i].
+
+    This is useful for splitting training/test sets.  e.g.
+
+        n_samples = 1000
+        x = np.random.randn(n_samples, 4)
+        y = np.random.randn(n_samples)
+        subsets = proportional_random_assignment(n_samples, split=0.7, rng=1234)
+        x_train = x[subsets==0]
+        y_train = y[subsets==0]
+        x_test = x[subsets==1]
+        y_test = y[subsets==1]
+
+    :param length: The length of the output array
+    :param split: Either a list of ratios to assign to each group (must add to <1), or a single float in (0, 1),
+        which will indicate that we split into 2 groups.
+    :param rng: A random number generator or seed.
+    :return: An integer array.
+    """
+    rng = get_rng(rng)
+    if isinstance(split, float):
+        split = [split]
+    assert 0<=np.sum(split)<=1, "The sum of elements in split: {} must be in [0, 1].  Got {}".format(split, np.sum(split))
+    arr = np.zeros(length, dtype=int)
+    cut_points = np.concatenate([np.round(np.cumsum(split)*length).astype(int), [length]])
+    scrambled_indices = rng.permutation(length)
+    for i, (c_start, c_end) in enumerate(zip(cut_points[:-1], cut_points[1:])):
+        arr[scrambled_indices[c_start:c_end]] = i+1  # Note we skip zero since arrays already inited to 0
+    return arr
+
+
+def argmaxnd(x):
+    ix = np.argmax(x.flatten())
+    return np.unravel_index(ix, dims=x.shape)
+
+
+def clip_to_sum(vec, total):
+    new_vec = np.array(vec)  # Yes this is horribly inefficient but I do not care.
+    current_total = np.sum(vec)
+    while current_total > total:
+        i = np.argmax(new_vec)
+        new_vec[i] -= 1
+        current_total -= 1
+    return new_vec

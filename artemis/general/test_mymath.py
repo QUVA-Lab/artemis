@@ -1,7 +1,10 @@
 import pytest
+from pytest import raises
 
-from artemis.general.mymath import (softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize, is_parallel,
-    align_curves, angle_between, fixed_diff, decaying_cumsum, geosum, selective_sum, conv_fanout, conv2_fanout_map)
+from artemis.general.mymath import (softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize,
+                                    is_parallel,
+                                    align_curves, angle_between, fixed_diff, decaying_cumsum, geosum, selective_sum,
+                                    conv_fanout, conv2_fanout_map, proportional_random_assignment, clip_to_sum)
 import numpy as np
 from six.moves import xrange
 
@@ -257,6 +260,41 @@ def test_conv2_fanout_map():
         ]))
 
 
+def test_proportional_random_assignment():
+
+    ass = proportional_random_assignment(10, split=.7, rng=1234)
+    assert len(ass)==10
+    assert sum(ass==0)==7
+    assert sum(ass==1)==3
+
+    ass = proportional_random_assignment(33, split=[.7, .2], rng=1234)
+    assert len(ass)==33
+    assert sum(ass==0)==23
+    assert sum(ass==1)==7
+    assert sum(ass==2)==3
+
+    ass = proportional_random_assignment(33, split=[.7, .2, .1], rng=1234)
+    assert len(ass)==33
+    assert sum(ass==0)==23
+    assert sum(ass==1)==7
+    assert sum(ass==2)==3
+
+    with raises(AssertionError):
+        ass = proportional_random_assignment(33, split=20., rng=1234)
+
+
+def test_clip_to_sum():
+    # Test snatched from Divakar: https://stackoverflow.com/a/47043362/851699
+
+    assert np.array_equal(clip_to_sum([0, 10, 20, 0], 25), [0, 10, 15, 0])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 10), [1,3,3,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 11), [1,3,4,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 12), [1,4,4,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 14), [1,4,6,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 16), [1,4,8,3])
+    assert np.array_equal(clip_to_sum([1,4,8,3], 20), [1,4,8,3])
+
+
 if __name__ == '__main__':
     test_decaying_cumsum()
     test_fixed_diff()
@@ -275,3 +313,5 @@ if __name__ == '__main__':
     test_selective_sum()
     test_fanout_map()
     test_conv2_fanout_map()
+    test_proportional_random_assignment()
+    test_clip_to_sum()

@@ -504,6 +504,7 @@ class OnlineGifWriter(object):
 
         if im.__class__.__name__ == 'Figure':  # Hack
             fig=im
+            # fig.canvas.draw()
             data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
             im = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
 
@@ -565,10 +566,14 @@ class OnlineGifWriter(object):
             self.fp.write(d)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
         if self.fp is not None:
             self.fp.write(encode(";"))
             self.fp.close()
             print('Saved GIF at: %s' % (self.filename, ))
+
 
     @staticmethod
     def check_im(im):
