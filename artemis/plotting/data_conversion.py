@@ -1,7 +1,6 @@
 from artemis.general.should_be_builtins import memoize
 import numpy as np
-
-
+from six.moves import xrange
 
 
 __author__ = 'peter'

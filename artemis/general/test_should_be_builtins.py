@@ -1,5 +1,10 @@
+from collections import OrderedDict
+
+import pytest
+
 from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items, remove_duplicates, \
-    detect_duplicates, remove_common_prefix, all_equal, get_absolute_module
+    detect_duplicates, remove_common_prefix, all_equal, get_absolute_module, insert_at, get_shifted_key_value, \
+    divide_into_subsets
 
 __author__ = 'peter'
 
@@ -56,6 +61,62 @@ def test_get_absolute_module():
     assert get_absolute_module(test_get_absolute_module) == 'artemis.general.test_should_be_builtins'
 
 
+def test_insert_at():
+
+    list1 = [1, 2, 3, 4, 5, 6]
+    list2 = [7, 8, 9]
+    indices = [2, 2, 4]
+    r = insert_at(list1, list2, indices)
+    assert r == [1, 2, 7, 8, 3, 4, 9, 5, 6]
+
+    list1 = [1, 2, 3, 4, 5, 6]
+    list2 = [7, 8, 9]
+    indices = [0, 2, 3]
+    r = insert_at(list1, list2, indices)
+    assert r == [7, 1, 2, 8, 3, 9, 4, 5, 6]
+
+    list1 = [1, 2, 3, 4, 5, 6]
+    list2 = [7, 8, 9]
+    indices = [2, 2, 20]  # Index too damn high!
+    with pytest.raises(AssertionError):
+        r = insert_at(list1, list2, indices)
+
+
+    list1 = [1, 2, 3, 4, 5, 6]
+    list2 = [7, 8, 9]
+    indices = [2, 3]  # len(indeces) does not match len(list2)
+    with pytest.raises(AssertionError):
+        r = insert_at(list1, list2, indices)
+
+    list1 = [1, 2, 3, 4, 5, 6]
+    list2 = [7, 8, 9]
+    indices = [2, 2, 6]  # Index too damn high!
+    r = insert_at(list1, list2, indices)
+    assert r == [1, 2, 7, 8, 3, 4, 5, 6, 9]
+
+    list1 = []
+    list2 = [0, 1, 2, 3, 4]
+    indices = [0, 0, 0, 0, 0]
+    r = insert_at(list1, list2, indices)
+    assert r == [0, 1, 2, 3, 4]
+
+
+def test_get_shifted_key_value():
+
+    dic = OrderedDict([('a', 1), ('b', 2), ('c', 3), ('d', 4)])
+    assert get_shifted_key_value(dic, 'c', -2)==1
+    assert get_shifted_key_value(dic, 'c', -1)==2
+    assert get_shifted_key_value(dic, 'c', 0)==3
+    assert get_shifted_key_value(dic, 'c', 1)==4
+    assert get_shifted_key_value(dic, 'a', 1)==2
+
+
+def test_divide_into_subsets():
+
+    assert divide_into_subsets(range(10), subset_size=3) == [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]]
+    assert divide_into_subsets(range(9), subset_size=3) == [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+
+
 if __name__ == '__main__':
     test_separate_common_items()
     test_reducemap()
@@ -65,3 +126,6 @@ if __name__ == '__main__':
     test_remove_common_prefix()
     test_all_equal()
     test_get_absolute_module()
+    test_insert_at()
+    test_get_shifted_key_value()
+    test_divide_into_subsets()

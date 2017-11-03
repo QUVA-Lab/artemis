@@ -25,7 +25,7 @@ _newplot_settings = dict(
     )
 
 
-def _create_subplot(fig = None, layout = None, **subplot_args):
+def _create_subplot(fig = None, layout = None, position = None, **subplot_args):
 
     if layout is None:
         layout = _newplot_settings['layout']
@@ -93,7 +93,7 @@ def select_subplot(name, fig=None, layout=None, **subplot_args):
         plt.subplot(_subplots[name])
     else:
         if name is None:
-            name = _plot_name_generator.next()
+            name = next(_plot_name_generator)
         _subplots[name] = _create_subplot(fig=fig, layout=layout, **subplot_args)
     return _subplots[name]
 
@@ -127,7 +127,7 @@ class CaptureNewSubplots(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.new_subplots = OrderedDict((s, p) for s, p in _subplots.iteritems() if s not in self._old_subplots)
+        self.new_subplots = OrderedDict((s, p) for s, p in _subplots.items() if s not in self._old_subplots)
 
     def get_new_subplots(self):
         return self.new_subplots
@@ -159,6 +159,9 @@ def set_same_ylims(axes):
     for ax in axes:
         ax.set_ylim(y_range)
 
+
+def set_figure_border_size(size=0.05):
+    plt.subplots_adjust(left=size, right=1.-size, top=1-size, bottom=size)
 
 @contextmanager
 def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True, show_y='once', clip_x=False, clip_y=False, remove_ticks = True, xlabel=None, ylabel=None, xlim=None, ylim=None, **adjust_kwargs):

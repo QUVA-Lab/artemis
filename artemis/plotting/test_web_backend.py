@@ -4,6 +4,7 @@ from artemis.plotting.db_plotting import dbplot
 from artemis.plotting.web_backend import setup_web_plotting
 import numpy as np
 from matplotlib import pyplot as plt
+from six.moves import xrange
 
 
 __author__ = 'peter'

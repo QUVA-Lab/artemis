@@ -1,6 +1,7 @@
 import numpy as np
-from artemis.experiments import experiment_function
+from artemis.experiments.decorators import experiment_function
 from matplotlib import pyplot as plt
+from six.moves import xrange
 
 __author__ = 'peter'
 
@@ -90,14 +91,13 @@ def demo_linear_regression(
 
     return {'training_cost': training_cost, 'test_cost': test_cost}
 
-add_slurm_option(kwargs)
 
 demo_linear_regression.add_variant('fast-learn', eta=0.01)
-
 demo_linear_regression.add_variant('large_input_space', n_in=1000)
 
 
 if __name__ == "__main__":
-
     # Open a menu that allows you to run experiments and view old ones.
     demo_linear_regression.browse()
+
+

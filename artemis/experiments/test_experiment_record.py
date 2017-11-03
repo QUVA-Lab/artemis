@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import pytest
+from six.moves import xrange
 
-from artemis.experiments.decorators import experiment_function
+from artemis.experiments.decorators import experiment_function, experiment_root
 from artemis.experiments.deprecated import start_experiment, end_current_experiment
 from artemis.experiments.experiment_management import run_multiple_experiments
 from artemis.experiments.experiment_record import \
@@ -297,7 +298,7 @@ def test_parallel_run_errors():
             run_multiple_experiments(variants, parallel=True, raise_exceptions=True)
         print("^^^ Dont't worry, the above is not actually an error, we were just asserting that we caught the error.")
 
-        assert err.value.message == 'nononono'
+        assert str(err.value) == 'nononono'
 
 
 def test_invalid_arg_detection():
@@ -416,12 +417,12 @@ def test_current_experiment_access_functions():
             assert os.path.isdir(loc)
             assert loc.endswith(record_id)
 
-            with open_in_record_dir('somefile.pkl', 'w') as f:
+            with open_in_record_dir('somefile.pkl', 'wb') as f:
                 pickle.dump([1, 2, 3], f, protocol=pickle.HIGHEST_PROTOCOL)
 
             assert os.path.exists(os.path.join(loc, 'somefile.pkl'))
 
-            with open_in_record_dir('somefile.pkl') as f:
+            with open_in_record_dir('somefile.pkl', 'rb') as f:
                 assert pickle.load(f) == [1, 2, 3]
 
             exp = rec.get_experiment()
@@ -435,6 +436,26 @@ def test_current_experiment_access_functions():
         v = my_experiment_dfgsdgfdaf.add_variant('aaa', a=4)
 
         v.run()
+
+
+def test_generator_experiment():
+
+    with experiment_testing_context(new_experiment_lib=True):
+        @experiment_root
+        def my_generator_exp(n_steps, poison_4 = False):
+            for i in range(n_steps):
+                if poison_4 and i==4:
+                    raise Exception('Unlucky Number!')
+                yield i
+
+        X1 = my_generator_exp.add_variant(n_steps=5)
+        X2 = my_generator_exp.add_variant(n_steps=5, poison_4 = True)
+
+        rec1 = X1.run()
+        rec2 = X2.run(raise_exceptions = False)
+
+        assert rec1.get_result() == 4
+        assert rec2.get_result() == 3
 
 
 if __name__ == '__main__':
@@ -458,3 +479,4 @@ if __name__ == '__main__':
     test_experiment_errors()
     test_experiment_corrupt_detection()
     test_current_experiment_access_functions()
+    test_generator_experiment()

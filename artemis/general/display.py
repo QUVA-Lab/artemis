@@ -1,11 +1,14 @@
 import sys
 import textwrap
-from StringIO import StringIO
+from collections import OrderedDict
 from contextlib import contextmanager
-
+import datetime
 from artemis.fileman.local_dir import make_file_dir
 from artemis.general.should_be_builtins import izip_equal
 import numpy as np
+from si_prefix import si_format
+from six import string_types
+from six.moves import xrange, StringIO
 
 __author__ = 'peter'
 
@@ -26,6 +29,55 @@ def arraystr(arr, print_threshold, summary_threshold):
     else:
         return '<{type} with shape={shape}, dtype={dtype}, at {id}>'.format(
             type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, id=hex(id(arr)))
+
+
+def equalize_string_lengths(arr, side = 'left'):
+    """
+    Equalize the lengths of the string representations of the contents of the array.
+    :param arr:
+    :return:
+    """
+    assert side in ('left', 'right')
+    strings = [str(x) for x in arr]
+    longest = max(len(x) for x in strings)
+    if side=='left':
+        strings = [string.ljust(longest) for string in strings]
+    else:
+        strings = [string.rjust(longest) for string in strings]
+    return strings
+
+
+def sensible_str(data, size_limit=4, compact=True):
+    """
+    Crawl through an data structure and try to make a sensible compact representation of it.
+    :param data: Some data structure.
+    :param size_limit: The max number of elements in a collection to show.
+    :param compact: Remove spaces from output string.
+    :return: A one-line string giving a "sensible" overview of what's in the data structure.
+    """
+    if isinstance(data, np.ndarray):
+        if data.size<=size_limit:
+            string = 'ndarray('+str(data).replace('\n',',')+')'
+        else:
+            string = '<{} ndarray>'.format(str(data.shape).replace(' ', ''))
+    elif isinstance(data, (list, tuple)):
+        if len(data)>size_limit:
+            string = '<len{}-{}>'.format(len(data), data.__class__.__name__)
+        else:
+            open, close = '[]' if isinstance(data, list) else '()'
+            string = open +', '.join(sensible_str(x) for x in data[:size_limit]) + close
+    elif isinstance(data, dict):
+        if len(data)>size_limit:
+            string = '<len{}-{}>'.format(len(data), data.__class__.__name__)
+        else:
+            open, close = ('OrderedDict([', '])') if isinstance(data, OrderedDict) else '{}'
+            string = open+', '.join('{}:{}'.format(sensible_str(k), sensible_str(v)) for i, (k, v) in zip(range(size_limit), data.items())) + close
+    else:
+        string = str(data).replace('\n', '\\n')
+
+    if compact:
+        string = string.replace(' ', '')
+    return string
 
 
 @contextmanager
@@ -54,7 +106,7 @@ def str_with_arrayopts(obj, float_format='.3g', threshold=8, **kwargs):
         return str(obj)
 
 
-def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, indent ='  ', float_format = ''):
+def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10000, max_expansion = None, indent ='  ', float_format = ''):
     """
     A recursive, readable print of a data structure.
     """
@@ -68,7 +120,7 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
     if isinstance(obj, np.ndarray):
         string_desc = arraystr(obj, print_threshold=array_print_threhold, summary_threshold=array_summary_threshold)
     elif isinstance(obj, (list, tuple, set, dict)):
-        kwargs = dict(memo=memo, array_print_threhold=array_print_threhold, array_summary_threshold=array_summary_threshold, indent=indent, float_format=float_format)
+        kwargs = dict(memo=memo, array_print_threhold=array_print_threhold, max_expansion=max_expansion, array_summary_threshold=array_summary_threshold, indent=indent, float_format=float_format)
 
         if isinstance(obj, (list, tuple)):
             keys, values = [str(i) for i in xrange(len(obj))], obj
@@ -78,10 +130,12 @@ def deepstr(obj, memo=None, array_print_threhold = 8, array_summary_threshold=10
             keys, values = ['- ']*len(obj), obj
         else:
             raise Exception('Should never be here')
-
-        max_indent = max(len(k) for k in keys)
-
-        elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(k)) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
+        max_indent = max(len(str(k)) for k in keys) if len(keys)>0 else 0
+        if max_expansion is not None and len(keys)>max_expansion:
+            elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(str(k))) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys[:max_expansion-1]+[keys[-1]], values[:max_expansion-1]+[values[-1]])]
+            elements.insert(-1, '... Skipping {} of {} elements ...'.format(len(keys)-len(elements), len(keys)))
+        else:
+            elements = ['{k}: {v}'.format(k=k, v=' '*(max_indent-len(str(k))) + indent_string(deepstr(v, **kwargs), indent=' '*max_indent, include_first=False)) for k, v in izip_equal(keys, values)]
         string_desc = '<{type} at {id}>\n'.format(type = type(obj).__name__, id=hex(id(obj))) + indent_string('\n'.join(elements), indent=indent)
         return string_desc
     elif isinstance(obj, float):
@@ -100,7 +154,7 @@ class CaptureStdOut(object):
     An logger that both prints to stdout and writes to file.
     """
 
-    def __init__(self, log_file_path = None, print_to_console = True):
+    def __init__(self, log_file_path = None, print_to_console = True, prefix = None):
         """
         :param log_file_path: The path to save the records, or None if you just want to keep it in memory
         :param print_to_console:
@@ -114,6 +168,7 @@ class CaptureStdOut(object):
             self.log = StringIO()
         self._log_file_path = log_file_path
         self.old_stdout = _ORIGINAL_STDOUT
+        self.prefix = None if prefix is None else prefix
 
     def __enter__(self):
 
@@ -137,7 +192,7 @@ class CaptureStdOut(object):
 
     def write(self, message):
         if self._print_to_console:
-            self.old_stdout.write(message)
+            self.old_stdout.write(message if self.prefix is None or message=='\n' else self.prefix+message)
         self.log.write(message)
         self.log.flush()
 
@@ -157,11 +212,13 @@ class CaptureStdOut(object):
         return getattr(self.old_stdout, item)
 
 
-def indent_string(str, indent = '  ', include_first = True):
+def indent_string(str, indent = '  ', include_first = True, include_last = False):
+    base = str.replace('\n', '\n'+indent)
     if include_first:
-        return indent + str.replace('\n', '\n'+indent)
-    else:
-        return str.replace('\n', '\n'+indent)
+        base = indent + base
+    if not include_last and base.endswith('\n'+indent):
+        base = base[:-len(indent)]
+    return base
 
 
 class IndentPrint(object):
@@ -220,7 +277,11 @@ def side_by_side(multiline_strings, gap=4, max_linewidth=None):
         lineses = [w.wrap(mlstring) for mlstring in multiline_strings]
     else:
         lineses = [s.split('\n') for s in multiline_strings]
-    longests = [max(len(line) for line in lines) for lines in lineses]
+
+    if all(len(lines)==0 for lines in lineses):  # All strings are empty
+        return ''
+
+    longests = [max(len(line) for line in lines) if len(lines)>0 else 0 for lines in lineses]
 
     spacer = ' '*gap
     new_lines = []
@@ -257,8 +318,8 @@ def surround_with_header(string, width, char='-'):
     :param char: Character to repeat
     :return: A header, whose length will be
     """
-    left = (width-len(string)-1)/2
-    right = (width-len(string)-2)/2
+    left = (width-len(string)-1)//2
+    right = (width-len(string)-2)//2
     return char*left+' '+string+' '+char*right
 
 
@@ -280,7 +341,7 @@ def assert_things_are_printed(things, min_len=None):
     :return:
     """
 
-    if isinstance(things, basestring):
+    if isinstance(things, string_types):
         things = [things]
 
     with CaptureStdOut() as cap:
@@ -293,3 +354,25 @@ def assert_things_are_printed(things, min_len=None):
 
     for thing in things:
         assert thing in printed_text, '"{}" was not printed'.format(thing)
+
+
+_seconds_in_day = 60*60*24
+
+
+def format_duration(seconds):
+    '''
+    Formats a float interpreted as seconds as a sensible time duration
+    :param seconds:
+    :return:
+    '''
+    if seconds < 60:
+        return si_format(seconds, precision=1, format_str='{value}{prefix}s')
+    elif seconds<_seconds_in_day:
+        res = str(datetime.timedelta(seconds=seconds))
+        if len(res.split(".")) > 1:
+            return ".".join(res.split(".")[:-1])
+        else:
+            return res
+    else:
+        days = seconds//_seconds_in_day
+        return '{:d}d,{}'.format(days, format_duration(seconds % _seconds_in_day))

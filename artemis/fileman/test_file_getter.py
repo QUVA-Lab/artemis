@@ -2,6 +2,9 @@ import shutil
 from artemis.fileman.file_getter import get_file_in_archive
 from artemis.fileman.local_dir import get_artemis_data_path
 import os
+from six.moves import xrange
+
+
 __author__ = 'peter'
 
 

@@ -89,11 +89,11 @@ demo_mnist_logreg.add_variant('small-set', max_training_samples=1000)   # You ca
 
 if __name__ == '__main__':
     import sys
-    demo_version = sys.argv[1] if len(sys.argv) > 1 else 'api'
+    demo_version = sys.argv[1] if len(sys.argv) > 1 else 'ui'
 
     if demo_version == 'ui':
         # Open the experiment browser UI, from where you can run and view experiments:
-        demo_mnist_logreg.browse()
+        demo_mnist_logreg.browse(raise_display_errors=False, display_format='nested')
         # Commands you can try (or press h to see a list of all commands):
         # run all          # Runs all experiments
         # show 2-3         # Show the output and figures from experiments 2 and 3
@@ -120,7 +120,7 @@ if __name__ == '__main__':
             (fig, ) = record.load_figures()
             fig.gca().set_title(ex.name)
             print(ex.name.ljust(60) \
-                  + ' '.join('{}:{}'.format(arg_name, arg_value).ljust(26) for arg_name, arg_value in args.iteritems()) \
+                  + ' '.join('{}:{}'.format(arg_name, arg_value).ljust(26) for arg_name, arg_value in args.items()) \
                   + '  ||  ' + ' '.join('{}:{}'.format(subset, score).rjust(15) for subset, score in result.items()))
         plt.show()
     else:

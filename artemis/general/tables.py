@@ -1,6 +1,9 @@
 import itertools
 
+from six import string_types
+
 from artemis.general.should_be_builtins import all_equal_deprecated, all_equal
+from six.moves import xrange
 
 
 def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_headers = True, prettify_labels = True,
@@ -43,8 +46,8 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
     :return: A list of rows.
     """
     # Now, build that table!
-    single_row_category = all(isinstance(c, basestring) for c in row_categories)
-    single_column_category = all(isinstance(c, basestring) for c in column_categories)
+    single_row_category = all(isinstance(c, string_types) for c in row_categories)
+    single_column_category = all(isinstance(c, string_types) for c in column_categories)
 
     if single_row_category:
         row_categories = [row_categories]
@@ -53,7 +56,7 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
     if row_header_labels is not None:
         assert len(row_header_labels) == len(row_categories)
     rows = []
-    column_headers = zip(*itertools.product(*column_categories))
+    column_headers = list(zip(*itertools.product(*column_categories)))
     for i, c in enumerate(column_headers):
         row_header = row_header_labels if row_header_labels is not None and i==len(column_headers)-1 else [' ']*len(row_categories)
         row = row_header+(blank_out_repeats(c) if clear_repeated_headers else list(c))
@@ -89,5 +92,3 @@ def blank_out_repeats(sequence, replace_with=' '):
         if new_sequence[i]==new_sequence[i-1]:
             new_sequence[i] = replace_with
     return new_sequence
-
-

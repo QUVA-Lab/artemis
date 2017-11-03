@@ -1,6 +1,9 @@
 from collections import OrderedDict, namedtuple
+
+from six import string_types
+
 from artemis.config import get_artemis_config_value
-from artemis.plotting.matplotlib_backend import BarPlot
+from artemis.plotting.matplotlib_backend import BarPlot, BoundingBoxPlot
 from matplotlib.axes import Axes
 from matplotlib.gridspec import SubplotSpec
 from contextlib import contextmanager
@@ -10,7 +13,8 @@ from artemis.plotting.drawing_plots import redraw_figure
 from artemis.plotting.expanding_subplots import select_subplot
 from artemis.plotting.matplotlib_backend import get_plot_from_data, TextPlot, MovingPointPlot, Moving2DPointPlot, \
     MovingImagePlot, HistogramPlot, CumulativeLineHistogram
-from artemis.plotting.plotting_backend import LinePlot, ImagePlot, is_server_plotting_on
+from artemis.plotting.matplotlib_backend import LinePlot, ImagePlot, is_server_plotting_on
+
 if is_server_plotting_on():
     from artemis.remote.plotting.plotting_client import deconstruct_plotting_server
 
@@ -74,7 +78,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     if isinstance(fig, plt.Figure):
         assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
-        _DBPLOT_FIGURES[None] = fig
+        _DBPLOT_FIGURES[None] = _PlotWindow(figure=fig, subplots=OrderedDict(), axes={})
         fig = None
     elif fig not in _DBPLOT_FIGURES or not plt.fignum_exists(_DBPLOT_FIGURES[fig].figure.number):  # Second condition handles closed figures.
         _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
@@ -89,26 +93,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     if name not in suplot_dict:
 
         if isinstance(plot_type, str):
-            plot = {
-                'line': LinePlot,
-                'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
-                'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-                # 'pos_line': lambda: LinePlot(y_bounds=(0, None)),
-                'bar': BarPlot,
-                'img': ImagePlot,
-                'colour': lambda: ImagePlot(is_colour_data=True),
-                'equal_aspect': lambda: ImagePlot(aspect='equal'),
-                'image_history': lambda: MovingImagePlot(),
-                'fixed_line_history': lambda: MovingPointPlot(buffer_len=100),
-                'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
-                'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
-                'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-                'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
-                'trajectory': lambda: Moving2DPointPlot(axes_update_mode='expand'),
-                'trajectory+': lambda: Moving2DPointPlot(axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
-                'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
-                'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
-                }[plot_type]()
+            plot = PLOT_CONSTRUCTORS[plot_type]()
         elif plot_type is None:
             plot = get_plot_from_data(data, mode=plot_mode)
         else:
@@ -120,7 +105,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         if isinstance(axis, Axes):
             ax = axis
             ax_name = str(axis)
-        elif isinstance(axis, basestring) or axis is None:
+        elif isinstance(axis, string_types) or axis is None:
             ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
             ax_name = axis
             # ax.set_title(axis)
@@ -151,7 +136,7 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     if cornertext is not None:
         if not hasattr(_DBPLOT_FIGURES[fig].figure, '__cornertext'):
-            _DBPLOT_FIGURES[fig].figure.__cornertext = _DBPLOT_FIGURES[fig].subplots.values()[0].axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
+            _DBPLOT_FIGURES[fig].figure.__cornertext = next(iter(_DBPLOT_FIGURES[fig].subplots.values())).axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
         else:
             _DBPLOT_FIGURES[fig].figure.__cornertext.set_text(cornertext)
     if title is not None:
@@ -189,11 +174,39 @@ _hold_plot_counter = 0
 _default_layout = 'grid'
 
 
+PLOT_CONSTRUCTORS = {
+    'line': LinePlot,
+    'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
+    'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+    'bbox': lambda: BoundingBoxPlot(linewidth=2, axes_update_mode='expand'),
+    'bbox_r': lambda: BoundingBoxPlot(linewidth=2, color='r', axes_update_mode='expand'),
+    'bbox_b': lambda: BoundingBoxPlot(linewidth=2, color='b', axes_update_mode='expand'),
+    'bbox_g': lambda: BoundingBoxPlot(linewidth=2, color='g', axes_update_mode='expand'),
+    'bar': BarPlot,
+    'img': ImagePlot,
+    'cimg': lambda: ImagePlot(channel_first=True),
+    'line_history': MovingPointPlot,
+    'img_stable': lambda: ImagePlot(only_grow_clims=True),
+    'colour': lambda: ImagePlot(is_colour_data=True),
+    'equal_aspect': lambda: ImagePlot(aspect='equal'),
+    'image_history': lambda: MovingImagePlot(),
+    'fixed_line_history': lambda: MovingPointPlot(buffer_len=100),
+    'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
+    'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
+    'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+    'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
+    'trajectory': lambda: Moving2DPointPlot(axes_update_mode='expand'),
+    'trajectory+': lambda: Moving2DPointPlot(axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
+    'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
+    'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
+    }
+
+
 def reset_dbplot():
     if is_server_plotting_on():
         deconstruct_plotting_server()
     else:
-        for fig_name, plot_window in _DBPLOT_FIGURES.items():
+        for fig_name, plot_window in list(_DBPLOT_FIGURES.items()):
             plt.close(plot_window.figure)
             del _DBPLOT_FIGURES[fig_name]
 

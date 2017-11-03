@@ -1,7 +1,12 @@
 from collections import namedtuple
 import itertools
-from artemis.general.should_be_builtins import bad_value
+
+from six import string_types
+
+from artemis.general.numpy_helpers import fast_array
+from artemis.general.should_be_builtins import bad_value, izip_equal
 import numpy as np
+from six.moves import xrange, zip
 import time
 
 __author__ = 'peter'
@@ -39,7 +44,7 @@ def minibatch_index_generator(n_samples, minibatch_size, n_epochs = 1, final_tre
     base_indices = np.arange(minibatch_size)
     standard_indices = (lambda: slice(i, i+minibatch_size)) if slice_when_possible else (lambda: base_indices+i)
     i = 0
-    while True:
+    while remaining_samples>0:
         next_i = i + true_minibatch_size
         if remaining_samples < minibatch_size:  # Final minibatch case
             if final_treatment == 'stop':
@@ -73,7 +78,7 @@ def checkpoint_minibatch_index_generator(n_samples, checkpoints, slice_when_poss
     """
     checkpoints = np.array(checkpoints, dtype = int)
     assert len(checkpoints) > 1 and checkpoints[0] >= 0 and np.all(np.diff(checkpoints) > 0)
-    checkpoint_divs = zip(checkpoints[:-1], checkpoints[1:])
+    checkpoint_divs = list(zip(checkpoints[:-1], checkpoints[1:]))
     if checkpoints[0] > 0:
         checkpoint_divs.insert(0, (0, checkpoints[0]))
     for start, stop in checkpoint_divs:
@@ -152,7 +157,7 @@ def iteration_info(n_samples, minibatch_size, test_epochs = None, n_epochs = 5):
                 False if test_epochs=='never' else
                 np.floor(epoch)>np.floor(last_epoch) if test_epochs == 'every' else
                 bad_value(test_epochs)
-            ) if isinstance(test_epochs, basestring) else \
+            ) if isinstance(test_epochs, string_types) else \
             np.floor(epoch/period) > np.floor(last_epoch/period) if isinstance(test_epochs, tuple) else \
             False if test_epochs is None else \
             np.searchsorted(test_epochs, epoch, side='right') > np.searchsorted(test_epochs, last_epoch, side='right')
@@ -184,7 +189,7 @@ def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs=None, test_epoch
     if n_epochs is None:
         assert isinstance(test_epochs, (list, tuple, np.ndarray)), "If you don't specify n_epochs, you need to specify an array of test epochs."
         n_epochs = test_epochs[-1]
-    for arrays, info in itertools.izip(
+    for arrays, info in zip(
             zip_minibatch_iterate(arrays, minibatch_size=minibatch_size, n_epochs='inf'),
             iteration_info(n_samples=arrays[0].shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs, n_epochs=n_epochs)
             ):
@@ -194,7 +199,7 @@ def zip_minibatch_iterate_info(arrays, minibatch_size, n_epochs=None, test_epoch
 
 
 def minibatch_index_info_generator(n_samples, minibatch_size, n_epochs, test_epochs = None, slice_when_possible=False):
-    for ixs, info in itertools.izip(
+    for ixs, info in zip(
             minibatch_index_generator(n_samples=n_samples, minibatch_size=minibatch_size, n_epochs=n_epochs, slice_when_possible=slice_when_possible),
             iteration_info(n_samples=n_samples, minibatch_size=minibatch_size, test_epochs=test_epochs, n_epochs=n_epochs)
             ):
@@ -229,7 +234,7 @@ def minibatch_iterate_info(data, minibatch_size, n_epochs, test_epochs = None):
         minibatch is a minibatch of data (minibatch_size, ...)
         info is an IterationInfo object returning information about the state of iteration.
     """
-    for arrays, info in itertools.izip(
+    for arrays, info in zip(
             minibatch_iterate(data, minibatch_size=minibatch_size, n_epochs=n_epochs),
             iteration_info(n_samples=data.shape[0], minibatch_size=minibatch_size, test_epochs=test_epochs)
             ):
@@ -249,19 +254,85 @@ def minibatch_process(f, minibatch_size, mb_args = (), mb_kwargs = {}, fixed_kwa
     :param fixed_kwargs: Keyword arguments that will remain fixed.
     :return: The output y
     """
-    all_mb_args = list(mb_args) + mb_kwargs.values()
+    all_mb_args = list(mb_args) + list(mb_kwargs.values())
     assert len(all_mb_args)>0, 'Need some input.'
     assert callable(f), 'f must be a function'
     n_samples = len(mb_args[0])
     assert all(len(arg) == n_samples for arg in all_mb_args)
     mb_kwarg_list = mb_kwargs.items()
-    fixed_kwarg_list = fixed_kwargs.items()
+    fixed_kwarg_list = list(fixed_kwargs.items())
     index_generator = minibatch_index_generator(n_samples = n_samples, n_epochs=1, minibatch_size=minibatch_size, final_treatment='truncate')
-    ix = index_generator.next()
+    ix = next(index_generator)
     first_output = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
-    output_shape = first_output.shape if minibatch_size==SINGLE_MINIBATCH_SIZE else first_output.shape[1:]
-    results = np.empty((n_samples, )+output_shape, dtype=first_output.dtype)
-    results[:len(first_output)] = first_output
-    for ix in index_generator:
-        results[ix] = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
-    return results
+    if first_output is None:
+        for ix in index_generator:
+            f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
+    else:
+        output_shape = first_output.shape if minibatch_size==SINGLE_MINIBATCH_SIZE else first_output.shape[1:]
+        results = np.empty((n_samples, )+output_shape, dtype=first_output.dtype)
+        results[:len(first_output)] = first_output
+        for ix in index_generator:
+            results[ix] = f(*(a[ix] for a in mb_args), **dict([(k, v[ix]) for k, v in mb_kwarg_list]+fixed_kwarg_list))
+        return results
+
+
+def generator_pool(generator_generator):
+    for generator in generator_generator:
+        yield generator
+
+
+def batchify_generator(generator_generator, batch_size, receive_input=False, out_format ='array'):
+    """
+    Best understood by example:
+
+    Suppose we want to get batches of frames from video data.  Where the batch[t][i] is the frame after batch[t-1][i].
+
+    e.g. Suppose we have 7 videos.  In the following, each column represents a batch of data, and rows represent the
+    index within a batch.
+
+        -------vid-1---------|-------vid-5-------|--vid-7--
+        -----------vid-2-----------|--------vid-6---------|
+        -----vid-3-------|----------vid-4------------------
+
+    generator_genererator yields 7 generators, corresponding to each of the movies.
+    Each of those generators is a frame-generator, which produces the frames in a given video.
+    Here, we generate frames from each movie, and start a new movies whenever an old one stops, until there are no
+    new movies to start.
+
+    :param generator_generator: An generator which generates generators
+    :param batch_size: The size if the batch you want to yield
+    :param receive_input: Expect a "send" to this generatoer AFTER it yields.  (see Python coroutines)
+    :param out_format: 'array' or 'tuple_of_arrays' currently supported.
+    :yield: An array consisting of batch_size of the outputs of the subgenerator, batched together.
+    """
+    assert receive_input in (False, 'post'), 'pre-receive not yet implemented'
+
+    total = batch_size
+
+    assert out_format in ('array', 'tuple_of_arrays')
+    generators = [next(generator_generator) for _ in range(batch_size)]
+    while True:
+        items = []
+        for i in range(batch_size):
+            while True:
+                try:
+                    items.append(next(generators[i]))
+                    break
+                except StopIteration:
+                    total+=1
+                    generators[i] = next(generator_generator)  # This will rais StopIteration when we're out of generators
+
+        if out_format=='array':
+            output= np.array(items)
+        else:
+            output = tuple(np.array(x) for x in zip(*items))
+
+        if not receive_input:
+            yield output
+        elif receive_input=='post':
+            received_signal = (yield output)  # Assume in_format=='array'
+            for gen, sig in izip_equal(generators, received_signal):
+                gen.send(sig)
+            yield None
+        else:
+            raise Exception(receive_input)

@@ -1,4 +1,9 @@
+from collections import OrderedDict
+
+from artemis.experiments.experiment_record_view import show_record, compare_experiment_records
 from artemis.experiments.experiments import Experiment
+from artemis.general.display import sensible_str
+from artemis.general.should_be_builtins import uniquify_duplicates, izip_equal
 
 
 def experiment_function(f):
@@ -39,17 +44,34 @@ class ExperimentFunction(object):
     This is the most general decorator.  You can use this to add details on the experiment.
     """
 
-    def __init__(self, display_function=None, comparison_function=None, one_liner_function=None, is_root=False):
+    def __init__(self, show = show_record, compare = compare_experiment_records, display_function=None, comparison_function=None, one_liner_function=sensible_str, is_root=False):
         """
-        :param display_function: A function that takes the results (whatever your experiment returns) and displays them.
-        :param comparison_function: A function that takes an OrderedDict<experiment_name, experiment_return_value>.
+        :param show:  A function that is called when you "show" an experiment record in the UI.  It takes an experiment
+            record as an argument.
+        :param compare: A function that is called when you "compare" a set of experiment records in the UI.
+        :param display_function: [Deprecated] A function that takes the results (whatever your experiment returns) and displays them.
+        :param comparison_function: [Deprecated] A function that takes an OrderedDict<experiment_name, experiment_return_value>.
             You can optionally define this function to compare the results of different experiments.
             You can use call this via the UI with the compare_experiment_results command.
         :param one_liner_function: A function that takes your results and returns a 1 line string summarizing them.
         :param is_root: True to make this a root experiment - so that it is not listed to be run itself.
         """
-        self.display_function = display_function
-        self.comparison_function = comparison_function
+        self.show = show
+        self.compare = compare
+
+        if display_function is not None:
+            assert show is show_record, "You can't set both display function and show.  (display_function is deprecated)"
+            show = lambda rec: display_function(rec.get_result())
+
+        if comparison_function is not None:
+            assert compare is compare_experiment_records, "You can't set both display function and show.  (display_function is deprecated)"
+
+            def compare(records):
+                record_experiment_ids_uniquified = uniquify_duplicates(rec.get_experiment_id() for rec in records)
+                comparison_function(OrderedDict((unique_rid, rec.get_result()) for unique_rid, rec in izip_equal(record_experiment_ids_uniquified, records)))
+
+        self.show = show
+        self.compare = compare
         self.is_root = is_root
         self.one_liner_function = one_liner_function
 
@@ -58,8 +80,8 @@ class ExperimentFunction(object):
         ex = Experiment(
             name=f.__name__,
             function=f,
-            display_function=self.display_function,
-            comparison_function = self.comparison_function,
+            show=self.show,
+            compare = self.compare,
             one_liner_function=self.one_liner_function,
             is_root=self.is_root
         )
