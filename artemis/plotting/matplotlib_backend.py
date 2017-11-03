@@ -1,6 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from itertools import cycle
 
+from matplotlib.image import AxesImage
+
 from six import string_types
 
 from artemis.config import get_artemis_config_value
@@ -50,7 +52,9 @@ colour_cycle = 'bgrmcyk'
 
 class ImagePlot(HistoryFreePlot):
 
-    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = False, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = False,
+            channel_first = False, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+
         """
         :param interpolation: How to interpolate array to form the image {'none', 'nearest', ''bilinear', 'bicubic', ... (see plt.imshow)}
         :param show_axes: Show axes marks (numbers along the side showing pixel locations)
@@ -72,10 +76,21 @@ class ImagePlot(HistoryFreePlot):
         self._is_colour_data = is_colour_data
         self.show_clims = show_clims
         self.only_grow_clims = only_grow_clims
+        self.channel_first = channel_first
         if only_grow_clims:
             self._old_clims = (float('inf'), -float('inf'))
 
     def _plot_last_data(self, data):
+
+        if self.channel_first:
+            if data.ndim==3:
+                assert data.shape[0] in (1, 3)
+                data = np.rollaxis(data, 0, 3)
+            elif data.ndim==4:
+                assert data.shape[1] in (1, 3)
+                data = np.rollaxis(data, 1, 4)
+            else:
+                print('Image should be 3D (3, size_y, size_x) or 4D (n_images, 3, size_y, size_x) for channel-first-mode.')
 
         if len(data)==0:
             plottable_data = np.zeros((16, 16, 3), dtype = np.uint8)
@@ -289,14 +304,30 @@ class BoundingBoxPlot(LinePlot):
 
     def __init__(self, axes_update_mode='expand', **kwargs):
         super(BoundingBoxPlot, self).__init__(axes_update_mode=axes_update_mode, **kwargs)
+        self._image_handle = None
+        self._last_data_shape = None
 
     def update(self, data):
         """
         :param data: A (left, bottom, right, top) bounding box.
         """
+        if self._image_handle is None:
+            self._image_handle = next(c for c in plt.gca().get_children() if isinstance(c, AxesImage))
+
+        data_shape = self._image_handle.get_array().shape # Hopefully this isn't copying
+        if data_shape != self._last_data_shape:
+            extent =(-.5, data_shape[1]-.5, data_shape[0]-.5, -.5)
+            self._image_handle.set_extent(extent)
+            plt.gca().set_xlim(extent[:2])
+            plt.gca().set_ylim(extent[2:])
+            self._last_data_shape = data_shape
+
         l, b, r, t = data
-        x = np.array([l+.5, l+.5, r+.5, r+.5, l+.5])
-        y = np.array([t+.5, b+.5, b+.5, t+.5, t+.5])
+        # x = np.array([l+.5, l+.5, r+.5, r+.5, l+.5])  # Note: should we be adding .5? The extend already subtracts .5
+        # y = np.array([t+.5, b+.5, b+.5, t+.5, t+.5])
+        x = np.array([l, l, r, r, l])  # Note: should we be adding .5? The extend already subtracts .5
+        y = np.array([t, b, b, t, t])
+
         LinePlot.update(self, (x, y))
 
 

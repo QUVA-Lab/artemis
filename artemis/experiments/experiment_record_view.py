@@ -34,6 +34,8 @@ def get_record_result_string(record, func='deep', truncate_to = None, array_prin
         except NoSavedResultError:
             return '<No result has been saved>'
         string = func(result)
+        if not isinstance(string, string_types):
+            string = str(string)
 
     if truncate_to is not None:
         string = truncate_string(string, truncation=truncate_to, message = '...<truncated>')

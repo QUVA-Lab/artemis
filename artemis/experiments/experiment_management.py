@@ -5,6 +5,13 @@ from functools import partial
 from importlib import import_module
 import os
 import multiprocessing
+
+import subprocess
+from time import time
+
+import math
+
+from artemis.general.display import equalize_string_lengths
 from six import string_types
 from six.moves import reduce, xrange
 from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
@@ -14,10 +21,11 @@ from artemis.fileman.config_files import get_home_dir,set_non_persistent_config_
 from artemis.general.hashing import compute_fixed_hash
 from artemis.remote.child_processes import SlurmPythonProcess
 from artemis.remote.nanny import Nanny
-from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix, memoize
+from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix, memoize, \
+    divide_into_subsets
 
 
-def pull_experiments(user, ip, experiment_names, include_variants=True):
+def pull_experiments(user, ip, experiment_names, include_variants=True, need_pass = False):
     """
     Pull experiments from another computer matching the given experiment name.
 
@@ -33,26 +41,30 @@ def pull_experiments(user, ip, experiment_names, include_variants=True):
     if isinstance(experiment_names, string_types):
         experiment_names = [experiment_names]
 
-    inclusions = ' '.join("--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names)
-
     home = get_home_dir()
 
-    command = "rsync -a -m -i {inclusions} --include='*/' --exclude='*' {user}@{ip}:~/.artemis/experiments/ {home}/.artemis/experiments/".format(
-        inclusions=inclusions,
-        user=user,
-        ip=ip,
-        home=home
-        )
-    password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
-    child = pexpect.spawn(command)
-    code = child.expect([pexpect.TIMEOUT, 'password:'])
-    if code == 0:
-        print(("Got unexpected output: %s %s" % (child.before, child.after)))
-        sys.exit()
+    # This one works if you have keys set up
+    command = ['rsync', '-a', '-m', '-i']\
+        +['{user}@{ip}:~/.artemis/experiments/'.format(user=user, ip=ip)] \
+        +['{home}/.artemis/experiments/'.format(home=home)]\
+        +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names] \
+        +["--include='*/'", "--exclude='*'"]
+
+    if not need_pass:
+        output = subprocess.check_output(command)
+        return output
     else:
-        child.sendline(password)
-    output = child.read()
-    return output
+        # This one works if you need a password
+        password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
+        child = pexpect.spawn(' '.join(command))
+        code = child.expect([pexpect.TIMEOUT, 'password:'])
+        if code == 0:
+            print(("Got unexpected output: %s %s" % (child.before, child.after)))
+            sys.exit()
+        else:
+            child.sendline(password)
+        output = child.read()
+        return output
 
 
 def load_lastest_experiment_results(experiments, error_if_no_result = True):
@@ -73,7 +85,8 @@ def load_record_results(records, err_if_no_result =True, index_by_id = False):
     """
     Given a list of experiment records, return an OrderedDict<record: result>
     :param records: A list of ExperimentRecord objects
-    :param err_if_no_result: True to raise an error if a record has no result.
+    :param err_if_no_result: True to raise an error if a record has no result.  If False, you will just be warned that
+        the result does not exist for this record.
     :return:  OrderedDict<ExperimentRecord: result>
     """
     results = OrderedDict()
@@ -137,7 +150,7 @@ def _filter_experiments(user_range, exp_record_dict):
             # experiment_ids = [exp_id for exp_id in experiment_list if len(record_filters[exp_id])]
             is_in = [all(record_filters[exp_id]) for exp_id in exp_record_dict]
         else:
-            raise Exception("Don't know how to use input '{}' to select experiments".format(user_range))
+            raise RecordSelectionError("Don't know how to use input '{}' to select experiments".format(user_range))
 
     return OrderedDict((exp_id, exp_is_in) for exp_id, exp_is_in in izip_equal(exp_record_dict, is_in))
 
@@ -207,6 +220,17 @@ def _bitwise_filter_op(op, *filter_sets):
     return output_set
 
 
+_named_record_filters = {}
+_named_record_filters['old'] = lambda rec_ids: ([True]*(len(rec_ids)-1)+[False]) if len(rec_ids)>0 else []
+_named_record_filters['corrupt'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_status_field()==ExpStatusOptions.CORRUPT for rec_id in rec_ids]
+_named_record_filters['finished'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in rec_ids]
+_named_record_filters['invalid'] = lambda rec_ids: [load_experiment_record(rec_id).args_valid() is False for rec_id in rec_ids]
+_named_record_filters['all'] = lambda rec_ids: [True]*len(rec_ids)
+_named_record_filters['errors'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in rec_ids]
+_named_record_filters['result'] = lambda rec_ids: [load_experiment_record(rec_id).has_result() for rec_id in rec_ids]
+_named_record_filters['running'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.STARTED for rec_id in rec_ids]
+
+
 def _filter_records(user_range, exp_record_dict):
     """
     :param user_range:
@@ -222,8 +246,8 @@ def _filter_records(user_range, exp_record_dict):
         return _bitwise_filter_op('or', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('|')])
     elif '&' in user_range:
         return _bitwise_filter_op('and', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
-    elif '>' in user_range:
-        ix = user_range.index('>')
+    elif '@' in user_range:
+        ix = user_range.index('@')
         first_part, second_part = user_range[:ix], user_range[ix+1:]
         _first_stage_filters = _filter_records(first_part, exp_record_dict)
         _new_dict = _select_record_ids_from_filters(_first_stage_filters, exp_record_dict)
@@ -240,40 +264,42 @@ def _filter_records(user_range, exp_record_dict):
 
     number_range = interpret_numbers(user_range)
     keys = list(exp_record_dict.keys())
-    if number_range is not None:
+
+    if user_range in _named_record_filters:  # e.g. 'finished'
+        for exp_id, _ in base.items():
+            base[exp_id] = _named_record_filters[user_range](exp_record_dict[exp_id])
+    elif number_range is not None:  # e.g. '6-12'
         for i in number_range:
             if i>len(keys):
                 raise RecordSelectionError('Experiment {} does not exist (they go from 0 to {})'.format(i, len(keys)-1))
             base[keys[i]] = [True]*len(base[keys[i]])
-    elif '.' in user_range:
+    elif '.' in user_range:  # e.b. 6.3-4
         exp_rec_pairs = interpret_record_identifier(user_range)
         for exp_number, rec_number in exp_rec_pairs:
             if rec_number>=len(base[keys[exp_number]]):
                 raise RecordSelectionError('Selection {}.{} does not exist.'.format(exp_number, rec_number))
             base[keys[exp_number]][rec_number] = True
-    elif user_range == 'old':
-        for k, v in base.items():
-            base[k] = ([True]*(len(v)-1)+[False]) if len(v)>0 else []
-    elif user_range == 'corrupt':
-        for k, v in base.items():
-            base[k] = [load_experiment_record(rec_id).info.get_status_field()==ExpStatusOptions.CORRUPT for rec_id in exp_record_dict[k]]
-    elif user_range == 'finished':
-        for k, v in base.iteritems():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in exp_record_dict[k]]
-    elif user_range == 'invalid':
-        for k, v in base.items():
-            base[k] = [load_experiment_record(rec_id).args_valid() is False for rec_id in exp_record_dict[k]]
-    elif user_range == 'all':
-        for k, v in base.items():
-            base[k] = [True]*len(v)
-    elif user_range == 'errors':
-        for k, v in base.items():
-            base[k] = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in exp_record_dict[k]]
-    elif user_range == 'result':
-        for k, v in base.items():
-            base[k] = [load_experiment_record(rec_id).has_result() for rec_id in exp_record_dict[k]]
+    elif user_range.startswith('since:'):  # eg. 'since:24'
+        time_id = user_range[len('since:'):]
+        try:
+            seconds_ago = int(time_id)*3600
+        except:
+            raise RecordSelectionError('Cannot interpret "{}" as a time.  Currently, it should be an integer, which means "within the last X hours"'.format(time_id))
+        current_time = time()
+        for exp_id, _ in base.items():
+            base[exp_id] = [(current_time - load_experiment_record(rec_id).get_timestamp())<seconds_ago for rec_id in exp_record_dict[exp_id]]
+    elif user_range.startswith('dur'):  # Eg dur<25  Means "All records that ran less than 25s"
+        try:
+            sign = user_range[3]
+            assert sign in ('<', '>')
+            seconds = int(user_range[4:])
+        except:
+            raise RecordSelectionError('Could not interpret "{}" as a duration.  Example is dur<25 to select all experiments that ran less than 25s.'.format(user_range))
+        for exp_id, _ in base.items():
+            durations = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.RUNTIME, default = None) for rec_id in exp_record_dict[exp_id]]
+            base[exp_id] = [False if dur is None else dur<seconds if sign=='<' else dur>seconds for dur in durations]
     else:
-        raise RecordSelectionError("Don't know how to interpret subset '{}'".format(user_range))
+        raise RecordSelectionError("Don't know how to interpret subset '{}'.  Possible subsets: {}".format(user_range, list(_named_record_filters.keys())))
     return base
 
 
@@ -333,7 +359,7 @@ def interpret_record_identifier(user_range):
         parts = user_range.split(',')
         return [pair for p in parts for pair in interpret_record_identifier(p)]
     if '.' not in user_range:
-        return None
+        raise RecordSelectionError('All record selections must have a "." - Your selection: "{}" did not.'.format(user_range))
     else:
         exp_number, record_numbers = user_range.split('.')
         return [(int(exp_number), rec_num) for rec_num in interpret_numbers(record_numbers)]
@@ -413,43 +439,73 @@ def run_experiment_ignoring_errors(name, **kwargs):
         traceback.print_exc()
 
 
-def run_multiple_experiments_with_slurm(experiments, n_parallel=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
+def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_processes_per_node=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
     '''
     Run multiple experiments using slurm, optionally in parallel.
     '''
     if n_parallel and n_parallel > 1:
-        raise NotImplementedError("No parallel Slurm execution at the moment. Implement it!")
+        # raise NotImplementedError("No parallel Slurm execution at the moment. Implement it!")
+        print ('Warning... parallel-slurm integration is very beta. Use with caution')
+        experiment_subsets = divide_into_subsets(experiments, subset_size=n_parallel)
+        for i, exp_subset in enumerate(experiment_subsets):
+            nanny = Nanny()
+            function_call = partial(run_multiple_experiments,
+                experiments=exp_subset,
+                parallel=n_parallel if max_processes_per_node is None else max_processes_per_node,
+                display_results=False,
+                run_args = run_args
+                )
+            spp = SlurmPythonProcess(name="Group %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
+            # Using Nanny only for convenient stdout & stderr forwarding.
+            nanny.register_child_process(spp,monitor_for_termination=False)
+            nanny.execute_all_child_processes(time_out=2)
     else:
         for i,exp in enumerate(experiments):
             nanny = Nanny()
-            func = run_experiment
-            experiment_path = get_experiment_dir()
-            function_call = partial(func, experiment=exp, slurm_job=True, experiment_path=experiment_path,raise_exceptions=raise_exceptions,display_results=False, **run_args)
+            function_call = partial(run_experiment, experiment=exp, slurm_job=True, experiment_path=get_experiment_dir(),
+                raise_exceptions=raise_exceptions,display_results=False, **run_args)
             spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
             # Using Nanny only for convenient stdout & stderr forwarding.
             nanny.register_child_process(spp,monitor_for_termination=False)
             nanny.execute_all_child_processes(time_out=2)
 
 
-def run_multiple_experiments(experiments, parallel = False, cpu_count=None, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
+def _parallel_run_target(experiment_id_and_prefix, raise_exceptions, **kwargs):
+    experiment_id, prefix = experiment_id_and_prefix
+    if raise_exceptions:
+        return run_experiment_by_name(experiment_id, prefix=prefix, **kwargs)
+    else:
+        return run_experiment_ignoring_errors(experiment_id, prefix=prefix, **kwargs)
+
+
+def run_multiple_experiments(experiments, prefixes = None, parallel = False, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
     """
     Run multiple experiments, optionally in parallel with multiprocessing.
 
     :param experiments: A collection of experiments
-    :param parallel: True to run in parallel, with multiprocessing
-    :param cpu_count: If parallel, number of CPUs to use (defaults to all)
+    :param parallel: Can be:
+        True/'all': Run in parallel with as many processes as CPUs
+        An integer indicating the number of processes to run
+        False/None Don't run in parallel.
     :param raise_exceptions: Terminate exectution when one experiment fails.
     :param run_args: Other args to pass to Experiment.run()
     :return: A collection of experiment records.
     """
 
     if parallel:
+        if parallel in (True, 'all'):
+            parallel = multiprocessing.cpu_count()
+        else:
+            assert isinstance(parallel, int)
         experiment_identifiers = [ex.get_id() for ex in experiments]
-        if cpu_count is None:
-            cpu_count = multiprocessing.cpu_count()
-        func = run_experiment_by_name if raise_exceptions else run_experiment_ignoring_errors
-        p = multiprocessing.Pool(processes=cpu_count)
-        return p.map(partial(func, notes=notes, **run_args), experiment_identifiers)
+        if prefixes is None:
+            prefixes = range(len(experiment_identifiers))
+        prefixes = [s+': ' for s in equalize_string_lengths(prefixes, side='right')]
+        print ('Prefix key: \n'+'\n'.join('{}{}'.format(p, eid) for p, eid in izip_equal(prefixes, experiment_identifiers)))
+        target_func = partial(_parallel_run_target, notes=notes, raise_exceptions=raise_exceptions, **run_args)
+        p = multiprocessing.Pool(processes=parallel)
+
+        return p.map(target_func, zip(experiment_identifiers, prefixes))
     else:
         return [ex.run(raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **run_args) for ex in experiments]
 
@@ -514,5 +570,6 @@ def deprefix_experiment_ids(experiment_ids):
     # Then for each experiment in the list,
     tuples = [get_experiment_tuple(eid) for eid in experiment_ids]
     de_prefixed_tuples = remove_common_prefix(tuples, keep_base=False)
-    new_strings = ['.'+'.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
+    start_with = '' if len(de_prefixed_tuples[0])==len(tuples[0]) else '.'
+    new_strings = [start_with+'.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
     return new_strings

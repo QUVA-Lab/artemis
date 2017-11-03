@@ -160,6 +160,9 @@ def set_same_ylims(axes):
         ax.set_ylim(y_range)
 
 
+def set_figure_border_size(size=0.05):
+    plt.subplots_adjust(left=size, right=1.-size, top=1-size, bottom=size)
+
 @contextmanager
 def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True, show_y='once', clip_x=False, clip_y=False, remove_ticks = True, xlabel=None, ylabel=None, xlim=None, ylim=None, **adjust_kwargs):
 

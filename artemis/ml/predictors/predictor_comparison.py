@@ -5,7 +5,7 @@ import numpy as np
 
 from artemis.general.checkpoint_counter import CheckPointCounter
 from artemis.general.should_be_builtins import bad_value
-from artemis.ml.predictors.train_and_test import get_evaluation_function
+from artemis.ml.tools.costs import get_evaluation_function
 from artemis.ml.tools.iteration import checkpoint_minibatch_index_generator
 from artemis.general.mymath import sqrtspace
 from artemis.ml.tools.processors import RunningAverage
@@ -151,7 +151,7 @@ def assess_offline_predictor(predictor, dataset, evaluation_function, test_on = 
 def assess_online_predictor(predictor, dataset, evaluation_function, test_epochs, minibatch_size, test_on = 'training+test',
         accumulator = None, report_test_scores=True, test_batch_size = None, test_callback = None):
     """
-    DEPRECATED: use assess_prediction_functions_on_generator in train_and_test.py
+    DEPRECATED: use assess_prediction_functions_on_generator in train_and_test_old.py
 
     Train an online predictor and return the LearningCurveData.
 

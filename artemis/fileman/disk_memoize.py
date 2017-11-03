@@ -1,7 +1,8 @@
 import logging
 import os
 from functools import partial
-from six.moves import input
+from shutil import rmtree
+
 from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.functional import infer_arg_values
 from artemis.general.hashing import compute_fixed_hash
@@ -19,7 +20,7 @@ MEMO_READ_ENABLED = True
 MEMO_DIR = get_artemis_data_path('memoize_to_disk')
 
 
-def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle = False, suppress_info = False):
+def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickle = False, suppress_info = False):
     """
     Save (memoize) computed results to disk, so that the same function, called with the
     same arguments, does not need to be recomputed.  This is useful if you have a long-running
@@ -48,6 +49,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
         True.  Generally, leave this as true, unless you are testing memoization itself.
     :param use_cpickle: Use CPickle, instead of pickle, to save results.  This can be faster for complex python
         structures, but can be slower for numpy arrays.  So we recommend not using it.
+    :param suppress_info: Don't log info loading and saving memos.
     :return: A wrapper around the function that checks for memos and loads old results if they exist.
     """
 
@@ -75,17 +77,17 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
                 # local_cache_signature = get_local_cache_signature(args, kwargs)
                 if filepath in cached_local_results:
                     if not suppress_info:
-                        LOGGER.info('Reading disk-memo from local cache for function %s' % (fcn.__name__, ))
+                        LOGGER.info('Reading disk-memo from local cache for function {}'.format(fcn.__name__, ))
                     return cached_local_results[filepath]
             if os.path.exists(filepath):
                 with open(filepath, 'rb') as f:
                     try:
                         if not suppress_info:
-                            LOGGER.info('Reading memo for function %s' % (fcn.__name__, ))
+                            LOGGER.info('Reading memo for function {}'.format(fcn.__name__, ))
                         result = pickle.load(f)
-                    except (ValueError, ImportError) as err:
-                        if isinstance(err, ValueError) and not suppress_info:
-                            LOGGER.warn('Memo-file "%s" was corrupt.  (%s: %s).  Recomputing.' % (filepath, err.__class__.__name__, str(err)))
+                    except (ValueError, ImportError, EOFError) as err:
+                        if isinstance(err, (ValueError, EOFError)) and not suppress_info:
+                            LOGGER.warn('Memo-file "{}" was corrupt.  ({}: {}).  Recomputing.'.format(filepath, err.__class__.__name__, str(err)))
                         elif isinstance(err, ImportError) and not suppress_info:
                             LOGGER.warn('Memo-file "{}" was tried to reference an old class and got ImportError: {}.  Recomputing.'.format(filepath, str(err)))
                         result_computed = True
@@ -101,11 +103,11 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=True, use_cpickle
             if local_cache:
                 cached_local_results[filepath] = result
             if result_computed:  # Result was computed, so write it down
-                filepath = get_function_hash_filename(fcn, full_args)
+                filepath = get_function_hash_filename(fcn, full_args, create_dir_if_not=True)
                 make_file_dir(filepath)
                 with open(filepath, 'wb') as f:
                     if not suppress_info:
-                        LOGGER.info('Writing disk-memo for function %s' % (fcn.__name__, ))
+                        LOGGER.info('Writing disk-memo for function {}'.format(fcn.__name__, ))
                     pickle.dump(result, f, protocol=2)
 
         return result
@@ -136,17 +138,20 @@ def memoize_to_disk_and_cache_test(fcn):
     return memoize_to_disk(fcn, local_cache=True, disable_on_tests=False)
 
 
-def get_function_hash_filename(fcn, argname_argvalue_list):
+def get_function_hash_filename(fcn, argname_argvalue_list, create_dir_if_not = False):
     args_code = compute_fixed_hash(argname_argvalue_list)
     # TODO: Include function path in hash?  Or module path, which would allow memos to be shareable.
-    return os.path.join(MEMO_DIR, '%s-%s.pkl' % (fcn.__name__, args_code))
+    full_path = os.path.join(get_memo_dir(fcn), '{}.pkl'.format(args_code, ))
+    if create_dir_if_not:
+        make_file_dir(full_path)
+    return full_path
 
 
 def memoize_to_disk_with_settings(**kwargs):
     return partial(memoize_to_disk, **kwargs)
 
 
-def get_all_memos():
+def get_all_memo_dirs():
     """
     :return: A list of file-locations
     """
@@ -155,10 +160,21 @@ def get_all_memos():
     return full_paths_of_memos
 
 
+def get_memo_dir(fcn):
+    if hasattr(fcn, 'wrapped_fcn'):  # Allow to specify with either the function or the wrapped function.
+        fcn = fcn.wrapped_fcn
+    return os.path.join(MEMO_DIR, fcn.__name__)
+
+
 def get_memo_files_for_function(fcn):
-    all_memos = os.listdir(MEMO_DIR) if os.path.exists(MEMO_DIR) else []
-    matching_memos = [os.path.join(MEMO_DIR, m) for m in all_memos if m.startswith(fcn.wrapped_fcn.__name__)]
-    return matching_memos
+
+    function_memo_dir = get_memo_dir(fcn)
+    if not os.path.exists(function_memo_dir):
+        return []
+    else:
+        memos = os.listdir(function_memo_dir)
+        memo_paths = [os.path.join(function_memo_dir, mem) for mem in memos]
+        return memo_paths
 
 
 def clear_memo_files_for_function(fcn):
@@ -168,10 +184,10 @@ def clear_memo_files_for_function(fcn):
 
 
 def clear_all_memos():
-    all_memos = get_all_memos()
+    all_memos = get_all_memo_dirs()
     for m in all_memos:
-        os.remove(m)
-    print('Removed %s memos.' % (len(all_memos)))
+        rmtree(m)
+    print('Removed all {} memo directories.'.format(len(all_memos)))
 
 
 class DisableMemoReading(object):
@@ -218,11 +234,10 @@ class DisableMemos(object):
         self._writer.__exit__(*args)
 
 
+def browse_memos():
+    from artemis.fileman.directory_crawl import DirectoryCrawlerUI
+    DirectoryCrawlerUI(MEMO_DIR, sortby='mtime', show_num_items=True).launch()
+
+
 if __name__ == '__main__':
-
-    cmd = input('Type "clearall" to clear all memos: ').strip().lower()
-
-    if cmd == 'clearall':
-        clear_all_memos()
-    else:
-        raise Exception('Bad command or file name.')
+    browse_memos()

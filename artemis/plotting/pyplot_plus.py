@@ -1,9 +1,12 @@
+from cycler import cycler
 import matplotlib.pyplot as plt
 import logging
 import numpy as np
 import matplotlib.colors as colors
+from matplotlib.cm import register_cmap
+from matplotlib.colors import LinearSegmentedColormap
 from si_prefix import si_format
-
+import matplotlib
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
@@ -59,6 +62,12 @@ _lines_colour_cycle = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
 
 def get_lines_color_cycle():
     return _lines_colour_cycle
+
+
+def set_lines_color_cycle_map(name, length):
+    cmap = getattr(plt.cm, name)
+    c = cycler('color', cmap(np.linspace(0, 1, length)))
+    matplotlib.rcParams['axes.prop_cycle'] = c
 
 
 def get_line_color(ix, modifier=None):
@@ -121,3 +130,45 @@ def remove_x_axis():
 def remove_y_axis():
     plt.tick_params(axis='y', labelbottom='off')
     # plt.gca().yaxis.set_major_locator(plt.NullLocator())
+
+
+def _get_centered_colour_scale(cmin, cmax):
+
+    total_max = np.maximum(np.abs(cmin), np.abs(cmax))
+
+    crange = np.linspace(cmin/total_max, cmax/total_max, 256)
+
+    r = np.minimum(0, crange)
+    g = np.zeros_like(crange)
+    b = np.maximum(0, crange)
+    # (now we have
+    scale = np.concatenate([r[:, None], g[:, None], b[:, None]], axis=1)/2.+.5
+    return scale
+
+
+register_cmap('redgreyblue', LinearSegmentedColormap('redgreyblue', {
+        'red': [(0, 1, 1), (0.5, .5, .5), (1, 0, 0)],
+        'green': [(0, 0, 0), (0.5, .5, .5), (1, 0, 0)],
+        'blue': [(0, 0, 0), (0.5, .5, .5), (1, 1, 1)],
+        }))
+
+register_cmap('redblackblue', LinearSegmentedColormap('redgreyblue', {
+        'red': [(0, 1, 1), (0.5, 0, 0), (1, 0, 0)],
+        'green': [(0, 0, 0), (1, 0, 0)],
+        'blue': [(0, 0, 0), (0.5, 0, 0), (1, 1, 1)],
+        }))
+
+
+def center_colour_scale(h):
+    current_min, current_max = h.get_clim()
+    absmax = np.maximum(np.abs(current_min), np.abs(current_max))
+    h.set_clim((-absmax, absmax))
+
+
+def set_centered_colour_map(h, map='redblackblue'):
+    """
+    Set a colourmap that is red in negative regions, grey at zero, and blue in positive regions.
+    :param h: An AxesImage handle (returned by plt.imshow)
+    """
+    h.set_cmap(map)
+    center_colour_scale(h)
