@@ -91,7 +91,7 @@ def test_experiment_function_ui():
         with assert_things_are_printed(min_len=1300, things=['Result', 'Logs', 'Ran Succesfully', 'Traceback']):
             my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all -o', close_after=True)
 
-        with assert_things_are_printed(min_len=1300, things=['3aaa', '4aaa']):
+        with assert_things_are_printed(min_len=1250, things=['3aaa', '4aaa']):
             my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='show all -r', close_after=True)
 
         with assert_things_are_printed(min_len=1700, things=['Result', 'Logs', 'Ran Succesfully']):
