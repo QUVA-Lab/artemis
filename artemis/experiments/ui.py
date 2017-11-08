@@ -404,6 +404,7 @@ experiment records.  You can specify records in the following ways:
                 else:
                     for j, record_id in enumerate(record_ids):
                         rows.append([str(i) if j==0 else '', j, exp_id if j==0 else '']+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to, ignore_valid_keys=self.ignore_valid_keys))
+            assert len(rows[0])==len(full_headers)
             rows, full_headers = remove_notes_if_no_notes(rows, full_headers)
 
             if self.table_package == 'pretty_table':
@@ -745,20 +746,23 @@ def _get_record_rows_cached(record_id, headers, raise_display_errors, truncate_t
     if os.path.exists(path):
         try:
             with open(path, 'rb') as f:
-                info = pickle.load(f)
-            return info
+                record_rows = pickle.load(f)
+            if len(record_rows)!=len(headers):
+                os.remove(path)  # This should never happen.  But in case it somehow does, we just go ahead and compute again.
+            else:
+                return record_rows
         except:
             logging.warn('Failed to load cached record info: {}'.format(record_id))
 
     info_plus_status = _get_record_rows(record_id=record_id, headers=headers+[ExpRecordDisplayFields.STATUS],
                                         raise_display_errors=raise_display_errors, truncate_to=truncate_to, ignore_valid_keys=ignore_valid_keys)
-    info, status = info_plus_status[:-1], info_plus_status[-1]
+    record_rows, status = info_plus_status[:-1], info_plus_status[-1]
     if status == ExpStatusOptions.STARTED:  # In this case it's still running (maybe) and we don't want to cache because it'll change
-        return info
+        return record_rows
     else:
         with open(path, 'wb') as f:
-            pickle.dump(info[:-1], f)
-        return info
+            pickle.dump(record_rows, f)
+        return record_rows
 
 
 def browse_experiment_records(*args, **kwargs):
