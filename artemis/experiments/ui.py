@@ -26,7 +26,7 @@ from artemis.experiments.experiment_record_view import (get_record_full_string, 
 from artemis.experiments.experiment_record_view import show_record, show_multiple_records
 from artemis.experiments.experiments import load_experiment, get_nonroot_global_experiment_library
 from artemis.fileman.local_dir import get_artemis_data_path
-from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header, format_duration
+from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header, format_duration, format_time_stamp
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal, insert_at, izip_equal, separate_common_items, bad_value
@@ -404,6 +404,7 @@ experiment records.  You can specify records in the following ways:
                 else:
                     for j, record_id in enumerate(record_ids):
                         rows.append([str(i) if j==0 else '', j, exp_id if j==0 else '']+row_func(record_id, headers, raise_display_errors=self.raise_display_errors, truncate_to=self.truncate_result_to, ignore_valid_keys=self.ignore_valid_keys))
+            assert len(rows[0])==len(full_headers)
             rows, full_headers = remove_notes_if_no_notes(rows, full_headers)
 
             if self.table_package == 'pretty_table':
@@ -698,7 +699,7 @@ class _DisplaySettings(object):
 
 
 _exp_record_field_getters = {
-    ExpRecordDisplayFields.RUNS: lambda rec: rec.info.get_field_text(ExpInfoFields.TIMESTAMP),
+    ExpRecordDisplayFields.RUNS: lambda rec: format_time_stamp(rec.info.get_field(ExpInfoFields.TIMESTAMP)),
     ExpRecordDisplayFields.DURATION: lambda rec: format_duration(rec.info.get_field(ExpInfoFields.RUNTIME)) if rec.info.has_field(ExpInfoFields.RUNTIME) else '-',
     ExpRecordDisplayFields.ARGS_CHANGED: lambda rec: get_record_invalid_arg_string(rec, ignore_valid_keys=_DisplaySettings.get_setting('ignore_valid_keys')),
     ExpRecordDisplayFields.RESULT_STR: get_oneline_result_string,
@@ -745,20 +746,23 @@ def _get_record_rows_cached(record_id, headers, raise_display_errors, truncate_t
     if os.path.exists(path):
         try:
             with open(path, 'rb') as f:
-                info = pickle.load(f)
-            return info
+                record_rows = pickle.load(f)
+            if len(record_rows)!=len(headers):
+                os.remove(path)  # This should never happen.  But in case it somehow does, we just go ahead and compute again.
+            else:
+                return record_rows
         except:
             logging.warn('Failed to load cached record info: {}'.format(record_id))
 
     info_plus_status = _get_record_rows(record_id=record_id, headers=headers+[ExpRecordDisplayFields.STATUS],
                                         raise_display_errors=raise_display_errors, truncate_to=truncate_to, ignore_valid_keys=ignore_valid_keys)
-    info, status = info_plus_status[:-1], info_plus_status[-1]
+    record_rows, status = info_plus_status[:-1], info_plus_status[-1]
     if status == ExpStatusOptions.STARTED:  # In this case it's still running (maybe) and we don't want to cache because it'll change
-        return info
+        return record_rows
     else:
         with open(path, 'wb') as f:
-            pickle.dump(info[:-1], f)
-        return info
+            pickle.dump(record_rows, f)
+        return record_rows
 
 
 def browse_experiment_records(*args, **kwargs):
