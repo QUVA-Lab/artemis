@@ -1,16 +1,16 @@
 from __future__ import print_function
 
-import Queue
-
 from six.moves import socketserver
+from six.moves import input
+
 import getpass
+import Queue
 import logging
 import socket
 import struct
 import sys
-
 import os
-from six.moves import input
+
 
 from artemis.config import get_artemis_config_value
 

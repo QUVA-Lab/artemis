@@ -20,6 +20,7 @@ def _queue_get_all_no_wait(q, max_items_to_retreive):
             break
     return items
 
+
 def handle_socket_accepts(sock, main_input_queue=None, return_queue=None, max_number=0):
     """
     This Accepts max_number of incoming communication requests to sock and starts the threads that manages the data-transfer between the server and the clients
@@ -33,12 +34,12 @@ def handle_socket_accepts(sock, main_input_queue=None, return_queue=None, max_nu
     for _ in range(max_number):
         connection, client_address = sock.accept()
         if main_input_queue:
-            t0 = threading.Thread(target=handle_input_connection,args=(connection, client_address, main_input_queue))
+            t0 = threading.Thread(target=handle_input_connection, args=(connection, client_address, main_input_queue))
             t0.setDaemon(True)
             t0.start()
 
         if return_queue:
-            t1 = threading.Thread(target=handle_return_connection,args=(connection, client_address, return_queue, return_lock))
+            t1 = threading.Thread(target=handle_return_connection, args=(connection, client_address, return_queue, return_lock))
             t1.setDaemon(True)
             t1.start()
 
@@ -69,7 +70,7 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
                 if client == client_address:
                     owned_items.append(plot_id)
                 else:
-                    return_queue.put((client,plot_id))
+                    return_queue.put((client, plot_id))
             return_lock.release()
             for plot_id in owned_items:
                 message = plot_id
@@ -78,7 +79,10 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
             return_lock.release()
             time.sleep(0.01)
 
+
 ClientMessage = namedtuple('ClientMessage', ['dbplot_message', 'client_address'])
+
+
 # dbplot_args is a DBPlotMessage object
 # client_address: A string IP address
 
