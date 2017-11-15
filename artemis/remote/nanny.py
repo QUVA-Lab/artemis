@@ -3,6 +3,10 @@ import signal
 import sys
 import threading
 import time
+from six.moves import queue as Queue
+
+from artemis.general.generators import multiplex_generators
+
 
 class ManagedChildProcess(object):
     def __init__(self,cp,monitor_for_termination,monitor_if_stuck_timeout):
@@ -68,6 +72,9 @@ class Nanny(object):
 
     def get_child_processes(self):
         return {id:mcp.get_process() for id,mcp in self.managed_child_processes.items()}
+
+    def multiplex_return_generators(self):
+        return multiplex_generators([(cp.name,cp.get_return_generator(None)) for cp in self.get_child_processes() if cp.set_up_port_for_structured_back_communication])
 
     def execute_all_child_processes(self, time_out=1, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:False, blocking=True):
         '''

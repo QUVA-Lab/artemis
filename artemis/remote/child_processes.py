@@ -320,7 +320,7 @@ class RemotePythonProcess(ChildProcess):
         out = pickle.loads(serialized_out.dbplot_message)
         return out
 
-    def get_return_generator(self,timeout=1):
+    def get_return_generator(self,timeout=None):
         assert self.is_generator, "The remotely executed function does not yield, it returns. Use get_return_value()"
         assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
         for serialized_out in self.return_value_queue.get(timeout=timeout):
