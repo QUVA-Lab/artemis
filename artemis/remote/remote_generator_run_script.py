@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import Queue
+from six.moves import queue as Queue
 import base64
 import threading
 
