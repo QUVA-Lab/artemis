@@ -74,7 +74,9 @@ class Nanny(object):
         return {id:mcp.get_process() for id,mcp in self.managed_child_processes.items()}
 
     def multiplex_return_generators(self):
-        return multiplex_generators([(cp.name,cp.get_return_generator(None)) for cp in self.get_child_processes() if cp.set_up_port_for_structured_back_communication])
+        return multiplex_generators([(cp.name,cp.get_return_generator(None)) for cp in self.get_child_processes().values()
+                                     if cp.set_up_port_for_structured_back_communication and cp.is_generator])
+
 
     def execute_all_child_processes(self, time_out=1, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:False, blocking=True):
         '''
@@ -88,27 +90,12 @@ class Nanny(object):
         :return:
         '''
 
-        if blocking == False:
-            t0 = threading.Thread(target=self.execute_all_child_processes,args=(time_out,stdout_stopping_criterium, stderr_stopping_criterium,True))
-            t0.setDaemon(True)
-            t0.start()
-            all_cp_started = False
-            while not all_cp_started:
-                for cp in self.managed_child_processes.values():
-                    if not cp.get_process().cp_started:
-                        all_cp_started = False
-                        break
-                    else:
-                        all_cp_started = True
-                time.sleep(0.1)
-            return
 
         termination_request_event = threading.Event()
         stdout_threads = {}
         stderr_threads = {}
 
         name_max_lenght = max([len(mcp.name) for mcp in self.managed_child_processes.values()])
-
         for i, id in enumerate(self.managed_child_processes.keys()):
             mcp =self.managed_child_processes[id]
             stdin, stdout, stderr = mcp.execute()
@@ -130,15 +117,20 @@ class Nanny(object):
             stdout_thread.start()
             stderr_thread.start()
 
-        try:
-            while not termination_request_event.wait(0.01):
-                pass
-        except KeyboardInterrupt:
-            print("Nanny interrupted")
-            self.deconstruct()
-            sys.exit(1)
+        if blocking:
+            try:
+                while not termination_request_event.wait(0.01):
+                    pass
+            except KeyboardInterrupt:
+                print("Nanny interrupted")
+                self.deconstruct()
+                sys.exit(1)
+        else:
+            for result in self.multiplex_return_generators():
+                if termination_request_event.is_set():
+                    break
+                yield result
 
-        # Grace period for other threads to shutdown
         time.sleep(time_out)
         for id,cp in self.managed_child_processes.items():
             if cp.is_alive():

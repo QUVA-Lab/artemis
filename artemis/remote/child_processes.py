@@ -323,8 +323,12 @@ class RemotePythonProcess(ChildProcess):
     def get_return_generator(self,timeout=None):
         assert self.is_generator, "The remotely executed function does not yield, it returns. Use get_return_value()"
         assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
-        for serialized_out in self.return_value_queue.get(timeout=timeout):
-            yield pickle.loads(serialized_out)
+        while True:
+            serialized_out = self.return_value_queue.get(timeout=timeout).dbplot_message
+            res = pickle.loads(serialized_out)
+            if res == StopIteration:
+                raise StopIteration
+            yield res
 
 
 

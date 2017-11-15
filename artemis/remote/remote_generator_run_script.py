@@ -28,5 +28,6 @@ if __name__ == '__main__':
     for result in gen():
         pickled_result = pickle.dumps(result, protocol = pickle.HIGHEST_PROTOCOL)
         results_queue.put(pickled_result)
+    results_queue.put(pickle.dumps(StopIteration,protocol=pickle.HIGHEST_PROTOCOL))
     termination_event.set()
 
