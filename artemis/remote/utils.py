@@ -2,9 +2,9 @@ from __future__ import print_function
 
 from six.moves import socketserver
 from six.moves import input
+from six.moves import queue as Queue
 
 import getpass
-import Queue
 import logging
 import socket
 import struct
