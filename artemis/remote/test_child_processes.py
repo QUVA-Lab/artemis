@@ -127,6 +127,7 @@ def my_func(a, b):
     return a+b
 
 
+
 def test_remote_python_process():
 
     in_debug_mode = sys.gettrace() is not None
@@ -147,8 +148,33 @@ def test_remote_python_process():
     assert stdout.read() == 'hello hello hello\n'
     assert p.get_return_value()==3
 
+def my_gen_func(a,b):
+    print("Executing Gen Func")
+    yield a+b
+
+def test_remote_generator_python_process():
+
+    in_debug_mode = sys.gettrace() is not None
+
+    p = RemotePythonProcess(
+        function=partial(my_gen_func, a=1, b=2),
+        ip_address='localhost',
+        )
+
+    stdin , stdout, stderr = p.execute_child_process()
+    time.sleep(.1)  # That autta be enough
+
+    errtext = stderr.read()
+    if in_debug_mode:
+        assert errtext.startswith('pydev debugger: ')
+    else:
+        assert errtext == '', errtext
+    assert stdout.read() == 'Executing Gen Func\n'
+    assert p.get_return_generator().next()==3
+
 
 if __name__ == "__main__":
+    test_remote_generator_python_process()
     test_simple_pcp()
     test_simple_pcp_list()
     test_interrupt_process_gently()

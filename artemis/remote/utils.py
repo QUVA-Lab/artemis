@@ -1,4 +1,7 @@
 from __future__ import print_function
+
+import Queue
+
 from six.moves import socketserver
 import getpass
 import logging
@@ -32,6 +35,21 @@ def one_time_send_to(address, port, message):
     send_size(sock, message)
 
 
+def queue_to_host(queue, return_address, return_port, termination_event):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((return_address, return_port))
+    while True:
+        if termination_event.is_set() and queue.empty():
+            break
+        try:
+            pickled_result = queue.get(timeout=1)
+        except Queue.Empty:
+            pass
+        else:
+            send_size(sock, pickled_result)
+
+
+
 def get_socket(address, port):
     '''
     Returns a socket, bound to the next free port starting from the given port.
@@ -53,7 +71,6 @@ def get_socket(address, port):
         else:
             break
     return (sock,port)
-
 
 def send_size(sock, data):
     try:

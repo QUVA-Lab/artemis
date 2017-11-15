@@ -19,8 +19,9 @@ import pipes
 
 from six import string_types
 
+from artemis.general.functional import get_partial_root
 from artemis.general.should_be_builtins import file_path_to_absolute_module
-from artemis.remote import remote_function_run_script
+from artemis.remote import remote_function_run_script, remote_generator_run_script
 from artemis.remote.plotting.utils import handle_socket_accepts
 
 from artemis.config import get_artemis_config_value
@@ -300,8 +301,9 @@ class RemotePythonProcess(ChildProcess):
 
         pickled_function = pickle_dumps_without_main_refs(function)
         encoded_pickled_function = base64.b64encode(pickled_function)
-
-        remote_run_script_path = inspect.getfile(remote_function_run_script)
+        self.is_generator = inspect.isgeneratorfunction(get_partial_root(function))
+        remote_run_script = remote_generator_run_script if self.is_generator else remote_function_run_script
+        remote_run_script_path = inspect.getfile(remote_run_script)
         if remote_run_script_path.endswith('pyc'):
             remote_run_script_path = remote_run_script_path[:-1]
 
@@ -313,9 +315,18 @@ class RemotePythonProcess(ChildProcess):
 
     def get_return_value(self, timeout=1):
         assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
+        assert not self.is_generator, "The remotely executed function yields, it does not return a value. Use get_return_generator()"
         serialized_out = self.return_value_queue.get(timeout=timeout)
         out = pickle.loads(serialized_out.dbplot_message)
         return out
+
+    def get_return_generator(self,timeout=1):
+        assert self.is_generator, "The remotely executed function does not yield, it returns. Use get_return_value()"
+        assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
+        for serialized_out in self.return_value_queue.get(timeout=timeout):
+            yield pickle.loads(serialized_out)
+
+
 
 class SlurmPythonProcess(RemotePythonProcess):
     def __init__(self, function, ip_address, set_up_port_for_structured_back_communication=True, slurm_kwargs={}, slurm_command="srun", **kwargs):
