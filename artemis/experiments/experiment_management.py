@@ -9,8 +9,6 @@ import multiprocessing
 import subprocess
 from time import time
 
-import math
-
 from artemis.general.display import equalize_string_lengths
 from six import string_types
 from six.moves import reduce, xrange
@@ -457,8 +455,8 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_proces
                 )
             spp = SlurmPythonProcess(name="Group %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
             # Using Nanny only for convenient stdout & stderr forwarding.
-            nanny.register_child_process(spp,monitor_for_termination=False)
-            nanny.execute_all_child_processes(time_out=2)
+            nanny.register_child_process(spp,monitor_for_termination=True)
+            nanny.execute_all_child_processes_block_return(time_out=2)
     else:
         for i,exp in enumerate(experiments):
             nanny = Nanny()
@@ -466,8 +464,8 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_proces
                 raise_exceptions=raise_exceptions,display_results=False, **run_args)
             spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
             # Using Nanny only for convenient stdout & stderr forwarding.
-            nanny.register_child_process(spp,monitor_for_termination=False)
-            nanny.execute_all_child_processes(time_out=2)
+            nanny.register_child_process(spp,monitor_for_termination=True)
+            nanny.execute_all_child_processes_block_return(time_out=2)
 
 
 def _parallel_run_target(experiment_id_and_prefix, raise_exceptions, **kwargs):

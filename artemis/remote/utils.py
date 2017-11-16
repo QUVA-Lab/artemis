@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import subprocess
 from six.moves import socketserver
 from six.moves import input
 from six.moves import queue as Queue
@@ -15,6 +16,12 @@ import os
 from artemis.config import get_artemis_config_value
 
 ARTEMIS_LOGGER = logging.getLogger('artemis')
+
+def am_I_in_slurm_environment():
+    sub = subprocess.Popen("which srun", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
+    return len(sub.stdout.read()) != 0
+
+
 
 def one_time_send_to(address, port, message):
     '''
@@ -37,7 +44,12 @@ def one_time_send_to(address, port, message):
 
 def queue_to_host(queue, return_address, return_port, termination_event):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((return_address, return_port))
+    try:
+        sock.connect((return_address, return_port))
+    except:
+        sys.stderr.write("Error in connecting to port %s on address %s\n"%(return_port,return_address))
+        sys.stderr.flush()
+        raise
     while True:
         if termination_event.is_set() and queue.empty():
             break
@@ -47,6 +59,7 @@ def queue_to_host(queue, return_address, return_port, termination_event):
             pass
         else:
             send_size(sock, pickled_result)
+    sock.close()
 
 
 

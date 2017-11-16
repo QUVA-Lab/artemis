@@ -102,23 +102,35 @@ class Experiment(object):
         :param experiment_record_kwargs: Passed to the "record_experiment" context.
         :return: The ExperimentRecord object, if keep_record is true, otherwise None
         """
+
+        for exp_rec in self.iterator(print_to_console=print_to_console, show_figs=show_figs, test_mode=test_mode, keep_record=keep_record,
+                    raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **experiment_record_kwargs):
+            pass
+        return exp_rec
+
+    def iterator(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
+            display_results=False, notes = (), **experiment_record_kwargs):
+
         if keep_record is None:
             keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode
-        exp_rec = run_and_record(
-            function = self.function,
-            experiment_id=self.name,
-            print_to_console=print_to_console,
-            show_figs=show_figs,
-            test_mode=test_mode,
-            keep_record=keep_record,
-            raise_exceptions=raise_exceptions,
-            notes=notes,
-            **experiment_record_kwargs
-        )
+
+        exp_rec = None
+        for exp_rec in run_and_record(
+                function = self.function,
+                experiment_id=self.name,
+                print_to_console=print_to_console,
+                show_figs=show_figs,
+                test_mode=test_mode,
+                keep_record=keep_record,
+                raise_exceptions=raise_exceptions,
+                notes=notes,
+                **experiment_record_kwargs
+                ):
+            yield exp_rec
+        assert exp_rec is not None, 'Should nevah happen.'
         if display_results:
             self.show(exp_rec)
-
-        return exp_rec
+        return
 
     def _create_experiment_variant(self, args, kwargs, is_root):
         assert len(args) in (0, 1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"

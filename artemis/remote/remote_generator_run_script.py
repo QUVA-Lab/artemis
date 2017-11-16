@@ -1,8 +1,7 @@
 #!/usr/bin/python
 from six.moves import queue as Queue
-import base64
 import threading
-
+import base64
 from artemis.remote.utils import queue_to_host
 import sys
 import pickle
@@ -16,18 +15,30 @@ if __name__ == '__main__':
     pickled_function = base64.b64decode(encoded_pickled_function)
     try:
         gen = pickle.loads(pickled_function)
-    except:
+    except Exception,e:
+        print("Caught Exception:")
+        print(e.args)
         print("Using dill to unpickle")
         import dill
         gen = dill.loads(pickled_function)
 
+
     results_queue = Queue.Queue()
     termination_event = threading.Event()
     t = threading.Thread(target=queue_to_host,args=(results_queue,return_address, return_port, termination_event))
+    # t.setDaemon(True)
     t.start()
-    for result in gen():
-        pickled_result = pickle.dumps(result, protocol = pickle.HIGHEST_PROTOCOL)
-        results_queue.put(pickled_result)
+    try:
+        for result in gen():
+            pickled_result = pickle.dumps(result, protocol = pickle.HIGHEST_PROTOCOL)
+            results_queue.put(pickled_result)
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt received")
+        pass
     results_queue.put(pickle.dumps(StopIteration,protocol=pickle.HIGHEST_PROTOCOL))
     termination_event.set()
+    t.join()
+    # print("remote_generator_run_script terminated")
+
+
 

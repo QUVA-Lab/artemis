@@ -3,11 +3,13 @@ import sys
 import time
 
 import os
+from six.moves import queue
+import pytest
 
 from artemis.config import get_artemis_config_value
-from artemis.remote.child_processes import PythonChildProcess, RemotePythonProcess
-from artemis.remote.remote_execution import ParamikoPrintThread, execute_command
-from artemis.remote.utils import get_local_ips, get_remote_artemis_path
+from artemis.remote.child_processes import PythonChildProcess, RemotePythonProcess, SlurmPythonProcess
+from artemis.remote.nanny import Nanny
+from artemis.remote.utils import get_local_ips, get_remote_artemis_path, am_I_in_slurm_environment
 from functools import partial
 
 ip_addresses = [get_artemis_config_value(section="tests", option="remote_server",default_generator=lambda: "127.0.0.1")]
@@ -172,15 +174,142 @@ def test_remote_generator_python_process():
     assert stdout.read() == 'Executing Gen Func\n'
     assert p.get_return_generator().next()==3
 
+@pytest.mark.skipif(am_I_in_slurm_environment(),reason="Not in SLURM environment")
+def test_slurm_process():
+    p = SlurmPythonProcess(
+        function=partial(my_gen_func, a=1, b=2),
+        ip_address="127.0.0.1",
+    )
+
+    (stdin, stdout, stderr) = p.execute_child_process()
+    time.sleep(.1)  # That autta be enough
+
+    for _ in stderr.readlines():
+        sys.stdout.write(_)
+        sys.stdout.flush()
+    assert p.get_return_generator().next()==3
+
+@pytest.mark.skipif(am_I_in_slurm_environment(),reason="Not in SLURM environment")
+def test_slurm_nanny1():
+    print("test_slurm_nanny1")
+    p = SlurmPythonProcess(
+        function=partial(my_gen_func, a=1, b=2),
+        ip_address="127.0.0.1",
+    )
+
+    nanny = Nanny()
+    nanny.register_child_process(p)
+    mixed_results = nanny.execute_all_child_processes_yield_results()
+    res = mixed_results.next()
+    assert isinstance(res,tuple)
+    assert res[1]==3, "mixed_results.next() returned %s instead"%(res[1])
+
+def my_blocking_gen_func(a,b):
+    print("Sleeping now")
+    time.sleep(10000)
+    yield a+b
+
+@pytest.mark.skipif(am_I_in_slurm_environment(),reason="Not in SLURM environment")
+def test_slurm_nanny2():
+    print("test_slurm_nanny2")
+    p = SlurmPythonProcess(
+        function=partial(my_blocking_gen_func, a=1, b=2),
+        ip_address="127.0.0.1",
+    )
+
+    nanny = Nanny()
+    nanny.register_child_process(p)
+    mixed_results = nanny.execute_all_child_processes_yield_results(result_time_out=5)
+    with pytest.raises(StopIteration):
+        res = mixed_results.next()
+
+def test_nanny3():
+    print("test_slurm_nanny3")
+    p1 = RemotePythonProcess(
+        function=partial(my_blocking_gen_func, a=1, b=2),
+        ip_address="127.0.0.1",
+    )
+    p2 = RemotePythonProcess(
+        function=partial(my_gen_func, a=1, b=2),
+        ip_address="127.0.0.1",
+    )
+    nanny = Nanny()
+    nanny.register_child_process(p1)
+    nanny.register_child_process(p2)
+    mixed_results = nanny.execute_all_child_processes_yield_results(result_time_out=15)
+    res = mixed_results.next()
+    assert res[1] == 3, "mixed_results.next() returned %s instead" % (res[1])
+    # Not the first cp is done, all others have terminated
+    with pytest.raises(StopIteration):
+        res = mixed_results.next()
+
+def test_nanny4():
+    print("test_nanny4")
+    p1 = RemotePythonProcess(
+        function=partial(my_blocking_gen_func, a=1, b=2),
+        ip_address="127.0.0.1",
+    )
+    nanny = Nanny()
+    nanny.register_child_process(p1)
+    mixed_results = nanny.execute_all_child_processes_yield_results(result_time_out=5)
+    with pytest.raises(StopIteration):
+        res = mixed_results.next()
+
+def test_nanny5():
+    print("test_nanny5")
+    p1 = RemotePythonProcess(
+        function=partial(my_blocking_gen_func, a=1, b=2),
+        # function=partial(my_gen_func, a=1, b=2),
+        ip_address="127.0.0.1",
+    )
+    nanny = Nanny()
+    nanny.register_child_process(p1,monitor_if_stuck_timeout=5)
+    mixed_results = nanny.execute_all_child_processes_yield_results(result_time_out=None)
+    with pytest.raises(StopIteration):
+        res = mixed_results.next()
+
+def my_triggering_function():
+    for _ in range(5):
+        yield _
+        time.sleep(1.0)
+    print("my_trigger")
+    for _ in range(5):
+        yield _+5
+        time.sleep(1.0)
+
+
+def test_nanny6():
+    print("test_nanny6")
+    p1 = RemotePythonProcess(
+        function=my_triggering_function,
+        ip_address="127.0.0.1",
+    )
+    nanny = Nanny()
+    nanny.register_child_process(p1)
+    mixed_results = nanny.execute_all_child_processes_yield_results(result_time_out=None,stdout_stopping_criterium=lambda line: "my_trigger" in line)
+    for res in mixed_results:
+        assert res[1] < 8
+
+
+
 
 if __name__ == "__main__":
     test_remote_generator_python_process()
-    test_simple_pcp()
-    test_simple_pcp_list()
-    test_interrupt_process_gently()
-    test_kill_process_gently()
-    test_kill_process_strongly()
-    test_remote_graphics()
-    test_remote_child_function()
-    test_remote_python_process()
+    test_nanny3()
+    test_nanny4()
+    test_nanny5()
+    test_nanny6()
+    time.sleep(1.0)
+    if am_I_in_slurm_environment():
+        test_slurm_nanny2()
+        test_slurm_nanny1()
+        test_slurm_process()
+    # test_simple_pcp()
+    # test_simple_pcp_list()
+    # test_interrupt_process_gently()
+    # test_kill_process_gently()
+    # test_kill_process_strongly()
+    # test_remote_graphics()
+    # test_remote_child_function()
+    # test_remote_python_process()
     print("Tests finished")

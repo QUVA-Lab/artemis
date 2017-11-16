@@ -264,6 +264,7 @@ class ExperimentRecord(object):
             pickle.dump(result, f, protocol=2)
             ARTEMIS_LOGGER.info('Saving Result for Experiment "{}"'.format(self.get_id(),))
 
+
     def get_id(self):
         """
         Get the id of this experiment record.  Generally in format '<datetime>-<experiment_name>'
@@ -665,6 +666,7 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             if inspect.isgeneratorfunction(root_function):
                 for result in function():
                     exp_rec.save_result(result)
+                    yield exp_rec
             else:
                 result = function()
                 exp_rec.save_result(result)
@@ -679,7 +681,9 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             if raise_exceptions:
                 raise
             else:
-                return exp_rec
+                yield exp_rec
+                return
+                # return exp_rec
         finally:
             exp_rec.info.set_field(EIF.RUNTIME, time.time() - start_time)
             fig_locs = exp_rec.get_figure_locs(include_directory=False)
@@ -692,4 +696,4 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
     ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=experiment_id))
     set_test_mode(old_test_mode)
 
-    return exp_rec
+    yield exp_rec

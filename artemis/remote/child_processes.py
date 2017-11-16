@@ -80,7 +80,7 @@ class ChildProcess(object):
     def get_extended_command(self,command):
         return "echo $$ ; exec %s"%command
 
-    def deconstruct(self, signum=signal.SIGKILL, system_signal=False):
+    def deconstruct(self, signum=signal.SIGINT, system_signal=False):
         '''
         This completely and safely deconstructs a remote connection. It might also be called at program shutdown, if take_care_of_deconstruct is set to True
         kills itself if alive, then closes remote connection if applicable
@@ -309,7 +309,7 @@ class RemotePythonProcess(ChildProcess):
 
         self.return_value_queue, return_port = listen_on_port(7000)
         all_local_ips = get_local_ips()
-        return_address = "127.0.0.1" if ip_address in all_local_ips else all_local_ips[-1]
+        return_address = all_local_ips[-1]
         command = [sys.executable, '-u', remote_run_script_path, encoded_pickled_function, return_address, str(return_port)]
         super(RemotePythonProcess, self).__init__(ip_address=ip_address, command=command, set_up_port_for_structured_back_communication=set_up_port_for_structured_back_communication,  **kwargs)
 
@@ -324,7 +324,13 @@ class RemotePythonProcess(ChildProcess):
         assert self.is_generator, "The remotely executed function does not yield, it returns. Use get_return_value()"
         assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
         while True:
-            serialized_out = self.return_value_queue.get(timeout=timeout).dbplot_message
+            try:
+                serialized_out = self.return_value_queue.get(timeout=timeout).dbplot_message
+            except Exception, e:
+                print("Child Process received an Execption ( Empty, probably). It is, at the moment, %s"%("alive" if self.is_alive() else "dead"))
+                print("Child Process %s did not yield a result in %s seconds and timed out. Self-destructing now"%(self.name,timeout))
+                self.kill(signal.SIGINT)
+                raise StopIteration
             res = pickle.loads(serialized_out)
             if res == StopIteration:
                 raise StopIteration
@@ -342,7 +348,10 @@ class SlurmPythonProcess(RemotePythonProcess):
         :param slurm_kwargs:
         :param kwargs:
         '''
-        assert ip_address in get_local_ips(), "At the moment, we want you to start a slurm process only from localhost"
+        if ip_address=='localhost':
+            ip_address="127.0.0.1"
+        local_ips = get_local_ips()
+        assert ip_address in local_ips, "At the moment, we want you to start a slurm process only from localhost"
         assert slurm_command in ["srun"], "At the moment, we only support 'srun' for execution of slurm"
         super(SlurmPythonProcess,self).__init__(function, ip_address, set_up_port_for_structured_back_communication, **kwargs)
         self.slurm_kwargs = slurm_kwargs
@@ -370,6 +379,20 @@ class SlurmPythonProcess(RemotePythonProcess):
             return final_command
         else:
             raise NotImplementedError()
+
+    def kill(self,signum=signal.SIGINT):
+        # Slurm needs the signal twice
+        if not self.cp_started:
+            print("Not started yet, no kill command will be sent")
+            return
+        if self.is_local():
+            if check_pid(self.sub.pid):
+                self.sub.send_signal(signum)
+                time.sleep(0.05)
+                self.sub.send_signal(signum)
+        else:
+            raise NotImplementedError()
+
 
 def pickle_dumps_without_main_refs(obj):
     """
