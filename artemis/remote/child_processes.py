@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import uuid
+import random
 
 import os
 import pickle
@@ -28,12 +29,14 @@ from artemis.config import get_artemis_config_value
 from artemis.remote.utils import get_local_ips, get_socket, get_ssh_connection, check_pid
 
 
+HEART_BEAT_FREQUENCY = 1
+
 class ChildProcess(object):
     '''
     Generic Child Process
     '''
     counter=1
-    def __init__(self, command, ip_address = 'localhost', name=None, take_care_of_deconstruct=False, set_up_port_for_structured_back_communication=False):
+    def __init__(self, command, ip_address = 'localhost', name=None, take_care_of_deconstruct=False, set_up_port_for_structured_back_communication=False, termination_event=None):
         '''
         Creates a ChildProcess
         :param ip_address: The command will be executed at this ip_address
@@ -53,7 +56,7 @@ class ChildProcess(object):
         self.local_process = self.ip_address in get_local_ips()
         self.set_up_port_for_structured_back_communication = set_up_port_for_structured_back_communication
         self.queue_from_cp = None
-
+        self._execution_terminated_event = threading.Event() if termination_event is None else termination_event
         self.command = command
         self.id = uuid.uuid4()
         self.channel = None
@@ -61,6 +64,13 @@ class ChildProcess(object):
         self.take_care_of_deconstruct = take_care_of_deconstruct
         if self.take_care_of_deconstruct:
             atexit.register(self.deconstruct)
+
+    def get_termination_event(self):
+        ''' This should be read_only! '''
+        return self._execution_terminated_event
+
+    def set_termination_event(self,event):
+        self._execution_terminated_event = event
 
     def prepare_command(self,command):
         '''
@@ -87,6 +97,7 @@ class ChildProcess(object):
         :return:
         '''
         if self.cp_started:
+            self.get_termination_event().set()
             if signum == signal.SIGKILL:
                 self.kill(signum=signum)
             elif signum == signal.SIGINT:
@@ -144,8 +155,24 @@ class ChildProcess(object):
         command = self.prepare_command(self.command)
         pid, stdin, stdout, stderr = self._run_command(command,get_pty=True)
         self._assign_pid(pid)
+        self.stdin = stdin
+        self.stdout = stdout
+        self.stderr = stderr
         self.cp_started = True
+        threading.Thread(target=self._monitore_heart_beat,args=(self.get_termination_event(),),name="%s_HeartBeat"%self.get_name()).start()
         return (stdin, stdout, stderr)
+
+    def _monitore_heart_beat(self,event):
+        # time.sleep(2)
+        while True:
+            if not self.is_alive():
+                print("%s >> heart has stopped and event was%s" % (self.get_name()," set" if event.is_set() else " not set"))
+                event.set()
+                break
+            else:
+                # print("%s heart is beating"%self.get_name())
+                time.sleep(HEART_BEAT_FREQUENCY)
+
 
     def _run_command(self,command,get_pty=False):
         '''
@@ -167,6 +194,8 @@ class ChildProcess(object):
             stderr = sub.stderr
             pid = sub.pid
         else:
+            # print("Executing command:")
+            # print(str(command))
             stdin, stdout, stderr = self.ssh_conn.exec_command(command,get_pty=get_pty)
             pid = stdout.readline().strip()
         return (pid, stdin, stdout, stderr)
@@ -186,6 +215,7 @@ class ChildProcess(object):
         if not self.cp_started:
             print("Not started yet, no kill command will be sent")
             return
+        self.get_termination_event().set()
         if self.is_local():
             if check_pid(self.sub.pid):
                 self.sub.send_signal(signum)
@@ -198,19 +228,30 @@ class ChildProcess(object):
                 if not self.is_alive() and not self.is_local():
                     self.ssh_conn.close()
 
-
     def is_alive(self):
         if not self.cp_started:
             return False
         if self.is_local():
-            return self.sub.poll() == None
+            res = self.sub.poll()
+            alive = res == None
+            # print("%s >> I'm %s because self.sub.poll() == None evaluates to %s. self.sub.poll(): %s"%(self.get_name(),"alive" if alive else "dead", alive, str(res)))
+            return alive
         else:
             if self.ssh_conn.get_transport() is None:
+                # print("%s >> ssh_conn.get_transport() is None, therefore I'm dead"%self.get_name())
                 return False
             else:
-                command = "echo $$; exec ps -h -p %s"%self.get_pid()
-                _,_,stdout,_ = self._run_command(command)
-                return self.get_pid() in stdout.read()
+                alive = self.ssh_conn.get_transport().is_active()
+                # print("%s >> I'm %s because self.ssh_conn.get_transport().is_active() evaluates to %s" % (
+                # self.get_name(), "alive" if alive else "dead", alive))
+                return alive
+                # command = "echo $$; exec ps -h -p %s"%self.get_pid()
+                # _,_,stdout,_ = self._run_command(command)
+                # out = stdout.read()
+                # pid = self.get_pid()
+                # alive = pid in out
+                # print("%s >> I'm %s because self.get_pid() in stdout.read() evaluates to %s. pid: %s, out:%s"%(self.get_name(), "alive" if alive else "dead", alive,pid,out))
+                # return alive
 
 
 class PythonChildProcess(ChildProcess):
@@ -237,7 +278,8 @@ class PythonChildProcess(ChildProcess):
         :return:
         '''
         if self.set_up_port_for_structured_back_communication:
-            self.queue_from_cp, port = listen_on_port()
+            self.queue_from_cp, port = listen_on_port(port=7000, name="%s_listen_on_port"%self.get_name(),received_termination_event=self.get_termination_event())
+            # + random.randint(-500,500)
             if self.is_local():
                 address = "127.0.0.1"
             else:
@@ -276,7 +318,7 @@ class PythonChildProcess(ChildProcess):
         return command
 
 
-def listen_on_port(port=7000):
+def listen_on_port(port=7000,name=None, received_termination_event=None):
     '''
     Sets up a thread that listens on a port forwards communication to a queue. Both, Queue and the port it listens on are returned
     :return: queue, port
@@ -284,7 +326,7 @@ def listen_on_port(port=7000):
     sock, port = get_socket("0.0.0.0", port=port)
     sock.listen(1)
     main_input_queue = queue.Queue()
-    t = threading.Thread(target=handle_socket_accepts,args=(sock, main_input_queue, None,1))
+    t = threading.Thread(target=handle_socket_accepts,args=(sock, main_input_queue, None,1,"%s_handle_socket_accepts"%name,10,received_termination_event),name=name)
     t.setDaemon(True)
     t.start()
     return main_input_queue, port
@@ -295,23 +337,37 @@ class RemotePythonProcess(ChildProcess):
     Launch a python child process.
     """
 
-    def __init__(self, function, ip_address, set_up_port_for_structured_back_communication=True, **kwargs):
+    def __init__(self, function, ip_address,set_up_port_for_structured_back_communication=True, **kwargs):
         if ip_address=='localhost':
             ip_address="127.0.0.1"
 
         pickled_function = pickle_dumps_without_main_refs(function)
-        encoded_pickled_function = base64.b64encode(pickled_function)
+        self.encoded_pickled_function = base64.b64encode(pickled_function)
         self.is_generator = inspect.isgeneratorfunction(get_partial_root(function))
         remote_run_script = remote_generator_run_script if self.is_generator else remote_function_run_script
         remote_run_script_path = inspect.getfile(remote_run_script)
         if remote_run_script_path.endswith('pyc'):
             remote_run_script_path = remote_run_script_path[:-1]
+        self.remote_run_script_path = remote_run_script_path
 
-        self.return_value_queue, return_port = listen_on_port(7000)
+        command = "PLACEHOLDER"
+        super(RemotePythonProcess, self).__init__(ip_address=ip_address, command=command, set_up_port_for_structured_back_communication=set_up_port_for_structured_back_communication, **kwargs)
+
+    def prepare_command(self,command):
+        # assert self.is_local(), "This, for now, assumes local execution"
+        if self.set_up_port_for_structured_back_communication:
+            self.return_value_queue, return_port = listen_on_port(7000, "%s_listen_on_port"%self.get_name(),received_termination_event=self.get_termination_event())
+        else:
+            return_port = -1
         all_local_ips = get_local_ips()
         return_address = all_local_ips[-1]
-        command = [sys.executable, '-u', remote_run_script_path, encoded_pickled_function, return_address, str(return_port)]
-        super(RemotePythonProcess, self).__init__(ip_address=ip_address, command=command, set_up_port_for_structured_back_communication=set_up_port_for_structured_back_communication,  **kwargs)
+        print("Accepting requests to port %s on address %s" % (return_port, return_address))
+        command = [sys.executable, '-u', self.remote_run_script_path, self.encoded_pickled_function, return_address, str(return_port)]
+        if self.is_local():
+            return command
+        else:
+            return " ".join(command)
+        # return command
 
     def get_return_value(self, timeout=1):
         assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
@@ -364,6 +420,7 @@ class SlurmPythonProcess(RemotePythonProcess):
         :return:
         '''
 
+        command = super(SlurmPythonProcess,self).prepare_command(command)
         slurm_command = "srun"
         for k,v in self.slurm_kwargs.items():
             if k.startswith("--"):
@@ -388,7 +445,7 @@ class SlurmPythonProcess(RemotePythonProcess):
         if self.is_local():
             if check_pid(self.sub.pid):
                 self.sub.send_signal(signum)
-                time.sleep(0.05)
+                time.sleep(0.15)
                 self.sub.send_signal(signum)
         else:
             raise NotImplementedError()
@@ -405,9 +462,10 @@ def pickle_dumps_without_main_refs(obj):
     module_path = file_path_to_absolute_module(currently_run_file)
     try:
         pickle_str = pickle.dumps(obj, protocol=0)
-    except:
+    except :
         print("Using Dill")
         # TODO: @petered There is something very fishy going on here that I don't understand.
+
         import dill
         pickle_str = dill.dumps(obj, protocol=0)
 

@@ -462,7 +462,9 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_proces
             nanny = Nanny()
             function_call = partial(run_experiment, experiment=exp, slurm_job=True, experiment_path=get_experiment_dir(),
                 raise_exceptions=raise_exceptions,display_results=False, **run_args)
-            spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
+            spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1",
+                                     slurm_kwargs=slurm_kwargs,set_up_port_for_structured_back_communication=False)
+
             # Using Nanny only for convenient stdout & stderr forwarding.
             nanny.register_child_process(spp,monitor_for_termination=True)
             nanny.execute_all_child_processes_block_return(time_out=2)

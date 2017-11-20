@@ -32,6 +32,15 @@ class ManagedChildProcess(object):
     def get_name(self):
         return self.cp.get_name()
 
+    def set_termination_event(self,event):
+        return self.cp.set_termination_event(event)
+
+    def get_termination_event(self):
+        return self.cp.get_termination_event()
+
+    def get_pid(self):
+        return self.cp.get_pid()
+
     def get_ip(self):
         return self.cp.get_ip()
 
@@ -51,10 +60,11 @@ class Nanny(object):
     '''
     Manages child processes. This class manages the start, live and deconstruction of child processes across different machines.
     '''
-    def __init__(self,name=""):
+    def __init__(self,name="",termination_event=None):
         self.managed_child_processes = {}
         self.stdout_threads = {}
         self.name = name
+        self.termination_event = threading.Event() if termination_event is None else termination_event
         atexit.register(self.deconstruct)
 
     def register_child_process(self, cp, monitor_for_termination=True, monitor_if_stuck_timeout=None):
@@ -67,7 +77,6 @@ class Nanny(object):
         '''
         # assert monitor_for_termination != False, "Not supported any more at the moment"
         assert monitor_if_stuck_timeout is None or (monitor_if_stuck_timeout > 0 and type(monitor_if_stuck_timeout) == int), "Please set monitor_if_stuck_timeout to a positive integer"
-
         self.managed_child_processes[cp.get_id()] = ManagedChildProcess(cp, monitor_for_termination,monitor_if_stuck_timeout)
 
     def get_child_processes(self):
@@ -80,13 +89,16 @@ class Nanny(object):
 
 
     def execute_all_child_processes_block_return(self, time_out=1, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:False):
-        termination_request_event = threading.Event()
+        # termination_request_event = threading.Event()
         stdout_threads = {}
         stderr_threads = {}
+
 
         name_max_lenght = max([len(mcp.name) for mcp in self.managed_child_processes.values()])
         for i, id in enumerate(self.managed_child_processes.keys()):
             mcp =self.managed_child_processes[id]
+            if mcp.monitor_for_termination:
+                mcp.set_termination_event(self.termination_event)
             stdin, stdout, stderr = mcp.execute()
 
             prefix = mcp.name.ljust(name_max_lenght)+": "
@@ -95,11 +107,11 @@ class Nanny(object):
             gettrace = getattr(sys, 'gettrace', None)
             monitor_if_stuck_timeout = mcp.monitor_if_stuck_timeout if not gettrace() else None # only set timeout if not in debug mode
 
-            stdout_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
-                                             args=(stdout, sys.stdout, mcp.name, termination_request_event, stdout_stopping_criterium, prefix, monitor_if_stuck_timeout))
+            stdout_thread = threading.Thread(target=self._monitor_and_forward_child_communication,name="%s_stdout_Thread"%mcp.get_name(),
+                                             args=(stdout, sys.stdout, mcp.name, mcp.get_termination_event(), stdout_stopping_criterium, prefix, monitor_if_stuck_timeout))
 
-            stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
-                                             args=(stderr,sys.stderr,mcp.name,termination_request_event,stderr_stopping_criterium, prefix, None))
+            stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,name="%s_stderr_Thread"%mcp.get_name(),
+                                             args=(stderr,sys.stderr,mcp.name,mcp.get_termination_event(),stderr_stopping_criterium, prefix, None))
             stdout_threads[mcp.get_id()] = stdout_thread
             stderr_threads[mcp.get_id()] = stderr_thread
 
@@ -107,10 +119,21 @@ class Nanny(object):
             stderr_thread.start()
 
         try:
-            while not termination_request_event.wait(0.01):
+            i = 0
+            while not self.termination_event.wait(0.1):
+                # if i %10 ==0:
+                    # print("%s: Termination Request Event not yet set"%(self.name))
+                    # for id,cp in self.managed_child_processes.items():
+                    #     print("CP %s with pid %i is alive: %s"%(cp.get_name(),cp.get_pid(), cp.is_alive()))
+
+                # i += 1
                 pass
         except KeyboardInterrupt:
             print("Nanny interrupted")
+            self.deconstruct()
+            sys.exit(1)
+        except Exception():
+            print("Error occured")
             self.deconstruct()
             sys.exit(1)
 
@@ -136,15 +159,23 @@ class Nanny(object):
         :param: stderr_stopping_criterium: Receives the line from stderr. When evaluates to True, the stdout pipe is flushed and the termination request is set
         :return:
         '''
+        # def kill_if_terminated(cp, termination_request):
+        #     while not termination_request.wait(0.1):
+        #         pass
+        #     cp.kill(signal.SIGINT)
 
-
-        termination_request_event = threading.Event()
+        # termination_request_event = threading.Event()
         stdout_threads = {}
         stderr_threads = {}
 
         name_max_lenght = max([len(mcp.name) for mcp in self.managed_child_processes.values()])
         for i, id in enumerate(self.managed_child_processes.keys()):
             mcp =self.managed_child_processes[id]
+            if mcp.monitor_for_termination:
+                mcp.set_termination_event(self.termination_event)
+            else:
+                print("ALARM")
+
             stdin, stdout, stderr = mcp.execute()
 
             prefix = mcp.name.ljust(name_max_lenght)+": "
@@ -153,22 +184,37 @@ class Nanny(object):
             gettrace = getattr(sys, 'gettrace', None)
             monitor_if_stuck_timeout = mcp.monitor_if_stuck_timeout if not gettrace() else None # only set timeout if not in debug mode
 
-            stdout_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
-                                             args=(stdout,sys.stdout,mcp.name,termination_request_event,stdout_stopping_criterium, prefix, monitor_if_stuck_timeout))
-            stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,
-                                             args=(stderr,sys.stderr,mcp.name,termination_request_event,stderr_stopping_criterium, prefix, None))
+            #
+            stdout_thread = threading.Thread(target=self._monitor_and_forward_child_communication,name="%s_stdout_Thread"%mcp.get_name(),
+                                             args=(stdout,sys.stdout,mcp.name,mcp.get_termination_event(),stdout_stopping_criterium, prefix, monitor_if_stuck_timeout))
+            stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,name="%s_stderr_Thread"%mcp.get_name(),
+                                             args=(stderr,sys.stderr,mcp.name,mcp.get_termination_event(),stderr_stopping_criterium, prefix, None))
+            # kill_thread = threading.Thread(target=kill_if_terminated,args=(mcp,termination_request_event),name="%s_kill_Thread"%mcp.get_name(),)
+            # kill_thread.setDaemon(True)
+            stdout_thread.setDaemon(True)
+            stderr_thread.setDaemon(True)
             stdout_threads[mcp.get_id()] = stdout_thread
             stderr_threads[mcp.get_id()] = stderr_thread
 
+            # kill_thread.start()
             stdout_thread.start()
             stderr_thread.start()
 
+        # threading.Thread(target=kill_after,args=(30,termination_request_event)).start()
+        # print("Waiting 30secs before killing")
         multiplex_generator = self.multiplex_return_generators(result_time_out)
-        wrapped_multiplex_generator = wrap_generator_with_event(multiplex_generator,termination_request_event)
-        for result in wrapped_multiplex_generator:
-            yield result
-        time.sleep(time_out)
-        termination_request_event.set()
+        wrapped_multiplex_generator = wrap_generator_with_event(multiplex_generator, self.termination_event)
+        # for result in wrapped_multiplex_generator:
+        # for result in multiplex_generator:
+        # wrapped_multiplex_generator = wrap_generator_with_event(self.get_child_processes().values()[0].get_return_generator(),self.termination_event)
+        try:
+            for result in wrapped_multiplex_generator:
+                yield result
+            time.sleep(time_out)
+        except KeyboardInterrupt:
+            self.deconstruct()
+        finally:
+            self.termination_event.set()
 
         for id, cp in self.managed_child_processes.items():
             if cp.is_alive():
@@ -187,18 +233,20 @@ class Nanny(object):
         :return:
         '''
         for cp in self.managed_child_processes.values():
-            cp.kill(signal.SIGINT)
+            if cp.is_alive():
+                cp.kill(signal.SIGINT)
         time.sleep(1.0)
         for cp in self.managed_child_processes.values():
             if cp.is_alive():
                 print(("Child Process %s at %s still alive, force terminating now"% (cp.name, cp.get_ip())))
+                cp.kill(signal=signal.SIGKILL)
                 cp.kill(signal=signal.SIGTERM)
 
 
     def _monitor_and_forward_child_communication(self, source_pipe, target_pipe,process_name, termination_request_event=None, stopping_criterium=None, prefix="", timeout=None):
         '''
         thread to forward communication from source_pipe to target_pipe
-        :param source_pipe:
+        :param source_pipe:ChildProcess
         :param target_pipe:
         :param termination_request_event: Is set once the source_pipe has closed and this thread terminates, or when ths stopping_criterium has been met.
         :param stopping_criterium:

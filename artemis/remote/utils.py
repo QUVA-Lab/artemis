@@ -11,7 +11,9 @@ import socket
 import struct
 import sys
 import os
+import time
 
+import select
 
 from artemis.config import get_artemis_config_value
 
@@ -40,6 +42,9 @@ def one_time_send_to(address, port, message):
         raise
 
     send_size(sock, message)
+
+
+
 
 
 def queue_to_host(queue, return_address, return_port, termination_event):
@@ -97,6 +102,7 @@ def send_size(sock, data):
             raise
 
 
+
 def recv_bytes(sock, size):
     buf = b''
     while size:
@@ -108,16 +114,43 @@ def recv_bytes(sock, size):
                 sys.exit(0)
             else:
                 raise
+        if not newbuf: break
         buf += newbuf
         size -= len(newbuf)
     return buf
 
-def recv_size(sock):
+# def recv_bytes(sock,size,timeout_in_seconds=None):
+#     buf = b''
+#     while size:
+#         ready = select.select([sock],[],[],timeout_in_seconds)
+#         if ready[0]:
+#             print("Ready to receive")
+#             try:
+#                 newbuf = sock.recv(size)
+#             except socketserver.socket.error as exc:
+#                 if exc.args[0] == 54:
+#                     print("Connection reset by peer", file=sys.stderr)
+#                     sys.exit(0)
+#                 else:
+#                     raise
+#             if not newbuf: break
+#             buf += newbuf
+#             size -= len(newbuf)
+#         else:
+#             print("receive has timedout")
+#             raise socket.timeout
+#     return buf
 
-    size_data = recv_bytes(sock, 4)
-    size = struct.unpack('!I', size_data)[0]
-    message = recv_bytes(sock,size)
-
+def recv_size(sock,timeout=None):
+    t_start = time.time()
+    while True:
+        size_data = recv_bytes(sock, 4)
+        if size_data:
+            size = struct.unpack('!I', size_data)[0]
+            message = recv_bytes(sock, size)
+            break
+        elif timeout is not None and time.time() - t_start > timeout:
+            raise socket.timeout
     return message
 
 def get_local_ips():
@@ -156,6 +189,8 @@ def is_valid_port(port):
     :return:
     '''
     import re
+    if not isinstance(port,str):
+        port = str(port)
     port_pattern = re.compile("^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$")
     return port_pattern.match(port)
 

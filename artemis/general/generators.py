@@ -11,6 +11,7 @@ def gen_to_queue(generator, obj_queue):
 def wrap_generator_with_event(generator, event):
     obj_queue = queue.Queue()
     t = threading.Thread(target=gen_to_queue, args=(generator,obj_queue))
+    t.setDaemon(True)
     t.start()
     while True:
         try:
