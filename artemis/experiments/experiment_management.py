@@ -1,4 +1,5 @@
 import getpass
+import threading
 import traceback
 from collections import OrderedDict
 from functools import partial
@@ -11,7 +12,7 @@ from time import time
 
 from artemis.general.display import equalize_string_lengths
 from six import string_types
-from six.moves import reduce, xrange
+from six.moves import reduce, xrange, queue
 from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
     ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id, get_all_record_ids, get_experiment_dir)
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
@@ -437,26 +438,56 @@ def run_experiment_ignoring_errors(name, **kwargs):
         traceback.print_exc()
 
 
+def _run_slurm_experiment_from_queue(exp_queue,counter_lock,raise_exceptions=True, run_args={},slurm_kwargs={}):
+    while True:
+        try:
+            exp = exp_queue.get_nowait()
+        except queue.Empty:
+            break
+
+        function_call = partial(run_experiment, experiment=exp, slurm_job=True, experiment_path=get_experiment_dir(),
+            raise_exceptions=raise_exceptions,display_results=False, **run_args)
+
+        with counter_lock:
+            global slurm_exp_counter
+            slurm_exp_counter += 1
+        nanny = Nanny(name="Experiment%i Nanny"%slurm_exp_counter)
+        spp = SlurmPythonProcess(name="Exp %i"%slurm_exp_counter, function=function_call,ip_address="127.0.0.1",
+                                 slurm_kwargs=slurm_kwargs,set_up_port_for_structured_back_communication=False)
+
+        # Using Nanny only for convenient stdout & stderr forwarding.
+        nanny.register_child_process(spp,monitor_for_termination=True)
+        nanny.execute_all_child_processes(block=True)
+
+
+
 def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_processes_per_node=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
     '''
     Run multiple experiments using slurm, optionally in parallel.
     '''
     if n_parallel and n_parallel > 1:
-        # raise NotImplementedError("No parallel Slurm execution at the moment. Implement it!")
-        print ('Warning... parallel-slurm integration is very beta. Use with caution')
-        experiment_subsets = divide_into_subsets(experiments, subset_size=n_parallel)
-        for i, exp_subset in enumerate(experiment_subsets):
-            nanny = Nanny()
-            function_call = partial(run_multiple_experiments,
-                experiments=exp_subset,
-                parallel=n_parallel if max_processes_per_node is None else max_processes_per_node,
-                display_results=False,
-                run_args = run_args
-                )
-            spp = SlurmPythonProcess(name="Group %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
-            # Using Nanny only for convenient stdout & stderr forwarding.
-            nanny.register_child_process(spp,monitor_for_termination=True)
-            nanny.execute_all_child_processes(time_out=2)
+        exp_queue = queue.Queue()
+        global slurm_exp_counter
+        slurm_exp_counter = 0
+        counter_lock = threading.Lock()
+        for experiment in experiments:
+            exp_queue.put(experiment)
+        run_threads = []
+        for i in range(n_parallel):
+            t = threading.Thread(target=_run_slurm_experiment_from_queue,args=(exp_queue,counter_lock,raise_exceptions,run_args,slurm_kwargs), name="Parallel Slurm Execution Thread %i"%(i+1))
+            t.start()
+            run_threads.append(t)
+
+        for th in run_threads:
+            i = 0
+            while True:
+                th.join(1.0)
+                if th.is_alive():
+                    i+=1
+                    # if i % 10==0:
+                    #     ARTEMIS_LOGGER.warn("Still waiting for thread %s to join"%(th.name))
+                else:
+                    break
     else:
         for i,exp in enumerate(experiments):
             nanny = Nanny()
@@ -467,7 +498,7 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_proces
 
             # Using Nanny only for convenient stdout & stderr forwarding.
             nanny.register_child_process(spp,monitor_for_termination=True)
-            nanny.execute_all_child_processes(time_out=2)
+            nanny.execute_all_child_processes()
 
 
 def _parallel_run_target(experiment_id_and_prefix, raise_exceptions, **kwargs):

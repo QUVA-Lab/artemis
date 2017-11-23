@@ -74,13 +74,13 @@ class ChildProcess(object):
         for th in self._sub_threads:
             i = 0
             while True:
-                try:
-                    th.join(1.0)
-                    break
-                except:
+                th.join(1.0)
+                if th.is_alive():
                     i+=1
                     if i % 10==0:
                         ARTEMIS_LOGGER.warn("Still waiting for thread %s to join"%(th.name))
+                else:
+                    break
 
     def get_termination_event(self):
         ''' This should be read_only! '''

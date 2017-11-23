@@ -127,7 +127,7 @@ def recv_bytes(sock, size):
         except socketserver.socket.error as exc:
             if exc.args[0] == 54:
                 print("Connection reset by peer", file=sys.stderr)
-                sys.exit(0)
+                raise
             else:
                 raise
         if not newbuf: break

@@ -26,11 +26,8 @@ def get_sock_and_connect(return_address, return_port):
 
 def gen_to_host(generator,return_address,return_port):
     from artemis.remote.utils import send_size
-    sock = None
+    sock = get_sock_and_connect(return_address, return_port)
     for obj in generator:
-        if sock is None:
-            # Moving this in here because a wrapping slurm call will not enter this loop except for the first node
-            sock = get_sock_and_connect(return_address, return_port)
         pickled_obj = pickle.dumps(obj, protocol = pickle.HIGHEST_PROTOCOL)
         send_size(sock, pickled_obj)
     pickled_obj = pickle.dumps(StopIteration, protocol=pickle.HIGHEST_PROTOCOL)

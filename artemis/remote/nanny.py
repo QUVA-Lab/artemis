@@ -142,7 +142,6 @@ class Nanny(object):
                 print(e.args)
             finally:
                 self.deconstruct()
-                sys.exit(1)
 
 
             # time.sleep(time_out)
