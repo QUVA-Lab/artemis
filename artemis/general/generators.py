@@ -1,7 +1,6 @@
 import inspect
 
-# from six.moves import queue
-import Queue as queue
+from six.moves import queue
 import threading
 
 def gen_to_queue(generator, obj_queue):

@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import Queue
+from six.moves import queue as Queue
 import argparse
 import atexit
 import pickle

@@ -1,4 +1,4 @@
-import Queue
+from six.moves import queue as Queue
 import os
 import socket
 import sys

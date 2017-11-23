@@ -177,11 +177,11 @@ def test_slurm_nanny1():
     nanny = Nanny()
     nanny.register_child_process(p)
     mixed_results = nanny.execute_all_child_processes_yield_results()
-    res = mixed_results.next()
+    res = next(mixed_results)
     assert isinstance(res, tuple)
-    assert res[1] == 3, "mixed_results.next() returned %s instead" % (res[1])
+    assert res[1] == 3, "next(mixed_results) returned %s instead" % (res[1])
     with pytest.raises(StopIteration):
-        mixed_results.next()
+        next(mixed_results)
 
 
 @pytest.mark.skipif(am_I_in_slurm_environment(), reason="Not in SLURM environment")
@@ -217,7 +217,7 @@ def test_slurm_nanny2():
     nanny.register_child_process(p)
     mixed_results = nanny.execute_all_child_processes_yield_results(result_time_out=5)
     with pytest.raises(StopIteration):
-        res = mixed_results.next()
+        res = next(mixed_results)
 
 
 def my_blocking_func(a, b):
@@ -240,11 +240,11 @@ def test_nanny3():
     nanny.register_child_process(p1)
     nanny.register_child_process(p2)
     mixed_results = nanny.execute_all_child_processes_yield_results(result_time_out=15)
-    res = mixed_results.next()
-    assert res[1] == 3, "mixed_results.next() returned %s instead" % (res[1])
+    res = next(mixed_results)
+    assert res[1] == 3, "next(mixed_results) returned %s instead" % (res[1])
     # Not the first cp is done, all others have terminated
     with pytest.raises(StopIteration):
-        res = mixed_results.next()
+        res = next(mixed_results)
 
 
 def test_nanny4():
@@ -257,7 +257,7 @@ def test_nanny4():
     nanny.register_child_process(p1)
     mixed_results = nanny.execute_all_child_processes_yield_results(result_time_out=5)
     with pytest.raises(StopIteration):
-        res = mixed_results.next()
+        res = next(mixed_results)
 
 
 def test_nanny5():
@@ -271,7 +271,7 @@ def test_nanny5():
     nanny.register_child_process(p1, monitor_if_stuck_timeout=5)
     mixed_results = nanny.execute_all_child_processes_yield_results()
     with pytest.raises(StopIteration):
-        res = mixed_results.next()
+        res = next(mixed_results
 
 
 def test_nanny5_2():
