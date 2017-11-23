@@ -271,7 +271,7 @@ def test_nanny5():
     nanny.register_child_process(p1, monitor_if_stuck_timeout=5)
     mixed_results = nanny.execute_all_child_processes_yield_results()
     with pytest.raises(StopIteration):
-        res = next(mixed_results
+        res = next(mixed_results)
 
 
 def test_nanny5_2():
