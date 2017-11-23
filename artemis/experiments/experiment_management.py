@@ -479,14 +479,9 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_proces
             run_threads.append(t)
 
         for th in run_threads:
-            i = 0
             while True:
                 th.join(1.0)
-                if th.is_alive():
-                    i+=1
-                    # if i % 10==0:
-                    #     ARTEMIS_LOGGER.warn("Still waiting for thread %s to join"%(th.name))
-                else:
+                if not th.is_alive():
                     break
     else:
         for i,exp in enumerate(experiments):
