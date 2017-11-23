@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from six.moves import queue
+from six import string_types
 import atexit
 import base64
 import inspect
@@ -11,23 +12,18 @@ import sys
 import threading
 import time
 import uuid
-import random
-
-import os
 import pickle
 import pipes
-
-
-from six import string_types
+import logging
 
 from artemis.general.functional import get_partial_root
 from artemis.general.should_be_builtins import file_path_to_absolute_module
 from artemis.remote import remote_function_run_script, remote_generator_run_script
 from artemis.remote.plotting.utils import handle_socket_accepts
 
-from artemis.config import get_artemis_config_value
-from artemis.remote.utils import get_local_ips, get_socket, get_ssh_connection, check_pid
+from artemis.remote.utils import get_local_ips, get_socket, get_ssh_connection, check_pid, wrap_queue_get_with_event_and_timeout, EventSetException
 
+ARTEMIS_LOGGER = logging.getLogger('artemis')
 
 HEART_BEAT_FREQUENCY = 1
 
@@ -62,8 +58,21 @@ class ChildProcess(object):
         self.channel = None
         self.cp_started = False
         self.take_care_of_deconstruct = take_care_of_deconstruct
+        self._sub_threads = []
         if self.take_care_of_deconstruct:
             atexit.register(self.deconstruct)
+
+    def join_sub_threads(self):
+        for th in self._sub_threads:
+            i = 0
+            while True:
+                try:
+                    th.join(1.0)
+                    break
+                except:
+                    i+=1
+                    if i % 10==0:
+                        ARTEMIS_LOGGER.warn("Still waiting for thread %s to join"%(th.name))
 
     def get_termination_event(self):
         ''' This should be read_only! '''
@@ -113,7 +122,9 @@ class ChildProcess(object):
                 if self.is_alive():
                     # grace perior exceeded, terminating
                     self.kill(signum=signal.SIGTERM)
-
+            return self.is_alive()
+        else:
+            return False
 
     def is_local(self):
         return self.local_process
@@ -128,6 +139,10 @@ class ChildProcess(object):
         return self.ip_address + "_" + str(self.id)
 
     def _assign_pid(self,pid):
+        try:
+            int(pid)
+        except:
+            raise
         self.pid = pid
 
     def get_pid(self):
@@ -159,19 +174,37 @@ class ChildProcess(object):
         self.stdout = stdout
         self.stderr = stderr
         self.cp_started = True
-        threading.Thread(target=self._monitore_heart_beat,args=(self.get_termination_event(),),name="%s_HeartBeat"%self.get_name()).start()
+        t = threading.Thread(target=self._monitore_heart_beat,args=(self.get_termination_event(),),name="%s_HeartBeat"%self.get_name())
+        self._sub_threads.append(t)
+        t.start()
         return (stdin, stdout, stderr)
 
     def _monitore_heart_beat(self,event):
         # time.sleep(2)
+        def wait_interrupt():
+            start = time.time()
+            while time.time() - start <= HEART_BEAT_FREQUENCY:
+                # event = threading.Event()
+                if event.wait(0.1):
+                    return True
+                time.sleep(0.1)
+            return False
+
         while True:
             if not self.is_alive():
-                print("%s >> heart has stopped and event was%s" % (self.get_name()," set" if event.is_set() else " not set"))
+                ARTEMIS_LOGGER.info("%s >> heart has stopped; Event was%s" % (self.get_name()," set" if event.is_set() else " not set"))
                 event.set()
                 break
             else:
-                # print("%s heart is beating"%self.get_name())
-                time.sleep(HEART_BEAT_FREQUENCY)
+                res = wait_interrupt()
+                if res:
+                    ARTEMIS_LOGGER.info("%s >> Termination Event Set before detecting own death. Stopping Heartbeat"%self.get_name())
+                    is_still_alive = self.deconstruct()
+                    # if is_still_alive:
+                    #     print("Deconstructing did not kill the process")
+                    # else:
+                    #     print("Deconstruct successfull")
+                    break
 
 
     def _run_command(self,command,get_pty=False):
@@ -194,8 +227,8 @@ class ChildProcess(object):
             stderr = sub.stderr
             pid = sub.pid
         else:
-            # print("Executing command:")
-            # print(str(command))
+            assert isinstance(command,string_types)
+            command = "echo $$ ; exec %s" % command
             stdin, stdout, stderr = self.ssh_conn.exec_command(command,get_pty=get_pty)
             pid = stdout.readline().strip()
         return (pid, stdin, stdout, stderr)
@@ -213,7 +246,7 @@ class ChildProcess(object):
         '''
 
         if not self.cp_started:
-            print("Not started yet, no kill command will be sent")
+            ARTEMIS_LOGGER.info("Not started yet, no kill command will be sent")
             return
         self.get_termination_event().set()
         if self.is_local():
@@ -234,88 +267,21 @@ class ChildProcess(object):
         if self.is_local():
             res = self.sub.poll()
             alive = res == None
-            # print("%s >> I'm %s because self.sub.poll() == None evaluates to %s. self.sub.poll(): %s"%(self.get_name(),"alive" if alive else "dead", alive, str(res)))
             return alive
         else:
             if self.ssh_conn.get_transport() is None:
-                # print("%s >> ssh_conn.get_transport() is None, therefore I'm dead"%self.get_name())
                 return False
             else:
                 alive = self.ssh_conn.get_transport().is_active()
-                # print("%s >> I'm %s because self.ssh_conn.get_transport().is_active() evaluates to %s" % (
-                # self.get_name(), "alive" if alive else "dead", alive))
-                return alive
-                # command = "echo $$; exec ps -h -p %s"%self.get_pid()
-                # _,_,stdout,_ = self._run_command(command)
-                # out = stdout.read()
-                # pid = self.get_pid()
-                # alive = pid in out
-                # print("%s >> I'm %s because self.get_pid() in stdout.read() evaluates to %s. pid: %s, out:%s"%(self.get_name(), "alive" if alive else "dead", alive,pid,out))
-                # return alive
-
-
-class PythonChildProcess(ChildProcess):
-    '''
-    This ChildProcess is designed to spawn python processes.
-    '''
-    def __init__(self, ip_address, command, **kwargs):
-        '''
-        Creates a PythonChildProcess
-        :param ip_address: The command will be executed at this ip_address
-        :param command: the command to execute. Is assumed to be a python call
-        :param name: optional name. If not set, will be process_i, with i a global counter
-        :param take_care_of_deconstruct: If set to True, deconstruct() is registered at exit
-        :param port_for_structured_back_communication: If set, the ip-address of this device as well as a specific port will be appended as arguments to the executed python command in the format --port=1234 --address=127.0.0.1
-        The child process is responsible for reading these values out and communicating to it. If set, this child process will expose a queue on that address with get_queue_from_cp()
-        :return:
-        '''
-        super(PythonChildProcess,self).__init__(ip_address=ip_address, command=command,**kwargs)
-
-    def prepare_command(self,command):
-        '''
-        All the stuff that I need to prepare for the command to definitely work
-        :param command:
-        :return:
-        '''
-        if self.set_up_port_for_structured_back_communication:
-            self.queue_from_cp, port = listen_on_port(port=7000, name="%s_listen_on_port"%self.get_name(),received_termination_event=self.get_termination_event())
-            # + random.randint(-500,500)
-            if self.is_local():
-                address = "127.0.0.1"
-            else:
-                address = get_local_ips()[-1]
-
-        if self.is_local():
-            home_dir = os.path.expanduser("~")
-        else:
-            _,_,stdout,_ = self._run_command("echo $$; exec echo ~")
-            home_dir = stdout.read().strip()
-
-        if type(command) == list:
-            if self.set_up_port_for_structured_back_communication:
-                command.append("--port=%i"%port)
-                command.append("--address=%s"%address)
-            if not self.local_process:
-                command = [c.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python", default_generator=lambda: sys.executable)), 1) if c.startswith("python") else c for c in command]
-                command = [s.replace("~",home_dir) for s in command]
-                command = " ".join([c for c in command])
-            else:
-                command = [c.strip("'") for c in command]
-                command = [c.replace("python", sys.executable, 1) if c.startswith("python") else c for c in command]
-                command = [s.replace("~",home_dir) for s in command]
-
-        elif isinstance(command, string_types) and command.startswith("python"):
-            if self.set_up_port_for_structured_back_communication:
-                command += " --port=%i "%port
-                command += "--address=%s"%address
-            if not self.local_process:
-                command = command.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python",default_generator=lambda: sys.executable)), 1)
-            else:
-                command = command.replace("python", sys.executable)
-            command = command.replace("~",home_dir)
-        else:
-            raise NotImplementedError()
-        return command
+                if alive is False:
+                    return False
+                else:
+                    command = "ps -h -p %s"%self.get_pid()
+                    _,_,stdout,_ = self._run_command(command)
+                    out = stdout.read()
+                    pid = self.get_pid()
+                    alive = pid in out
+                    return alive
 
 
 def listen_on_port(port=7000,name=None, received_termination_event=None):
@@ -324,12 +290,11 @@ def listen_on_port(port=7000,name=None, received_termination_event=None):
     :return: queue, port
     '''
     sock, port = get_socket("0.0.0.0", port=port)
-    sock.listen(1)
     main_input_queue = queue.Queue()
     t = threading.Thread(target=handle_socket_accepts,args=(sock, main_input_queue, None,1,"%s_handle_socket_accepts"%name,10,received_termination_event),name=name)
     t.setDaemon(True)
     t.start()
-    return main_input_queue, port
+    return main_input_queue, port, t
 
 
 class RemotePythonProcess(ChildProcess):
@@ -356,12 +321,13 @@ class RemotePythonProcess(ChildProcess):
     def prepare_command(self,command):
         # assert self.is_local(), "This, for now, assumes local execution"
         if self.set_up_port_for_structured_back_communication:
-            self.return_value_queue, return_port = listen_on_port(7000, "%s_listen_on_port"%self.get_name(),received_termination_event=self.get_termination_event())
+            self.return_value_queue, return_port, t = listen_on_port(7000, "%s_listen_on_port"%self.get_name(),received_termination_event=self.get_termination_event())
+            self._sub_threads.append(t)
         else:
             return_port = -1
         all_local_ips = get_local_ips()
         return_address = all_local_ips[-1]
-        print("Accepting requests to port %s on address %s" % (return_port, return_address))
+        ARTEMIS_LOGGER.info("Accepting requests to port %s on address %s" % (return_port, return_address))
         command = [sys.executable, '-u', self.remote_run_script_path, self.encoded_pickled_function, return_address, str(return_port)]
         if self.is_local():
             return command
@@ -372,23 +338,47 @@ class RemotePythonProcess(ChildProcess):
     def get_return_value(self, timeout=1):
         assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
         assert not self.is_generator, "The remotely executed function yields, it does not return a value. Use get_return_generator()"
-        serialized_out = self.return_value_queue.get(timeout=timeout)
-        out = pickle.loads(serialized_out.dbplot_message)
-        return out
+        assert self.cp_started, "This ChildProcess has not been started yet"
+        try:
+            out_message = wrap_queue_get_with_event_and_timeout(self.return_value_queue, self.get_termination_event(), timeout=timeout)
+            serialized_out = out_message.dbplot_message
+        except Exception as e:
+            if isinstance(e, EventSetException):
+                return None
+            elif isinstance(e, queue.Empty):
+                ARTEMIS_LOGGER.warn(
+                    "%s >> Child Process did not return a result in %s seconds and timed out. Exiting return generator" % (self.get_name(), timeout))
+            else:
+                ARTEMIS_LOGGER.warn("%s >> Child Process received an Exception. It is, at the moment, %s and the termination event is %s" % (
+                    self.get_name(), "alive" if self.is_alive() else "dead", "set" if self.get_termination_event().is_set() else "not set"))
+            raise
+        res = pickle.loads(serialized_out)
+        self.get_termination_event().set()
+        self.join_sub_threads()
+        return res
+
 
     def get_return_generator(self,timeout=None):
         assert self.is_generator, "The remotely executed function does not yield, it returns. Use get_return_value()"
         assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
         while True:
             try:
-                serialized_out = self.return_value_queue.get(timeout=timeout).dbplot_message
-            except Exception, e:
-                print("Child Process received an Execption ( Empty, probably). It is, at the moment, %s"%("alive" if self.is_alive() else "dead"))
-                print("Child Process %s did not yield a result in %s seconds and timed out. Self-destructing now"%(self.name,timeout))
-                self.kill(signal.SIGINT)
-                raise StopIteration
-            res = pickle.loads(serialized_out)
+                out_message = wrap_queue_get_with_event_and_timeout(self.return_value_queue,self.get_termination_event(),timeout=timeout)
+                serialized_out = out_message.dbplot_message
+                res = pickle.loads(serialized_out)
+            except Exception as e:
+                if isinstance(e,EventSetException):
+                    ARTEMIS_LOGGER.info("%s >> Termination Event set, exiting return generator"%(self.get_name()))
+                elif isinstance(e, queue.Empty):
+                    ARTEMIS_LOGGER.warn("%s >> Child Process did not yield a result in %s seconds and timed out. Exiting return generator" % (self.get_name(), timeout))
+                else:
+                    ARTEMIS_LOGGER.warn("%s >> Child Process received an Exception. It is, at the moment, %s and the termination event is %s" % (
+                        self.get_name(), "alive" if self.is_alive() else "dead", "set" if self.get_termination_event().is_set() else "not set"))
+                res = StopIteration
+
             if res == StopIteration:
+                self.get_termination_event().set()
+                self.join_sub_threads()
                 raise StopIteration
             yield res
 
@@ -440,7 +430,7 @@ class SlurmPythonProcess(RemotePythonProcess):
     def kill(self,signum=signal.SIGINT):
         # Slurm needs the signal twice
         if not self.cp_started:
-            print("Not started yet, no kill command will be sent")
+            ARTEMIS_LOGGER.info("Not started yet, no kill command will be sent")
             return
         if self.is_local():
             if check_pid(self.sub.pid):
@@ -463,9 +453,8 @@ def pickle_dumps_without_main_refs(obj):
     try:
         pickle_str = pickle.dumps(obj, protocol=0)
     except :
-        print("Using Dill")
+        ARTEMIS_LOGGER.info("Using Dill")
         # TODO: @petered There is something very fishy going on here that I don't understand.
-
         import dill
         pickle_str = dill.dumps(obj, protocol=0)
 

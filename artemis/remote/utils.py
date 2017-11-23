@@ -13,17 +13,17 @@ import sys
 import os
 import time
 
-import select
-
 from artemis.config import get_artemis_config_value
 
 ARTEMIS_LOGGER = logging.getLogger('artemis')
 
+
+class EventSetException(Exception):
+    pass
+
 def am_I_in_slurm_environment():
     sub = subprocess.Popen("which srun", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
     return len(sub.stdout.read()) != 0
-
-
 
 def one_time_send_to(address, port, message):
     '''
@@ -42,9 +42,6 @@ def one_time_send_to(address, port, message):
         raise
 
     send_size(sock, message)
-
-
-
 
 
 def queue_to_host(queue, return_address, return_port, termination_event):
@@ -95,12 +92,31 @@ def send_size(sock, data):
         sock.sendall(struct.pack('!I', len(data)))
         sock.sendall(data)
     except socketserver.socket.error as exc:
-        if exc.args[0] == 32:
-            print("Broken pipe", file=sys.stderr)
-            sys.exit(0)
-        else:
-            raise
+        raise
 
+def wrap_queue_get_with_event_and_timeout(input_queue, event, timeout):
+    '''
+    This method wraps the given queue's get method, waiting at most timeout seconds before throwing a queue.Empty.
+    Should the given event be set before the queue returned something, this method will return None.
+    :param queue:
+    :param event:
+    :param timeout:
+    :return:
+    '''
+    start = time.time()
+    if timeout is not None:
+        int_timeout = timeout if timeout < 0.1 else 0.1
+    else:
+        int_timeout = 0.1
+    while timeout is None or (time.time() - start <= timeout):
+        try:
+            serialized_out = input_queue.get(timeout=int_timeout)
+            return serialized_out
+        except Queue.Empty:
+            pass
+        if event.is_set():
+            raise EventSetException
+    raise Queue.Empty
 
 
 def recv_bytes(sock, size):
@@ -119,27 +135,6 @@ def recv_bytes(sock, size):
         size -= len(newbuf)
     return buf
 
-# def recv_bytes(sock,size,timeout_in_seconds=None):
-#     buf = b''
-#     while size:
-#         ready = select.select([sock],[],[],timeout_in_seconds)
-#         if ready[0]:
-#             print("Ready to receive")
-#             try:
-#                 newbuf = sock.recv(size)
-#             except socketserver.socket.error as exc:
-#                 if exc.args[0] == 54:
-#                     print("Connection reset by peer", file=sys.stderr)
-#                     sys.exit(0)
-#                 else:
-#                     raise
-#             if not newbuf: break
-#             buf += newbuf
-#             size -= len(newbuf)
-#         else:
-#             print("receive has timedout")
-#             raise socket.timeout
-#     return buf
 
 def recv_size(sock,timeout=None):
     t_start = time.time()

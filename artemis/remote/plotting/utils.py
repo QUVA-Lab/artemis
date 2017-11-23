@@ -1,6 +1,4 @@
 import socket
-from threading import current_thread
-
 from six.moves import queue
 import threading
 import time
@@ -23,8 +21,17 @@ def _queue_get_all_no_wait(q, max_items_to_retreive):
             break
     return items
 
+def accept_connection_with_timeout_and_termination_event(sock,timeout=None,event=None):
+    start = time.time()
+    while timeout is None or (time.time() - start <= timeout):
+        try:
+            return sock.accept()
+        except socket.timeout:
+            if (event is not None and event.is_set()):
+                break
+    raise socket.timeout
 
-def handle_socket_accepts(sock, main_input_queue=None, return_queue=None, max_number=0, name=None, timeout=None,received_termination_event=None):
+def handle_socket_accepts(sock, main_input_queue=None, return_queue=None, max_number=1, name=None, timeout=None,received_termination_event=None):
     """
     This Accepts max_number of incoming communication requests to sock and starts the threads that manages the data-transfer between the server and the clients
     :param sock:
@@ -36,19 +43,13 @@ def handle_socket_accepts(sock, main_input_queue=None, return_queue=None, max_nu
     return_lock = threading.Lock()
     connected_clients = 0
     threads = []
-    # if timeout is not None and timeout>=0:
-    #     sock.settimeout(timeout)
-    while True:
-        if (received_termination_event is not None and received_termination_event.is_set()) or connected_clients >= max_number:
-            # print("handle_socket_accepts in %s is waiting for sub-threads to join "%(threading.current_thread().name))
-            # print("")
-            break
-            # for t in threads:
-            #     t.join()
+    sock.settimeout(0.1)
+    sock.listen(1)
+    while connected_clients < max_number:
         try:
-            connection, client_address = sock.accept()
-        except Exception,e:
-            pass
+            connection, client_address = accept_connection_with_timeout_and_termination_event(sock,timeout,received_termination_event)
+        except socket.timeout:
+            break
         else:
             connected_clients += 1
             if main_input_queue:
@@ -103,8 +104,6 @@ def handle_return_connection(connection, client_address, return_queue, return_lo
 ClientMessage = namedtuple('ClientMessage', ['dbplot_message', 'client_address'])
 
 
-# dbplot_args is a DBPlotMessage object
-# client_address: A string IP address
 
 
 def handle_input_connection(connection, client_address, input_queue,received_termination_event=None):
@@ -118,18 +117,19 @@ def handle_input_connection(connection, client_address, input_queue,received_ter
     """
     # if received_termination_event is not None:
     connection.settimeout(1.0) # for some reason, Mac needs this
-    # time.sleep(1.0)
+    timeout = 1.0
     while True:
         if received_termination_event is not None and received_termination_event.is_set():
-            # print("handle_input_connection recognised that the event is set")
+            # print("Termination Event was set. Stopping receiving from %s"%str(client_address))
             break
         else:
             try:
-                recv_message = recv_size(connection,timeout=1.0)
+                recv_message = recv_size(connection,timeout=timeout)
             except socket.timeout:
                 pass
-                # print("Socket_input has timed-out. Checking for stopping criterium")
+            except Exception,e :
+                raise
             else:
                 if not input_queue: break
                 input_queue.put(ClientMessage(recv_message, client_address))
-    # connection.close()
+    connection.close()

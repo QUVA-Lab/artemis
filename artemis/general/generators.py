@@ -29,6 +29,8 @@ def multiplex_generators(generators, stop_at_first=True):
     :return:
     '''
     assert isinstance(generators,list)
+    assert len(generators) > 0, "No generators passed to the multiplexer"
+
     if isinstance(generators[0],tuple):
         assert inspect.isgenerator(generators[0][1])
         use_names=True
@@ -45,16 +47,11 @@ def multiplex_generators(generators, stop_at_first=True):
                 item_q.put((name,item))
             else:
                 item_q.put(item)
-        item = StopIteration
-        if use_names:
-            item_q.put((name, item))
-        else:
-            item_q.put(item)
 
     def run_all():
         thrlist = []
         for source,name in zip(generators,names):
-            t = threading.Thread(target=run_one,args=(source,name))
+            t = threading.Thread(target=run_one,args=(source,name), name="Multiplex Sub Thread for CP %s"%(name))
             t.start()
             thrlist.append(t)
         for t in thrlist:
@@ -65,27 +62,14 @@ def multiplex_generators(generators, stop_at_first=True):
         else:
             item_q.put(StopIteration)
 
-    t = threading.Thread(target=run_all)
+    t = threading.Thread(target=run_all,name="Multiplex OverThread")
     t.start()
     while True:
         item = item_q.get()
-        stopiteration_received=False
         if use_names:
             if item[1] == StopIteration:
-                stopiteration_received = True
+                raise StopIteration
         else:
             if item == StopIteration:
-                stopiteration_received = True
-
-        if stop_at_first:
-            if stopiteration_received:
                 raise StopIteration
-            else:
-                yield item
-        else:
-            if not t.is_alive():
-                raise StopIteration
-            if stopiteration_received:
-                pass
-            else:
-                yield item
+        yield item

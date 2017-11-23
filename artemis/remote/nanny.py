@@ -4,57 +4,62 @@ import sys
 import threading
 import time
 
-from artemis.general.generators import multiplex_generators, wrap_generator_with_event
+import logging
 
+from artemis.general.generators import multiplex_generators
+ARTEMIS_LOGGER = logging.getLogger('artemis')
 
-class ManagedChildProcess(object):
-    def __init__(self,cp,monitor_for_termination,monitor_if_stuck_timeout):
-        self.cp = cp
-        self.monitor_for_termination = monitor_for_termination
-        self.monitor_if_stuck_timeout = monitor_if_stuck_timeout
+#
+# class ManagedChildProcess(object):
+#     def __init__(self,cp,monitor_for_termination,monitor_if_stuck_timeout):
+#         self.cp = cp
+#         self.monitor_for_termination = monitor_for_termination
+#         self.monitor_if_stuck_timeout = monitor_if_stuck_timeout
+#
+#     def get_process(self):
+#         return self.cp
+#
+#     @property
+#     def name(self):
+#         return self.cp.name
+#
+#     def monitor_if_stuck(self):
+#         return self.monitor_if_stuck_timeout is not None
+#
+#     def kill(self, signal=signal.SIGINT):
+#         return self.cp.kill(signal)
+#
+#     def is_alive(self):
+#         return self.cp.is_alive()
+#
+#     def get_name(self):
+#         return self.cp.get_name()
+#
+#     def set_termination_event(self,event):
+#         return self.cp.set_termination_event(event)
+#
+#     def get_termination_event(self):
+#         return self.cp.get_termination_event()
+#
+#     def get_pid(self):
+#         return self.cp.get_pid()
+#
+#     def get_ip(self):
+#         return self.cp.get_ip()
+#
+#     def get_id(self):
+#         return self.cp.get_id()
+#
+#     def execute(self):
+#         return self.cp.execute_child_process()
+#
+#     def get_id(self):
+#         return self.cp.get_id()
+#
+#     def deconstruct(self, signum=signal.SIGINT, system_signal=False):
+#         return self.cp.deconstruct(signum)
+from artemis.remote.child_processes import RemotePythonProcess
 
-    def get_process(self):
-        return self.cp
-
-    @property
-    def name(self):
-        return self.cp.name
-
-    def monitor_if_stuck(self):
-        return self.monitor_if_stuck_timeout is not None
-
-    def kill(self, signal=signal.SIGINT):
-        return self.cp.kill(signal)
-
-    def is_alive(self):
-        return self.cp.is_alive()
-
-    def get_name(self):
-        return self.cp.get_name()
-
-    def set_termination_event(self,event):
-        return self.cp.set_termination_event(event)
-
-    def get_termination_event(self):
-        return self.cp.get_termination_event()
-
-    def get_pid(self):
-        return self.cp.get_pid()
-
-    def get_ip(self):
-        return self.cp.get_ip()
-
-    def get_id(self):
-        return self.cp.get_id()
-
-    def execute(self):
-        return self.cp.execute_child_process()
-
-    def get_id(self):
-        return self.cp.get_id()
-
-    def deconstruct(self, signum=signal.SIGINT, system_signal=False):
-        return self.cp.deconstruct(signum)
 
 class Nanny(object):
     '''
@@ -77,19 +82,20 @@ class Nanny(object):
         '''
         # assert monitor_for_termination != False, "Not supported any more at the moment"
         assert monitor_if_stuck_timeout is None or (monitor_if_stuck_timeout > 0 and type(monitor_if_stuck_timeout) == int), "Please set monitor_if_stuck_timeout to a positive integer"
-        self.managed_child_processes[cp.get_id()] = ManagedChildProcess(cp, monitor_for_termination,monitor_if_stuck_timeout)
+        cp.monitor_for_termination = monitor_for_termination
+        cp.monitor_if_stuck_timeout = monitor_if_stuck_timeout
+        self.managed_child_processes[cp.get_id()] = cp
 
     def get_child_processes(self):
         return {id:mcp.get_process() for id,mcp in self.managed_child_processes.items()}
 
     def multiplex_return_generators(self,time_out_kill=None):
-        multiplex_gen = multiplex_generators([(cp.name,cp.get_return_generator(time_out_kill)) for cp in self.get_child_processes().values()
-                                     if cp.set_up_port_for_structured_back_communication and cp.is_generator], stop_at_first=True)
+        multiplex_gen = multiplex_generators([(cp.name,cp.get_return_generator(time_out_kill)) for cp in self.managed_child_processes.values()
+                                     if cp.set_up_port_for_structured_back_communication and isinstance(cp,RemotePythonProcess) and cp.is_generator], stop_at_first=True)
         return multiplex_gen
 
 
     def execute_all_child_processes_block_return(self, time_out=1, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:False):
-        # termination_request_event = threading.Event()
         stdout_threads = {}
         stderr_threads = {}
 
@@ -99,7 +105,7 @@ class Nanny(object):
             mcp =self.managed_child_processes[id]
             if mcp.monitor_for_termination:
                 mcp.set_termination_event(self.termination_event)
-            stdin, stdout, stderr = mcp.execute()
+            stdin, stdout, stderr = mcp.execute_child_process()
 
             prefix = mcp.name.ljust(name_max_lenght)+": "
 
@@ -146,6 +152,7 @@ class Nanny(object):
             if cp.is_alive():
                 print(("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip())))
                 cp.deconstruct(signal.SIGKILL)
+        self.deconstruct()
 
 
     def execute_all_child_processes_yield_results(self, time_out=5, result_time_out=None, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:False):
@@ -159,24 +166,24 @@ class Nanny(object):
         :param: stderr_stopping_criterium: Receives the line from stderr. When evaluates to True, the stdout pipe is flushed and the termination request is set
         :return:
         '''
-        # def kill_if_terminated(cp, termination_request):
-        #     while not termination_request.wait(0.1):
-        #         pass
-        #     cp.kill(signal.SIGINT)
 
-        # termination_request_event = threading.Event()
         stdout_threads = {}
         stderr_threads = {}
+        at_least_one_cp_started = False
 
         name_max_lenght = max([len(mcp.name) for mcp in self.managed_child_processes.values()])
         for i, id in enumerate(self.managed_child_processes.keys()):
             mcp =self.managed_child_processes[id]
+            assert isinstance(mcp, RemotePythonProcess)
+            if not mcp.is_generator:
+                continue
+
             if mcp.monitor_for_termination:
                 mcp.set_termination_event(self.termination_event)
             else:
                 print("ALARM")
 
-            stdin, stdout, stderr = mcp.execute()
+            stdin, stdout, stderr = mcp.execute_child_process()
 
             prefix = mcp.name.ljust(name_max_lenght)+": "
 
@@ -189,26 +196,20 @@ class Nanny(object):
                                              args=(stdout,sys.stdout,mcp.name,mcp.get_termination_event(),stdout_stopping_criterium, prefix, monitor_if_stuck_timeout))
             stderr_thread = threading.Thread(target=self._monitor_and_forward_child_communication,name="%s_stderr_Thread"%mcp.get_name(),
                                              args=(stderr,sys.stderr,mcp.name,mcp.get_termination_event(),stderr_stopping_criterium, prefix, None))
-            # kill_thread = threading.Thread(target=kill_if_terminated,args=(mcp,termination_request_event),name="%s_kill_Thread"%mcp.get_name(),)
-            # kill_thread.setDaemon(True)
             stdout_thread.setDaemon(True)
             stderr_thread.setDaemon(True)
             stdout_threads[mcp.get_id()] = stdout_thread
             stderr_threads[mcp.get_id()] = stderr_thread
 
-            # kill_thread.start()
             stdout_thread.start()
             stderr_thread.start()
+            at_least_one_cp_started = True
 
-        # threading.Thread(target=kill_after,args=(30,termination_request_event)).start()
-        # print("Waiting 30secs before killing")
+        if not at_least_one_cp_started:
+            ARTEMIS_LOGGER.warn("No RemotePythonProcess that is a generator has been started")
         multiplex_generator = self.multiplex_return_generators(result_time_out)
-        wrapped_multiplex_generator = wrap_generator_with_event(multiplex_generator, self.termination_event)
-        # for result in wrapped_multiplex_generator:
-        # for result in multiplex_generator:
-        # wrapped_multiplex_generator = wrap_generator_with_event(self.get_child_processes().values()[0].get_return_generator(),self.termination_event)
         try:
-            for result in wrapped_multiplex_generator:
+            for result in multiplex_generator:
                 yield result
             time.sleep(time_out)
         except KeyboardInterrupt:

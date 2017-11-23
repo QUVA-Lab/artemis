@@ -46,7 +46,7 @@ def execute_command(ip_address, command, blocking=True):
         t2.join()
 
 class ParamikoPrintThread(threading.Thread):
-    def __init__(self, source_pipe, target_pipe, stopping_criterium=None, stop_event=None, prefix=""):
+    def __init__(self, source_pipe, target_pipe, stopping_criterium=None, stop_event=None, prefix="",**kwargs):
         '''
         :param source_pipe: The ssh pipe from which to forward communications
         :param target_pipe: Either stdout or stderr. This determines if stderr or stdout is read from the ssh channel.
@@ -58,7 +58,7 @@ class ParamikoPrintThread(threading.Thread):
         self.prefix = prefix
         self.target_pipe = target_pipe
         self.stopping_criterium = stopping_criterium
-        super(ParamikoPrintThread, self).__init__()
+        super(ParamikoPrintThread, self).__init__(**kwargs)
 
     def run(self, ):
         with self.source_pipe:
