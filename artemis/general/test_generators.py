@@ -36,6 +36,5 @@ def test_generator3():
 
 if __name__ == "__main__":
     test_generator()
-    test_generator2()
     test_generator3()
     test_generator_names()
