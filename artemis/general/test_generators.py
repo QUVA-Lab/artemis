@@ -28,13 +28,6 @@ def test_generator_names():
 def fun3():
     yield 2
 
-
-def test_generator2():
-    multiplexed_generator = multiplex_generators([fun1(),fun3()])
-    assert multiplexed_generator.next() == 2
-    with pytest.raises(StopIteration):
-        assert multiplexed_generator.next()
-
 def test_generator3():
     multiplexed_generator = multiplex_generators([fun1(),fun3()], stop_at_first=False)
     assert multiplexed_generator.next() == 2

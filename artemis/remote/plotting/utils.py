@@ -127,7 +127,7 @@ def handle_input_connection(connection, client_address, input_queue,received_ter
                 recv_message = recv_size(connection,timeout=timeout)
             except socket.timeout:
                 pass
-            except Exception,e :
+            except Exception as e :
                 raise
             else:
                 if not input_queue: break

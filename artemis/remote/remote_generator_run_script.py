@@ -44,7 +44,7 @@ if __name__ == '__main__':
     pickled_function = base64.b64decode(encoded_pickled_function)
     try:
         gen = pickle.loads(pickled_function)
-    except Exception,e:
+    except Exception as e:
         print("Caught Exception:")
         print(e.args)
         print("Using dill to unpickle")
