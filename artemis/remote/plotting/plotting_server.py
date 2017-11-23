@@ -95,7 +95,7 @@ def run_plotting_server(address, port, client_address, client_port):
     # Get the first available socket starting from portand communicate it with the client who started this server
     sock, port = get_socket(address=address, port=port)
     write_port_to_file(port)
-    max_number_clients = 100
+    max_number_clients = 1
     max_plot_batch_size = 2000
     sock.listen(max_number_clients)
     one_time_send_to(address=client_address,port=client_port,message=str(port))
@@ -155,7 +155,20 @@ def run_plotting_server(address, port, client_address, client_port):
             time.sleep(0.1)
 
 
+def main(reuse=False,address="",port=-1):
+    set_server_plotting(False)  # This causes dbplot to configure correctly
+    if reuse is True:
+        # TODO: has not been tested thoroughly yet. For example if you spawn two processes using the same server at the same time, there might be a conflict about who is the first who
+        # actually sets up the server, and who joins the existing server
+        send_port_if_running_and_join()
 
+    global_dict = globals()
+    if "RETURN_ADDRESS" in global_dict:
+        address = global_dict["RETURN_ADDRESS"]
+    if "RETURN_PORT" in global_dict:
+        port = global_dict["RETURN_PORT"]
+
+    run_plotting_server("0.0.0.0",7100, address, port) # We listen to the whole internet and start with port 7000
 
 
 
@@ -165,10 +178,5 @@ if __name__ == "__main__":
     parser.add_argument('--address',type=str,default="",help='This is the address of the  plotting client that started the server.')
     parser.add_argument('--port',type=int,default=-1,help='This is the port on which the plotting client that started the server listens for the port of the plotting server.')
     args = parser.parse_args()
-    set_server_plotting(False)  # This causes dbplot to configure correctly
-    if args.reuse is True:
-        # TODO: has not been tested thoroughly yet. For example if you spawn two processes using the same server at the same time, there might be a conflict about who is the first who
-        # actually sets up the server, and who joins the existing server
-        send_port_if_running_and_join()
 
-    run_plotting_server("0.0.0.0",7100, args.address, args.port) # We listen to the whole internet and start with port 7000
+    main(args.reuse,args.address,args.port)

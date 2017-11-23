@@ -194,7 +194,7 @@ def test_slurm_nanny1_2():
 
     nanny = Nanny()
     nanny.register_child_process(p)
-    nanny.execute_all_child_processes_block_return()
+    nanny.execute_all_child_processes()
     res = p.get_return_value()
     assert res == 3, "p.get_return_value() returned %s instead" % (res)
 
@@ -282,7 +282,7 @@ def test_nanny5_2():
     )
     nanny = Nanny()
     nanny.register_child_process(p1, monitor_if_stuck_timeout=5)
-    nanny.execute_all_child_processes_block_return()
+    nanny.execute_all_child_processes()
     assert p1.get_return_value() is None
 
 
@@ -325,7 +325,7 @@ def test_nanny6():
 
 
 def test_nanny6_2():
-    print("test_nanny6")
+    print("test_nanny6_2")
     p1 = RemotePythonProcess(
         function=my_triggering_function,
         ip_address="127.0.0.1",
@@ -333,8 +333,21 @@ def test_nanny6_2():
     )
     nanny = Nanny()
     nanny.register_child_process(p1)
-    nanny.execute_all_child_processes_block_return(stdout_stopping_criterium=lambda line: "my_trigger" in line)
+    nanny.execute_all_child_processes(stdout_stopping_criterium=lambda line: "my_trigger" in line)
     assert p1.get_return_value() is None
+
+def test_nanny6_3():
+    print("test_nanny6_3")
+    p1 = RemotePythonProcess(
+        function=return_function,
+        ip_address="127.0.0.1",
+        name="test_nanny6_cp"
+    )
+    nanny = Nanny()
+    nanny.register_child_process(p1)
+    nanny.execute_all_child_processes(stdout_stopping_criterium=lambda line: "my_trigger" in line,block=False)
+    res = p1.get_return_value()
+    assert res == 9
 
 
 def return_function():
@@ -397,7 +410,7 @@ def test_nanny7():
 
         nanny = Nanny()
         nanny.register_child_process(p)
-        nanny.execute_all_child_processes_block_return()
+        nanny.execute_all_child_processes()
         res = p.get_return_value()
     print("Test over")
 
@@ -412,7 +425,7 @@ def test_nanny8():
         slurm_kwargs={"-N": 1}
     )
     nanny.register_child_process(p)
-    nanny.execute_all_child_processes_block_return()
+    nanny.execute_all_child_processes()
     res = p.get_return_value()
 
 
@@ -579,6 +592,7 @@ def main():
     test_nanny5_2()
     test_nanny6()
     test_nanny6_2()
+    test_nanny6_3()
     test_nanny7()
     test_nanny8()
 

@@ -16,6 +16,7 @@ import pickle
 import pipes
 import logging
 
+from artemis.config import get_artemis_config_value
 from artemis.general.functional import get_partial_root
 from artemis.general.should_be_builtins import file_path_to_absolute_module
 from artemis.remote import remote_function_run_script, remote_generator_run_script
@@ -32,7 +33,7 @@ class ChildProcess(object):
     Generic Child Process
     '''
     counter=1
-    def __init__(self, command, ip_address = 'localhost', name=None, take_care_of_deconstruct=False, set_up_port_for_structured_back_communication=False, termination_event=None):
+    def __init__(self, command, ip_address = 'localhost', name=None, take_care_of_deconstruct=False, set_up_port_for_structured_back_communication=False, termination_event=None,daemonize=False):
         '''
         Creates a ChildProcess
         :param ip_address: The command will be executed at this ip_address
@@ -40,6 +41,9 @@ class ChildProcess(object):
         :param name: optional name. If not set, will be process_i, with i a global counter
         :param take_care_of_deconstruct: If set to True, deconstruct() is registered at exit
         :param port_for_structured_back_communication: Needs to be implemented according to the properties of the child process (see PythonChildProcess)
+        :param termination_event: If passed, this is event is used - otherwise an event specific to this CP is created (anc can be accessed later)
+        :param daemonize: If set to true, the stdout and stderr forwarding threads are daemonized. This is necessary if the childprocess
+        is not expected to terminate on its own and instead, should terminate when the main thread terminates.
         :return:
         '''
         if name is None:
@@ -59,8 +63,12 @@ class ChildProcess(object):
         self.cp_started = False
         self.take_care_of_deconstruct = take_care_of_deconstruct
         self._sub_threads = []
+        self._daemonize = daemonize
         if self.take_care_of_deconstruct:
             atexit.register(self.deconstruct)
+
+    def is_daemonized(self):
+        return self._daemonize
 
     def join_sub_threads(self):
         for th in self._sub_threads:
@@ -175,6 +183,8 @@ class ChildProcess(object):
         self.stderr = stderr
         self.cp_started = True
         t = threading.Thread(target=self._monitore_heart_beat,args=(self.get_termination_event(),),name="%s_HeartBeat"%self.get_name())
+        if self.is_daemonized():
+            t.setDaemon(True)
         self._sub_threads.append(t)
         t.start()
         return (stdin, stdout, stderr)
@@ -328,14 +338,21 @@ class RemotePythonProcess(ChildProcess):
         all_local_ips = get_local_ips()
         return_address = all_local_ips[-1]
         ARTEMIS_LOGGER.info("Accepting requests to port %s on address %s" % (return_port, return_address))
-        command = [sys.executable, '-u', self.remote_run_script_path, self.encoded_pickled_function, return_address, str(return_port)]
+        python_executable = get_artemis_config_value(section=self.get_ip(), option="python", default_generator=lambda: sys.executable)
+        remote_script_path = apply_path_mapping(self.get_ip(),self.remote_run_script_path)
+
+        command = [python_executable, '-u',remote_script_path, self.encoded_pickled_function, return_address, str(return_port)]
         if self.is_local():
             return command
         else:
             return " ".join(command)
-        # return command
 
-    def get_return_value(self, timeout=1):
+    def get_return_queue(self):
+        assert self.cp_started, "Not started yet, queue not yet set up"
+        assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
+        return self.return_value_queue
+
+    def get_return_value(self, timeout=None):
         assert self.set_up_port_for_structured_back_communication, '{} has not been set up to send back a return value.'.format(self)
         assert not self.is_generator, "The remotely executed function yields, it does not return a value. Use get_return_generator()"
         assert self.cp_started, "This ChildProcess has not been started yet"
@@ -439,6 +456,14 @@ class SlurmPythonProcess(RemotePythonProcess):
                 self.sub.send_signal(signum)
         else:
             raise NotImplementedError()
+
+def apply_path_mapping(ip_address, path):
+    path_mapping = get_artemis_config_value(section=ip_address,option="path_mapping",default_generator=lambda : None)
+    if path_mapping is not None:
+        to_replace,replace_with = path_mapping.split(";")
+        if to_replace in path:
+            return path.replace(to_replace,replace_with)
+    return path
 
 
 def pickle_dumps_without_main_refs(obj):

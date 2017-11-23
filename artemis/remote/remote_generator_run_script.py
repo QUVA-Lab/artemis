@@ -51,6 +51,9 @@ if __name__ == '__main__':
         import dill
         gen = dill.loads(pickled_function)
 
+    # gen.func_globals["RETURN_ADDRESS"] = return_address
+    # gen.func_globals["RETURN_PORT"] = return_port
+
     try:
         gen_to_host(gen(),return_address,return_port)
     except IOError as e:

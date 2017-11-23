@@ -51,6 +51,8 @@ def multiplex_generators(generators, stop_at_first=True):
         thrlist = []
         for source,name in zip(generators,names):
             t = threading.Thread(target=run_one,args=(source,name), name="Multiplex Sub Thread for CP %s"%(name))
+            # TODO: See if this is neccesarry
+            # t.setDaemon(True)
             t.start()
             thrlist.append(t)
         for t in thrlist:
@@ -62,6 +64,8 @@ def multiplex_generators(generators, stop_at_first=True):
             item_q.put(StopIteration)
 
     t = threading.Thread(target=run_all,name="Multiplex OverThread")
+    # TODO: See if this is neccesarry
+    # t.setDaemon(True)
     t.start()
     while True:
         item = item_q.get()

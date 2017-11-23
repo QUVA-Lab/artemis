@@ -263,6 +263,7 @@ def check_ssh_connection(ip_address):
     assert not err, "The remote server could not execute the test function. It returned the following error: \n %s"%err
     ssh_conn.close()
 
+
 def check_pid(pid):
     """ Check For the existence of a unix pid.
     Source: https://stackoverflow.com/a/568285/2068168"""
