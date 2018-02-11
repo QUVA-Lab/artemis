@@ -1,13 +1,13 @@
 import os
+import tempfile
 
 import pytest
 import shutil
 
 from artemis.config import get_artemis_config_value
-from artemis.fileman.config_files import get_config_value
-from artemis.fileman.local_dir import get_artemis_data_path
+from artemis.fileman.local_dir import get_artemis_data_path, get_local_dir, get_local_path
 from artemis.plotting.matplotlib_backend import get_plotting_server_address
-from artemis.remote.file_system import rsync, simple_rsync, check_config_file
+from artemis.remote.file_system import rsync, simple_rsync, mount_directory, unmount_directory
 from artemis.remote.utils import get_local_ips
 
 ip_address = get_plotting_server_address()
@@ -42,6 +42,29 @@ def test_simple_rsync():
     assert simple_rsync(local_path=from_path, remote_path=remote_path, ip_address=ip_address, verbose=True)
     shutil.rmtree(from_path)
 
+@pytest.mark.skipif(True, reason ="Requires locally configured network")
+def test_mounting_directory():
+    user = "mreisser"
+    ip = "146.50.28.6"
+    local_dir = get_local_dir("/home/mreisser/test_dir",True)
+    remote_dir = "/home/mreisser/.artemis/experiments"
+    options = ["cache=yes","kernel_cache","compression=no", "large_read", "Ciphers=arcfour",
+               "idmap=file", "gidfile=/home/mreisser/.ssh/gidfile", "uidfile=/home/mreisser/.ssh/uidfile",
+               # "IdentityFile=/home/mreisser/.ssh/id_rsa"
+               ]
+    assert os.listdir(local_dir) == []
+    mount_directory(user=user,ip=ip,local_dir=local_dir,remote_dir=remote_dir,raise_exception=True,options=options)
+
+    assert os.listdir(local_dir) != []
+    with open(get_local_path(local_dir + "tmpfile"),"wb"):
+        pass
+
+    unmount_directory(local_dir=local_dir, raise_exception=True)
+    assert os.listdir(local_dir) == []
+
+
+
 if __name__ == "__main__":
+    test_mounting_directory()
     test_simple_rsync()
     # test_rsync()
