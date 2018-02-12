@@ -447,3 +447,7 @@ def divide_into_subsets(list_of_element, subset_size):
     """
     element_gen = (el for el in list_of_element)
     return [[nextel for _, nextel in zip(range(subset_size), element_gen)] for _ in range(int(math.ceil(float(len(list_of_element))/subset_size)))]
+
+
+def ceildiv(num, denom):
+    return int(math.ceil(float(num)/denom))

@@ -602,7 +602,7 @@ class Duck(UniversalCollection):
         :return: True if equal, False if not.
         """
 
-        if not isinstance(other, (UniversalCollection, list, dict, np.ndarray)):
+        if not isinstance(other, (UniversalCollection, list, OrderedDict, np.ndarray)):
             return False
         if len(self) != len(other):
             return False

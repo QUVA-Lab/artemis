@@ -5,6 +5,18 @@ import numpy as np
 import time
 
 
+class Keys:
+    TRAINING = 'training'
+    TESTING = 'testing'
+    ITER = 'iter'
+    TIME = 'time'
+    RESULTS = 'results'
+    RETURNS = 'returns'
+    LOSSES = 'losses'
+    N_TESTS = 'n_tests'
+    CALLBACK = 'callback'
+
+
 def train_and_test_predictor(
         f_train,
         f_predict,
@@ -62,9 +74,9 @@ def train_and_test_predictor(
     if measures is None:
         measures = Duck()
     if 'training' not in measures:
-        measures['training'] = Duck()
+        measures[Keys.TRAINING] = Duck()
     if 'testing' not in measures:
-        measures['testing'] = Duck()
+        measures[Keys.TESTING] = Duck()
 
     is_test_time = Checkpoints(test_checkpoints) if not isinstance(test_checkpoints, Checkpoints) else test_checkpoints
     pi = ProgressIndicator(n_training_iters, "Training", update_every=progress_update_period)
@@ -72,10 +84,10 @@ def train_and_test_predictor(
     for inputs, targets in training_data_gen:
         if is_test_time():
 
-            this_test_measures = measures['testing'].open(next)
-            this_test_measures['iter'] = pi.get_iterations()
-            this_test_measures['time'] = pi.get_elapsed()
-            this_test_measures['results'] = do_test(
+            this_test_measures = measures[Keys.TESTING].open(next)
+            this_test_measures[Keys.ITER] = pi.get_iterations()
+            this_test_measures[Keys.TIME] = pi.get_elapsed()
+            this_test_measures[Keys.RESULTS] = do_test(
                 test_subset_generators={subset_name: constructor() for subset_name, constructor in test_data_gen_constructors.items()},
                 f_predict=f_predict,
                 loss_dict=losses,
@@ -84,10 +96,12 @@ def train_and_test_predictor(
                 in_test_callback = in_test_callback,
                 )
             if post_test_callback is not None:
-                post_test_callback(this_test_measures)
+                return_val = post_test_callback(this_test_measures)
+                if return_val is not None:
+                    this_test_measures[Keys.CALLBACK, ...] = return_val
             if iterations_to_end:
-                measures_to_yield = measures.arrayify_axis(axis=1, subkeys='training')
-                measures_to_yield = measures_to_yield.arrayify_axis(axis=1, subkeys='testing', inplace=True)
+                measures_to_yield = measures.arrayify_axis(axis=1, subkeys=Keys.TRAINING)
+                measures_to_yield = measures_to_yield.arrayify_axis(axis=1, subkeys=Keys.TESTING, inplace=True)
                 yield measures_to_yield.to_struct()
             else:
                 yield measures
@@ -95,11 +109,11 @@ def train_and_test_predictor(
         train_return = f_train(inputs, targets)
         pi.print_update()
         if save_train_return:
-            measures['training', 'returns'] = train_return
+            measures[Keys.TRAINING, Keys.RETURNS] = train_return
         if post_train_callback:
             return_val = post_train_callback(inputs=inputs, targets=targets, iter=pi.get_iterations())
             if return_val is not None:
-                measures['training', 'callback', next, ...] = return_val
+                measures[Keys.TRAINING, Keys.CALLBACK, next, ...] = return_val
 
 
 def do_test(test_subset_generators, f_predict, loss_dict, n_test_iters, collapse_loss = 'mean', in_test_callback = None):
@@ -118,16 +132,16 @@ def do_test(test_subset_generators, f_predict, loss_dict, n_test_iters, collapse
             n_tests+=1
             outputs = f_predict(inputs)
             for loss_name, f_loss in loss_dict.items():
-                these_test_results[subset_name, 'losses', loss_name, next] = f_loss(outputs, targets)
+                these_test_results[subset_name, Keys.LOSSES, loss_name, next] = f_loss(outputs, targets)
             pi.print_update()
             if in_test_callback is not None:
                 in_test_callback(inputs=inputs, targets=targets, outputs=outputs)
 
         assert n_tests>0, "It appears that subset '{}' had no tests!".format(subset_name)
-        these_test_results[subset_name, 'n_tests'] = n_tests
+        these_test_results[subset_name, Keys.N_TESTS] = n_tests
         if collapse_loss is not None:
             collapse_func = {'mean': np.mean}[collapse_loss]
             for loss_name, f_loss in loss_dict.items():
-                these_test_results[subset_name, 'losses', loss_name] = collapse_func(these_test_results[subset_name, 'losses', loss_name])
-        these_test_results[subset_name, 'time'] = time.time() - start_time
+                these_test_results[subset_name, Keys.LOSSES, loss_name] = collapse_func(these_test_results[subset_name, Keys.LOSSES, loss_name])
+        these_test_results[subset_name, Keys.TIME] = time.time() - start_time
     return these_test_results

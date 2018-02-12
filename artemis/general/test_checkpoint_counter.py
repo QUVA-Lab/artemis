@@ -30,6 +30,7 @@ def test_checkpoints():
 
     assert [a for a in range(100) if is_test()]==[0, 10, 22, 37, 54, 74, 97]
 
+
 if __name__ == '__main__':
     test_checkpoint_counter()
     test_checkpoints()
