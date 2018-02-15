@@ -5,8 +5,9 @@ from ConfigParser import NoSectionError, NoOptionError
 
 import paramiko
 from artemis.config import get_artemis_config_value
+from artemis.experiments.experiment_record import get_experiment_dir
 
-from artemis.fileman.config_files import get_config_value
+from artemis.fileman.config_files import set_non_persistent_config_value
 from artemis.fileman.local_dir import get_local_dir
 from artemis.remote.utils import get_ssh_connection
 
@@ -34,7 +35,7 @@ def check_config_file(ip_address, file_path=".artemisrc"):
     try:
         private_key_path = get_artemis_config_value(section=ip_address, option="private_key")
         assert os.path.isfile(private_key_path), "The path to the private_key for %s you specified in %s is not valid. You provided %s" % (
-        ip_address, artemisrc_path, private_key_path)
+            ip_address, artemisrc_path, private_key_path)
     except NoOptionError:
         pass
     # username & private key setup tests:
@@ -45,7 +46,7 @@ def check_config_file(ip_address, file_path=".artemisrc"):
             print("An AuthenticationException is being raised. Make sure you have your private key set up correctly")
         else:
             print("An AuthenticationException is being raised. Did you specify the correct username for %s in %s? You provided the username %s" % (
-            ip_address, artemisrc_path, get_artemis_config_value(section=ip_address, option="username")))
+                ip_address, artemisrc_path, get_artemis_config_value(section=ip_address, option="username")))
         raise
     except paramiko.ssh_exception.SSHException:
         try:
@@ -64,14 +65,14 @@ def check_config_file(ip_address, file_path=".artemisrc"):
     ssh_conn = get_ssh_connection(ip_address)
     _, stdout, stderr = ssh_conn.exec_command(command)
     assert stdout.read().strip() == "True", "The provided path to the remote python installation on %s does not exist. You provided %s" % (
-    ip_address, python_path)
+        ip_address, python_path)
 
     command = "%s -c 'print(\"Success\")'" % python_path
     _, stdout, stderr = ssh_conn.exec_command(command)
     err = stderr.read().strip()
     assert stdout.read().strip() == "Success" and not err, "The provided python path on %s does not seem to point to a python executable. " \
                                                            "You provided %s, which resulted in the following error on the remote machine: " % (
-                                                           ip_address, python_path, err)
+                                                               ip_address, python_path, err)
 
 
 def simple_rsync(local_path, remote_path, ip_address, verbose=False):
@@ -160,6 +161,9 @@ def mount_directory(user, ip, local_dir, remote_dir, options=["cache=yes", "kern
     '''
     import subprocess, warnings, atexit
     local_dir = get_local_dir(local_dir, True)[:-1]
+    # Check if already mounted
+    if os.path.ismount(local_dir):
+        return
     mounting_command = "sshfs " + " -o ".join(["", ] + options)[1:] + " {}@{}:{} {}".format(user, ip, remote_dir, local_dir)
     sub = subprocess.Popen(mounting_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     stderr_pipe = sub.stderr
@@ -169,19 +173,28 @@ def mount_directory(user, ip, local_dir, remote_dir, options=["cache=yes", "kern
             raise RuntimeError("Mounting of {} failed with error message: \n {}".format(local_dir, stderr_out))
         else:
             warnings.warn("Mounting of {} failed with error message: \n {} \n Continuing".format(local_dir, stderr_out))
-    atexit.register(lambda x: unmount_directory(local_dir))
+    atexit.register(lambda: unmount_directory(local_dir))
 
 
 def unmount_directory(local_dir, raise_exception=False):
     '''
     This method performs the system call 'fusermount -u local_dir' in order to unmount the 'local_dir'.
-    todo(matthias): Perform 'umount' on Mac OS instead
     :param local_dir: The directory to unmount
     :param raise_exception: If True, will raise a RunTime error with the stderr printout of the system call. If False, will only raise a warning.
     :return:
     '''
-    import subprocess, warnings
-    unmounting_command = "fusermount -u {}".format(local_dir)
+    import subprocess, warnings, platform
+
+    # Check OS
+    system = platform.system()
+    if system == "Darwin":  # Mac machine
+        unmounting_command = "umount {}".format(local_dir)
+    elif system == "Linux":
+        unmounting_command = "fusermount -u {}".format(local_dir)
+    else:
+        raise NotImplementedError()
+
+    # Perform unmount
     sub = subprocess.Popen(unmounting_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     stderr_pipe = sub.stderr
     stderr_out = stderr_pipe.read()
@@ -192,7 +205,8 @@ def unmount_directory(local_dir, raise_exception=False):
             warnings.warn("Unmounting of {} failed with error message: \n{}\n Continuing".format(local_dir, stderr_out))
 
 
-def mount_experiment_directory(user, ip, local_dir, remote_dir, options=["cache=yes", "kernel_cache", "compression=no", "large_read", "Ciphers=arcfour"],
+def mount_experiment_directory(user, ip, remote_dir=None, local_dir=None,
+                               options=["cache=yes", "kernel_cache", "compression=no", "large_read", "Ciphers=arcfour"],
                                raise_exception=False):
     '''
     Call this method before performing any methods that read the location of the experiment directory. The default for the experiment directory lies in
@@ -201,16 +215,26 @@ def mount_experiment_directory(user, ip, local_dir, remote_dir, options=["cache=
     'local_dir' might point to '/local/USERNAME/experiments' for example, which is located on the local drive of the GPU node within your cluster. Make sure you
     have permission to create this directory.
     Please refer to 'mount_directory' for detailed explanations and parameters.
+
+
+    :param user:
+    :param ip:
+    :param remote_dir: If None, uses the default directory '/home/user/.artemis/experiments', which is only expected to work on linux
+    :param local_dir: If None, uses the default experiment directory on this system
+    :param options:
+    :param raise_exception:
     :return:
     '''
 
-    pass
+    if local_dir == None:
+        local_dir = get_experiment_dir()
 
-def sync_directory():
-    '''
-    todo(matthias):
-    This method performs a 'rsync' system call to copy data from '.artemis/data'
-    :return:
-    '''
-    pass
+    if remote_dir == None:
+        remote_dir = "/home/{}/.artemis/experiments".format(user)
+
+    # Mount directory
+    mount_directory(user, ip, local_dir, remote_dir, options, raise_exception)
+
+    # Reconfigure local experiment folder
+    set_non_persistent_config_value(".artemisrc", section="experiments", option="experiment_directory", value=local_dir)
 
