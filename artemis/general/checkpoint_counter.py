@@ -74,7 +74,7 @@ class Checkpoints(object):
             distribution = checkpoint_generator[0]
             if distribution == 'even':
                 interval, = checkpoint_generator[1:]
-                checkpoint_generator = (interval*i for i in itertools.count(1))
+                checkpoint_generator = (interval*i for i in itertools.count(0))
             elif distribution == 'exp':
                 first, growth = checkpoint_generator[1:]
                 checkpoint_generator = (first*i*(1+growth)**(i-1) for i in itertools.count(0))
