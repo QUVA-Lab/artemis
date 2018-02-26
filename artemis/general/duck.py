@@ -11,7 +11,11 @@ class CollectionIsEmptyException(Exception):
     pass
 
 
-class InvalidKeyError(KeyError):
+class InvalidKeyError(Exception):
+    pass
+
+
+class KeyTooDeepError(KeyError):
     pass
 
 
@@ -94,6 +98,15 @@ class UniversalCollection(object):
             new_obj[k] = f(v)
         return new_obj
 
+    def key_in_filter(self, key, key_filter):
+        """
+        Returns True if the key matches the key filter, and false otherwise.
+        :param key:
+        :param key_filter:
+        :return:
+        """
+        raise NotImplementedError()
+
 
 class EmptyCollection(UniversalCollection):
 
@@ -161,6 +174,8 @@ class DynamicSequence(list, UniversalCollection):
                 return list.__getitem__(self, ix)
             except TypeError:
                 raise InvalidKeyError('You tried getting index "{}" from a {}, but {} object can only be indexed by ints, slices, numeric lists'.format(ix, type(self).__name__, type(self).__name__))
+            except IndexError:
+                raise IndexError('Your index "{}" exceeds the range of this DynamicSequence of length {}'.format(ix, len(self)))
 
     def __setitem__(self, ix, val):
         if ix is next:
@@ -178,9 +193,9 @@ class DynamicSequence(list, UniversalCollection):
 
     def has_key(self, key):
         try:
-            self[key]
+            list.__getitem__(self, key)
             return True
-        except IndexError:
+        except (IndexError, TypeError):
             return False
 
     def items(self):
@@ -193,6 +208,28 @@ class DynamicSequence(list, UniversalCollection):
     def from_struct(cls, struct):
         assert isinstance(struct, list)
         return DynamicSequence(struct)
+
+    def key_in_filter(self, key, key_filter):
+        """
+        Returns True if the key matches the key filter, and false otherwise.
+        :param key:
+        :param key_filter:
+        :return:
+        """
+        if isinstance(key_filter, list):
+            return key in key_filter
+        elif isinstance(key_filter, slice):
+            if key_filter.start is not None and key<key_filter.start:
+                return False
+            elif key_filter.stop is not None and key>=key_filter.stop:
+                return False
+            elif key_filter.step is not None and key%key_filter.step != 0:
+                return False
+            else:
+                return True
+        else:
+            assert isinstance(key_filter, int), 'Unexpected key_filter for {}: {}'.format(self.__class__.__name__, key_filter)
+            return key==key_filter
 
 
 class UniversalOrderedStruct(UniversalCollection):
@@ -255,6 +292,36 @@ class UniversalOrderedStruct(UniversalCollection):
     def from_struct(cls, struct):
         return cls(struct)
 
+    def key_in_filter(cls, key, key_filter):
+        if isinstance(key_filter, list):
+            return key in list
+        elif isinstance(key_filter, slice):
+            if key_filter.start is None and key_filter.stop is None and key_filter.step is None:
+                return True
+            else:
+                raise NotImplementedError('Have not yet implemented key filter for slice: {}'.format(key_filter))
+        else:
+            return key==key_filter
+
+
+def ix_to_str(index_obj):
+    if isinstance(index_obj, slice):
+        start = index_obj.start if index_obj.start is not None else ''
+        stop = index_obj.start if index_obj.start is not None else ''
+        step = ':'+index_obj.step if index_obj.step is not None else ''
+        return '{}:{}{}'.format(start, stop, step)
+    elif index_obj is Ellipsis:
+        return '...'
+    elif isinstance(index_obj, str):
+        return "'{}'".format(index_obj)
+    else:
+        return str(index_obj)
+
+
+def multi_ix_to_str(ixs):
+
+    return '['+','.join(ix_to_str(ix) for ix in ixs) + ']'
+
 
 class Duck(UniversalCollection):
     """
@@ -316,8 +383,11 @@ class Duck(UniversalCollection):
                 else:  # This is just getting a container for an assignment
                     assert not isinstance(first_key, slice), 'Sliced assignment currently not supported'
                     if not self._struct.has_key(first_key):
-                        self._struct[first_key] = Duck()
-                    self._struct[first_key][subkeys] = value
+                        subduck = Duck()  # Made to handle "next" key
+                        self._struct[first_key] = subduck
+                    else:
+                        subduck = self._struct[first_key]
+                    subduck[subkeys] = value
             except CollectionIsEmptyException:
                 self._struct = UniversalCollection.from_first_key(first_key)
                 self.__setitem__(indices, value)
@@ -344,18 +414,77 @@ class Duck(UniversalCollection):
                 return new_substruct
             else:  # Case 2:
                 # assert isinstance(new_substruct, ArrayStruct), 'You are selecting with {}, which indicates a depth of {}, but the structure has no more depth.'.format(list(':' if s==slice(None) else s for s in selectors), len(selectors))
+
                 if isinstance(first_selector, (list, np.ndarray, slice)):  # Sliced selection, with more sub-indices
                     return new_substruct.map(lambda x: x.__getitem__(indices[1:]))
                 else:  # Simple selection, with more sub-indices
+                    # if not isinstance(new_substruct, Duck):
+                    #     err = KeyTooDeepError()
+                    #     err.remaining_ixs = len(indices)-1
+                    #     raise err
+                    # assert isinstance(new_substruct, Duck), 'You are trying to access index: {}, but your Duck does not go that deep.'.format(indices)
                     return new_substruct[indices[1:]]
         except CollectionIsEmptyException:
             raise Exception('No value has ever been assigned to this Duck, but you are trying to extract index {} from it.'.format(indices))
+        except KeyError as err:  # We clarify errors here
+            if hasattr(err, '_key_depth'):
+                if err._key_depth < len(indices)-1:
+                    new_error = KeyError('This Duck has no key: {}.  The deepest valid key was {}.  If you want to break into leaves, use Duck.break_in().'.format(multi_ix_to_str(indices), multi_ix_to_str(indices[:err._key_depth+1])))
+                    new_error._key_depth = err._key_depth+1
+                else:
+                    if any(isinstance(i, slice) for i in indices):
+                        new_error = KeyError('This Duck cannot be referenced by key: {}.  Perhaps you want to filter by this key instead (see Duck.filter)'.format(multi_ix_to_str(indices)))
+                    else:
+                        new_error = KeyError('This Duck has no key: {}'.format(multi_ix_to_str(indices)))
+            else:
+                new_error = KeyError('This Duck has no key: {}, so it cannot read sub-key: {}.'.format(ix_to_str(first_selector), multi_ix_to_str(indices)))
+                new_error._key_depth = 1
+            raise new_error
 
     def deepvalues(self):
         return [(v.deepvalues() if isinstance(v, Duck) else v.values() if isinstance(v, UniversalCollection) else v) for v in self._struct]
 
     def map(self, f):
         return Duck(self._struct.map(f))
+
+    def filter_by_key(self, *key_filters):
+        d = Duck()
+        this_filter, later_filters = key_filters[0], key_filters[1:]
+        for k, v in self.items():
+            if not self._struct.key_in_filter(k, this_filter):
+                continue
+            # Now we can be assured that we've passed the first filter.
+            if isinstance(v, Duck):
+                subduck = v.filter_by_key(*later_filters)
+                if len(subduck)>0:
+                    if isinstance(self._struct, DynamicSequence):
+                        d[next] = subduck  # This is a hacky little complication made necessary by our use of next.
+                    else:
+                        d[k] = subduck
+            else:
+                d[k] = v
+        return d
+
+    @property
+    def filter(self):
+        """
+        Use this to do "filtered indexing".  e.g.
+
+            a = Duck()
+            a[next, :] = {'a': 1, 'b': 2}
+            a[next, :] = {'a': 3}
+            a[next, :] = {'a': 4, 'b': 5}
+
+            # Calling a[:, 'b']  would throw a KeyError, because not all elements have a 'b' entry.  Instead, we can filter:
+            assert a.filter[:, 'b'] == [2, 5]
+
+        :return: A new Duck with the keys filtered out
+        """
+        outer_self = self
+        class _TemporaryDuckFilterObject():
+            def __getitem__(self, indices):
+                return outer_self.filter_by_key(*indices)[indices]
+        return _TemporaryDuckFilterObject()
 
     def _first_element_keys(self):
 
@@ -436,6 +565,30 @@ class Duck(UniversalCollection):
     def from_struct(cls, struct):
         return cls(initial_struct=struct, recurse=True)
 
+    def break_in(self, inplace=False):
+        """
+        "Break in" to the values of your Duck... e.g.
+
+        d = Duck()
+        d['a'] = {'b': 2, 'c': 3}
+        print(d.description())
+
+        :param inplace:
+        :return:
+        """
+        if inplace:
+            for k, v in self.items(depth='full'):
+                self[k] = Duck.from_struct(v)
+            return self
+        else:
+            return self.from_struct(self.to_struct())
+
+    def copy(self):
+        newduck = Duck()
+        for k, v in self.items(depth='full'):
+            newduck[k] = v
+        return newduck
+
     def __contains__(self, item):
         return self._struct.__contains__(item)
 
@@ -448,14 +601,15 @@ class Duck(UniversalCollection):
         :param other: Another Duck, or nested object.
         :return: True if equal, False if not.
         """
+
+        if not isinstance(other, (UniversalCollection, list, OrderedDict, np.ndarray)):
+            return False
         if len(self) != len(other):
             return False
         if not len(self)==len(other):
             return False
-        if not isinstance(other, (UniversalCollection, list, OrderedDict, np.ndarray)):
-            return False
         for (our_key, our_value) in self.items():
-            if self[our_key] != other[our_key]:
+            if not(self[our_key] == other[our_key]):
                 return False
         return True
 
@@ -490,6 +644,17 @@ class Duck(UniversalCollection):
         else:
             raise Exception('"depth" can be "full", None, or an integer >= 1.  Got {}'.format(depth))
 
+    def key_in_filter(self, key, key_filter):
+
+        this_filter, future_filters = key_filter[0], key_filter[1:]
+        this_key, future_keys = key[0], key[1:]
+        if not self._struct.key_in_filter(this_key, key_filter=this_filter):
+            return False
+        elif isinstance(self[this_key], Duck):
+            return self[this_key].key_in_filter(key=future_keys, key_filter=future_filters)
+        else:
+            return True
+
     def values(self, depth=None):
         for k in self.keys(depth=depth):
             yield self[k]
@@ -501,10 +666,10 @@ class Duck(UniversalCollection):
     def __str__(self, max_key_len=4):
         keys = list(self.keys())
         if len(keys)>max_key_len:
-            inner_description = [str(k) for k in keys[:max_key_len-1]]+['...']
+            inner_description = '['+','.join([repr(k) for k in keys[:max_key_len-1]])+',...]'
         else:
-            inner_description = [str(k) for k in keys]
-        return '<{} with {} keys: {}>'.format(self.__class__.__name__, len(keys), inner_description)
+            inner_description = '['+','.join([repr(k) for k in keys])+']'
+        return '<{} with {} keys: {:s}>'.format(self.__class__.__name__, len(keys), inner_description)
 
     def description(self, max_expansion=4, _skip_intro=False):
         """

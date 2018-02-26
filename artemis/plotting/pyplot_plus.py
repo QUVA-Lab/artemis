@@ -64,6 +64,25 @@ def get_lines_color_cycle():
     return _lines_colour_cycle
 
 
+def get_color_cycle_map(name, length):
+    cmap = getattr(plt.cm, name)
+    cycle = cycler('color', cmap(np.linspace(0, 1, length)))
+    return [c['color'] for c in cycle]
+
+
+def increasing_alpha_color_cycle(name, length):
+
+    rgb = matplotlib.colors.to_rgb(name)
+
+    return [rgb+(float(i+1)/length, ) for i in range(length)]
+
+
+    # if include_alpha:
+    #     return list(c)
+    # else:
+    #     return list(c_['color'][:3] for c_ in c)
+
+
 def set_lines_color_cycle_map(name, length):
     cmap = getattr(plt.cm, name)
     c = cycler('color', cmap(np.linspace(0, 1, length)))
@@ -172,3 +191,7 @@ def set_centered_colour_map(h, map='redblackblue'):
     """
     h.set_cmap(map)
     center_colour_scale(h)
+
+
+# def adjust_margins(left=0.125, right=None, bottom=None, top=None):
+#     plt.subplots_adjust()

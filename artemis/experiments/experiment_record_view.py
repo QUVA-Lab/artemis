@@ -298,7 +298,7 @@ def find_experiment(*search_terms):
         return found_experiments.values()[0]
 
 
-def make_record_comparison_table(records, args_to_show=None, results_extractor = None, print_table = False):
+def make_record_comparison_table(records, args_to_show=None, results_extractor = None, print_table = False, tablefmt='simple', reorder_by_args=False):
     """
     Make a table comparing the arguments and results of different experiment records.  You can use the output
     of this function with the tabulate package to make a nice readable table.
@@ -351,9 +351,12 @@ def make_record_comparison_table(records, args_to_show=None, results_extractor =
         results = record.get_result()
         rows.append(args_vals+[f(results) for f in results_extractor.values()])
 
+    if reorder_by_args:
+        rows = sorted(rows)
+
     if print_table:
         import tabulate
-        print(tabulate.tabulate(rows, headers=headers, tablefmt='simple'))
+        print(tabulate.tabulate(rows, headers=headers, tablefmt=tablefmt))
     return headers, rows
 
 

@@ -33,7 +33,19 @@ def test_closing_fig(block=False):
     plt.show(block = block)
 
 
+def test_positioning_plots(block=False):
+
+    select_subplot(position=(0, 1))
+    plt.plot(np.random.randn(10))
+    select_subplot(position=(1, 1))
+    plt.plot(np.random.randn(10))
+    select_subplot(position=(1, 0))
+    plt.plot(np.random.randn(10))
+
+    plt.show(block=block)
+
 
 if __name__ == '__main__':
     test_closing_fig()
     test_expanding_subplots()
+    test_positioning_plots()

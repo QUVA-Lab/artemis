@@ -288,8 +288,11 @@ experiment records.  You can specify records in the following ways:
             if command is None:
                 user_input = input('Enter command or experiment # to run (h for help) >> ').strip()
             else:
-                user_input = command
-                command = None
+                if ';' in command:
+                    user_input, command = command.split(';', 1)
+                else:
+                    user_input = command
+                    command = None
 
             display_again = True
             out = None

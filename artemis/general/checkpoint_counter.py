@@ -74,7 +74,7 @@ class Checkpoints(object):
             distribution = checkpoint_generator[0]
             if distribution == 'even':
                 interval, = checkpoint_generator[1:]
-                checkpoint_generator = (interval*i for i in itertools.count(1))
+                checkpoint_generator = (interval*i for i in itertools.count(0))
             elif distribution == 'exp':
                 first, growth = checkpoint_generator[1:]
                 checkpoint_generator = (first*i*(1+growth)**(i-1) for i in itertools.count(0))
@@ -107,8 +107,38 @@ class Checkpoints(object):
         else:
             return False
 
+    def __iter__(self):
+        while True:
+            yield self()
+
     def get_count(self):
         return self._counter
+
+    @classmethod
+    def from_exp(cls, first, growth, **kwargs):
+        """
+        Generate checkpoints with a growing spacing.  Eg
+
+        is_test = Checkpoints(('exp', first=10, growth=.1))
+        [a for a in range(100) if is_test()]==[0, 10, 22, 37, 54, 74, 97]
+
+        :param first: The first checkpoint (after 0)
+        :param growth: The amount by which the checkpoint interval grows on each iteration
+        :param kwargs: See Checkpoints
+        :return: A Checkpoints object
+        """
+        return Checkpoints(('exp', first, growth), **kwargs)
+
+    @classmethod
+    def from_lin(cls, interval, **kwargs):
+        """
+        Generate checkpoints with fixed spacing.
+
+        :param interval:
+        :param kwargs:
+        :return:
+        """
+        return Checkpoints(('even', interval), **kwargs)
 
 
 _COUNTERS_DICT = {}
