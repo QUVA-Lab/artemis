@@ -76,7 +76,7 @@ def get_new_positions(fixed_positions, layout, n_plots):
             positions.append(fixed_positions[i])
         else:
             while True:
-                row, col = ix/n_cols, ix%n_cols
+                row, col = ix//n_cols, ix%n_cols
                 if (row, col) not in taken_positions:
                     positions.append((row, col))
                     taken_positions.add((row, col))
