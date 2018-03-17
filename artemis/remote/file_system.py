@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import os
-from ConfigParser import NoSectionError, NoOptionError
+from six.moves.configparser import NoSectionError, NoOptionError
 
 import paramiko
 from artemis.config import get_artemis_config_value
@@ -132,7 +132,7 @@ def rsync(options, from_path, to_path):
 
 
 def mount_directory(user, ip, local_dir, remote_dir, options=["cache=yes", "kernel_cache", "compression=no", "large_read", "Ciphers=arcfour"],
-                    raise_exception=False):
+                    raise_exception=False,register_unmount=False):
     '''
     This method performs a system call to 'sshfs' in order to mount a remote directory locally. This can be useful if your experiment directory lies
     on you local machine, while your experiment runs on a cluster somewhere. You then do not need to manually synchronize experiment directories across
@@ -173,7 +173,8 @@ def mount_directory(user, ip, local_dir, remote_dir, options=["cache=yes", "kern
             raise RuntimeError("Mounting of {} failed with error message: \n {}".format(local_dir, stderr_out))
         else:
             warnings.warn("Mounting of {} failed with error message: \n {} \n Continuing".format(local_dir, stderr_out))
-    atexit.register(lambda: unmount_directory(local_dir))
+    if register_unmount:
+        atexit.register(lambda: unmount_directory(local_dir))
 
 
 def unmount_directory(local_dir, raise_exception=False):
@@ -184,7 +185,6 @@ def unmount_directory(local_dir, raise_exception=False):
     :return:
     '''
     import subprocess, warnings, platform
-
     # Check OS
     system = platform.system()
     if system == "Darwin":  # Mac machine
@@ -207,7 +207,7 @@ def unmount_directory(local_dir, raise_exception=False):
 
 def mount_experiment_directory(user, ip, remote_dir=None, local_dir=None,
                                options=["cache=yes", "kernel_cache", "compression=no", "large_read", "Ciphers=arcfour"],
-                               raise_exception=False):
+                               raise_exception=False,register_unmount=True):
     '''
     Call this method before performing any methods that read the location of the experiment directory. The default for the experiment directory lies in
     $HOME/.artemis/experiments. This method reconfigures this session such that the experiment directory lies instead in 'local_dir'. We then mount the 'remote_dir'
@@ -233,7 +233,7 @@ def mount_experiment_directory(user, ip, remote_dir=None, local_dir=None,
         remote_dir = "/home/{}/.artemis/experiments".format(user)
 
     # Mount directory
-    mount_directory(user, ip, local_dir, remote_dir, options, raise_exception)
+    mount_directory(user, ip, local_dir, remote_dir, options, raise_exception,register_unmount)
 
     # Reconfigure local experiment folder
     set_non_persistent_config_value(".artemisrc", section="experiments", option="experiment_directory", value=local_dir)

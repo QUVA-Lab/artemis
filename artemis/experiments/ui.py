@@ -160,7 +160,7 @@ experiment records.  You can specify records in the following ways:
 
     def __init__(self, root_experiment = None, catch_errors = True, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            ignore_valid_keys=(), cache_result_string = False, slurm_kwargs={}, remove_prefix = None, display_format='nested',
+            ignore_valid_keys=(), cache_result_string = False, slurm_kwargs={}, slurm_preparation_fn=None, remove_prefix = None, display_format='nested',
             show_args=False, catch_selection_errors=True, max_width=None, table_package = 'tabulate'):
         """
         :param root_experiment: The Experiment whose (self and) children to browse
@@ -176,7 +176,8 @@ experiment records.  You can specify records in the following ways:
         :param ignore_valid_keys: When checking whether arguments are valid, ignore arguments with names in this list
         :param cache_result_string: Cache the result string (useful when it takes a very long time to display the results
             when opening up the menu - often when results are long lists).
-        :param slurm_kwargs:
+        :param slurm_kwargs: keys and values will be converted into arguments for the slurm call
+        :param slurm_preparataion_fn: Function that is being called on the server side before running the experiment
         :param remove_prefix: Remove the common prefix on the experiment ids in the display.
         :param display_format: How experements and their records are displayed: 'nested' or 'flat'.  'nested' might be
             better for narrow console outputs.
@@ -201,6 +202,7 @@ experiment records.  You can specify records in the following ways:
         self.cache_result_string = cache_result_string
         self.ignore_valid_keys = ignore_valid_keys
         self.slurm_kwargs = slurm_kwargs
+        self.slurm_preparation_function = slurm_preparation_fn
         self.remove_prefix = remove_prefix
         self.display_format = display_format
         self.show_args = show_args
@@ -450,7 +452,8 @@ experiment records.  You can specify records in the following ways:
                 n_parallel = n_processes,
                 raise_exceptions = raise_errors,
                 run_args=self.run_args,
-                slurm_kwargs=self.slurm_kwargs
+                slurm_kwargs=self.slurm_kwargs,
+                slurm_preparation_function = self.slurm_preparation_function
                 )
         else:
             exp_names = list(self.exp_record_dict.keys())

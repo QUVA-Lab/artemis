@@ -1,4 +1,5 @@
 import getpass
+import socket
 import threading
 import traceback
 from collections import OrderedDict
@@ -11,6 +12,7 @@ import subprocess
 from time import time
 
 from artemis.general.display import equalize_string_lengths
+from artemis.remote.file_system import unmount_directory
 from six import string_types
 from six.moves import reduce, xrange, queue
 from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
@@ -379,14 +381,15 @@ def interpret_numbers(user_range):
     else:
         return None
 
-def run_experiment(experiment, slurm_job = False, experiment_path=None, **experiment_record_kwargs):
+def run_experiment(experiment, slurm_job = False, slurm_preparation_function=None,  **experiment_record_kwargs):
     """
     Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
     You can run the experiment again later by calling show_experiment(location_string):
 
     :param experiment: The experiment object to be run
     :param slurm_job: It True, this function is interpreted as being run from within a SLURM call.
-    :param experiment_path: If not None, the 'experiment_directory' option in the 'experiments' section of the .artemisrc file will be temporarily set to this value
+    :param slurm_preparation_function: A function that is being executed (on a slurm node), before the experiment is run. This could be used, for example in order to
+    redirect paths geared towards the slurm environment (locally mounting the experiment directory, for example)
     :param experiment_record_kwargs: Passed to ExperimentRecord.
 
     :return: A location_string, uniquely identifying the experiment.
@@ -405,14 +408,16 @@ def run_experiment(experiment, slurm_job = False, experiment_path=None, **experi
         assert "SLURM_NODEID" in os.environ.keys(), "You indicated that the experiment '{}' is run within a SLURM call, however the environment variable 'SLURM_NODEID' could not be found".format(experiment.get_id())
         if int(os.environ["SLURM_NODEID"]) > 0:
             return
-    if experiment_path:
-        'As mentioned above, global variables are reset, so I reset the one element I actually use' #TODO: Make this more elegant
-        set_non_persistent_config_value(config_filename=".artemisrc", section="experiments", option="experiment_directory", value=experiment_path)
+        else:
+            print ("Running on {}".format(socket.gethostname()))
+    if slurm_preparation_function is not None:
+        slurm_preparation_function()
+    res = experiment.run(**experiment_record_kwargs)
+    # unmount_directory(local_dir="/local/mreisser/experiments")
+    return res
 
-    return experiment.run(**experiment_record_kwargs)
 
-
-def run_experiment_by_name(name, exp_dict='global', slurm_job=False, experiment_path=None, **experiment_record_kwargs):
+def run_experiment_by_name(name, exp_dict='global', slurm_job=False, **experiment_record_kwargs):
     """
     Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
     You can run the experiment again later by calling show_experiment(location_string):
@@ -420,7 +425,6 @@ def run_experiment_by_name(name, exp_dict='global', slurm_job=False, experiment_
     :param name: The name for the experiment (must reference something in exp_dict)
     :param exp_dict: A dict<str:func> where funcs is a function with no arguments that run the experiment.
     :param slurm_job: It True, this function is interpreted as being run from within a SLURM call.
-    :param experiment_path: If not None, the 'experiment_directory' option in the 'experiments' section of the .artemisrc file will be temporarily set to this value
     :param experiment_record_kwargs: Passed to ExperimentRecord.
 
     :return: A location_string, uniquely identifying the experiment.
@@ -428,7 +432,7 @@ def run_experiment_by_name(name, exp_dict='global', slurm_job=False, experiment_
     if exp_dict == 'global':
         exp_dict = get_global_experiment_library()
     experiment = exp_dict[name]
-    return run_experiment(experiment,slurm_job, experiment_path, **experiment_record_kwargs)
+    return run_experiment(experiment,slurm_job, **experiment_record_kwargs)
 
 
 def run_experiment_ignoring_errors(name, **kwargs):
@@ -438,14 +442,14 @@ def run_experiment_ignoring_errors(name, **kwargs):
         traceback.print_exc()
 
 
-def _run_slurm_experiment_from_queue(exp_queue,counter_lock,raise_exceptions=True, run_args={},slurm_kwargs={}):
+def _run_slurm_experiment_from_queue(exp_queue,counter_lock,raise_exceptions=True, run_args={},slurm_kwargs={},slurm_preparation_function=None):
     while True:
         try:
             exp = exp_queue.get_nowait()
         except queue.Empty:
             break
 
-        function_call = partial(run_experiment, experiment=exp, slurm_job=True, experiment_path=get_experiment_dir(),
+        function_call = partial(run_experiment, experiment=exp, slurm_job=True, slurm_preparation_function=slurm_preparation_function,
             raise_exceptions=raise_exceptions,display_results=False, **run_args)
 
         with counter_lock:
@@ -461,7 +465,7 @@ def _run_slurm_experiment_from_queue(exp_queue,counter_lock,raise_exceptions=Tru
 
 
 
-def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_processes_per_node=None, raise_exceptions=True, run_args={}, slurm_kwargs={}):
+def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_processes_per_node=None, raise_exceptions=True, run_args={}, slurm_kwargs={}, slurm_preparation_function=None):
     '''
     Run multiple experiments using slurm, optionally in parallel.
     '''
@@ -474,7 +478,7 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_proces
             exp_queue.put(experiment)
         run_threads = []
         for i in range(n_parallel):
-            t = threading.Thread(target=_run_slurm_experiment_from_queue,args=(exp_queue,counter_lock,raise_exceptions,run_args,slurm_kwargs), name="Parallel Slurm Execution Thread %i"%(i+1))
+            t = threading.Thread(target=_run_slurm_experiment_from_queue,args=(exp_queue,counter_lock,raise_exceptions,run_args,slurm_kwargs,slurm_preparation_function), name="Parallel Slurm Execution Thread %i"%(i+1))
             t.start()
             run_threads.append(t)
 
@@ -486,8 +490,8 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_proces
     else:
         for i,exp in enumerate(experiments):
             nanny = Nanny()
-            function_call = partial(run_experiment, experiment=exp, slurm_job=True, experiment_path=get_experiment_dir(),
-                raise_exceptions=raise_exceptions,display_results=False, **run_args)
+            function_call = partial(run_experiment, experiment=exp, slurm_job=True,
+                raise_exceptions=raise_exceptions,display_results=False, slurm_preparation_function=slurm_preparation_function, **run_args)
             spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1",
                                      slurm_kwargs=slurm_kwargs,set_up_port_for_structured_back_communication=False)
 
