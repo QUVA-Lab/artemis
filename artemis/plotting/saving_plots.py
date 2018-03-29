@@ -77,7 +77,7 @@ def show_saved_figure(relative_loc, title=None):
             ARTEMIS_LOGGER.error("Cannot display image '%s', because PIL is not installed.  Go pip install pillow to use this.  Currently it is a soft requirement.")
     elif ext == '.pkl':
         with interactive_matplotlib_context():
-            with open(abs_loc) as f:
+            with open(abs_loc, "rb") as f:
                 fig = pickle.load(f)
                 fig.canvas.set_window_title(title)
     else:
