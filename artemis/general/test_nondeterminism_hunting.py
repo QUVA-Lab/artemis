@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from artemis.general.random_finder import delete_vars, assert_variable_matches_between_runs, variable_matches_between_runs, \
+from artemis.general.nondeterminism_hunting import delete_vars, assert_variable_matches_between_runs, variable_matches_between_runs, \
     reset_variable_tracker
 
 

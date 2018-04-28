@@ -3,9 +3,11 @@ import inspect
 from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
+from six import string_types
 from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
-    get_all_record_ids, clear_experiment_records, run_and_record
-from artemis.general.functional import infer_derived_arg_values, get_partial_chain
+    get_all_record_ids, clear_experiment_records
+from artemis.experiments.experiment_record import run_and_record
+from artemis.general.functional import infer_derived_arg_values, get_partial_root
 
 
 class Experiment(object):
@@ -32,8 +34,7 @@ class Experiment(object):
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
-        if not is_root:
-            _register_experiment(self)
+        _register_experiment(self)
 
     @property
     def show(self):
@@ -61,10 +62,27 @@ class Experiment(object):
         return infer_derived_arg_values(self.function)
 
     def get_root_function(self):
-        return get_partial_chain(self.function)[0]
+        return get_partial_root(self.function)
+
+    def is_generator(self):
+        return inspect.isgeneratorfunction(self.get_root_function())
+
+    def call(self, *args, **kwargs):
+        """
+        Call the experiment function without running as an experiment.  If the experiment is a function, this is the same
+        as just result = my_exp_func().  If it's defined as a generator, it loops and returns the last result.
+        :return: The last result
+        """
+        if self.is_generator():
+            result = None
+            for x in self(*args, **kwargs):
+                result = x
+        else:
+            result = self(*args, **kwargs)
+        return result
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
-            display_results=True, notes = (), **experiment_record_kwargs):
+            display_results=False, notes = (), **experiment_record_kwargs):
         """
         Run the experiment, and return the ExperimentRecord that is generated.
 
@@ -99,11 +117,13 @@ class Experiment(object):
         )
         if display_results:
             self.show(exp_rec)
+
         return exp_rec
 
     def _create_experiment_variant(self, args, kwargs, is_root):
         assert len(args) in (0, 1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
+        assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
         ex = Experiment(
             name=self.name + '.' + name,
@@ -206,7 +226,7 @@ class Experiment(object):
             records = [record for record in records if record.get_status()==ExpStatusOptions.FINISHED]
         return records
 
-    def browse(self, command=None, catch_errors = False, close_after = False, just_last_record = False,
+    def browse(self, command=None, catch_errors = False, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
             cache_result_string = False, remove_prefix = None, display_format='nested', **kwargs):
         """
@@ -215,7 +235,8 @@ class Experiment(object):
         :param command: Optionally, a string command to pass directly to the UI.  (e.g. "run 1")
         :param catch_errors: Catch errors that arise while running experiments
         :param close_after: Close after issuing one command.
-        :param just_last_record: Only show the most recent record for each experiment.
+        :param filterexp: Filter the experiments with this selection (see help for how to use)
+        :param filterrec: Filter the experiment records with this selection (see help for how to use)
         :param view_mode: How to view experiments {'full', 'results'} ('results' leads to a narrower display).
         :param raise_display_errors: Raise errors that arise when displaying the table (otherwise just indicate that display failed in table)
         :param run_args: A dict of named arguments to pass on to Experiment.run
@@ -228,7 +249,8 @@ class Experiment(object):
             better for narrow console outputs.
         """
         from artemis.experiments.ui import browse_experiments
-        browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after, just_last_record=just_last_record,
+        browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after,
+            filterexp=filterexp, filterrec=filterrec,
             view_mode=view_mode, raise_display_errors=raise_display_errors, run_args=run_args, keep_record=keep_record,
             truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, remove_prefix=remove_prefix,
             display_format=display_format, **kwargs)
@@ -357,6 +379,10 @@ def _register_experiment(experiment):
     _GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
+def get_nonroot_global_experiment_library():
+    return OrderedDict((name, exp) for name, exp in _GLOBAL_EXPERIMENT_LIBRARY.items() if not exp.is_root)
+
+
 def get_experiment_info(name):
     experiment = load_experiment(name)
     return str(experiment)
@@ -370,7 +396,7 @@ def load_experiment(experiment_id):
 
 
 def is_experiment_loadable(experiment_id):
-    assert isinstance(experiment_id, basestring), 'Expected a string for experiment_id, not {}'.format(experiment_id)
+    assert isinstance(experiment_id, string_types), 'Expected a string for experiment_id, not {}'.format(experiment_id)
     return experiment_id in _GLOBAL_EXPERIMENT_LIBRARY
 
 

@@ -13,7 +13,7 @@ For examples of how to use artemis, read the [Artemis Documentation](http://arte
 
 ## Installation
 
-Note: Artemis was built for Python 2.7.  We hope to extend support to Python 3 soon.
+**As of release 2.0.0 on November 13, 2017, Artemis now supports Python 3**
 
 To use artemis from within your project, use the following to install Artemis and its dependencies: (You probably want to do this in a virtualenv with the latest version of pip - run `virtualenv venv; source venv/bin/activate; pip install --upgrade pip;` to make one and enter it).
 

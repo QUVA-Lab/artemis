@@ -5,7 +5,7 @@ import numpy as np
 
 from artemis.general.checkpoint_counter import CheckPointCounter
 from artemis.general.should_be_builtins import bad_value
-from artemis.ml.predictors.train_and_test import get_evaluation_function
+from artemis.ml.tools.costs import get_evaluation_function
 from artemis.ml.tools.iteration import checkpoint_minibatch_index_generator
 from artemis.general.mymath import sqrtspace
 from artemis.ml.tools.processors import RunningAverage
@@ -66,7 +66,7 @@ def compare_predictors(dataset, online_predictors={}, offline_predictors={}, min
     records = OrderedDict()
 
     # Run the offline predictors
-    for predictor_name, (predictor_type, predictor) in type_constructor_dict.iteritems():
+    for predictor_name, (predictor_type, predictor) in type_constructor_dict.items():
         print('%s\nRunning predictor %s\n%s' % ('='*20, predictor_name, '-'*20))
         records[predictor_name] = \
             assess_offline_predictor(
@@ -141,7 +141,7 @@ def assess_offline_predictor(predictor, dataset, evaluation_function, test_on = 
     record = LearningCurveData()
     predictor.fit(dataset.training_set.input, dataset.training_set.target)
     testing_sets = dataset_to_testing_sets(dataset, test_on)
-    scores = [(k, evaluation_function(process_in_batches(predictor.predict, x, test_batch_size), y)) for k, (x, y) in testing_sets.iteritems()]
+    scores = [(k, evaluation_function(process_in_batches(predictor.predict, x, test_batch_size), y)) for k, (x, y) in testing_sets.items()]
     record.add(None, scores)
     if report_test_scores:
         print('Scores: %s' % (scores, ))
@@ -151,7 +151,7 @@ def assess_offline_predictor(predictor, dataset, evaluation_function, test_on = 
 def assess_online_predictor(predictor, dataset, evaluation_function, test_epochs, minibatch_size, test_on = 'training+test',
         accumulator = None, report_test_scores=True, test_batch_size = None, test_callback = None):
     """
-    DEPRECATED: use assess_prediction_functions_on_generator in train_and_test.py
+    DEPRECATED: use assess_prediction_functions_on_generator in train_and_test_old.py
 
     Train an online predictor and return the LearningCurveData.
 
@@ -187,7 +187,7 @@ def assess_online_predictor(predictor, dataset, evaluation_function, test_epochs
         evaluation_function = get_evaluation_function(evaluation_function)
 
     def do_test(current_epoch):
-        scores = [(k, evaluation_function(process_in_batches(prediction_functions[k], x, test_batch_size), y)) for k, (x, y) in testing_sets.iteritems()]
+        scores = [(k, evaluation_function(process_in_batches(prediction_functions[k], x, test_batch_size), y)) for k, (x, y) in testing_sets.items()]
         if report_test_scores:
             print('Scores at Epoch %s: %s, after %.2fs' % (current_epoch, ', '.join('%s: %.3f' % (set_name, score) for set_name, score in scores), time.time()-start_time))
         record.add(current_epoch, scores)
@@ -281,7 +281,7 @@ class LearningCurveData(object):
             scores is a (length_N, n_scores) array indicating the each score at each time
                 OR a (length_N, n_scores, n_reps) array where n_reps indexes each repetition or the same experiment
         """
-        return {k: np.array(t) for k, t in self._times.iteritems()}, OrderedDict((k, np.array(v)) for k, v in self._scores.iteritems())
+        return {k: np.array(t) for k, t in self._times.items()}, OrderedDict((k, np.array(v)) for k, v in self._scores.items())
 
     def get_scores(self, which_test_set = None):
         """
@@ -294,7 +294,7 @@ class LearningCurveData(object):
         if which_test_set is None:
             assert len(results)==1, 'You failed to specify which test set to use, which would be fine if there was only ' \
                 "one, but there's more than one.  There's %s" % (results.keys(), )
-            return results.values()[0]
+            return next(v for v in results.values())
         else:
             assert which_test_set in results, 'You asked for results for the test set %s, but we only have test sets %s' \
                 % (which_test_set, results.keys())

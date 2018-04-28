@@ -2,6 +2,7 @@ import time
 from artemis.plotting.live_plotting import LiveStream, LivePlot, LiveCanal
 from artemis.plotting.matplotlib_backend import MovingImagePlot, MovingPointPlot, LinePlot, ImagePlot, HistogramPlot
 from itertools import count
+from six.moves import xrange
 
 __author__ = 'peter'
 import numpy as np
@@ -12,7 +13,7 @@ def test_streaming(duration = 10):
     c = count()
 
     stream = LiveStream(lambda: {
-        'text': ['Veni', 'Vidi', 'Vici'][c.next() % 3],
+        'text': ['Veni', 'Vidi', 'Vici'][next(c) % 3],
         'images': {
             'bw_image': np.random.randn(20, 20),
             'col_image': np.random.randn(20, 20, 3),
@@ -64,7 +65,7 @@ def test_canaling(duration = 10):
     # that spits out the same data when called in sequence.
     cb_constructor_1d = lambda: lambda rng = np.random.RandomState(0): rng.randn(n_dims)
     cb_image_data = lambda: lambda rng = np.random.RandomState(1): rng.rand(20, 30)
-    cb_sinusoid_data = lambda: lambda c=count(): np.sin(c.next()/40.)
+    cb_sinusoid_data = lambda: lambda c=count(): np.sin(next(c)/40.)
 
     canal = LiveCanal({
         'histo-mass': LivePlot(plot = HistogramPlot([-2.5, 0, 0.5, 1, 1.5, 2, 2.5], mode = 'mass'), cb = lambda: np.random.randn(np.random.randint(10))),

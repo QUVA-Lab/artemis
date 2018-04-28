@@ -1,8 +1,8 @@
 from functools import partial
-
 from artemis.plotting.db_plotting import dbplot, hold_dbplots, set_dbplot_figure_size
 import numpy as np
 from artemis.plotting.matplotlib_backend import MovingPointPlot
+from six.moves import input, xrange
 import time
 
 __author__ = 'peter'
@@ -63,4 +63,4 @@ if __name__ == '__main__':
     demo_dbplot()
     # demo_debug_dbplot()
     print(("#"*40))
-    raw_input("Terminate")
+    input("Terminate")

@@ -1,16 +1,16 @@
 from collections import OrderedDict
 
-import itertools
-from types import NoneType
-
 import numpy as np
+from six import string_types, next
+
+from artemis.general.should_be_builtins import all_equal
 
 __author__ = 'peter'
 
-_immutible_types = (int, float, basestring, bool, NoneType)
+_immutible_types = (int, float, bool, type(None))+string_types
 
 
-def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, bool, NoneType), custom_handlers = {},
+def flatten_struct(struct, primatives = (int, float, np.ndarray, type(None), bool)+string_types, custom_handlers = {},
         break_into_objects = True, detect_duplicates = True, first_dict_is_namespace=False, memo = None):
     """
     Given some nested struct, return a list<*(str, primative)>, where primative
@@ -22,7 +22,7 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
     :param custum_handlers: A dict<type:func> where func has the form data = func(obj).  These
         will be called if the type of the struct is in the dict of custom handlers.
     :param break_into_objects: True if you want to break into objects to see what's inside.
-    :return: list<*(str, primative)>
+    :return: list<*(str , primative)>
     """
     if memo is None:
         memo = {}
@@ -41,9 +41,9 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
         return [(None, handler(struct))]
     elif isinstance(struct, dict):
         return [
-            (("[{}]{}").format(("'{}'".format(key) if isinstance(key, basestring) else key), subkey if subkey is not None else ''), v) if not first_dict_is_namespace else
+            (("[{}]{}").format(("'{}'".format(key) if isinstance(key, string_types) else key), subkey if subkey is not None else ''), v) if not first_dict_is_namespace else
             (("{}{}").format(key, subkey if subkey is not None else ''), v)
-            for key in (struct.keys() if isinstance(struct, OrderedDict) else sorted(struct.keys()))
+            for key in (struct.keys() if isinstance(struct, OrderedDict) else sorted(struct.keys(), key = str))
             for subkey, v in flatten_struct(struct[key], custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
             ]
     elif isinstance(struct, (list, tuple)):
@@ -53,7 +53,7 @@ def flatten_struct(struct, primatives = (int, float, np.ndarray, basestring, boo
             ]
     elif break_into_objects:  # It's some kind of object, lets break it down.
         return [(".%s%s" % (key, subkey if subkey is not None else ''), v)
-            for key in sorted(struct.__dict__.keys())
+            for key in sorted(struct.__dict__.keys(), key = str)
             for subkey, v in flatten_struct(struct.__dict__[key], custom_handlers=custom_handlers, primatives=primatives, break_into_objects=break_into_objects, memo=memo, detect_duplicates=detect_duplicates)
             ]
     else:
@@ -83,7 +83,7 @@ def get_meta_object(data_object, is_container_func = _is_primitive_container):
         if isinstance(data_object, (list, tuple, set)):
             return type(data_object)(get_meta_object(x, is_container_func=is_container_func) for x in data_object)
         elif isinstance(data_object, dict):
-            return type(data_object)((k, get_meta_object(v, is_container_func=is_container_func)) for k, v in data_object.iteritems())
+            return type(data_object)((k, get_meta_object(v, is_container_func=is_container_func)) for k, v in data_object.items())
     else:
         return type(data_object)
 
@@ -183,9 +183,9 @@ def get_leaf_values(data_object, is_container_func = _is_primitive_container):
         if isinstance(data_object, (list, tuple)):
             leaf_values += [val for x in data_object for val in get_leaf_values(x, is_container_func=is_container_func)]
         elif isinstance(data_object, OrderedDict):
-            leaf_values += [val for k, x in data_object.iteritems() for val in get_leaf_values(x, is_container_func=is_container_func)]
+            leaf_values += [val for k, x in data_object.items() for val in get_leaf_values(x, is_container_func=is_container_func)]
         elif isinstance(data_object, dict):
-            leaf_values += [val for k in sorted(data_object.keys()) for val in get_leaf_values(data_object[k], is_container_func=is_container_func)]
+            leaf_values += [val for k in sorted(data_object.keys(), key = str) for val in get_leaf_values(data_object[k], is_container_func=is_container_func)]
         else:
             raise Exception('Have no way to consistently extract leaf values from a {}'.format(data_object))
         return leaf_values
@@ -208,13 +208,13 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
             if isinstance(meta_object, (list, tuple, set)):
                 filled_object = type(meta_object)(_fill_meta_object(x, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func) for x in meta_object)
             elif isinstance(meta_object, OrderedDict):
-                filled_object = type(meta_object)((k, _fill_meta_object(val, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k, val in meta_object.iteritems())
+                filled_object = type(meta_object)((k, _fill_meta_object(val, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k, val in meta_object.items())
             elif isinstance(meta_object, dict):
-                filled_object = type(meta_object)((k, _fill_meta_object(meta_object[k], data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k in sorted(meta_object.keys()))
+                filled_object = type(meta_object)((k, _fill_meta_object(meta_object[k], data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k in sorted(meta_object.keys(), key=str))
             else:
                 raise Exception('Cannot handle container type: "{}"'.format(type(meta_object)))
         else:
-            next_data = data_iteratable.next()
+            next_data = next(data_iteratable)
             if check_types and meta_object is not type(next_data):
                 raise TypeError('The type of the data object: {} did not match type from the meta object: {}'.format(type(next_data), meta_object))
             filled_object = next_data
@@ -223,14 +223,14 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
 
     if assert_fully_used:
         try:
-            data_iteratable.next()
+            next(data_iteratable)
             raise TypeError('It appears that the data object you were using to fill your meta object had more data than could fit.')
         except StopIteration:
             pass
     return filled_object
 
 
-def nested_map(func, nested_obj, check_types=False, is_container_func = _is_primitive_container):
+def nested_map(func, *nested_objs, **kwargs):
     """
     An equivalent of pythons built-in map, but for nested objects.  This function crawls the object and applies func
     to the leaf nodes.
@@ -241,11 +241,16 @@ def nested_map(func, nested_obj, check_types=False, is_container_func = _is_prim
     :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
     :return: A nested objectect with the same structure, but func applied to every value.
     """
+    is_container_func = kwargs['is_container_func'] if 'is_container_func' in kwargs else _is_primitive_container
+    check_types = kwargs['check_types'] if 'check_types' in kwargs else False
+    assert len(nested_objs)>0, 'nested_map requires at least 2 args'
+
     assert callable(func), 'func must be a function with one argument.'
-    nested_type = NestedType.from_data(nested_obj, is_container_func=is_container_func)
-    leaf_values = nested_type.get_leaves(nested_obj, is_container_func=is_container_func, check_types=check_types)
-    new_leaf_values = [func(v) for v in leaf_values]
-    new_nested_obj = nested_type.expand_from_leaves(new_leaf_values, check_types=check_types, is_container_func=is_container_func)
+    nested_types = [NestedType.from_data(nested_obj, is_container_func=is_container_func) for nested_obj in nested_objs]
+    assert all_equal(nested_types), "The nested objects you provided had different data structures:\n{}".format('\n'.join(str(s) for s in nested_types))
+    leaf_values = zip(*[nested_type.get_leaves(nested_obj, is_container_func=is_container_func, check_types=check_types) for nested_type, nested_obj in zip(nested_types, nested_objs)])
+    new_leaf_values = [func(*v) for v in leaf_values]
+    new_nested_obj = nested_types[0].expand_from_leaves(new_leaf_values, check_types=check_types, is_container_func=is_container_func)
     return new_nested_obj
 
 
@@ -323,3 +328,5 @@ def structseq_to_seqstruct(structseq):
     sequence = zip(*leaf_data)
     seqstruct = [nested_type.expand_from_leaves(s, check_types=False) for s in sequence]
     return seqstruct
+
+

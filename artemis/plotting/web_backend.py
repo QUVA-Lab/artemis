@@ -1,7 +1,6 @@
 import time
-import thread
-from six.moves import SimpleHTTPServer
-import SocketServer
+from six.moves import _thread as thread
+from six.moves import SimpleHTTPServer, socketserver
 from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.plotting.manage_plotting import set_show_callback, set_draw_callback
 import os
@@ -48,11 +47,11 @@ def _launch_on_first_available_port(first_port):
     port = first_port
     while True:
         try:
-            httpd = SocketServer.TCPServer(('', port), Handler)
+            httpd = socketserver.TCPServer(('', port), Handler)
             # print 'Serving on port', port
             ARTEMIS_LOGGER.warn("Serving Plots at http://localhost:%s" % (port, ))
             httpd.serve_forever()
-        except SocketServer.socket.error as exc:
+        except socketserver.socket.error as exc:
             if exc.args[0] == 48 or exc.args[0] == 98:
                 ARTEMIS_LOGGER.info('Port', port, 'already in use')
                 port += 1

@@ -37,7 +37,7 @@ def save_figure(fig, path, ext=None, default_ext = '.pdf'):
 
     make_file_dir(path)
     if ext=='.pkl':
-        with open(path, 'w') as f:
+        with open(path, 'wb') as f:
             pickle.dump(fig, f, protocol=pickle.HIGHEST_PROTOCOL)
     else:
         fig.savefig(path)
@@ -77,7 +77,7 @@ def show_saved_figure(relative_loc, title=None):
             ARTEMIS_LOGGER.error("Cannot display image '%s', because PIL is not installed.  Go pip install pillow to use this.  Currently it is a soft requirement.")
     elif ext == '.pkl':
         with interactive_matplotlib_context():
-            with open(abs_loc) as f:
+            with open(abs_loc, "rb") as f:
                 fig = pickle.load(f)
                 fig.canvas.set_window_title(title)
     else:

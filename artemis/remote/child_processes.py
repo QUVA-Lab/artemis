@@ -1,7 +1,8 @@
 from __future__ import print_function
 
-import Queue
+from six.moves import queue
 import atexit
+import base64
 import inspect
 import shlex
 import signal
@@ -10,10 +11,13 @@ import sys
 import threading
 import time
 import uuid
+
 import os
 import pickle
+import pipes
 
-import StringIO
+
+from six import string_types
 
 from artemis.general.should_be_builtins import file_path_to_absolute_module
 from artemis.remote import remote_function_run_script
@@ -66,13 +70,16 @@ class ChildProcess(object):
         if self.is_local():
             return command
         else:
+            if isinstance(command,list):
+                command = " ".join(pipes.quote(c) for c in command)
+
             return self.get_extended_command(command)
         return command
 
     def get_extended_command(self,command):
         return "echo $$ ; exec %s"%command
 
-    def deconstruct(self, signum=signal.SIGINT, system_signal=False):
+    def deconstruct(self, signum=signal.SIGKILL, system_signal=False):
         '''
         This completely and safely deconstructs a remote connection. It might also be called at program shutdown, if take_care_of_deconstruct is set to True
         kills itself if alive, then closes remote connection if applicable
@@ -148,7 +155,7 @@ class ChildProcess(object):
         if self.local_process:
             if type(command) == list:
                 sub = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            elif type(command) == str or type(command) == unicode:
+            elif isinstance(command, string_types):
                 shlexed_command = shlex.split(command)
                 sub = subprocess.Popen(shlexed_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             else:
@@ -254,7 +261,7 @@ class PythonChildProcess(ChildProcess):
                 command = [c.replace("python", sys.executable, 1) if c.startswith("python") else c for c in command]
                 command = [s.replace("~",home_dir) for s in command]
 
-        elif type(command) == str or type(command) == unicode and command.startswith("python"):
+        elif isinstance(command, string_types) and command.startswith("python"):
             if self.set_up_port_for_structured_back_communication:
                 command += " --port=%i "%port
                 command += "--address=%s"%address
@@ -275,7 +282,7 @@ def listen_on_port(port=7000):
     '''
     sock, port = get_socket("0.0.0.0", port=port)
     sock.listen(1)
-    main_input_queue = Queue.Queue()
+    main_input_queue = queue.Queue()
     t = threading.Thread(target=handle_socket_accepts,args=(sock, main_input_queue, None,1))
     t.setDaemon(True)
     t.start()
@@ -292,6 +299,7 @@ class RemotePythonProcess(ChildProcess):
             ip_address="127.0.0.1"
 
         pickled_function = pickle_dumps_without_main_refs(function)
+        encoded_pickled_function = base64.b64encode(pickled_function)
 
         remote_run_script_path = inspect.getfile(remote_function_run_script)
         if remote_run_script_path.endswith('pyc'):
@@ -300,7 +308,7 @@ class RemotePythonProcess(ChildProcess):
         self.return_value_queue, return_port = listen_on_port(7000)
         all_local_ips = get_local_ips()
         return_address = "127.0.0.1" if ip_address in all_local_ips else all_local_ips[-1]
-        command = [sys.executable, '-u', remote_run_script_path, pickled_function, return_address, str(return_port)]
+        command = [sys.executable, '-u', remote_run_script_path, encoded_pickled_function, return_address, str(return_port)]
         super(RemotePythonProcess, self).__init__(ip_address=ip_address, command=command, set_up_port_for_structured_back_communication=set_up_port_for_structured_back_communication,  **kwargs)
 
     def get_return_value(self, timeout=1):
@@ -309,6 +317,44 @@ class RemotePythonProcess(ChildProcess):
         out = pickle.loads(serialized_out.dbplot_message)
         return out
 
+class SlurmPythonProcess(RemotePythonProcess):
+    def __init__(self, function, ip_address, set_up_port_for_structured_back_communication=True, slurm_kwargs={}, slurm_command="srun", **kwargs):
+        '''
+
+        :param function:
+        :param ip_address:
+        :param set_up_port_for_structured_back_communication:
+        :param slurm_kwargs:
+        :param kwargs:
+        '''
+        assert ip_address in get_local_ips(), "At the moment, we want you to start a slurm process only from localhost"
+        assert slurm_command in ["srun"], "At the moment, we only support 'srun' for execution of slurm"
+        super(SlurmPythonProcess,self).__init__(function, ip_address, set_up_port_for_structured_back_communication, **kwargs)
+        self.slurm_kwargs = slurm_kwargs
+
+
+    def prepare_command(self,command):
+        '''
+        All the stuff that I need to prepare for the command to definitely work
+        :param command:
+        :return:
+        '''
+
+        slurm_command = "srun"
+        for k,v in self.slurm_kwargs.items():
+            if k.startswith("--"):
+                slurm_command += " %s=%s"%(k,v)
+            elif k.startswith("-"):
+                slurm_command += " %s %s"%(k,v)
+
+        if isinstance(command, list):
+            command = " ".join(pipes.quote(c) for c in command)
+
+        final_command = " ".join((slurm_command,command))
+        if self.is_local():
+            return final_command
+        else:
+            raise NotImplementedError()
 
 def pickle_dumps_without_main_refs(obj):
     """
@@ -319,7 +365,14 @@ def pickle_dumps_without_main_refs(obj):
     """
     currently_run_file = sys.argv[0]
     module_path = file_path_to_absolute_module(currently_run_file)
-    pickle_str = pickle.dumps(obj, protocol=0)
+    try:
+        pickle_str = pickle.dumps(obj, protocol=0)
+    except:
+        print("Using Dill")
+        # TODO: @petered There is something very fishy going on here that I don't understand.
+        import dill
+        pickle_str = dill.dumps(obj, protocol=0)
+
     pickle_str = pickle_str.replace('__main__', module_path)  # Hack!
     return pickle_str
 

@@ -1,12 +1,17 @@
 from abc import ABCMeta, abstractmethod
 from itertools import cycle
 
+from matplotlib.image import AxesImage
+
+from six import string_types
+
 from artemis.config import get_artemis_config_value
 from artemis.general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array, \
-    UnlimitedRecordBuffer
+from artemis.plotting.data_conversion import (put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array,
+    UnlimitedRecordBuffer)
 from matplotlib import pyplot as plt
 import numpy as np
+from six.moves import xrange
 
 
 __author__ = 'peter'
@@ -23,6 +28,10 @@ class IPlot(object):
     @abstractmethod
     def plot(self):
         pass
+
+    def update_and_plot(self, data):
+        self.update(data)
+        self.plot()
 
 
 class HistoryFreePlot(IPlot):
@@ -43,7 +52,9 @@ colour_cycle = 'bgrmcyk'
 
 class ImagePlot(HistoryFreePlot):
 
-    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = False, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+    def __init__(self, interpolation = 'nearest', show_axes = False, show_clims = True, clims = None, only_grow_clims = False,
+            channel_first = False, aspect = 'auto', cmap = 'gray', is_colour_data = None):
+
         """
         :param interpolation: How to interpolate array to form the image {'none', 'nearest', ''bilinear', 'bicubic', ... (see plt.imshow)}
         :param show_axes: Show axes marks (numbers along the side showing pixel locations)
@@ -65,10 +76,21 @@ class ImagePlot(HistoryFreePlot):
         self._is_colour_data = is_colour_data
         self.show_clims = show_clims
         self.only_grow_clims = only_grow_clims
+        self.channel_first = channel_first
         if only_grow_clims:
             self._old_clims = (float('inf'), -float('inf'))
 
     def _plot_last_data(self, data):
+
+        if self.channel_first:
+            if data.ndim==3:
+                assert data.shape[0] in (1, 3)
+                data = np.rollaxis(data, 0, 3)
+            elif data.ndim==4:
+                assert data.shape[1] in (1, 3)
+                data = np.rollaxis(data, 1, 4)
+            else:
+                print('Image should be 3D (3, size_y, size_x) or 4D (n_images, 3, size_y, size_x) for channel-first-mode.')
 
         if len(data)==0:
             plottable_data = np.zeros((16, 16, 3), dtype = np.uint8)
@@ -160,7 +182,7 @@ class LinePlot(HistoryFreePlot):
         self.axes_update_mode = axes_update_mode
         self.add_end_markers = add_end_markers
         self._end_markers = []
-        self.legend_entries = [legend_entries] if isinstance(legend_entries, basestring) else legend_entries
+        self.legend_entries = [legend_entries] if isinstance(legend_entries, string_types) else legend_entries
         self.legend_entry_size = legend_entry_size
         self.allow_axis_offset = allow_axis_offset
 
@@ -259,7 +281,9 @@ class LinePlot(HistoryFreePlot):
         # plt.legend(loc='best', framealpha=0.5, prop={'size': self.legend_entry_size})
 
 
-def _update_axes_bound(ax, (left, right), (lower, upper), mode = 'fit'):
+def _update_axes_bound(ax, left_and_right, lower_and_upper, mode = 'fit'):
+    left, right = left_and_right
+    lower, upper = lower_and_upper
     if mode=='fit':
         ax.set_xbound(left, right)
         ax.set_ybound(lower, upper)
@@ -280,14 +304,30 @@ class BoundingBoxPlot(LinePlot):
 
     def __init__(self, axes_update_mode='expand', **kwargs):
         super(BoundingBoxPlot, self).__init__(axes_update_mode=axes_update_mode, **kwargs)
+        self._image_handle = None
+        self._last_data_shape = None
 
     def update(self, data):
         """
         :param data: A (left, bottom, right, top) bounding box.
         """
+        if self._image_handle is None:
+            self._image_handle = next(c for c in plt.gca().get_children() if isinstance(c, AxesImage))
+
+        data_shape = self._image_handle.get_array().shape # Hopefully this isn't copying
+        if data_shape != self._last_data_shape:
+            extent =(-.5, data_shape[1]-.5, data_shape[0]-.5, -.5)
+            self._image_handle.set_extent(extent)
+            plt.gca().set_xlim(extent[:2])
+            plt.gca().set_ylim(extent[2:])
+            self._last_data_shape = data_shape
+
         l, b, r, t = data
-        x = np.array([l+.5, l+.5, r+.5, r+.5, l+.5])
-        y = np.array([t+.5, b+.5, b+.5, t+.5, t+.5])
+        # x = np.array([l+.5, l+.5, r+.5, r+.5, l+.5])  # Note: should we be adding .5? The extend already subtracts .5
+        # y = np.array([t+.5, b+.5, b+.5, t+.5, t+.5])
+        x = np.array([l, l, r, r, l])  # Note: should we be adding .5? The extend already subtracts .5
+        y = np.array([t, b, b, t, t])
+
         LinePlot.update(self, (x, y))
 
 
@@ -321,8 +361,8 @@ class Moving2DPointPlot(LinePlot):
         self._y_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
         self._x_buffer = UnlimitedRecordBuffer() if buffer_len is None else RecordBuffer(buffer_len)
 
-    def update(self, (x_data, y_data)):
-
+    def update(self, x_data_and_y_data):
+        x_data, y_data = x_data_and_y_data
         x_buffer_data = self._x_buffer(x_data)
         y_buffer_data = self._y_buffer(y_data)
 
@@ -352,7 +392,7 @@ class TextPlot(IPlot):
         self._y_offset = {'bottom': 0.05, 'center': 0.5, 'top': 0.95}[self.vertical_alignment]
 
     def update(self, string):
-        if not isinstance(string, basestring):
+        if not isinstance(string, string_types):
             string = str(string)
         history = self._buffer(string)
         self._full_text = '\n'.join(history)
@@ -465,7 +505,7 @@ def get_live_plot_from_data(data, line_to_image_threshold = 8, cmap = 'gray'):
 
     # TODO: Maybe refactor that so that plot objects contain their own "data validation" code, and we can
     # simply ask plots in sequence whether they can handle the data.
-    if isinstance(data, basestring):
+    if isinstance(data, string_types):
         return TextPlot()
 
     if isinstance(data, list):
@@ -510,7 +550,7 @@ def get_live_plot_from_data(data, line_to_image_threshold = 8, cmap = 'gray'):
 
 def get_static_plot_from_data(data, line_to_image_threshold=8, cmap = 'gray'):
 
-    if isinstance(data, basestring):
+    if isinstance(data, string_types):
         return TextPlot()
 
     is_scalar = np.isscalar(data) or data.shape == ()

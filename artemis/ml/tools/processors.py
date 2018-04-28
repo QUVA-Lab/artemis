@@ -1,5 +1,7 @@
 from abc import abstractmethod
 import numpy as np
+from artemis.general.mymath import recent_moving_average
+from six.moves import xrange
 
 __author__ = 'peter'
 
@@ -43,8 +45,7 @@ class RunningAverage(object):
 
     @classmethod
     def batch(cls, x):
-        ra = cls()
-        return np.array([ra(x_) for x_ in x])
+        return np.cumsum(x, axis=0)/np.arange(1, len(x)+1).astype(np.float)[(slice(None), )+(None, )*(x.ndim-1)]
 
 
 class RecentRunningAverage(object):
@@ -61,6 +62,7 @@ class RecentRunningAverage(object):
 
     @classmethod
     def batch(cls, x):
+        # return recent_moving_average(x, axis=0)  # Works only for python 2.X, with weave
         ra = cls()
         return np.array([ra(x_) for x_ in x])
 
@@ -125,6 +127,7 @@ class RunningCenter(IDifferentiableFunction):
         return self.decay_constant * delta_y
 
 
+
 class RunningNormalize(IDifferentiableFunction):
 
     def __init__(self, half_life, eps = 1e-7, initial_std=1):
@@ -167,11 +170,11 @@ def single_to_batch(fcn, *batch_inputs, **batch_kwargs):
     """
     n_samples = len(batch_inputs[0])
     assert all(len(b) == n_samples for b in batch_inputs)
-    first_out = fcn(*[b[0] for b in batch_inputs], **{k: b[0] for k, b in batch_kwargs.iteritems()})
+    first_out = fcn(*[b[0] for b in batch_inputs], **{k: b[0] for k, b in batch_kwargs.items()})
     if n_samples==1:
         return first_out[None]
     out = np.empty((n_samples, )+first_out.shape)
     out[0] = n_samples
     for i in xrange(1, n_samples):
-        out[i] = fcn(*[b[i] for b in batch_inputs], **{k: b[i] for k, b in batch_kwargs.iteritems()})
+        out[i] = fcn(*[b[i] for b in batch_inputs], **{k: b[i] for k, b in batch_kwargs.items()})
     return out

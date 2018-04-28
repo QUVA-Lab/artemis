@@ -4,11 +4,6 @@ import sys
 import threading
 import time
 
-import os
-
-from artemis.experiments.experiment_record import get_current_experiment_id, get_current_record_dir
-
-
 class ManagedChildProcess(object):
     def __init__(self,cp,monitor_for_termination,monitor_if_stuck_timeout):
         self.cp = cp
@@ -53,9 +48,10 @@ class Nanny(object):
     '''
     Manages child processes. This class manages the start, live and deconstruction of child processes across different machines.
     '''
-    def __init__(self):
+    def __init__(self,name=""):
         self.managed_child_processes = {}
         self.stdout_threads = {}
+        self.name = name
         atexit.register(self.deconstruct)
 
     def register_child_process(self, cp, monitor_for_termination=True, monitor_if_stuck_timeout=None):
@@ -71,7 +67,7 @@ class Nanny(object):
         self.managed_child_processes[cp.get_id()] = ManagedChildProcess(cp, monitor_for_termination,monitor_if_stuck_timeout)
 
     def get_child_processes(self):
-        return {id:mcp.get_process() for id,mcp in self.managed_child_processes.iteritems()}
+        return {id:mcp.get_process() for id,mcp in self.managed_child_processes.items()}
 
     def execute_all_child_processes(self, time_out=1, stdout_stopping_criterium=lambda line:False, stderr_stopping_criterium =lambda line:False, blocking=True):
         '''
@@ -137,11 +133,11 @@ class Nanny(object):
 
         # Grace period for other threads to shutdown
         time.sleep(time_out)
-        for id,cp in self.managed_child_processes.iteritems():
+        for id,cp in self.managed_child_processes.items():
             if cp.is_alive():
                 print(("Child Process %s at %s did not terminate %s seconds after the first process in cluster terminated. Terminating now." %(cp.get_name(), cp.get_ip(), time_out)))
                 cp.deconstruct()
-        for id,cp in self.managed_child_processes.iteritems():
+        for id,cp in self.managed_child_processes.items():
             if cp.is_alive():
                 print(("Child Process %s at %s did not terminate. Force quitting now." %(cp.get_name(),cp.get_ip())))
                 cp.deconstruct(signal.SIGKILL)
@@ -201,12 +197,5 @@ class Nanny(object):
         if termination_request_event.is_set():
             return
 
-        try:
-            exp_name = get_current_experiment_id()
-            curr_dir = get_current_record_dir()
-            with open(os.path.join(curr_dir,"experiment_stuck"),"wb"):
-                pass
-        except:
-            exp_name=""
-        print(("Timeout occurred after %.1f min, process %s%s stuck"%(timeout/60., process_name, " from experiment %s"%exp_name if exp_name != "" else "")))
+        print("Timeout occurred after %.1f min, process %s from Nanny %s stuck"%(timeout/60., process_name, self.name))
         termination_request_event.set()
