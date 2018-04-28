@@ -146,7 +146,8 @@ class LinePlot(HistoryFreePlot):
 
     def __init__(self, x_axis_type = 'lin', y_axis_type = 'lin', x_bounds = (None, None), y_bounds = (None, None), y_bound_extend = (.05, .05),
                  x_bound_extend = (0, 0), make_legend = None, axes_update_mode = 'fit', add_end_markers = False, legend_entries = None,
-                 legend_entry_size = 8, color=None, linewidth=None, linestyle=None, plot_kwargs = None, allow_axis_offset = False):
+                 legend_entry_size = 8, color=None, linewidth=None, linestyle=None, plot_kwargs = None, allow_axis_offset = False,
+                 reset_color_cycle = False):
         """
         :param y_axis_type: 'lin' (only one supported now)
         :param x_bounds: A tuple of (lower_bound, upper_bound), where None means automatic
@@ -156,6 +157,8 @@ class LinePlot(HistoryFreePlot):
         :param make_legend: True to make a legend
             'fit': Fit to current curve
             'expand': Expand axes to contain curve (useful if plotting over pre-existing curve)
+        :param axes_update_mode: Either 'fit' or 'expand'.  Fit fits the axes the the current data, 'expand' fits the
+            axes to the maximum historical extent of the data.
         :param add_end_markers: Add a circle to indicate a start, and an "X" to indicate the end of each line.
         :param legend_entries: Entries of the legend.  Should be one per line in the data.
         :param legend_entry_size: Font size for legend entries.
@@ -185,6 +188,7 @@ class LinePlot(HistoryFreePlot):
         self.legend_entries = [legend_entries] if isinstance(legend_entries, string_types) else legend_entries
         self.legend_entry_size = legend_entry_size
         self.allow_axis_offset = allow_axis_offset
+        self.reset_color_cycle = reset_color_cycle
 
     def _plot_last_data(self, data):
         """
@@ -215,6 +219,11 @@ class LinePlot(HistoryFreePlot):
         lower, upper = (np.nanmin(y_data) if self.y_bounds[0] is None else self.y_bounds[0], np.nanmax(y_data)+1e-9 if self.y_bounds[1] is None else self.y_bounds[1])
         left, right = (np.nanmin(x_data) if self.x_bounds[0] is None else self.x_bounds[0], np.nanmax(x_data)+1e-9 if self.x_bounds[1] is None else self.x_bounds[1])
 
+        lower = lower if np.isfinite(lower) else 0
+        upper = upper if np.isfinite(upper) else lower+1e-9
+        left = left if np.isfinite(left) else 0
+        right = right if np.isfinite(right) else right+1e-9
+
         if left==right:
             right+=1e-9
 
@@ -235,14 +244,18 @@ class LinePlot(HistoryFreePlot):
             raise Exception(self.y_axis_type)
 
         if self._plots is None:
+            ax = plt.gca()
+            if self.reset_color_cycle:
+                ax.set_color_cycle(None)
+
             self._plots = []
-            plt.gca().autoscale(enable=False)
-            plt.gca().get_yaxis().get_major_formatter().set_useOffset(self.allow_axis_offset)
-            plt.gca().get_xaxis().get_major_formatter().set_useOffset(self.allow_axis_offset)
+            ax.autoscale(enable=False)
+            ax.get_yaxis().get_major_formatter().set_useOffset(self.allow_axis_offset)
+            ax.get_xaxis().get_major_formatter().set_useOffset(self.allow_axis_offset)
             if self.x_axis_type!='lin':
-                plt.gca().set_xscale(self.x_axis_type)
+                ax.set_xscale(self.x_axis_type)
             if self.y_axis_type!='lin':
-                plt.gca().set_yscale(self.y_axis_type)
+                ax.set_yscale(self.y_axis_type)
 
             if isinstance(self.plot_kwargs, dict):
                 plot_kwargs = [self.plot_kwargs]*len(x_data)

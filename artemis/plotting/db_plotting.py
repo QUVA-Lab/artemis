@@ -1,4 +1,5 @@
 from collections import OrderedDict, namedtuple
+from functools import partial
 
 from six import string_types
 
@@ -40,7 +41,7 @@ See demo_dbplot.py for some demos of what dbplot can do.
 
 def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', draw_now = True, hang = False, title=None,
            fig = None, xlabel = None, ylabel = None, draw_every = None, layout=None, legend=None, grid=False,
-           wait_for_display_sec=0, cornertext = None):
+           wait_for_display_sec=0, cornertext = None, reset_color_cycle = False):
     """
     Plot arbitrary data and continue execution.  This program tries to figure out what type of plot to use.
 
@@ -90,10 +91,14 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     if axis is None:
         axis=name
 
-    if name not in suplot_dict:
+    if name not in suplot_dict:  # Initialize new axis
 
         if isinstance(plot_type, str):
             plot = PLOT_CONSTRUCTORS[plot_type]()
+        elif isinstance(plot_type, tuple):
+            assert len(plot_type)==2 and isinstance(plot_type[0], str) and isinstance(plot_type[1], dict), 'If you specify a tuple for plot_type, we expect (name, arg_dict).  Got: {}'.format(plot_type)
+            plot_type_name, plot_type_args = plot_type
+            plot = PLOT_CONSTRUCTORS[plot_type_name](**plot_type_args)
         elif plot_type is None:
             plot = get_plot_from_data(data, mode=plot_mode)
         else:
@@ -131,6 +136,8 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
+    if reset_color_cycle:
+        get_dbplot_axis(axis_name=axis, fig=fig).set_color_cycle(None)
     plot.update(data)
     plot.plot()
 
@@ -176,29 +183,29 @@ _default_layout = 'grid'
 
 PLOT_CONSTRUCTORS = {
     'line': LinePlot,
-    'thick-line': lambda: LinePlot(plot_kwargs={'linewidth': 3}),
-    'pos_line': lambda: LinePlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-    'bbox': lambda: BoundingBoxPlot(linewidth=2, axes_update_mode='expand'),
-    'bbox_r': lambda: BoundingBoxPlot(linewidth=2, color='r', axes_update_mode='expand'),
-    'bbox_b': lambda: BoundingBoxPlot(linewidth=2, color='b', axes_update_mode='expand'),
-    'bbox_g': lambda: BoundingBoxPlot(linewidth=2, color='g', axes_update_mode='expand'),
+    'thick-line': partial(LinePlot, plot_kwargs={'linewidth': 3}),
+    'pos_line': partial(LinePlot, y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+    'bbox': partial(BoundingBoxPlot, linewidth=2, axes_update_mode='expand'),
+    'bbox_r': partial(BoundingBoxPlot, linewidth=2, color='r', axes_update_mode='expand'),
+    'bbox_b': partial(BoundingBoxPlot, linewidth=2, color='b', axes_update_mode='expand'),
+    'bbox_g': partial(BoundingBoxPlot, linewidth=2, color='g', axes_update_mode='expand'),
     'bar': BarPlot,
     'img': ImagePlot,
-    'cimg': lambda: ImagePlot(channel_first=True),
+    'cimg': partial(ImagePlot, channel_first=True),
     'line_history': MovingPointPlot,
-    'img_stable': lambda: ImagePlot(only_grow_clims=True),
-    'colour': lambda: ImagePlot(is_colour_data=True),
-    'equal_aspect': lambda: ImagePlot(aspect='equal'),
-    'image_history': lambda: MovingImagePlot(),
-    'fixed_line_history': lambda: MovingPointPlot(buffer_len=100),
-    'pic': lambda: ImagePlot(show_clims=False, aspect='equal'),
-    'notice': lambda: TextPlot(max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
-    'cost': lambda: MovingPointPlot(y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-    'percent': lambda: MovingPointPlot(y_bounds=(0, 100)),
-    'trajectory': lambda: Moving2DPointPlot(axes_update_mode='expand'),
-    'trajectory+': lambda: Moving2DPointPlot(axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
-    'histogram': lambda: HistogramPlot(edges = np.linspace(-5, 5, 20)),
-    'cumhist': lambda: CumulativeLineHistogram(edges = np.linspace(-5, 5, 20)),
+    'img_stable': partial(ImagePlot, only_grow_clims=True),
+    'colour': partial(ImagePlot, is_colour_data=True),
+    'equal_aspect': partial(ImagePlot, aspect='equal'),
+    'image_history': MovingImagePlot,
+    'fixed_line_history': partial(MovingPointPlot, buffer_len=100),
+    'pic': partial(ImagePlot, show_clims=False, aspect='equal'),
+    'notice': partial(TextPlot, max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
+    'cost': partial(MovingPointPlot, y_bounds=(0, None), y_bound_extend=(0, 0.05)),
+    'percent': partial(MovingPointPlot, y_bounds=(0, 100)),
+    'trajectory': partial(Moving2DPointPlot, axes_update_mode='expand'),
+    'trajectory+': partial(Moving2DPointPlot, axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
+    'histogram': partial(HistogramPlot, edges = np.linspace(-5, 5, 20)),
+    'cumhist': partial(CumulativeLineHistogram, edges = np.linspace(-5, 5, 20)),
     }
 
 
@@ -299,7 +306,7 @@ def dbplot_hang():
     plt.show()
 
 
-def dbplot_collection(collection, name, **kwargs):
+def dbplot_collection(collection, name, axis = None, **kwargs):
     """
     Plot a collection of items in one go.
     :param collection:
@@ -310,4 +317,4 @@ def dbplot_collection(collection, name, **kwargs):
     with hold_dbplots():
         if isinstance(collection, (list, tuple)):
             for i, el in enumerate(collection):
-                dbplot(el, '{}[{}]'.format(name, i), **kwargs)
+                dbplot(el, '{}[{}]'.format(name, i), axis='{}[{}]'.format(axis, i) if axis is not None else None, **kwargs)

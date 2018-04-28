@@ -28,7 +28,7 @@ class ParameterSchedule(object):
         self.print_variable_name = print_variable_name
         self.last_value = None  # Just used for print statements.
 
-    def get_new_value(self, epoch):
+    def __call__(self, epoch):
         if isinstance(self.schedule, dict):
             new_value = self.schedule[next(e for e in self._reverse_sorted_schedule_checkpoints if e <= epoch)]
         else:

@@ -328,7 +328,7 @@ class Experiment(object):
 
         :param only_completed: Only search among records of that have run to completion.
         :param err_if_none: If True, raise an error if no record exists.  Otherwise, just return None in this case.
-        :return: An ExperimentRecord object
+        :return ExperimentRecord: An ExperimentRecord object
         """
         records = self.get_records(only_completed=only_completed)
         if len(records)==0:

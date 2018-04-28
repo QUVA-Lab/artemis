@@ -146,7 +146,7 @@ def izip_equal(*iterables):
     sentinel = object()
     for combo in zip_longest(*iterables, fillvalue=sentinel):
         if any(sentinel is c for c in combo):
-            raise ValueError('Iterables have different lengths')
+            raise ValueError('Iterables have different lengths.  Iterable #{} (of 0..{}) ran out first.'.format(combo.index(sentinel), len(combo)-1))
         yield combo
 
 

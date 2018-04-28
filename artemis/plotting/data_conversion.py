@@ -135,7 +135,7 @@ def scale_data_to_range(data, in_range = None, out_range = (0, 1), clip_to_range
     compute_scale = in_range is None
     if compute_scale:
         in_range = (np.nanmin(data), np.nanmax(data)) if data.size != 0 else (0, 1)
-    smin, smax = in_range
+    smin, smax = (float(x) for x in in_range)
     if smin==smax:
         smax += 1.
     scale = out_scale/(smax-smin)
