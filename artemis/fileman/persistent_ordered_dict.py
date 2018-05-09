@@ -28,6 +28,9 @@ class PersistentOrderedDict(OrderedDict):
             try:
                 with open(self.file_path, 'rb') as f:
                     items = pickle.load(f)
+            # Todo: Make this work across python2 and python3...
+            # See https://stackoverflow.com/questions/46001958/typeerror-a-bytes-like-object-is-required-not-str-when-opening-pickle-in-pyt/47814305#47814305
+            # Decoding as bytes (pickle.load(f,encoding="bytes")) does work, however since ExpInfoFields can't handle b'STRING', this fails...
             except Exception as err:
                 logging.critical("WARNING: Failed to unpickle file: {} when loading PersistentOrderedDict, due to {}:{}.  Starting from scratch instead".format(self.file_path, err.__class__.__name__, err))
                 items = []

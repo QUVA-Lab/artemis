@@ -250,7 +250,11 @@ class ExperimentRecord(object):
         result_loc = os.path.join(self._experiment_directory, 'result.pkl')
         if os.path.exists(result_loc):
             with open(result_loc, 'rb') as f:
-                result = pickle.load(f)
+                try:
+                    result = pickle.load(f)
+                except UnicodeDecodeError as ude:
+                    if ude.args[0] == "ascii":
+                        result = pickle.load(f,encoding="latin1")
             return result
         elif err_if_none:
             raise NoSavedResultError(self.get_id())

@@ -946,4 +946,4 @@ class ExperimentRecordBrowser(object):
 
 
 if __name__ == '__main__':
-    browse_experiment_records()
+    browse_experiment_records(raise_display_errors=True)
