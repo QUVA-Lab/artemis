@@ -314,7 +314,7 @@ experiment records.  You can specify records in the following ways:
                     else:
                         edit_distances = [levenshtein_distance(cmd, other_cmd) for other_cmd in func_dict.keys()]
                         min_distance = min(edit_distances)
-                        closest = func_dict.keys()[edit_distances.index(min_distance)]
+                        closest = list(func_dict.keys())[edit_distances.index(min_distance)]
                         suggestion = ' Did you mean "{}"?.  '.format(closest) if min_distance<=2 else ''
                         if self.close_after:
                             raise Exception('Unrecognised command: "{}"'.format(cmd))
