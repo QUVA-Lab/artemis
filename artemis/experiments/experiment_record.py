@@ -13,6 +13,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
 from getpass import getuser
+from pickle import PicklingError
 from uuid import getnode
 
 from artemis.config import get_artemis_config_value
@@ -651,7 +652,11 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
             exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
             root_function, args = infer_function_and_derived_arg_values(function)
-            exp_rec.info.set_field(EIF.ARGS, list(args.items()))
+            try:
+                exp_rec.info.set_field(EIF.ARGS, list(args.items()))
+            except PicklingError as err:
+                ARTEMIS_LOGGER.error('Could not pickle arguments for experiment: {}.  Artemis demands that arguments be piclable.  If they are not, just make a new function.')
+                raise
             # root_function = self.get_root_function()
             exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
             exp_rec.info.set_field(EIF.TIMESTAMP, date)

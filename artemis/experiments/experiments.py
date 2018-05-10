@@ -48,6 +48,10 @@ class Experiment(object):
     def compare(self):
         return self._compare
 
+    @compare.setter
+    def compare(self, val):
+        self._compare = val
+
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything.  You can also modify with arguments. """
         return self.function(*args, **kwargs)
@@ -432,8 +436,9 @@ def is_experiment_loadable(experiment_id):
 
 
 def _kwargs_to_experiment_name(kwargs):
-    return ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
-
+    string = ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
+    string = string.replace('/', '_SLASH_')
+    return string
 
 @contextmanager
 def hold_global_experiment_libary(new_lib = None):

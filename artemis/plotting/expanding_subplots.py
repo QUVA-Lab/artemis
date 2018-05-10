@@ -299,7 +299,7 @@ def vstack_plots(spacing=0, sharex=True, sharey = False, show_x = 'once', show_y
         with _define_plot_settings(layout='v', show_x = False if show_x=='once' else show_x, show_y=show_y, grid=grid, sharex=sharex, sharey=sharey, ylabel=ylabel, xlim=xlim, ylim=ylim):
             plt.subplots_adjust(hspace=spacing, **adjust_kwargs)
             yield
-    new_subplots = cap.get_new_subplots().values()
+    new_subplots = list(cap.get_new_subplots().values())
 
     if clip_x:
         set_same_xlims(new_subplots)
