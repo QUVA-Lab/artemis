@@ -199,10 +199,31 @@ def test_view_modes():
             my_simdfsffsdfsfs.browse(view_mode=view_mode, command = 'q')
 
 
+def test_dubplicate_headers_when_no_records_bug_is_gone():
+    # There was a bug that duplicated the headers when there were no records.  This test verifies that it's gone.
+    @experiment_function
+    def my_simdfdscds(a=1):
+
+        print('xxxxx')
+        print('yyyyy')
+        return a+2
+
+    for r in my_simdfdscds.get_records():
+        r.delete()
+
+    with CaptureStdOut() as cap:
+        my_simdfdscds.browse(command='q')
+
+    string = cap.read()
+
+    assert string.count('Start Time') == 1
+
+
 if __name__ == '__main__':
-    test_experiments_function_additions()
-    test_experiment_function_ui()
-    test_invalid_arg_text()
-    test_invalid_arg_text_when_object_arg()
-    test_simple_experiment_show()
-    test_view_modes()
+    # test_experiments_function_additions()
+    # test_experiment_function_ui()
+    # test_invalid_arg_text()
+    # test_invalid_arg_text_when_object_arg()
+    # test_simple_experiment_show()
+    # test_view_modes()
+    test_dubplicate_headers_when_no_records_bug_is_gone()
