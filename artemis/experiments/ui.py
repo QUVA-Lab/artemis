@@ -359,7 +359,7 @@ experiment records.  You can specify records in the following ways:
                 new_rows = []
                 for row in _record_rows:
                     new_rows.append(row[:notes_column_index]+row[notes_column_index+1:])
-                new_headers = _record_headers[:notes_column_index]+_record_headers[:notes_column_index+1:]
+                new_headers = _record_headers[:notes_column_index]+_record_headers[notes_column_index+1:]
             else:
                 new_rows = _record_rows
                 new_headers = _record_headers
