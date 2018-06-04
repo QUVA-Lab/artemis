@@ -1,4 +1,6 @@
-import Queue
+from functools import partial
+
+from six.moves import queue as Queue
 import os
 import socket
 import sys
@@ -9,7 +11,7 @@ import pickle
 from collections import namedtuple
 from artemis.general.should_be_builtins import is_lambda
 from artemis.plotting.matplotlib_backend import get_plotting_server_address
-from artemis.remote.child_processes import PythonChildProcess
+from artemis.remote.child_processes import RemotePythonProcess
 from artemis.remote.nanny import Nanny
 from artemis.remote.file_system import check_config_file
 from artemis.remote.port_forwarding import forward_tunnel
@@ -100,10 +102,13 @@ def set_up_plotting_server():
     # With the command set up, we can instantiate a child process and start it. Also we want to forward stdout and stderr from the remote process asynchronously.
     global _nanny
     _nanny = Nanny()
-    cp = PythonChildProcess(ip_address=plotting_server_address, command=command, name="Plotting_Server",set_up_port_for_structured_back_communication=True)
-    _nanny.register_child_process(cp,monitor_for_termination=False,monitor_if_stuck_timeout=None,)
-    _nanny.execute_all_child_processes(blocking=False)
-    back_comm_queue = cp.get_queue_from_cp()
+    # cp = PythonChildProcess(ip_address=plotting_server_address, command=command, name="Plotting_Server",set_up_port_for_structured_back_communication=True)
+    from artemis.remote.plotting.plotting_server import main as plotting_server_main
+    cp = RemotePythonProcess(function=plotting_server_main, ip_address=plotting_server_address, name="Plotting_Server",
+                             set_up_port_for_structured_back_communication=True, daemonize=True)
+    _nanny.register_child_process(cp,monitor_for_termination=False)
+    _nanny.execute_all_child_processes(block=False)
+    back_comm_queue = cp.get_return_queue()
     try:
         is_debug_mode = getattr(sys, 'gettrace', None)
         timeout = None if is_debug_mode() else 10
@@ -126,7 +131,7 @@ def set_up_plotting_server():
         # Todo: this ssh tunnel is opened system-wide. That means that any subsequent attempts to open the ssh-tunnel (by another dbplot-using process, for example)
         # will perform wiredly. As far as I have tested, nothing happenes and the port forwarfding works just fine in the second process, However when one of the two
         # processes terminates, the ssh-tunnel is closed for the other process as well.
-        t3 = threading.Thread(target = forward_tunnel, kwargs={"local_port":port, "remote_host":plotting_server_address, "remote_port":port,"ssh_conn":ssh_conn})
+        t3 = threading.Thread(target = forward_tunnel, kwargs={"local_port":port, "remote_host":plotting_server_address, "remote_port":port,"ssh_conn":ssh_conn}, name="SSH Forwarding Thread")
         t3.setDaemon(True)
         t3.start()
 

@@ -5,7 +5,7 @@ import numpy as np
 from artemis.plotting.demo_dbplot import demo_dbplot
 from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot, \
     dbplot_hang
-from artemis.plotting.matplotlib_backend import LinePlot, HistogramPlot, MovingPointPlot, is_server_plotting_on
+from artemis.plotting.matplotlib_backend import LinePlot, HistogramPlot, MovingPointPlot, is_server_plotting_on, set_server_plotting
 import pytest
 from matplotlib import pyplot as plt
 from matplotlib import gridspec

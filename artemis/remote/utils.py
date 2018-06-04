@@ -1,17 +1,29 @@
 from __future__ import print_function
+
+import subprocess
 from six.moves import socketserver
+from six.moves import input
+from six.moves import queue as Queue
+
 import getpass
 import logging
 import socket
 import struct
 import sys
-
 import os
-from six.moves import input
+import time
 
 from artemis.config import get_artemis_config_value
 
 ARTEMIS_LOGGER = logging.getLogger('artemis')
+
+
+class EventSetException(Exception):
+    pass
+
+def am_I_in_slurm_environment():
+    sub = subprocess.Popen("which srun", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
+    return len(sub.stdout.read()) != 0
 
 def one_time_send_to(address, port, message):
     '''
@@ -30,6 +42,27 @@ def one_time_send_to(address, port, message):
         raise
 
     send_size(sock, message)
+
+
+def queue_to_host(queue, return_address, return_port, termination_event):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.connect((return_address, return_port))
+    except:
+        sys.stderr.write("Error in connecting to port %s on address %s\n"%(return_port,return_address))
+        sys.stderr.flush()
+        raise
+    while True:
+        if termination_event.is_set() and queue.empty():
+            break
+        try:
+            pickled_result = queue.get(timeout=1)
+        except Queue.Empty:
+            pass
+        else:
+            send_size(sock, pickled_result)
+    sock.close()
+
 
 
 def get_socket(address, port):
@@ -54,17 +87,36 @@ def get_socket(address, port):
             break
     return (sock,port)
 
-
 def send_size(sock, data):
     try:
         sock.sendall(struct.pack('!I', len(data)))
         sock.sendall(data)
     except socketserver.socket.error as exc:
-        if exc.args[0] == 32:
-            print("Broken pipe", file=sys.stderr)
-            sys.exit(0)
-        else:
-            raise
+        raise
+
+def wrap_queue_get_with_event_and_timeout(input_queue, event, timeout):
+    '''
+    This method wraps the given queue's get method, waiting at most timeout seconds before throwing a queue.Empty.
+    Should the given event be set before the queue returned something, this method will return None.
+    :param queue:
+    :param event:
+    :param timeout:
+    :return:
+    '''
+    start = time.time()
+    if timeout is not None:
+        int_timeout = timeout if timeout < 0.1 else 0.1
+    else:
+        int_timeout = 0.1
+    while timeout is None or (time.time() - start <= timeout):
+        try:
+            serialized_out = input_queue.get(timeout=int_timeout)
+            return serialized_out
+        except Queue.Empty:
+            pass
+        if event.is_set():
+            raise EventSetException
+    raise Queue.Empty
 
 
 def recv_bytes(sock, size):
@@ -75,19 +127,25 @@ def recv_bytes(sock, size):
         except socketserver.socket.error as exc:
             if exc.args[0] == 54:
                 print("Connection reset by peer", file=sys.stderr)
-                sys.exit(0)
+                raise
             else:
                 raise
+        if not newbuf: break
         buf += newbuf
         size -= len(newbuf)
     return buf
 
-def recv_size(sock):
 
-    size_data = recv_bytes(sock, 4)
-    size = struct.unpack('!I', size_data)[0]
-    message = recv_bytes(sock,size)
-
+def recv_size(sock,timeout=None):
+    t_start = time.time()
+    while True:
+        size_data = recv_bytes(sock, 4)
+        if size_data:
+            size = struct.unpack('!I', size_data)[0]
+            message = recv_bytes(sock, size)
+            break
+        elif timeout is not None and time.time() - t_start > timeout:
+            raise socket.timeout
     return message
 
 def get_local_ips():
@@ -126,6 +184,8 @@ def is_valid_port(port):
     :return:
     '''
     import re
+    if not isinstance(port,str):
+        port = str(port)
     port_pattern = re.compile("^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$")
     return port_pattern.match(port)
 
@@ -202,6 +262,7 @@ def check_ssh_connection(ip_address):
     err = stderr.read()
     assert not err, "The remote server could not execute the test function. It returned the following error: \n %s"%err
     ssh_conn.close()
+
 
 def check_pid(pid):
     """ Check For the existence of a unix pid.

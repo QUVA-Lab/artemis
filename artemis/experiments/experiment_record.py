@@ -250,7 +250,11 @@ class ExperimentRecord(object):
         result_loc = os.path.join(self._experiment_directory, 'result.pkl')
         if os.path.exists(result_loc):
             with open(result_loc, 'rb') as f:
-                result = pickle.load(f)
+                try:
+                    result = pickle.load(f)
+                except UnicodeDecodeError as ude:
+                    if ude.args[0] == "ascii":
+                        result = pickle.load(f,encoding="latin1")
             return result
         elif err_if_none:
             raise NoSavedResultError(self.get_id())
@@ -263,6 +267,7 @@ class ExperimentRecord(object):
         with open(file_path, 'wb') as f:
             pickle.dump(result, f, protocol=2)
             ARTEMIS_LOGGER.info('Saving Result for Experiment "{}"'.format(self.get_id(),))
+
 
     def get_id(self):
         """
@@ -665,6 +670,7 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             if inspect.isgeneratorfunction(root_function):
                 for result in function():
                     exp_rec.save_result(result)
+                    yield exp_rec
             else:
                 result = function()
                 exp_rec.save_result(result)
@@ -679,7 +685,9 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             if raise_exceptions:
                 raise
             else:
-                return exp_rec
+                yield exp_rec
+                return
+                # return exp_rec
         finally:
             exp_rec.info.set_field(EIF.RUNTIME, time.time() - start_time)
             fig_locs = exp_rec.get_figure_locs(include_directory=False)
@@ -692,4 +700,4 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
     ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=experiment_id))
     set_test_mode(old_test_mode)
 
-    return exp_rec
+    yield exp_rec
