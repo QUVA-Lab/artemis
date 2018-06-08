@@ -160,6 +160,7 @@ class Experiment(object):
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
         assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
+        assert '/' not in name, 'Experiment names cannot have "/" in them: {}'.format(name)
         ex = Experiment(
             name=self.name + '.' + name,
             function=partial(self.function, **kwargs),

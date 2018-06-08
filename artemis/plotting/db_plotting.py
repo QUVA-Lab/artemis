@@ -4,6 +4,7 @@ from functools import partial
 from six import string_types
 
 from artemis.config import get_artemis_config_value
+from artemis.general.checkpoint_counter import Checkpoints
 from artemis.plotting.matplotlib_backend import BarPlot, BoundingBoxPlot
 from matplotlib.axes import Axes
 from matplotlib.gridspec import SubplotSpec
@@ -129,18 +130,18 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         if ylabel is not None:
             _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
         if draw_every is not None:
-            _draw_counters[fig, name] = -1
+            _draw_counters[fig, name] = Checkpoints(draw_every)
 
         if grid:
             plt.grid()
 
-    # Update the relevant data and plot it.  TODO: Add option for plotting update interval
     plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
     if reset_color_cycle:
         get_dbplot_axis(axis_name=axis, fig=fig).set_color_cycle(None)
-    plot.update(data)
-    plot.plot()
 
+    plot.update(data)
+
+    # Update Labels...
     if cornertext is not None:
         if not hasattr(_DBPLOT_FIGURES[fig].figure, '__cornertext'):
             _DBPLOT_FIGURES[fig].figure.__cornertext = next(iter(_DBPLOT_FIGURES[fig].subplots.values())).axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
@@ -151,11 +152,12 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     if legend is not None:
         _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend, loc='best', framealpha=0.5)
 
-    if draw_now and not _hold_plots:
-        if draw_every is not None:
-            _draw_counters[fig, name]+=1
-            if _draw_counters[fig, name] % draw_every != 0:
-                return _DBPLOT_FIGURES[fig].subplots[name].axis
+    if draw_now and not _hold_plots and (draw_every is None or ((fig, name) not in _draw_counters) or _draw_counters[fig, name]()):
+        plot.plot()
+
+        # if draw_every is not None:
+        #     if not _draw_counters[fig, name]():
+        #         return _DBPLOT_FIGURES[fig].subplots[name].axis
         if hang:
             plt.figure(_DBPLOT_FIGURES[fig].figure.number)
             plt.show()
@@ -176,7 +178,7 @@ _draw_counters = {}
 
 _hold_plots = False
 
-_hold_plot_counter = 0
+_hold_plot_counter = None
 
 _default_layout = 'grid'
 
@@ -256,6 +258,17 @@ def freeze_all_dbplots(fig = None):
         freeze_dbplot(name, fig=fig)
 
 
+def replot_and_redraw_figure(fig):
+
+    for subplot in _DBPLOT_FIGURES[fig].subplots.values():
+        plt.subplot(subplot.axis)
+        subplot.plot_object.plot()
+
+
+
+    redraw_figure(_DBPLOT_FIGURES[fig].figure)
+
+
 @contextmanager
 def hold_dbplots(fig = None, draw_every = None):
     """
@@ -278,13 +291,19 @@ def hold_dbplots(fig = None, draw_every = None):
         plot_now = False
     elif draw_every is not None:
         global _hold_plot_counter
-        plot_now = _hold_plot_counter % draw_every == 0
-        _hold_plot_counter+=1
+        if _hold_plot_counter is None:
+            _hold_plot_counter = Checkpoints(draw_every)
+        plot_now = _hold_plot_counter()
     else:
         plot_now = True
 
     if plot_now and fig in _DBPLOT_FIGURES:
-        redraw_figure(_DBPLOT_FIGURES[fig].figure)
+        replot_and_redraw_figure(fig)
+
+        # for subplot in _DBPLOT_FIGURES[fig].subplots.values():
+        #     subplot.plot_object.plot()
+        #
+        # redraw_figure(_DBPLOT_FIGURES[fig].figure)
 
 
 def clear_dbplot(fig = None):
@@ -306,7 +325,7 @@ def dbplot_hang():
     plt.show()
 
 
-def dbplot_collection(collection, name, axis = None, **kwargs):
+def dbplot_collection(collection, name, axis = None, draw_every=None, **kwargs):
     """
     Plot a collection of items in one go.
     :param collection:
@@ -314,7 +333,7 @@ def dbplot_collection(collection, name, axis = None, **kwargs):
     :param kwargs:
     :return:
     """
-    with hold_dbplots():
+    with hold_dbplots(draw_every=draw_every):
         if isinstance(collection, (list, tuple)):
             for i, el in enumerate(collection):
                 dbplot(el, '{}[{}]'.format(name, i), axis='{}[{}]'.format(axis, i) if axis is not None else None, **kwargs)

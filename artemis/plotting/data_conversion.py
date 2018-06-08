@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 from artemis.general.should_be_builtins import memoize
 import numpy as np
 from six.moves import xrange
@@ -201,7 +203,31 @@ def data_to_image(data, is_color_data = None, clims = None, cmap = 'gray', nan_c
     return scaled_data
 
 
-class RecordBuffer(object):
+class DataBuffer(object):
+
+    @abstractmethod
+    def insert_data(self, data):
+        """
+        :param data: An array to insert into the data
+        """
+
+    @abstractmethod
+    def retrieve_data(self):
+        """
+        :return: An Array[buffer_size, *dims]
+        """
+
+    def __call__(self, data):
+        """
+        Insert the given data and then retrieve
+        :param data: An Array[*dims]
+        :return: An Array[buffer_size, *dims]
+        """
+        self.insert_data(data)
+        return self.retrieve_data()
+
+
+class RecordBuffer(DataBuffer):
 
     def __init__(self, buffer_len, initial_value = np.NaN):
         self._buffer_len = buffer_len
@@ -210,7 +236,7 @@ class RecordBuffer(object):
         self._base_indices = np.arange(buffer_len)
         self._initial_value = initial_value
 
-    def __call__(self, data):
+    def insert_data(self, data):
         if self._buffer is None:
             shape = () if np.isscalar(data) else data.shape
             dtype_data = data+self._initial_value
@@ -219,10 +245,16 @@ class RecordBuffer(object):
             self._buffer[:] = self._initial_value
         self._buffer[self._ix] = data
         self._ix = (self._ix+1) % self._buffer_len
+
+    def retrieve_data(self):
+        return self._buffer[(self._base_indices+self._ix) % self._buffer_len]
+
+    def __call__(self, data):
+        self.insert_data(data)
         return self._buffer[(self._base_indices+self._ix) % self._buffer_len]
 
 
-class UnlimitedRecordBuffer(object):
+class UnlimitedRecordBuffer(DataBuffer):
 
     def __init__(self, expansion_factor = 2, initial_size=64):
         self._buffer = []
@@ -230,7 +262,7 @@ class UnlimitedRecordBuffer(object):
         self.initial_size = initial_size
         self.expansion_factor = expansion_factor
 
-    def __call__(self, data):
+    def insert_data(self, data):
         if self._index==len(self._buffer):
             data_shape = data.shape if isinstance(data, np.ndarray) else ()
             if len(self._buffer)==0:
@@ -241,5 +273,6 @@ class UnlimitedRecordBuffer(object):
                 self._buffer = new_buffer
         self._buffer[self._index] = data
         self._index += 1
-        return self._buffer[:self._index]
 
+    def retrieve_data(self):
+        return self._buffer[:self._index]

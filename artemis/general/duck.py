@@ -432,7 +432,7 @@ class Duck(UniversalCollection):
                     new_error = KeyError('This Duck has no key: {}.  The deepest valid key was {}.  If you want to break into leaves, use Duck.break_in().'.format(multi_ix_to_str(indices), multi_ix_to_str(indices[:err._key_depth+1])))
                     new_error._key_depth = err._key_depth+1
                 else:
-                    if any(isinstance(i, slice) for i in indices):
+                    if isinstance(indices[-1], slice):
                         new_error = KeyError('This Duck cannot be referenced by key: {}.  Perhaps you want to filter by this key instead (see Duck.filter)'.format(multi_ix_to_str(indices)))
                     else:
                         new_error = KeyError('This Duck has no key: {}'.format(multi_ix_to_str(indices)))

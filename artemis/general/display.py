@@ -10,6 +10,7 @@ import numpy as np
 from si_prefix import si_format
 from six import string_types
 from six.moves import xrange, StringIO
+import re
 
 __author__ = 'peter'
 
@@ -30,6 +31,38 @@ def arraystr(arr, print_threshold, summary_threshold):
     else:
         return '<{type} with shape={shape}, dtype={dtype}, at {id}>'.format(
             type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, id=hex(id(arr)))
+
+
+def dict_to_str(d):
+    """
+    Format a dict as a nice human-readable string.  E.g. e.g. {'a':3, 'b': 'aa') becomes "a=3, b='aa'"
+    :param d:
+    :return:
+    """
+    return ', '.join('{}:{}'.format(k, repr(v)) for k, v in d.items())
+
+
+def pyfuncstring_to_tex(pyfuncstr):
+    string = pyfuncstr
+
+    # import sympy
+    # symbols = re.findall(r'[^\W\d_]+', pyfuncstr)
+    #
+    # for s in symbols:
+    #     locals()[s] = sympy.Symbol(s)
+    #
+    # string = sympy.latex(eval(pyfuncstr))
+
+    return string
+
+
+    # pairs = [
+    #     (r'\*\*\((.*))', r'$\.^{\1}$')
+    # ]
+    # for expr, replacement in pairs:
+    #     string = re.sub(expr, replacement, string)
+
+    # return string
 
 
 def equalize_string_lengths(arr, side = 'left'):

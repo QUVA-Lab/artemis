@@ -53,7 +53,8 @@ class Checkpoints(object):
     def __init__(self, checkpoint_generator, default_units = None, skip_first = False):
         """
         :param checkpoint_generator: Can be:
-            A generator object returning checkpoints
+            A string e.g. '3s', indicating "plot every 3 seconds"
+            A generator object yielding checkpoints
             A list/tuple/array of checkpoints
             ('even', interval)
             ('exp', first, growth)
@@ -63,7 +64,7 @@ class Checkpoints(object):
         if isinstance(checkpoint_generator, str):
             assert default_units in ('sec', None)
             assert checkpoint_generator.endswith('s')
-            checkpoint_generator = int(checkpoint_generator[:-1])
+            checkpoint_generator = float(checkpoint_generator[:-1])
             default_units = 'sec'
         elif default_units is None:
             default_units = 'iter'

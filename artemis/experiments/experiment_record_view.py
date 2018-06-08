@@ -360,7 +360,7 @@ def make_record_comparison_table(records, args_to_show=None, results_extractor =
     return headers, rows
 
 
-def separate_common_args(records, return_dict = False):
+def separate_common_args(records, as_dicts=False, return_dict = False, only_shared_argdiffs = False):
     """
 
     :param records: A List of records
@@ -370,6 +370,14 @@ def separate_common_args(records, return_dict = False):
         different is a list (the same lengths of records) of OrderedDicts containing args that are not the same in all records.
     """
     common, argdiff = separate_common_items([list(rec.get_args().items()) for rec in records])
+    if only_shared_argdiffs:
+        args_that_they_all_have = set.intersection(*(set(k for k, v in different) for different in argdiff))
+        argdiff = [[(k, v) for k, v in ad if k in args_that_they_all_have] for ad in argdiff]
+
+    if as_dicts:
+        common = OrderedDict(common)
+        argdiff = [OrderedDict(ad) for ad in argdiff]
+
     if return_dict:
         argdiff = {rec.get_id(): args for rec, args in zip(records, argdiff)}
     return common, argdiff

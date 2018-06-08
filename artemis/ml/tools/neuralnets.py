@@ -104,6 +104,8 @@ def activation_function(data, function_name):
         return 1./(1+np.exp(-data))
     elif function_name == 'tanh':
         return np.tanh(data)
+    elif function_name == 'clip':
+        return np.clip(data, 0, 1)
     else:
         raise Exception('No Nonlinearity "{}".  Add it.'.format(function_name))
 

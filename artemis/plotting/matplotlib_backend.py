@@ -359,11 +359,12 @@ class MovingPointPlot(LinePlot):
     def update(self, data):
         if not np.isscalar(data) or isinstance(data, np.ndarray):
             data = np.array(data)
-        buffer_data = self._buffer(data)
-        x_data = np.arange(len(buffer_data)) if self.x_data is None else self.x_data
-        LinePlot.update(self, (x_data, buffer_data))
+        self._buffer.insert_data(data)
 
     def plot(self):
+        buffer_data = self._buffer.retrieve_data()
+        x_data = np.arange(len(buffer_data)) if self.x_data is None else self.x_data
+        LinePlot.update(self, (x_data, buffer_data))
         LinePlot.plot(self)
 
 
