@@ -105,8 +105,9 @@ def test_bad_beheviour_caught():
         f = moving_average_with_typo.scan()
         simply_smoothed_signal = [f(x=x, decay=1./(t+1)) for t, x in enumerate(seq)]
 
+
 if __name__ == '__main__':
-    # test_simple_moving_average()
-    # test_moving_average()
-    # test_rnn_type_comp()
+    test_simple_moving_average()
+    test_moving_average()
+    test_rnn_type_comp()
     test_bad_beheviour_caught()

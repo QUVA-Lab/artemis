@@ -452,6 +452,10 @@ def test_key_get_on_set_bug():
     a['x', next, 'g'] = 5
 
 
+def get_message(err):
+    # to be portable between python 2/3
+    return err.value.message if hasattr(err.value, 'message') else err.value.args[0]
+
 def test_reasonable_error_messages():
 
     a = Duck()
@@ -461,23 +465,23 @@ def test_reasonable_error_messages():
 
     with pytest.raises(KeyError) as err:
         a['x', 0, 'a', 'b', 'c']
-    assert err.value.message == "This Duck has no key: ['x',0,'a','b','c'].  The deepest valid key was ['x',0].  If you want to break into leaves, use Duck.break_in()."
+    assert get_message(err) == "This Duck has no key: ['x',0,'a','b','c'].  The deepest valid key was ['x',0].  If you want to break into leaves, use Duck.break_in()."
 
     with pytest.raises(KeyError) as err:
         a['x', 0, 'a', 'b', 'c', 'd']
-    assert err.value.message == "This Duck has no key: ['x',0,'a','b','c','d'].  The deepest valid key was ['x',0].  If you want to break into leaves, use Duck.break_in()."
+    assert get_message(err) == "This Duck has no key: ['x',0,'a','b','c','d'].  The deepest valid key was ['x',0].  If you want to break into leaves, use Duck.break_in()."
 
     with pytest.raises(KeyError) as err:
         a['x', :, 'a']
-    assert err.value.message == "This Duck has no key: ['x',:,'a'].  The deepest valid key was ['x',:].  If you want to break into leaves, use Duck.break_in()."
+    assert get_message(err) == "This Duck has no key: ['x',:,'a'].  The deepest valid key was ['x',:].  If you want to break into leaves, use Duck.break_in()."
 
     with pytest.raises(KeyError) as err:
         a['b', 0, 'a']
-    assert err.value.message == "This Duck has no key: 'b', so it cannot read sub-key: ['b',0,'a']."
+    assert get_message(err) == "This Duck has no key: 'b', so it cannot read sub-key: ['b',0,'a']."
 
     with pytest.raises(IndexError) as err:
         a['x', 2, 'a']
-    assert err.value.message == 'Your index "2" exceeds the range of this DynamicSequence of length 2'
+    assert get_message(err) == 'Your index "2" exceeds the range of this DynamicSequence of length 2'
 
     a['x', next, 'f'] = 4
 
@@ -515,7 +519,7 @@ def test_copy():
 def test_occasional_value_filter():
 
     a = Duck()
-    for i in xrange(20):
+    for i in range(20):
         if i%3 == 0:
             a[next, ...] = {'a': i, 'b': i}
         else:
@@ -523,7 +527,7 @@ def test_occasional_value_filter():
 
     assert a[:, 'a'] == list(range(20))
     with pytest.raises(KeyError):
-        print a[:, 'b']
+        print(a[:, 'b'])
 
     assert a.filter[:, 'b'] == list(range(0, 20, 3))
 
