@@ -1,5 +1,22 @@
 import numpy as np
+import pytest
+
 from artemis.general.scannable_functions import scannable
+
+
+def test_simple_moving_average():
+
+    seq = np.random.randn(100) + np.sin(np.linspace(0, 10, 100))
+
+    @scannable(state=dict(avg=0, n=0), output=['avg', 'n'], returns='avg')
+    def simple_moving_average(x, avg, n):
+        return (n/(1.+n))*avg + (1./(1.+n))*x, n+1
+
+    f = simple_moving_average.scan()
+    averaged_signal = [f(x=x) for t, x in enumerate(seq)]
+    truth = np.cumsum(seq)/np.arange(1, len(seq)+1)
+    assert np.allclose(averaged_signal, truth)
+    assert np.allclose(f.state['avg'], np.mean(seq))
 
 
 def test_moving_average():
@@ -8,7 +25,7 @@ def test_moving_average():
     def moving_average(x, avg, decay):
         return (1-decay)*avg + decay*x
 
-    seq = np.random.randn(100) + np.sin(100/5)
+    seq = np.random.randn(100) + np.sin(np.linspace(0, 10, 100))
 
     f = moving_average.scan()
     simply_smoothed_signal = [f(x=x, decay=1./(t+1)) for t, x in enumerate(seq)]
@@ -58,6 +75,38 @@ def test_rnn_type_comp():
     assert np.allclose(rnn_step.state['hid'], h)
 
 
+def test_bad_beheviour_caught():
+    seq = np.random.randn(100) + np.sin(np.linspace(0, 10, 100))
+
+    with pytest.raises(TypeError):  # Typo in state name
+        @scannable(state={'avgfff': 0})
+        def moving_average_with_typo(avg, x, decay):
+            return (1-decay)*avg + decay*x
+
+        f = moving_average_with_typo.scan()
+        simply_smoothed_signal = [f(x=x, decay=1./(t+1)) for t, x in enumerate(seq)]
+
+    with pytest.raises(AssertionError):  # Should really be done before instance-creation, but whatever.
+        @scannable(state={'avg': 0}, output='avgf')
+        def moving_average_with_typo(avg, x, decay):
+            return (1-decay)*avg + decay*x
+        f = moving_average_with_typo.scan()
+
+    with pytest.raises(ValueError):  # Invalid return name
+        @scannable(state={'avg': 0}, output=['avg'], returns='avgf')
+        def moving_average_with_typo(avg, x, decay):
+            return (1-decay)*avg + decay*x
+        f = moving_average_with_typo.scan()
+
+    with pytest.raises(TypeError):  # Wrong output format
+        @scannable(state={'avg': 0}, output=['avg', 'something'], returns='avg')
+        def moving_average_with_typo(avg, x, decay):
+            return (1-decay)*avg + decay*x
+        f = moving_average_with_typo.scan()
+        simply_smoothed_signal = [f(x=x, decay=1./(t+1)) for t, x in enumerate(seq)]
+
 if __name__ == '__main__':
-    test_moving_average()
-    test_rnn_type_comp()
+    # test_simple_moving_average()
+    # test_moving_average()
+    # test_rnn_type_comp()
+    test_bad_beheviour_caught()
