@@ -27,9 +27,7 @@ def scannable(state, output=None, returns=None):
     def wrapper(func):
 
         def create_scannable(**kwargs):
-            override_state = state.copy()
-            override_state.update(**kwargs)
-            return Scannable(func=func, state=override_state, output=output, returns=returns)
+            return Scannable(func=func, state=state, output=output, returns=returns, kwargs=kwargs)
 
         func.scan = create_scannable
         return func
@@ -42,26 +40,34 @@ class Scannable(object):
     SINGLE_OUTPUT_FORMAT = object()
     TUPLE_OUTPUT_FORMAT = object()
 
-    def __init__(self, func, state, output, returns):
+    def __init__(self, func, state, output, returns, kwargs = None):
         """
         See scannable docstring
         """
-        assert isinstance(state, dict)
+        if isinstance(state, str):
+            state = (state, )
+        assert isinstance(state, (list, tuple)), 'State should be a list of state names.  Got a {}'.format(state.__class__)
+        state_names = state
+        state = {}
+        if kwargs is not None:
+            state.update(kwargs)
+
         if output is None:
-            assert len(state)==1, "If there is more than one state variable, you must specify the output!"
-            output = next(iter(state.keys()))
+            assert len(state_names)==1, "If there is more than one state variable, you must specify the output!"
+            output = next(iter(state_names))
         if isinstance(output, str):
-            assert output in state, 'Output name "{}" was not provided not included in the state dict: "{}"'.format(output, list(state.keys()))
+            assert output in state_names, 'Output name "{}" was not provided not included in the state dict: "{}"'.format(output, state_names)
             self._output_format = Scannable.SINGLE_OUTPUT_FORMAT
             self._state_names = output
             output_names = [output]
             self._output_format = Scannable.SINGLE_OUTPUT_FORMAT
         else:
             assert isinstance(output, (list, tuple)), "output must be a string, a list/tuple, or None"
+            assert all(sn in output for sn in state_names), 'Variabels name(s) {} were listed as state variables but not included in the list of outputs: {}'.format([sn for sn in state_names if sn not in output], output)
             output_names = output
             self._output_format = Scannable.TUPLE_OUTPUT_FORMAT
-            self._state_names = tuple(state.keys())
-            self._state_indices_in_output = [output_names.index(state_name) for state_name in state.keys()]
+            self._state_names = tuple(state_names)
+            self._state_indices_in_output = [output_names.index(state_name) for state_name in state_names]
         if isinstance(returns, str):
             assert output is not None, 'If you specify returns, you must specify output'
             if isinstance(output, str):
@@ -88,8 +94,9 @@ class Scannable(object):
         return self._strrep
 
     def __call__(self, *args, **kwargs):
-        kwargs.update(self._state)
-        values_returned = self.func(*args, **kwargs)
+
+        self._state.update(kwargs)
+        values_returned = self.func(*args, **self._state)
         if self._output_format is Scannable.SINGLE_OUTPUT_FORMAT:
             self._state[self._state_names] = values_returned
         else:

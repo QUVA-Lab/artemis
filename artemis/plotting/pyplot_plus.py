@@ -15,37 +15,121 @@ An few extension functions to pyplot
 """
 
 
-def axhlines(ys, **plot_kwargs):
+def axhlines(ys, ax=None, **plot_kwargs):
     """
     Draw horizontal lines across plot
     :param ys: A scalar, list, or 1D array of vertical offsets
     :param plot_kwargs: Keyword arguments to be passed to plot
     :return: The plot object corresponding to the lines.
     """
+    if ax is None:
+        ax = plt.gca()
     ys = np.array((ys, ) if np.isscalar(ys) else ys, copy=False)
     lims = plt.gca().get_xlim()
     y_points = np.repeat(ys[:, None], repeats=3, axis=1).flatten()
     x_points = np.repeat(np.array(lims + (np.nan, ))[None, :], repeats=len(ys), axis=0).flatten()
-    plot = plt.plot(x_points, y_points, scalex = False, **plot_kwargs)
+    plot = ax.plot(x_points, y_points, scalex = False, **plot_kwargs)
     return plot
 
 
-def axvlines(xs, **plot_kwargs):
+def axvlines(xs, ax=None, **plot_kwargs):
     """
     Draw vertical lines on plot
     :param xs: A scalar, list, or 1D array of horizontal offsets
     :param plot_kwargs: Keyword arguments to be passed to plot
     :return: The plot object corresponding to the lines.
     """
+    if ax is None:
+        ax = plt.gca()
     xs = np.array((xs, ) if np.isscalar(xs) else xs, copy=False)
     lims = plt.gca().get_ylim()
     x_points = np.repeat(xs[:, None], repeats=3, axis=1).flatten()
     y_points = np.repeat(np.array(lims + (np.nan, ))[None, :], repeats=len(xs), axis=0).flatten()
-    plot = plt.plot(x_points, y_points, scaley = False, **plot_kwargs)
+    plot = ax.plot(x_points, y_points, scaley = False, **plot_kwargs)
     return plot
 
     # return [plt.axhline(y, **specs) for y in ys]
     # return [plt.axvline(x, **specs) for x in xs]
+
+
+def parse_plot_args(args):
+    if len(args)==2:
+        x, y = args
+        y = np.array(y, copy=False)
+    else:
+        assert len(args)==1
+        y = np.array(args[0], copy=False)
+        x = np.arange(y.shape[0])
+    return x, y
+
+
+def plot_stacked_signals(*args, draw_zero_lines = True, ax=None, sep=None, labels=None, **kwargs):
+    """
+    :param args:
+    :param draw_zero_lines:
+    :param ax:
+    :param sep:
+    :param kwargs:
+    :return:
+    """
+    x, y = parse_plot_args(args)
+
+    if y.ndim==1:
+        y = y[:, None]
+
+    if sep is None:
+        sep = np.abs(np.min(y)) + np.abs(np.max(y))
+
+    if ax is None:
+        ax = plt.gca()
+
+    offsets = - np.arange(y.shape[1])*sep
+    y = y + offsets
+
+    h = ax.plot(x, y, **kwargs)
+
+    if labels is False:
+        ax.tick_params(axis='y', labelleft='off')
+    elif isinstance(labels, (list, tuple)):
+        assert len(labels)==y.shape[1], 'Number of labels must match number of signals.'
+        ax.set_yticks(offsets)
+        ax.set_yticklabels(labels)
+    if draw_zero_lines:
+        hz = axhlines(offsets, color='k', zorder=1.5)
+    else:
+        hz = None
+
+    return h, hz
+
+
+
+def stemlight(*args, ax=None, **plot_kwargs):
+    """
+    A ligher version of a stem plot.
+    :param args:
+    :param ax:
+    :param plot_kwargs:
+    :return:
+    """
+    if ax is None:
+        ax = plt.gca()
+    x, y = parse_plot_args(args)
+    # Replicate all x-points thrice:
+    ixs = np.arange(len(x)*3)//3
+    x_pts = x[ixs]
+    y_pts = y[ixs]
+
+    y_pts[::3] = 0
+    y_pts[2::3] = 0
+    return plt.plot(x_pts, y_pts, **plot_kwargs)
+
+
+def event_raster_plot(events, sep=1, ax=None, marker = '+', **scatter_kwargs):
+
+    if ax is None:
+        ax = plt.gca()
+    h = [ax.scatter(x=event_list, y=np.zeros_like(event_list)-i*sep, marker=marker, **scatter_kwargs) for i, event_list in enumerate(events)]
+    return h
 
 
 def set_default_figure_size(width, height):

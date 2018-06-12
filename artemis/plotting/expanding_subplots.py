@@ -205,14 +205,14 @@ def add_subplot(layout = None, fig = None, **subplot_args):
     return select_subplot(name=None, fig=fig, layout=layout, **subplot_args)
 
 
-def subplot_at(row, col):
+def subplot_at(row, col, fig=None):
     """
     Create or select a the subplot at position (row, col)
     :param row: The row
     :param col: The column
     :return: An axes object
     """
-    return select_subplot(position=(row, col))
+    return select_subplot(position=(row, col), fig=None)
 
 
 @contextmanager
@@ -265,11 +265,16 @@ def set_same_ylims(axes):
         ax.set_ylim(y_range)
 
 
-def set_figure_border_size(size=0.05):
-    plt.subplots_adjust(left=size, right=1.-size, top=1-size, bottom=size)
+def set_figure_border_size(size=0.05, left=None, right=None, top=None, bottom=None):
+
+    left = size if left is None else left
+    right = size if right is None else right
+    top = size if top is None else top
+    bottom = size if bottom is None else bottom
+    plt.subplots_adjust(left=left, right=1.-right, top=1-top, bottom=bottom)
 
 @contextmanager
-def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True, show_y='once', clip_x=False, clip_y=False, remove_ticks = True, xlabel=None, ylabel=None, xlim=None, ylim=None, **adjust_kwargs):
+def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True, show_y='once', clip_x=False, clip_y=False, remove_ticks = False, xlabel=None, ylabel=None, xlim=None, ylim=None, **adjust_kwargs):
 
     with CaptureNewSubplots() as cap:
         with _define_plot_settings(layout='h', show_y = False if show_y=='once' else show_y, show_x = show_x, grid=grid, sharex=sharex, sharey=sharey, xlabel=xlabel, xlim=xlim, ylim=ylim):
@@ -285,7 +290,9 @@ def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True
     assert len(new_subplots)>0, "No new plots have been created in this block... Why did you create the block at all?"
     if show_y in (True, 'once'):
         new_subplots[0].tick_params(axis='y', labelleft='on')
-    new_subplots[0].set_ylabel(ylabel)
+
+    if ylabel is not None:
+        new_subplots[0].set_ylabel(ylabel)
 
     if remove_ticks:
         for ax in new_subplots[:-1]:
@@ -293,7 +300,7 @@ def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True
 
 
 @contextmanager
-def vstack_plots(spacing=0, sharex=True, sharey = False, show_x = 'once', show_y=True, clip_x=False, clip_y=False, grid=False, remove_ticks = True, xlabel=None, ylabel=None, xlim=None, ylim=None, **adjust_kwargs):
+def vstack_plots(spacing=0, sharex=True, sharey = False, show_x = 'once', show_y=True, clip_x=False, clip_y=False, grid=False, remove_ticks = False, xlabel=None, ylabel=None, xlim=None, ylim=None, **adjust_kwargs):
 
     with CaptureNewSubplots() as cap:
         with _define_plot_settings(layout='v', show_x = False if show_x=='once' else show_x, show_y=show_y, grid=grid, sharex=sharex, sharey=sharey, ylabel=ylabel, xlim=xlim, ylim=ylim):
@@ -309,7 +316,9 @@ def vstack_plots(spacing=0, sharex=True, sharey = False, show_x = 'once', show_y
     assert len(new_subplots)>0, "No new plots have been created in this block... Why did you create the block at all?"
     if show_x in (True, 'once'):
         new_subplots[-1].tick_params(axis='x', labelbottom='on')
-    new_subplots[-1].set_xlabel(xlabel)
+
+    if xlabel is not None:
+        new_subplots[-1].set_xlabel(xlabel)
 
     if remove_ticks:
         new_subplots[-1].get_xaxis().set_visible(True)

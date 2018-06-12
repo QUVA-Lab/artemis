@@ -8,8 +8,8 @@ def test_simple_moving_average():
 
     seq = np.random.randn(100) + np.sin(np.linspace(0, 10, 100))
 
-    @scannable(state=dict(avg=0, n=0), output=['avg', 'n'], returns='avg')
-    def simple_moving_average(x, avg, n):
+    @scannable(state=['avg', 'n'], output=['avg', 'n'], returns='avg')
+    def simple_moving_average(x, avg=0, n=0):
         return (n/(1.+n))*avg + (1./(1.+n))*x, n+1
 
     f = simple_moving_average.scan()
@@ -21,8 +21,8 @@ def test_simple_moving_average():
 
 def test_moving_average():
 
-    @scannable(state=dict(avg=0))
-    def moving_average(x, avg, decay):
+    @scannable(state='avg')
+    def moving_average(x, decay, avg=0):
         return (1-decay)*avg + decay*x
 
     seq = np.random.randn(100) + np.sin(np.linspace(0, 10, 100))
@@ -51,8 +51,8 @@ def test_rnn_type_comp():
     w_hh = rng.randn(n_hid, n_hid)
     w_hy = rng.randn(n_hid, n_out)
 
-    @scannable(state={'hid': np.zeros(n_hid)}, output=['out', 'hid'], returns='out')
-    def rnn_like_func(x, hid):
+    @scannable(state='hid', output=['out', 'hid'], returns='out')
+    def rnn_like_func(x, hid: np.zeros(n_hid)):
         new_hid = np.tanh(x.dot(w_xh) + hid.dot(w_hh))
         out = new_hid.dot(w_hy)
         return out, new_hid
@@ -79,28 +79,28 @@ def test_bad_beheviour_caught():
     seq = np.random.randn(100) + np.sin(np.linspace(0, 10, 100))
 
     with pytest.raises(TypeError):  # Typo in state name
-        @scannable(state={'avgfff': 0})
-        def moving_average_with_typo(avg, x, decay):
+        @scannable(state='avgfff')
+        def moving_average_with_typo(x, decay, avg=0):
             return (1-decay)*avg + decay*x
 
         f = moving_average_with_typo.scan()
         simply_smoothed_signal = [f(x=x, decay=1./(t+1)) for t, x in enumerate(seq)]
 
     with pytest.raises(AssertionError):  # Should really be done before instance-creation, but whatever.
-        @scannable(state={'avg': 0}, output='avgf')
-        def moving_average_with_typo(avg, x, decay):
+        @scannable(state='avg', output='avgf')
+        def moving_average_with_typo(x, decay, avg=0):
             return (1-decay)*avg + decay*x
         f = moving_average_with_typo.scan()
 
     with pytest.raises(ValueError):  # Invalid return name
-        @scannable(state={'avg': 0}, output=['avg'], returns='avgf')
-        def moving_average_with_typo(avg, x, decay):
+        @scannable(state=['avg'], output=['avg'], returns='avgf')
+        def moving_average_with_typo(x, decay, avg=0):
             return (1-decay)*avg + decay*x
         f = moving_average_with_typo.scan()
 
     with pytest.raises(TypeError):  # Wrong output format
-        @scannable(state={'avg': 0}, output=['avg', 'something'], returns='avg')
-        def moving_average_with_typo(avg, x, decay):
+        @scannable(state=['avg'], output=['avg', 'something'], returns='avg')
+        def moving_average_with_typo(x, decay, avg=0):
             return (1-decay)*avg + decay*x
         f = moving_average_with_typo.scan()
         simply_smoothed_signal = [f(x=x, decay=1./(t+1)) for t, x in enumerate(seq)]
