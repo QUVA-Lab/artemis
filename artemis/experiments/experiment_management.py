@@ -1,4 +1,5 @@
 import getpass
+import shutil
 import traceback
 from collections import OrderedDict
 from functools import partial
@@ -11,6 +12,7 @@ from time import time
 
 import math
 
+from artemis.fileman.local_dir import make_dir
 from artemis.general.display import equalize_string_lengths
 from six import string_types
 from six.moves import reduce, xrange
@@ -583,3 +585,19 @@ def deprefix_experiment_ids(experiment_ids):
     start_with = '' if len(de_prefixed_tuples[0])==len(tuples[0]) else '.'
     new_strings = [start_with+'.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
     return new_strings
+
+
+def archive_record(record):
+    """
+    :param ExperimentRecord record:
+    :return str: New directory
+    """
+    record_dir = record.get_dir()
+    exp_dir, record_name = os.path.split(record_dir)
+    new_home = os.path.normpath(os.path.join(exp_dir, '..', 'experiment-archive'))
+    if not os.path.exists(new_home):
+        make_dir(new_home)
+    shutil.move(record_dir, new_home)
+    new_record_path = os.path.join(new_home, record_name)
+    assert os.path.exists(new_record_path)
+    return new_record_path

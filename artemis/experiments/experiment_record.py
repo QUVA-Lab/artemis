@@ -547,13 +547,15 @@ def filter_experiment_ids(record_ids, expr=None, experiment_ids=None):
     return record_ids
 
 
-def get_all_record_ids(experiment_ids=None, filters=None):
+def get_all_record_ids(experiment_ids=None, filters=None, expdir = None):
     """
     :param experiment_ids: A list of experiment names
     :param filters: A list or regular expressions for matching experiments.
+    :param expdir: The experiment directory, or None to use the default.
     :return: A list of experiment identifiers.
     """
-    expdir = get_experiment_dir()
+    if expdir is None:
+        expdir = get_experiment_dir()
     ids = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
     ids = filter_experiment_ids(record_ids=ids, experiment_ids=experiment_ids)
     if filters is not None:
@@ -578,13 +580,15 @@ def has_experiment_record(experiment_identifier):
     return len(experiment_id_to_record_ids(experiment_identifier)) != 0
 
 
-def load_experiment_record(record_id):
+def load_experiment_record(record_id, expdir = None):
     """
     Load an ExperimentRecord based on the identifier
     :param record_id: A string identifying the experiment record
     :return: An ExperimentRecord object
     """
-    path = os.path.join(get_experiment_dir(), record_id)
+    if expdir is None:
+        expdir = get_experiment_dir()
+    path = os.path.join(expdir, record_id)
     return ExperimentRecord(path)
 
 

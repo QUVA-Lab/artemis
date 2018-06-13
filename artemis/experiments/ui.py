@@ -12,7 +12,7 @@ from six.moves import input
 from tabulate import tabulate
 
 from artemis.experiments.experiment_management import deprefix_experiment_ids, \
-    RecordSelectionError, run_multiple_experiments_with_slurm
+    RecordSelectionError, run_multiple_experiments_with_slurm, archive_record
 from artemis.experiments.experiment_management import get_experient_to_record_dict
 from artemis.experiments.experiment_management import (pull_experiments, select_experiments, select_experiment_records,
                                                        select_experiment_records_from_list, interpret_numbers,
@@ -104,6 +104,8 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > filterrec ~finished Just show non-completed experiments
 > filterrec finished>last   Just show the last finished runs of each experiment
 > results 4-6         View the results experiments 4, 5, 6
+> archive 4-6         Archive all records for experiments 4,5,6.  This makes it show they don't show up by default
+> showarchived        Toggle display of archived results.
 > view results        View just the columns for experiment name and result
 > view full           View all columns (the default view)
 > show 4              Show the output from the last run of experiment 4 (if it has been run already).
@@ -161,7 +163,7 @@ experiment records.  You can specify records in the following ways:
     def __init__(self, root_experiment = None, catch_errors = True, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
             ignore_valid_keys=(), cache_result_string = False, slurm_kwargs={}, remove_prefix = None, display_format='nested',
-            show_args=False, catch_selection_errors=True, max_width=None, table_package = 'tabulate'):
+            show_args=False, catch_selection_errors=True, max_width=None, table_package = 'tabulate', show_archived=True):
         """
         :param root_experiment: The Experiment whose (self and) children to browse
         :param catch_errors: Catch errors that arise while running experiments
@@ -207,6 +209,7 @@ experiment records.  You can specify records in the following ways:
         self.catch_selection_errors = catch_selection_errors
         self.max_width = max_width
         self.table_package = table_package
+        self.show_archived = show_archived
 
     def _reload_record_dict(self):
         names = get_nonroot_global_experiment_library().keys()
@@ -247,6 +250,7 @@ experiment records.  You can specify records in the following ways:
             'selectexp': self.selectexp,
             'selectrec': self.selectrec,
             'view': self.view,
+            'archive': self.archive,
             'h': self.help,
             'filter': self.filter,
             'filterrec': self.filterrec,
@@ -472,6 +476,15 @@ experiment records.  You can specify records in the following ways:
                 prompt='Press Enter to Continue, or "q" then Enter to Quit')
         if result=='q':
             quit()
+
+    def archive(self, *args):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', help='A selection of experiments to run.  Examples: "3" or "3-5", or "3,4,5"')
+        args = parser.parse_args(args)
+        records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
+        for record in records:
+            archive_record(record)
+        print('{} Experiment Records were archived.'.format(len(records)))
 
     def test(self, user_range):
         ids = select_experiments(user_range, self.exp_record_dict)
