@@ -8,9 +8,10 @@ from artemis.general.should_be_builtins import all_equal
 __author__ = 'peter'
 
 _immutible_types = (int, float, bool, type(None))+string_types
+PRIMATIVE_TYPES = (int, float, np.ndarray, type(None), bool)+string_types
 
 
-def flatten_struct(struct, primatives = (int, float, np.ndarray, type(None), bool)+string_types, custom_handlers = {},
+def flatten_struct(struct, primatives = PRIMATIVE_TYPES, custom_handlers = {},
         break_into_objects = True, detect_duplicates = True, first_dict_is_namespace=False, memo = None):
     """
     Given some nested struct, return a list<*(str, primative)>, where primative

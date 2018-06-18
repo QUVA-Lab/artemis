@@ -4,11 +4,11 @@ from collections import OrderedDict
 from tabulate import tabulate
 from artemis.experiments.experiment_management import load_lastest_experiment_results
 from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, \
-    load_experiment_record, is_matplotlib_imported
+    load_experiment_record, is_matplotlib_imported, UnPicklableArg
 from artemis.experiments.experiments import is_experiment_loadable, get_global_experiment_library
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, CaptureStdOut, \
     surround_with_header, section_with_header
-from artemis.general.nested_structures import flatten_struct
+from artemis.general.nested_structures import flatten_struct, PRIMATIVE_TYPES
 from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value, izip_equal
 from artemis.general.tables import build_table
 from six import string_types
@@ -123,7 +123,7 @@ def get_record_invalid_arg_string(record, recursive=True, ignore_valid_keys=(), 
             last_run_args = OrderedDict([(k,v) for k,v in record.get_args().items() if k not in ignore_valid_keys])
             current_args = OrderedDict([(k,v) for k,v in record.get_experiment().get_args().items() if k not in ignore_valid_keys])
             if recursive:
-                last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
+                last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True, primatives = PRIMATIVE_TYPES + (UnPicklableArg, )))
                 last_run_args = OrderedDict([(k, v) for k, v in last_run_args.items() if k not in ignore_valid_keys])
                 current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
                 current_args = OrderedDict([(k, v) for k, v in current_args.items() if k not in ignore_valid_keys])
@@ -175,7 +175,7 @@ def print_experiment_record_argtable(records):
     Print a table comparing experiment arguments and their results.
     """
     funtion_names = [record.info.get_field(ExpInfoFields.FUNCTION) for record in records]
-    args = [record.info.get_field(ExpInfoFields.ARGS) for record in records]
+    args = [record.get_args(ExpInfoFields.ARGS) for record in records]
     results = [record.get_result(err_if_none=False) for record in records]
 
     common_args, different_args = separate_common_items(args)
@@ -330,7 +330,7 @@ def make_record_comparison_table(records, args_to_show=None, results_extractor =
         print tabulate.tabulate(rows, headers=headers, tablefmt=tablefmt)
     """
 
-    args = [rec.info.get_field(ExpInfoFields.ARGS) for rec in records]
+    args = [rec.get_args(ExpInfoFields.ARGS) for rec in records]
     if args_to_show is None:
         common, separate = separate_common_items(args)
         args_to_show = [k for k, v in separate[0]]

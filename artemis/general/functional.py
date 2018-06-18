@@ -42,7 +42,7 @@ def infer_function_and_derived_arg_values(f):
     root, partials = partial_chain[0], partial_chain[1:]
     assert all(len(pf.args)==0 for pf in partials), "We don't handle unnamed arguments for now.  Add this functionality if necessary"
     overrides = dict((argname, argval) for pf in partials for argname, argval in pf.keywords.items())  # Note that later updates on the same args go into the dict
-    full_arg_list = infer_arg_values(root, **overrides)
+    full_arg_list = infer_arg_values(root, kwargs=overrides)
     return root, full_arg_list
 
 
@@ -67,7 +67,7 @@ def infer_derived_arg_values(f):
     return full_arg_list
 
 
-def infer_arg_values(f, *args, **kwargs):
+def infer_arg_values(f, args=(), kwargs={}):
     """
     :param f: Get the full list of arguments to a function, or throw an error if the function cannot be called by the
         given arguments.

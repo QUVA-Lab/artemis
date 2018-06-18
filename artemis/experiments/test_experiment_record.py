@@ -458,6 +458,19 @@ def test_generator_experiment():
         assert rec2.get_result() == 3
 
 
+def test_unpicklable_args():
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_root
+        def my_parametrizable_exp(f, x):
+            return f(x)
+
+        X = my_parametrizable_exp.add_variant(f = (lambda x: 2*x), x=3)
+        X.run()
+        X.browse(command='q')
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
@@ -480,3 +493,4 @@ if __name__ == '__main__':
     test_experiment_corrupt_detection()
     test_current_experiment_access_functions()
     test_generator_experiment()
+    test_unpicklable_args()

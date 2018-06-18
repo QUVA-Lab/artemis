@@ -38,6 +38,15 @@ ARTEMIS_LOGGER.setLevel(logging.INFO)
 __author__ = 'peter'
 
 
+class UnPicklableArg(object):
+
+    def __init__(self, obj):
+        self.str = repr(obj)
+
+    def __str__(self):
+        return 'Unipickable Object: {}'.format(self.str)
+
+
 class ExpInfoFields(Enum):
     NAME = 'Name'
     ID = 'Identifier'
@@ -134,7 +143,8 @@ class ExperimentRecordInfo(object):
         elif field is ExpInfoFields.STATUS:
             return self.get_field(field).value
         elif field is ExpInfoFields.ARGS:
-            return ['{}={}'.format(k, v) for k, v in self.get_field(field)]
+            args = load_serialized_args(self.get_field(field))
+            return ['{}={}'.format(k, v) for k, v in args]
         else:
             return str(self.get_field(field))
 
@@ -301,7 +311,7 @@ class ExperimentRecord(object):
         Get the arguments with which this record was run.
         :return: An OrderedDict((arg_name -> arg_value))
         """
-        return OrderedDict(self.info.get_field(ExpInfoFields.ARGS))
+        return OrderedDict(load_serialized_args(self.info.get_field(ExpInfoFields.ARGS)))
 
     def get_status(self):
         try:
@@ -330,12 +340,16 @@ class ExperimentRecord(object):
 
     def args_valid(self, last_run_args=None, current_args=None):
         """
+        :param Optional[OrderedDict] last_run_args: The arguments from the last run
+        :param Optional[OrderedDict] current_args: The arguments from the current experiment in code
         :return: True if the experiment arguments have not changed
             False if they have changed
             None if it cannot be determined because arguments are not hashable objects.
         """
         if last_run_args is None:  # Cast to dict (from OrderedDict) because different arg order shouldn't matter
-            last_run_args = self.info.get_field(ExpInfoFields.ARGS)  # A list of 2-tuples
+            last_run_args = self.get_args()  # A list of 2-tuples
+        if any(isinstance(v, UnPicklableArg) for k, v in last_run_args.items()):
+            return None
         if current_args is None:
             current_args = dict(self.get_experiment().get_args())
         try:
@@ -619,6 +633,27 @@ def save_figure_in_record(name, fig=None, default_ext='.pkl'):
     return save_path
 
 
+def get_serialized_args(argdict):
+
+    ser_args = []
+    for argname, argval in argdict.items():
+        try:
+            serval = pickle.dumps(argval, protocol=pickle.HIGHEST_PROTOCOL)
+        except:
+            serval = pickle.dumps(UnPicklableArg(argval))
+        ser_args.append((argname, serval))
+    return ('NEW_ARG_FORMAT', ser_args)
+
+
+def load_serialized_args(ser_args):
+
+    if isinstance(ser_args, tuple) and ser_args[0]=='NEW_ARG_FORMAT':
+        _, actual_args = ser_args
+        return [(argname, pickle.loads(argval)) for argname, argval in actual_args]
+    else:
+        return ser_args
+
+
 def run_and_record(function, experiment_id, print_to_console=True, show_figs=None, test_mode=None, keep_record=None,
         raise_exceptions=True, notes = (), prefix=None, **experiment_record_kwargs):
     """
@@ -656,7 +691,8 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
             root_function, args = infer_function_and_derived_arg_values(function)
             try:
-                exp_rec.info.set_field(EIF.ARGS, list(args.items()))
+                exp_rec.info.set_field(EIF.ARGS, get_serialized_args(args))
+                # exp_rec.info.set_field(EIF.ARGS, list(args.items()))
             except PicklingError as err:
                 ARTEMIS_LOGGER.error('Could not pickle arguments for experiment: {}.  Artemis demands that arguments be piclable.  If they are not, just make a new function.')
                 raise
