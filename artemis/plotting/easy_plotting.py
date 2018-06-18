@@ -53,7 +53,7 @@ def plot_data_dict(data_dict, plots = None, mode = 'static', hang = True, figure
     return figure, plots
 
 
-def funplot(func, xlims = None, n_points = 100, keep_ylims = False, **plot_args):
+def funplot(func, xlims = None, n_points = 100, keep_ylims = False, ax=None, **plot_args):
     """
     Plot a function
     :param func:
@@ -61,13 +61,33 @@ def funplot(func, xlims = None, n_points = 100, keep_ylims = False, **plot_args)
     :param n_points:
     :return:
     """
+    if ax is None:
+        ax = plt.gca()
     if xlims is None:
-        xlims = plt.gca().get_xbound()
+        xlims = ax.get_xbound()
     xs, xe = xlims
-    x = np.linspace(xs, xe, n_points)
+    x = np.logspace(np.log10(xs), np.log10(xe), n_points) if ax.get_xscale() else np.linspace(xs, xe, n_points)
     if keep_ylims:
-        ylims = plt.gca().get_ybound()
-    plt.plot(x, func(x), **plot_args)
+        ylims = ax.get_ybound()
+    h=ax.plot(x, func(x), **plot_args)
     if keep_ylims:
-        plt.gca().set_ybound(*ylims)
-    plt.gca().set_xbound(*xlims)
+        ax.set_ybound(*ylims)
+    ax.set_xbound(*xlims)
+    return h
+
+
+def right_side_legend(handles=None, ax = None):
+
+    if handles is None:
+        if ax is None:
+            ax = plt.gca()
+
+        handles = (ax.lines + ax.patches + ax.collections + ax.containers)
+
+    labels = [h.get_label() for h in handles]
+
+    x_left, x_right = ax.get_xbound()
+
+    for h, l in zip(handles, labels):
+        plt.text(x=x_right, y=h.get_ydata()[-1], s=l, color=h.get_color(), horizontalalignment='left')
+

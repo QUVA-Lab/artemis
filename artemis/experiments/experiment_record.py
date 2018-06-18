@@ -105,8 +105,7 @@ class ExperimentRecordInfo(object):
         assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
         if field == ExpInfoFields.STATUS:
             assert value in ExpStatusOptions, 'Status value must be in: {}'.format(ExpStatusOptions)
-        with self.persistent_obj as pod:
-            pod[field] = value
+        self.persistent_obj[field] = value
         if self._text_path is not None:
             with open(self._text_path, 'w') as f:
                 f.write(self.get_text())

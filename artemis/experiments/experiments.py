@@ -239,15 +239,15 @@ class Experiment(object):
         """
         Get a variant on this experiment.
 
-        :param variant_name: The name of the variant, if it has one
+        :param str variant_name: The name of the variant, if it has one
         :param kwargs: Otherwise, the named arguments which were used to define the variant.
-        :return: An Experiment object
+        :return Experiment: An Experiment object
         """
         if variant_name is None:
             variant_name = _kwargs_to_experiment_name(kwargs)
         else:
             assert len(kwargs)==0, 'If you provide a variant name ({}), there is no need to specify the keyword arguments. ({})'.format(variant_name, kwargs)
-        assert variant_name in self.variants, "No variant '{}' exists.  Existing variants: {}".format(variant_name, self.variants.keys())
+        assert variant_name in self.variants, "No variant '{}' exists.  Existing variants: {}".format(variant_name, list(self.variants.keys()))
         return self.variants[variant_name]
 
     def get_records(self, only_completed=False):

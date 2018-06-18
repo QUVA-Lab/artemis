@@ -141,7 +141,7 @@ def set_default_figure_size(width, height):
     rcParams['figure.figsize'] = width, height
 
 
-_lines_colour_cycle = [p['color'] for p in plt.rcParams['axes.prop_cycle']]
+_lines_colour_cycle = (p['color'] for p in plt.rcParams['axes.prop_cycle'])
 
 
 def get_lines_color_cycle():
@@ -275,6 +275,14 @@ def set_centered_colour_map(h, map='redblackblue'):
     """
     h.set_cmap(map)
     center_colour_scale(h)
+
+
+def outside_right_legend(ax=None, width_squeeze = 0.8):
+    if ax is None:
+        ax = plt.gca()
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * width_squeeze, box.height])
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 
 # def adjust_margins(left=0.125, right=None, bottom=None, top=None):
