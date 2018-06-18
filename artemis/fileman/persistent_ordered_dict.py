@@ -22,24 +22,23 @@ class PersistentOrderedDict(object):
     the object.
     """
 
-    def __init__(self, file_path, items=(), pickle_protocol=pickle.HIGHEST_PROTOCOL, write_always = True):
+    def __init__(self, file_path, items=(), pickle_protocol=pickle.HIGHEST_PROTOCOL):
         """
 
-        :param file_path: Path to
-        :param items:
-        :param pickle_protocol:
-        :param write_always:
+        :param file_path: Path to file
+        :param items: Optionally, the items to initially write
+        :param pickle_protocol: Pickle protocol to use.
         """
         self.file_path = file_path
         self.pickle_protocol = pickle_protocol
-        self.write_always = write_always
+        self._enable_write = True
         self._inner_dict = OrderedDict(items)
         self._last_check_code = None
         self._dict = OrderedDict()
         self._update_from_file()
         with self:
             for k, v in items:
-                self._dict[k] = v
+                self[k] = v
 
     def _update_from_file(self):
         if os.path.exists(self.file_path):
@@ -57,32 +56,46 @@ class PersistentOrderedDict(object):
             pickle.dump(self._last_check_code, f, protocol=self.pickle_protocol)
             pickle.dump(self._dict, f, protocol=self.pickle_protocol)
 
+    def has_changed(self):
+        """
+        Just check if there has been an external change
+        :return:
+        """
+        with open(self.file_path, 'rb') as f:
+            code = pickle.load(f)
+            return code!=self._last_check_code
+
     def __contains__(self, key):
         self._update_from_file()
         return key in self._dict
 
     def __setitem__(self, key, value):
-        self._update_from_file()
-        self._dict[key] = value
-        if self.write_always:
+
+        if self._enable_write:
+            self._update_from_file()
+            self._dict[key] = value
             self._write_file()
+        else:
+            self._dict[key] = value
+            self._change_made = True
 
     def __getitem__(self, key):
         self._update_from_file()
         return self._dict[key]
 
-    def __enter__(self):
-        self._old_write_always = self.write_always
-        self.write_always = False
-        return self
-
     def items(self):
         self._update_from_file()
         return self._dict.items()
 
+    def __enter__(self):
+        self._change_made = False
+        self._enable_write = False
+        return self
+
     def __exit__(self, thing1, thing2, thing3):
-        self._write_file()
-        self.write_always = self._old_write_always
+        if self._change_made:
+            self._write_file()
+        self._enable_write = True
 
     def get_data(self):
         return self._dict.copy()
