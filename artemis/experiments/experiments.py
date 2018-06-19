@@ -193,21 +193,6 @@ class Experiment(object):
         """
         return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=False)
 
-    def copy_variants(self, other_experiment):
-        """
-        Copy over the variants from another experiment.
-
-        :param other_experiment: An Experiment Object
-        """
-        base_args = other_experiment.get_args()
-        for variant in other_experiment.get_variants():
-            if variant is not self:
-                variant_args = variant.get_args()
-                different_args = {k: v for k, v in variant_args.items() if base_args[k]!=v}
-                name_diff = variant.get_id()[len(other_experiment.get_id())+1:]
-                v = self.add_variant(name_diff, **different_args)
-                v.copy_variants(variant)
-
     def add_root_variant(self, variant_name=None, **kwargs):
         """
         Add a variant to this experiment, but do NOT register it on the list of experiments.
@@ -228,6 +213,76 @@ class Experiment(object):
         :return: The experiment.
         """
         return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=True)
+
+    def copy_variants(self, other_experiment):
+        """
+        Copy over the variants from another experiment.
+
+        :param other_experiment: An Experiment Object
+        """
+        base_args = other_experiment.get_args()
+        for variant in other_experiment.get_variants():
+            if variant is not self:
+                variant_args = variant.get_args()
+                different_args = {k: v for k, v in variant_args.items() if base_args[k]!=v}
+                name_diff = variant.get_id()[len(other_experiment.get_id())+1:]
+                v = self.add_variant(name_diff, **different_args)
+                v.copy_variants(variant)
+
+
+    def add_config_variant(self, variant_name, **arg_constructors):
+        """
+        Add a variant where you redefine the constructor for arguments to the experiment.  e.g.
+
+            @experiment_function
+            def demo_smooth_out_signal(smoother, signal):
+                y = [smoother.update(xt) for xt in signal]
+                plt.plot(y)
+                return y
+
+            demo_average_sequence.add_config_variant('exp_smooth', averager = lambda decay=0.1: ExponentialMovingAverage(decay))
+
+        This creates a variant "exp_smooth" which can be parameterized by a "decay" argument.
+
+        :param name:
+        :param kwargs:
+        :return:
+        """
+
+        arg_to_sub_arg = {}
+        all_arg_names, _, _, _ = inspect.getargspec(self.function)
+        for arg_name, arg_constructor in arg_constructors.items():
+            assert arg_name in all_arg_names, "Function {} has no argument named '{}'".format(self.function.__name__, arg_name)
+            sub_arg_names = inspect.getargspec(arg_constructor)
+            arg_to_sub_arg[arg_name] = sub_arg_names
+            # argspec = inspect.getargspec(arg_constructor)
+            # for a in new_args:
+            #     assert a not in all_new_args, "Argument {} has been defined multiple times.".format(a)
+            #     new_args.append(a)
+
+        def new_experiment(**kwargs):
+
+            # First construct args to original experminent:
+            constructed_args = {}
+            for arg_name, arg_constructor in arg_constructors.items():
+                input_args = {k: kwargs.pop(k) for k, v in kwargs.items() if k in arg_to_sub_arg[arg_name]}
+                constructed_args[arg_name] = arg_constructor(**input_args)
+
+            kwargs.update(constructed_args)
+            return self.function(**kwargs)
+
+        ex = Experiment(
+            name=self.name + '.' + variant_name,
+            function=new_experiment,
+            show=self._show,
+            compare=self._compare,
+            one_liner_function=self.one_liner_function,
+            is_root=False
+        )
+        self.variants[variant_name] = ex
+        return ex
+        # self.add_variant(variant_name=variant_name, )
+        # self.
 
     def get_id(self):
         """
