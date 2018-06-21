@@ -394,10 +394,10 @@ experiment records.  You can specify records in the following ways:
                 record_table_rows = tabulate(record_rows, headers=full_headers, tablefmt="pipe").split('\n')
                 del record_table_rows[1]  # Get rid of that silly line.
                 experiment_table_rows = tabulate(experiment_rows, numalign='left').split('\n')[1:-1]  # First and last are just borders
-                longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(record_table_rows)>0 else 0
+                longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(experiment_table_rows)>0 and len(record_table_rows)>0 else 0
                 record_table_rows = [r if len(r)==longest_row else r[:-1] + ' '*(longest_row-len(r)) + r[-1] for r in record_table_rows]
                 experiment_table_rows = [('=' if i==0 else '-')*longest_row+'\n'+r + ' '*(longest_row-len(r)-1)+'|' for i, r in enumerate(experiment_table_rows)]
-                all_rows = [surround_with_header('Experiments', width=longest_row, char='=')] + insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs) + ['='*longest_row]
+                all_rows = [surround_with_header('Experiments', width=longest_row, char='=')] + (insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs) if len(experiment_table_rows)>0 else ['<No non-root Experiments>']) + ['='*longest_row]
                 table = '\n'.join(all_rows)
             else:
                 raise NotImplementedError(self.table_package)

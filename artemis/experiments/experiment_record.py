@@ -271,7 +271,7 @@ class ExperimentRecord(object):
         file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
         make_file_dir(file_path)
         with open(file_path, 'wb') as f:
-            pickle.dump(result, f, protocol=2)
+            pickle.dump(result, f, protocol=pickle.HIGHEST_PROTOCOL)
             ARTEMIS_LOGGER.info('Saving Result for Experiment "{}"'.format(self.get_id(),))
 
     def get_id(self):

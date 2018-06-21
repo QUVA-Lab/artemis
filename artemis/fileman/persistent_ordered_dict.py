@@ -21,6 +21,7 @@ class PersistentOrderedDict(object):
     This is not thread-safe, but it should be fine for situations when you only have one process writing to
     the object.
     """
+    VERSION_IDENTIFIER = 'PersistentOrderedDictV2'
 
     def __init__(self, file_path, items=(), pickle_protocol=pickle.HIGHEST_PROTOCOL):
         """
@@ -43,16 +44,21 @@ class PersistentOrderedDict(object):
     def _update_from_file(self):
         if os.path.exists(self.file_path):
             with open(self.file_path, 'rb') as f:
-                code = pickle.load(f)
-                if code==self._last_check_code:
-                    return
+                version = pickle.load(f)
+                if version == self.VERSION_IDENTIFIER:
+                    code = pickle.load(f)
+                    if code==self._last_check_code:
+                        return
+                    else:
+                        self._dict = pickle.load(f)
                 else:
-                    self._dict = pickle.load(f)
+                    self._dict = dict(version)  # Backwards Compatibility
 
     def _write_file(self):
         make_file_dir(self.file_path)
         with open(self.file_path, 'wb') as f:
             self._last_check_code = hash((id(self), time.time()))
+            pickle.dump(self.VERSION_IDENTIFIER)
             pickle.dump(self._last_check_code, f, protocol=self.pickle_protocol)
             pickle.dump(self._dict, f, protocol=self.pickle_protocol)
 

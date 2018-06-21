@@ -383,6 +383,8 @@ def insert_at(list1, list2, indices):
     assert len(list2)==len(indices), 'List 2 has {} elements, but you provided {} indices.  They should have equal length'.format(len(list2), len(indices))
     index_iterator = iter(sorted(indices))
     list_2_iter = iter(list2)
+    if len(list2)==0:
+        return list3
     next_ix = next(index_iterator)
 
     iter_stopped = False

@@ -3,11 +3,14 @@ import inspect
 from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
+
+import sys
 from six import string_types
 from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
 from artemis.experiments.experiment_record import run_and_record
 from artemis.general.functional import infer_derived_arg_values, get_partial_root
+import types
 
 
 class Experiment(object):
@@ -229,8 +232,63 @@ class Experiment(object):
                 v = self.add_variant(name_diff, **different_args)
                 v.copy_variants(variant)
 
+    def _add_config(self, name, arg_constructors, is_root):
+        assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
+        assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
+        assert '/' not in name, 'Experiment names cannot have "/" in them: {}'.format(name)
+        get_arg_names = lambda f: inspect.getargspec(f) if sys.version_info < (3, 0) else inspect.getfullargspec(f)[0]
+        arg_to_sub_arg = {}
+        all_arg_names = get_arg_names(self.function)
+        for arg_name, arg_constructor in arg_constructors.items():
+            # assert arg_name in all_arg_names, "Function {} has no argument named '{}'".format(self.function, arg_name)
+            assert callable(arg_constructor), "The configuration for argument '{}' must be a function which constructs the argument.  Got a {}".format(arg_name, type(arg_constructor).__name__)
+            # assert isinstance(arg_constructor, types.FunctionType) or inspect.isclass(arg_constructor), "The constructor '{}' appeared not to be a pure function.  It is probably an instance of a callable class, and you probably meant to give a either a constructor for that instance, or a class object.".format(arg_constructor)
+            assert not inspect.isclass(arg_constructor),  "'{}' is a class object.  You must instead pass a function to construct an instance of this class.  You can use lambda for this.".format(arg_constructor.__name__)
+            assert isinstance(arg_constructor, types.FunctionType),  "The constructor '{}' appeared not to be a pure function.  If it is an instance of a callable class, you probably meant to give a either a constructor for that instance.".format(arg_constructor)
+            sub_arg_names = get_arg_names(arg_constructor)
+            for a in sub_arg_names:
+                assert a not in all_arg_names, "An argument with name '{}' already exists.  You need to come up with a new name.".format(a)
+            arg_to_sub_arg[arg_name] = sub_arg_names
 
-    def add_config_variant(self, variant_name, **arg_constructors):
+        def put_constructed_args_into_kwargs(kwargs):
+            # Note that this modifies kwargs in place
+
+            # Construct argument specified in config
+            constructed_args = {}
+            for arg_name, arg_constructor in arg_constructors.items():
+                input_args = {k: kwargs[k] for k, v in kwargs.items() if k in arg_to_sub_arg[arg_name]}
+                constructed_args[arg_name] = arg_constructor(**input_args)
+
+            # Remove config args from args that are passed down.
+            for k in set(argname for args in arg_to_sub_arg.values() for argname in args):
+                del kwargs[k]
+
+            kwargs.update(constructed_args)
+
+        if inspect.isgeneratorfunction(get_partial_root(self.function)):
+            def configured_function(**kwargs):
+                put_constructed_args_into_kwargs(kwargs)
+                for result in self.function(**kwargs):
+                    yield result
+        else:
+            def configured_function(**kwargs):
+                put_constructed_args_into_kwargs(kwargs)
+                return self.function(**kwargs)
+
+        configured_function.__doc__ = "Variant of {} with arguments {} configured".format(self.function, list(arg_constructors.keys()))
+
+        ex = Experiment(
+            name=self.name + '.' + name,
+            function=configured_function,
+            show=self._show,
+            compare=self._compare,
+            one_liner_function=self.one_liner_function,
+            is_root=is_root
+        )
+        self.variants[name] = ex
+        return ex
+
+    def add_config_variant(self, name, **arg_constructors):
         """
         Add a variant where you redefine the constructor for arguments to the experiment.  e.g.
 
@@ -244,45 +302,17 @@ class Experiment(object):
 
         This creates a variant "exp_smooth" which can be parameterized by a "decay" argument.
 
-        :param name:
-        :param kwargs:
-        :return:
+        :param name: Name of the variant
+        :param kwargs: The constructors for the arguments which you'd like to configure.
+        :return: A new experiment.
         """
+        return self._add_config(name, arg_constructors=arg_constructors, is_root=False)
 
-        arg_to_sub_arg = {}
-        all_arg_names, _, _, _ = inspect.getargspec(self.function)
-        for arg_name, arg_constructor in arg_constructors.items():
-            assert arg_name in all_arg_names, "Function {} has no argument named '{}'".format(self.function.__name__, arg_name)
-            sub_arg_names = inspect.getargspec(arg_constructor)
-            arg_to_sub_arg[arg_name] = sub_arg_names
-            # argspec = inspect.getargspec(arg_constructor)
-            # for a in new_args:
-            #     assert a not in all_new_args, "Argument {} has been defined multiple times.".format(a)
-            #     new_args.append(a)
-
-        def new_experiment(**kwargs):
-
-            # First construct args to original experminent:
-            constructed_args = {}
-            for arg_name, arg_constructor in arg_constructors.items():
-                input_args = {k: kwargs.pop(k) for k, v in kwargs.items() if k in arg_to_sub_arg[arg_name]}
-                constructed_args[arg_name] = arg_constructor(**input_args)
-
-            kwargs.update(constructed_args)
-            return self.function(**kwargs)
-
-        ex = Experiment(
-            name=self.name + '.' + variant_name,
-            function=new_experiment,
-            show=self._show,
-            compare=self._compare,
-            one_liner_function=self.one_liner_function,
-            is_root=False
-        )
-        self.variants[variant_name] = ex
-        return ex
-        # self.add_variant(variant_name=variant_name, )
-        # self.
+    def add_config_root_variant(self, name, **arg_constructors):
+        """
+        Add a config variant which requires additional parametrization.  (See add_config_variant)
+        """
+        return self._add_config(name, arg_constructors=arg_constructors, is_root=True)
 
     def get_id(self):
         """
