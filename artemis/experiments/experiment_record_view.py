@@ -131,16 +131,12 @@ def get_record_invalid_arg_string(record, recursive=True, ignore_valid_keys=(), 
 
             validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
-                # last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.items()] for argdict in (last_run_args, current_args)]
                 common, (old_args, new_args) = separate_common_items([list(last_run_args.items()), list(current_args.items())])
                 if len(old_args)+len(new_args)==0:
                     raise Exception('Error displaying different args.  Bug Peter.')
-                # old_arg_dict = dict(old_args)
 
                 all_changed_arg_names = remove_duplicates(list(name for name, _ in old_args)+list(name for name, _ in new_args))
                 changestr = ', '.join("{}:{}->{}".format(k, last_run_args[k] if k in last_run_args else '<N/A>', current_args[k] if k in current_args else '<N/A>') for k in all_changed_arg_names)
-
-                # changestr = "{{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
                 notes = ("Change: " if note_version=='full' else "") + changestr
             elif validity is None:
                 notes = "Cannot Determine: Unhashable Args" if note_version=='full' else '<Unhashable Args>'
@@ -182,12 +178,8 @@ def print_experiment_record_argtable(records):
     """
     funtion_names = [record.info.get_field(ExpInfoFields.FUNCTION) for record in records]
     args = [record.get_args() for record in records]
-    # results = [record.get_result(err_if_none=False) for record in records]
-
     common_args, different_args = separate_common_items(args)
-
     record_ids = [record.get_id() for record in records]
-
     def lookup_fcn(record_id, column):
         index = record_ids.index(record_id)
         if column=='Function':

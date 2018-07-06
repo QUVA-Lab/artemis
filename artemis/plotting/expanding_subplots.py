@@ -1,10 +1,7 @@
+import itertools
 from collections import OrderedDict
 from contextlib import contextmanager
-
-import itertools
 import matplotlib.pyplot as plt
-from artemis.general.should_be_builtins import bad_value, ceildiv, izip_equal
-from artemis.plotting.data_conversion import vector_length_to_tile_dims
 
 __author__ = 'peter'
 
@@ -39,21 +36,6 @@ def get_new_positions(fixed_positions, layout, n_plots):
     """
     n_rows_min = (1 if len(fixed_positions)==0 else max(r+1 for r, _ in fixed_positions.values()))
     n_cols_min = (1 if len(fixed_positions)==0 else max(c+1 for _, c in fixed_positions.values()))
-
-    # if layout in ('h', 'horizontal'):
-    #     n_rows = n_rows_min
-    #     n_cols = max(ceildiv(n_plots, n_rows), n_rows_min)
-    # elif layout in ('v', 'vertical'):
-    #     n_cols = n_cols_min
-    #     n_rows = max(ceildiv(n_plots, n_cols), n_cols_min)
-    # elif layout in ('g', 'grid'):
-    #
-    #
-    #     n_rows_, n_cols_ = vector_length_to_tile_dims(n_plots)
-    #     n_rows, n_cols = max(n_rows_min, n_rows_), max(n_cols_min, n_cols_)
-    # else:
-    #     raise NotImplementedError(layout)
-    #
     n_rows, n_cols = n_rows_min, n_cols_min
     while n_plots>n_rows*n_cols:
         if layout in ('g', 'grid'):
@@ -84,7 +66,6 @@ def get_new_positions(fixed_positions, layout, n_plots):
                     break
                 ix+=1
 
-
     return positions, (n_rows, n_cols)
 
 
@@ -102,8 +83,6 @@ def _create_subplot(fig = None, layout = None, position = None, **subplot_args):
     if position is not None:
         assert len(position)==2, 'Position must be a row, col'
         _FIXED_POSITIONS[n] = position
-        # print _FIXED_POSITIONS
-    # print _FIXED_POSITIONS
 
     positions, (n_rows, n_cols) = get_new_positions(fixed_positions=_FIXED_POSITIONS, layout=layout, n_plots=n+1)
 
@@ -112,30 +91,10 @@ def _create_subplot(fig = None, layout = None, position = None, **subplot_args):
 
     new_row, new_col = positions[-1]
 
-    # if position is None:
-    #     if len(fig.axes)==0:
-    #         position = (1, 1)
-    #     else:
-    #         (last_row, last_col) = fig.axes[-1]._position
-    #         position = \
-    #             last_row+1
-    #
-    # n_rows, n_cols = (1, n+1) if layout in ('h', 'horizontal') else (n+1, 1) if layout in ('v', 'vertical') else \
-    #     vector_length_to_tile_dims(n+1) if layout in ('g', 'grid') else bad_value(layout)
-    #
-    # for i in range(n):
-    #     fig.axes[i].change_geometry(n_rows, n_cols, i+1)
-    #
-    #
-
-
-
     for arg in ('sharex', 'sharey'):
         if isinstance(_newplot_settings[arg], plt.Axes):  # Get share-axis here on subsequent axes (see part 1 below)
             subplot_args[arg]=_newplot_settings[arg]
     ax = fig.add_subplot(n_rows, n_cols, new_row*n_cols + new_col+1, **subplot_args)
-    #
-    # ax = fig.add_subplot(n_rows, n_cols, n+1, **subplot_args)
 
     if _newplot_settings['xlabel'] is not None:
         ax.set_xlabel(_newplot_settings['xlabel'])
@@ -236,19 +195,6 @@ class CaptureNewSubplots(object):
 
     def get_new_subplots(self):
         return self.new_subplots
-
-
-# @contextmanager
-# def hstack_plots(spacing=0):
-#
-#     with CaptureNewSubplots() as cap:
-#         with _define_plot_settings(layout='h', show_y = False):
-#             plt.subplots_adjust(wspace=spacing)
-#             yield
-#     new_subplots = cap.get_new_subplots().values()
-#     new_subplots[0].get_yaxis().set_visible(True)
-#     for ax in new_subplots[:-1]:
-#         ax.set_xticks(ax.get_xticks()[:-1])
 
 
 def set_same_xlims(axes):

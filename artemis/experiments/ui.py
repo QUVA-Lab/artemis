@@ -14,7 +14,7 @@ from tabulate import tabulate
 from artemis.experiments.experiment_management import deprefix_experiment_ids, \
     RecordSelectionError, run_multiple_experiments_with_slurm, archive_record
 from artemis.experiments.experiment_management import get_experient_to_record_dict
-from artemis.experiments.experiment_management import (pull_experiments, select_experiments, select_experiment_records,
+from artemis.experiments.experiment_management import (pull_experiment_records, select_experiments, select_experiment_records,
                                                        select_experiment_records_from_list, interpret_numbers,
                                                        run_multiple_experiments)
 from artemis.experiments.experiment_record import ExpStatusOptions
@@ -625,7 +625,7 @@ experiment records.  You can specify records in the following ways:
         from artemis.remote.remote_machines import get_remote_machine_info
         info = get_remote_machine_info(args.machine_name)
         exp_names = select_experiments(args.user_range, self.exp_record_dict)
-        output = pull_experiments(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False, need_pass=args.need_password)
+        output = pull_experiment_records(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False, need_pass=args.need_password)
         print(output)
         return ExperimentBrowser.REFRESH
 

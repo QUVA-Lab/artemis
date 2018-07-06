@@ -245,7 +245,6 @@ def _make_dbplot_figure():
     else:
         fig= plt.figure(figsize=_DEFAULT_SIZE)  # This is broken in matplotlib2 for some reason
 
-    # fig.cornerbox__ = fig.add_axes([0, 0, 0.2, 0.05])
     return fig
 
 
@@ -263,8 +262,6 @@ def replot_and_redraw_figure(fig):
     for subplot in _DBPLOT_FIGURES[fig].subplots.values():
         plt.subplot(subplot.axis)
         subplot.plot_object.plot()
-
-
 
     redraw_figure(_DBPLOT_FIGURES[fig].figure)
 
@@ -299,11 +296,6 @@ def hold_dbplots(fig = None, draw_every = None):
 
     if plot_now and fig in _DBPLOT_FIGURES:
         replot_and_redraw_figure(fig)
-
-        # for subplot in _DBPLOT_FIGURES[fig].subplots.values():
-        #     subplot.plot_object.plot()
-        #
-        # redraw_figure(_DBPLOT_FIGURES[fig].figure)
 
 
 def clear_dbplot(fig = None):

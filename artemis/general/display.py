@@ -36,33 +36,24 @@ def arraystr(arr, print_threshold, summary_threshold):
 def dict_to_str(d):
     """
     Format a dict as a nice human-readable string.  E.g. e.g. {'a':3, 'b': 'aa') becomes "a=3, b='aa'"
-    :param d:
-    :return:
+    :param dict d: A dict
+    :return str: A nice, formatted version of this dict.
     """
     return ', '.join('{}:{}'.format(k, repr(v)) for k, v in d.items())
 
 
 def pyfuncstring_to_tex(pyfuncstr):
+    """
+    Placeholder - we'd like to fill this out later.  This should be a function that takes a short string representing a
+    python funciton and translates it to latex.  e.g.
+
+        pyfuncstring_to_text 'x**1.5/4' -> x^{1.5}/4
+
+    :param pyfuncstr: A string representing a python function
+    :return: A Tex string what could be used to render the function nicely.
+    """
     string = pyfuncstr
-
-    # import sympy
-    # symbols = re.findall(r'[^\W\d_]+', pyfuncstr)
-    #
-    # for s in symbols:
-    #     locals()[s] = sympy.Symbol(s)
-    #
-    # string = sympy.latex(eval(pyfuncstr))
-
     return string
-
-
-    # pairs = [
-    #     (r'\*\*\((.*))', r'$\.^{\1}$')
-    # ]
-    # for expr, replacement in pairs:
-    #     string = re.sub(expr, replacement, string)
-
-    # return string
 
 
 def equalize_string_lengths(arr, side = 'left'):

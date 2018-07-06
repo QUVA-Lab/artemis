@@ -164,37 +164,6 @@ def get_archive(url, relative_path=None, force_extract=False, archive_type = Non
     return local_folder_path
 
 
-# def get_file_and_cache(url, data_transformation = None, enable_cache_write = True, enable_cache_read = True):
-#
-#     _, ext = os.path.splitext(url)
-#
-#     if enable_cache_read or enable_cache_write:
-#         hasher = hashlib.md5()
-#         hasher.update(url.encode('utf-8'))
-#         code = hasher.hexdigest()
-#
-#
-#
-#         local_cache_path = os.path.join(get_artemis_data_path('caches'), code + ext)
-#
-#     if enable_cache_read and os.path.exists(local_cache_path):
-#         return local_cache_path
-#     elif enable_cache_write:
-#         full_path = get_file(
-#             relative_name = os.path.join('caches', code+ext),
-#             url = url,
-#             data_transformation=data_transformation
-#             )
-#         return full_path
-#     else:
-#         return get_temp_file(url, data_transformation=data_transformation)
-#
-#
-# def get_temp_file(url, data_transformation = None):
-#     tmp_file = get_unnamed_file_hash(url)
-#     return get_file(tmp_file, url, data_transformation=data_transformation)
-
-
 def unzip_gz(data):
     return gzip.GzipFile(fileobj = StringIO(data)).read()
 

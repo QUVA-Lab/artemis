@@ -413,16 +413,9 @@ class Duck(UniversalCollection):
             if len(indices)==1:  # Case 1: Simple... this is the last selector, so we can just return it.
                 return new_substruct
             else:  # Case 2:
-                # assert isinstance(new_substruct, ArrayStruct), 'You are selecting with {}, which indicates a depth of {}, but the structure has no more depth.'.format(list(':' if s==slice(None) else s for s in selectors), len(selectors))
-
                 if isinstance(first_selector, (list, np.ndarray, slice)):  # Sliced selection, with more sub-indices
                     return new_substruct.map(lambda x: x.__getitem__(indices[1:]))
                 else:  # Simple selection, with more sub-indices
-                    # if not isinstance(new_substruct, Duck):
-                    #     err = KeyTooDeepError()
-                    #     err.remaining_ixs = len(indices)-1
-                    #     raise err
-                    # assert isinstance(new_substruct, Duck), 'You are trying to access index: {}, but your Duck does not go that deep.'.format(indices)
                     return new_substruct[indices[1:]]
         except CollectionIsEmptyException:
             raise Exception('No value has ever been assigned to this Duck, but you are trying to extract index {} from it.'.format(indices))

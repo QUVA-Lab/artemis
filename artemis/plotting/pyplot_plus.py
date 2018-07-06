@@ -50,31 +50,29 @@ def axvlines(xs, ax=None, **plot_kwargs):
     plot = ax.plot(x_points, y_points, scaley = False, **plot_kwargs)
     return plot
 
-    # return [plt.axhline(y, **specs) for y in ys]
-    # return [plt.axvline(x, **specs) for x in xs]
 
-
-def parse_plot_args(args):
-    if len(args)==2:
-        x, y = args
+def parse_plot_args(x_or_y, y):
+    if y is not None:
+        x, y = x_or_y, y
         y = np.array(y, copy=False)
     else:
-        assert len(args)==1
-        y = np.array(args[0], copy=False)
+        y = np.array(x_or_y, copy=False)
         x = np.arange(y.shape[0])
     return x, y
 
 
-def plot_stacked_signals(*args, draw_zero_lines = True, ax=None, sep=None, labels=None, **kwargs):
+def plot_stacked_signals(x_or_y, y=None, draw_zero_lines = True, ax=None, sep=None, labels=None, **kwargs):
     """
-    :param args:
-    :param draw_zero_lines:
-    :param ax:
-    :param sep:
-    :param kwargs:
-    :return:
+    Stack signals into a single plot and plot them together (e.g. for e.e.g. data)
+    :param x_or_y: y or (x, y) signals in the same format as plt.plot
+    :param y: Y signal (if you include it)
+    :param draw_zero_lines: Draw horizontal lines marking y=0
+    :param ax: Axis to plot in
+    :param sep: Vertical separation between signal plots (None means automatic)
+    :param kwargs: Other keyword args from plt.plot
+    :return: A list of linehandles returned from plt.plot
     """
-    x, y = parse_plot_args(args)
+    x, y = parse_plot_args(x_or_y, y)
 
     if y.ndim==1:
         y = y[:, None]
@@ -105,7 +103,7 @@ def plot_stacked_signals(*args, draw_zero_lines = True, ax=None, sep=None, label
 
 
 
-def stemlight(*args, ax=None, **plot_kwargs):
+def stemlight(x_or_y, y=None, ax=None, **plot_kwargs):
     """
     A ligher version of a stem plot.
     :param args:
@@ -115,7 +113,7 @@ def stemlight(*args, ax=None, **plot_kwargs):
     """
     if ax is None:
         ax = plt.gca()
-    x, y = parse_plot_args(args)
+    x, y = parse_plot_args(x_or_y, y)
     # Replicate all x-points thrice:
     ixs = np.arange(len(x)*3)//3
     x_pts = x[ixs]
@@ -156,19 +154,6 @@ def get_color_cycle_map(name, length):
     return [c['color'] for c in cycle]
 
 
-def increasing_alpha_color_cycle(name, length):
-
-    rgb = matplotlib.colors.to_rgb(name)
-
-    return [rgb+(float(i+1)/length, ) for i in range(length)]
-
-
-    # if include_alpha:
-    #     return list(c)
-    # else:
-    #     return list(c_['color'][:3] for c_ in c)
-
-
 def set_lines_color_cycle_map(name, length):
     cmap = getattr(plt.cm, name)
     c = cycler('color', cmap(np.linspace(0, 1, length)))
@@ -184,22 +169,6 @@ def get_line_color(ix, modifier=None):
     elif modifier is not None:
         raise NotImplementedError(modifier)
     return colors.hex2color(colour)
-
-
-def non_uniform_imshow(im, x_locs=None, y_locs=None, spacing='lin', format_str='{:.2g}', **other_imagesc_args):
-
-    if x_locs is not None:
-        assert len(x_locs)==im.shape[1]
-        assert np.all(np.diff(x_locs)>0)
-    if y_locs is not None:
-        assert len(y_locs)==im.shape[0]
-        assert np.all(np.diff(y_locs)>0)
-
-    handle = plt.imshow(im, **other_imagesc_args)
-    plt.gca().invert_yaxis()
-
-    relabel_axes(plt.gca(), xvalues=x_locs, yvalues=y_locs, format_str=format_str)
-    return handle
 
 
 def relabel_axis(axis, value_array, n_points = 5, format_str='{:.2g}'):
@@ -234,7 +203,6 @@ def remove_x_axis():
 
 def remove_y_axis():
     plt.tick_params(axis='y', labelbottom='off')
-    # plt.gca().yaxis.set_major_locator(plt.NullLocator())
 
 
 def _get_centered_colour_scale(cmin, cmax):
@@ -285,7 +253,3 @@ def outside_right_legend(ax=None, width_squeeze = 0.8):
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * width_squeeze, box.height])
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-
-
-# def adjust_margins(left=0.125, right=None, bottom=None, top=None):
-#     plt.subplots_adjust()

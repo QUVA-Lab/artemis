@@ -41,7 +41,6 @@ class PartialReparametrization(object):
         for arg_name, arg_constructor in arg_constructors.items():
             assert arg_name in all_arg_names, "Function {} has no argument named '{}'".format(func, arg_name)
             assert callable(arg_constructor), "The configuration for argument '{}' must be a function which constructs the argument.  Got a {}".format(arg_name, type(arg_constructor).__name__)
-            # assert isinstance(arg_constructor, types.FunctionType) or inspect.isclass(arg_constructor), "The constructor '{}' appeared not to be a pure function.  It is probably an instance of a callable class, and you probably meant to give a either a constructor for that instance, or a class object.".format(arg_constructor)
             assert not inspect.isclass(arg_constructor),  "'{}' is a class object.  You must instead pass a function to construct an instance of this class.  You can use lambda for this.".format(arg_constructor.__name__)
             assert isinstance(arg_constructor, types.FunctionType),  "The constructor '{}' appeared not to be a pure function.  If it is an instance of a callable class, you probably meant to give a either a constructor for that instance.".format(arg_constructor)
             sub_arg_names, _, _, _ = advanced_getargspec(arg_constructor)
@@ -126,114 +125,12 @@ def partial_reparametrization(func, **arg_constructors):
         return PartialGeneratorReparametrization(func, arg_constructors=arg_constructors)
     else:
         return PartialReparametrizationFunction(func, arg_constructors=arg_constructors)
-    #
-    # get_arg_names = lambda f: inspect.getargspec(f) if sys.version_info < (3, 0) else inspect.getfullargspec(f)[0]
-    # arg_to_sub_arg = {}
-    # all_arg_names = get_arg_names(func)
-    # for arg_name, arg_constructor in arg_constructors.items():
-    #     # assert arg_name in all_arg_names, "Function {} has no argument named '{}'".format(self.function, arg_name)
-    #     assert callable(arg_constructor), "The configuration for argument '{}' must be a function which constructs the argument.  Got a {}".format(arg_name, type(arg_constructor).__name__)
-    #     # assert isinstance(arg_constructor, types.FunctionType) or inspect.isclass(arg_constructor), "The constructor '{}' appeared not to be a pure function.  It is probably an instance of a callable class, and you probably meant to give a either a constructor for that instance, or a class object.".format(arg_constructor)
-    #     assert not inspect.isclass(arg_constructor),  "'{}' is a class object.  You must instead pass a function to construct an instance of this class.  You can use lambda for this.".format(arg_constructor.__name__)
-    #     assert isinstance(arg_constructor, types.FunctionType),  "The constructor '{}' appeared not to be a pure function.  If it is an instance of a callable class, you probably meant to give a either a constructor for that instance.".format(arg_constructor)
-    #     sub_arg_names = get_arg_names(arg_constructor)
-    #     for a in sub_arg_names:
-    #         assert a not in all_arg_names, "An argument with name '{}' already exists.  You need to come up with a new name.".format(a)
-    #     arg_to_sub_arg[arg_name] = sub_arg_names
-    #
-    # def put_constructed_args_into_kwargs(kwargs):
-    #     # This function constructs all arguments using the constructors defined in add_config_variant using the metaargument
-    #     # It then removes the metaarguments that were used to construct those arguments
-    #
-    #     # Construct argument specified in config
-    #     constructed_args = {}
-    #     for arg_name, arg_constructor in arg_constructors.items():
-    #         input_args = {k: kwargs[k] for k, v in kwargs.items() if k in arg_to_sub_arg[arg_name]}
-    #         try:
-    #             constructed_args[arg_name] = arg_constructor(**input_args)
-    #         except TypeError as err:
-    #             print('Error while trying to construct argument: "{}": {}'.format(arg_name, str(err)))
-    #             raise
-    #     # Remove config args from args that are passed down.
-    #     for k in set(argname for args in arg_to_sub_arg.values() for argname in args if argname in kwargs):
-    #         del kwargs[k]
-    #
-    #     kwargs.update(constructed_args)
-    #
-    # if inspect.isgeneratorfunction(get_partial_root(func)):
-    #     def configured_function(**kwargs):
-    #         put_constructed_args_into_kwargs(kwargs)
-    #         for result in func(**kwargs):
-    #             yield result
-    # else:
-    #     def configured_function(**kwargs):
-    #         put_constructed_args_into_kwargs(kwargs)
-    #         return func(**kwargs)
-    #
-
-    # return configured_function
-
-#
-# if inspect.isgeneratorfunction(get_partial_root(self.function)):
-#     def configured_function(**kwargs):
-#         put_constructed_args_into_kwargs(kwargs)
-#         for result in self.function(**kwargs):
-#             yield result
-# else:
-#     def configured_function(**kwargs):
-#         put_constructed_args_into_kwargs(kwargs)
-#         return self.function(**kwargs)
-
-
-#
-# def infer_function_and_derived_arg_values(f):
-#     """
-#     Given a function f, which may be a partial version of some other function, going down to some root, standard python
-#     function, get the full set of arguments that this final function will end up being called with.  This function will
-#     raise an AssertionError if not all arguments are defined by the partial chain.
-#
-#     :param f: A function, or partial function
-#     :return: root_func, kwargs     ... where:
-#         root_func is the root function.
-#         kwargs is An OrderedDict(arg_name->arg_value)
-#     """
-#     partial_chain = get_partial_chain(f)
-#     all_arg_names, varargs_name, kwargs_name, defaults = advanced_getargspec(f)
-#     assert all(a in defaults)
-#     return partial_chain[0],
-#
-#     root, partials = partial_chain[0], partial_chain[1:]
-#     assert all(len(pf.args)==0 for pf in partials), "We don't handle unnamed arguments for now.  Add this functionality if necessary"
-#     overrides = dict((argname, argval) for pf in partials for argname, argval in pf.keywords.items())  # Note that later updates on the same args go into the dict
-#     full_arg_list = infer_arg_values(root, kwargs=overrides)
-#     return root, full_arg_list
-#
-#
-# def infer_derived_arg_values(f):
-#     """
-#     Given a function f, which may be a partial version of some other function, going down to some root, standard python
-#     function, get the full set of arguments that this final function will end up being called with.  This function will
-#     raise an AssertionError if not all arguments are defined by the partial chain.
-#     e.g.
-#
-#         def f(a, b=1):
-#             return a+b
-#         g = partial(f, a=2)
-#         h = partial(g, b=3)
-#         assert f(**get_derived_function_args(g)) == g()
-#         assert f(**get_derived_function_args(h)) == h()
-#
-#     :param f: A function, or partial function
-#     :return: An OrderedDict(arg_name->arg_value)
-#     """
-#     _, full_arg_list = infer_function_and_derived_arg_values(f)
-#     return full_arg_list
 
 
 def advanced_getargspec(f):
     """
     A more intelligent version of getargspec which is able to handle partial functions and PartialReparametrizations.
-    :param f: A function, partial function, or PartialReparametrization
+    :param Callable f: A function, partial function, or PartialReparametrization
     :return: (all_arg_names, varargs_name, kwargs_name, defaults)
         all_arg_names a list of all arguments that can be fed to the function
         varargs_name: the name of the *arg object, if any, else None
@@ -294,11 +191,10 @@ def get_defined_and_undefined_args(func):
     return defined_args, undefined_arg_names
 
 
-
 def infer_arg_values(f, args=(), kwargs={}):
     """
     DEPRECATED!  Use advanced_getargspec instead.
-    
+
     Get the full list of arguments to a function f called with args, kwargs, or throw an error if the function cannot be
     called by the given arguments (e.g. if the provided args, kwargs do not provide all required arguments to the function).
 

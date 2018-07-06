@@ -52,7 +52,7 @@ def test_rnn_type_comp():
     w_hy = rng.randn(n_hid, n_out)
 
     @scannable(state='hid', output=['out', 'hid'], returns='out')
-    def rnn_like_func(x, hid: np.zeros(n_hid)):
+    def rnn_like_func(x, hid= np.zeros(n_hid)):
         new_hid = np.tanh(x.dot(w_xh) + hid.dot(w_hh))
         out = new_hid.dot(w_hy)
         return out, new_hid

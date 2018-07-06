@@ -158,11 +158,6 @@ def smart_file(location, use_cache = False, make_dir = False):
     its_a_url = is_url(location)
     if its_a_url:
         assert not make_dir, "We cannot 'make the directory' for a URL"
-        # if use_cache:
-        #     local_path = get_file_and_cache(location)
-        # else:
-        #     local_path = get_temp_file(location)
-
         local_path = get_file(url=location, use_cache=use_cache)
 
     else:

@@ -88,13 +88,6 @@ def test_advanced_getargspec_on_partials():
     with raises(AssertionError):
         assert advanced_getargspec(j)  # Because c is not an argument
 
-    # with raises(AssertionError):  # AssertionError: Arguments ('a',) require values but are not given any.
-    #     infer_derived_arg_values(f)
-    # assert list(infer_derived_arg_values(g).items()) == [('a', 2), ('b', 1)]
-    # assert list(infer_derived_arg_values(h).items()) == [('a', 2), ('b', 3)]
-    # with raises(AssertionError):
-    #     infer_derived_arg_values(j)
-
     assert f(**advanced_getargspec(g)[-1]) == g()
     assert f(**advanced_getargspec(h)[-1]) == h()
 

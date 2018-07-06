@@ -77,17 +77,16 @@ def funplot(func, xlims = None, n_points = 100, keep_ylims = False, ax=None, **p
 
 
 def right_side_legend(handles=None, ax = None):
-
+    """
+    Put an external legend on the right-hand side of the plot.
+    :param handles:
+    :param ax:
+    """
     if handles is None:
         if ax is None:
             ax = plt.gca()
-
         handles = (ax.lines + ax.patches + ax.collections + ax.containers)
-
     labels = [h.get_label() for h in handles]
-
     x_left, x_right = ax.get_xbound()
-
     for h, l in zip(handles, labels):
         plt.text(x=x_right, y=h.get_ydata()[-1], s=l, color=h.get_color(), horizontalalignment='left')
-

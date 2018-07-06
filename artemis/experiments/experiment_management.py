@@ -31,7 +31,7 @@ from artemis.general.should_be_builtins import izip_equal, detect_duplicates, re
     divide_into_subsets
 
 
-def pull_experiments(user, ip, experiment_names, include_variants=True, need_pass = False):
+def pull_experiment_records(user, ip, experiment_names, include_variants=True, need_pass = False):
     """
     Pull experiments from another computer matching the given experiment name.
 
@@ -61,7 +61,7 @@ def pull_experiments(user, ip, experiment_names, include_variants=True, need_pas
         +['{home}/.artemis/experiments/'.format(home=home)]\
         +["--include-from={}".format(experiment_directory_file)]\
         +["--include='*/'", "--exclude='*'"]
-        # +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names] \
+        # +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names]  # This was the old line, but it could be too long for many experiments.
 
     if not need_pass:
         output = subprocess.check_output(command)
@@ -135,29 +135,22 @@ def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
         else:
             number_range = interpret_numbers(user_range)
             if number_range is not None:
-                # experiment_ids = [experiment_list[i] for i in number_range]
                 is_in = [i in number_range for i in xrange(len(exp_record_dict))]
             elif user_range == 'all':
-                # experiment_ids = experiment_list
                 is_in = [True]*len(exp_record_dict)
             elif user_range.startswith('has:'):
                 phrase = user_range[len('has:'):]
-                # experiment_ids = [exp_id for exp_id in experiment_list if phrase in exp_id]
                 is_in = [phrase in exp_id for exp_id in exp_record_dict]
             elif user_range.startswith('1diff:'):
-                # select experiments whose arguments differ by one element from the selected experiments
                 base_range = user_range[len('1diff:'):]
                 base_range_exps = select_experiments(base_range, exp_record_dict) # list<experiment_id>
                 all_exp_args_hashes = {eid: set(compute_fixed_hash(a) for a in load_experiment(eid).get_args().items()) for eid in exp_record_dict} # dict<experiment_id : set<arg_hashes>>
-                # assert all_equal_length(all_exp_args_hashes.values()), 'All variants must have the same number of arguments' # Note: we diable this because we may have lists of experiments with different root functions.
                 is_in = [any(len(all_exp_args_hashes[eid].difference(all_exp_args_hashes[other_eid]))<=1 for other_eid in base_range_exps) for eid in exp_record_dict]
             elif user_range.startswith('hasnot:'):
                 phrase = user_range[len('hasnot:'):]
-                # experiment_ids = [exp_id for exp_id in experiment_list if phrase not in exp_id]
                 is_in = [phrase not in exp_id for exp_id in exp_record_dict]
             elif user_range in ('unfinished', 'invalid', 'corrupt'):  # Return all experiments where all records are unfinished/invalid/corrupt
                 record_filters = _filter_records(user_range, exp_record_dict)
-                # experiment_ids = [exp_id for exp_id in experiment_list if len(record_filters[exp_id])]
                 is_in = [all(record_filters[exp_id]) for exp_id in exp_record_dict]
             elif user_range == 'started':
                 is_in = [has_experiment_record(exp_id) for exp_id in exp_record_dict]
@@ -311,22 +304,6 @@ def _filter_records(user_range, exp_record_dict):
             if rec_number>=len(base[keys[exp_number]]):
                 raise RecordSelectionError('Selection {}.{} does not exist.'.format(exp_number, rec_number))
             base[keys[exp_number]][rec_number] = True
-    # elif user_range.startswith('age'):  # eg. 'since:24'
-    #     try:
-    #         sign = user_range[3]
-    #         assert sign in ('<', '>')
-    #         seconds = int(user_range[4:])
-    #     except:
-    #         raise RecordSelectionError('Could not interpret "{}" as a duration.  Example is dur<25 to select all experiments that ran less than 25s.'.format(user_range))
-    #
-    #     time_id = user_range[len('since:'):]
-    #     try:
-    #         seconds_ago = int(time_id)*3600
-    #     except:
-    #         raise RecordSelectionError('Cannot interpret "{}" as a time.  Currently, it should be an integer, which means "within the last X hours"'.format(time_id))
-    #     current_time = time()
-    #     for exp_id, _ in base.items():
-    #         base[exp_id] = [(current_time - load_experiment_record(rec_id).get_timestamp())<seconds_ago for rec_id in exp_record_dict[exp_id]]
     elif user_range.startswith('dur') or user_range.startswith('age'):  # Eg dur<25  Means "All records that ran less than 25s"
         try:
             sign = user_range[3]
@@ -381,7 +358,6 @@ def _filter_experiment_record_list(user_range, experiment_record_ids):
             else:  # They must be old... lets kill them!
                 orphans.append(True)
         return orphans
-    # elif user_range
     else:
         which_ones = interpret_numbers(user_range)
         if which_ones is None:

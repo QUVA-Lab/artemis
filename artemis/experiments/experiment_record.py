@@ -26,7 +26,7 @@ from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import nested
 from artemis.general.test_mode import is_test_mode
 from artemis.general.test_mode import set_test_mode
-from artemis import __version__ as ARTEMIS_VERSION
+from artemis._version import __version__ as ARTEMIS_VERSION
 
 try:
     from enum import Enum
@@ -593,8 +593,10 @@ def get_all_record_ids(experiment_ids=None, filters=None, expdir = None):
 def get_experiment_to_record_mapping(experiments):
     """
     Get a dictionary mapping each experiment in the provided list to its list of recrods.
+    Note that this is equivalent to, but runs much faster than {ex: ex.get_records() for ex in experiments}
+
     :param Sequence[Experiment] experiments: A collection of experiments
-    :return Map[Experiment, Sequence[ExperimentRecord]]: The resulting mapping
+    :return Mapping[Experiment, Sequence[ExperimentRecord]]: The resulting mapping
     """
     all_relavent_record_ids = get_all_record_ids(experiment_ids=[exp.get_id() for exp in experiments])
     id_map = OrderedDict((ex, []) for ex in experiments)
@@ -605,7 +607,13 @@ def get_experiment_to_record_mapping(experiments):
 
 
 def get_experiment_to_latest_record_mapping(experiments):
+    """
+    Given a list of experiments, get the latest record from each one if there is one.
+    Note: This runs much faster than {ex: ex.get_latest_record() for ex in experiments}
 
+    :param Sequence[Experiment] experiments: A list of experimenst
+    :return Mapping[Experiment, ExperimentRecord]: A mapping from experiments with records to the latest record.
+    """
     experiment_to_record_mapping = get_experiment_to_record_mapping(experiments)
     mapping = OrderedDict((ex, records[-1]) for ex, records in experiment_to_record_mapping.items() if len(records)>0)
     return mapping
@@ -667,7 +675,11 @@ def save_figure_in_record(name, fig=None, default_ext='.pkl'):
 
 
 def get_serialized_args(argdict):
-
+    """
+    Get the serialized arguments.  Unserializable arguments will be replaced by UnPickleableArg objects.
+    :param argdict: A dict of argument values.
+    :return: The serialzed arguments (arbitrary format defined in this function)
+    """
     ser_args = []
     for argname, argval in argdict.items():
         try:
@@ -679,7 +691,11 @@ def get_serialized_args(argdict):
 
 
 def load_serialized_args(ser_args):
-
+    """
+    Load the arguments from the file
+    :param ser_args: Serialized arguments, as returned by get_serialized_args
+    :return: The list of args.
+    """
     if isinstance(ser_args, tuple) and ser_args[0]=='NEW_ARG_FORMAT':
         _, actual_args = ser_args
         return [(argname, pickle.loads(argval)) for argname, argval in actual_args]
@@ -727,15 +743,11 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             
             args, undefined_args = get_defined_and_undefined_args(function)
             assert len(undefined_args)==0, "Required arguments {} are still undefined!".format(undefined_args)
-
-            # root_function, args = infer_function_and_derived_arg_values(function)
             try:
                 exp_rec.info.set_field(EIF.ARGS, get_serialized_args(args))
-                # exp_rec.info.set_field(EIF.ARGS, list(args.items()))
             except PicklingError as err:
                 ARTEMIS_LOGGER.error('Could not pickle arguments for experiment: {}.  Artemis demands that arguments be piclable.  If they are not, just make a new function.')
                 raise
-            # root_function = self.get_root_function()
             exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
             exp_rec.info.set_field(EIF.TIMESTAMP, date)
             module = inspect.getmodule(root_function)
@@ -767,7 +779,6 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             else:
                 yield exp_rec
                 return
-                # return exp_rec
         finally:
             exp_rec.info.set_field(EIF.RUNTIME, time.time() - start_time)
             fig_locs = exp_rec.get_figure_locs(include_directory=False)

@@ -71,12 +71,10 @@ class Experiment(object):
 
     def get_args(self):
         """
-        :return: An OrderedDict of arguments to the experiment
+        :return OrderedDict[str, Any]: An OrderedDict of arguments to the experiment
         """
         all_arg_names, _, _, defaults = advanced_getargspec(self.function)
         return OrderedDict((name, defaults[name]) for name in all_arg_names)
-        # return defaults
-        # return infer_derived_arg_values(self.function)
 
     def get_root_function(self):
         return get_partial_root(self.function)
@@ -125,24 +123,6 @@ class Experiment(object):
             pass
 
         return exp_rec
-        #
-        # if keep_record is None:
-        #     keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode
-        # exp_rec = run_and_record(
-        #     function = self.function,
-        #     experiment_id=self.name,
-        #     print_to_console=print_to_console,
-        #     show_figs=show_figs,
-        #     test_mode=test_mode,
-        #     keep_record=keep_record,
-        #     raise_exceptions=raise_exceptions,
-        #     notes=notes,
-        #     **experiment_record_kwargs
-        # )
-        # if display_results:
-        #     self.show(exp_rec)
-        #
-        # return exp_rec
 
     def iterator(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
             display_results=False, notes = (), **experiment_record_kwargs):
