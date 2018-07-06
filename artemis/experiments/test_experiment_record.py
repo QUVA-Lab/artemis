@@ -1,15 +1,14 @@
 import itertools
+import os
+import pickle
 import time
 import warnings
-import os
 from collections import OrderedDict
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pickle
 import pytest
 from six.moves import xrange
-from tensorflow.contrib.learn.python.learn import experiment
 
 from artemis.experiments.decorators import experiment_function, experiment_root
 from artemis.experiments.deprecated import start_experiment, end_current_experiment

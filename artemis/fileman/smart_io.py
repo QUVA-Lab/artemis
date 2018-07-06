@@ -5,7 +5,8 @@ from contextlib import contextmanager
 from datetime import datetime
 
 import numpy as np
-from artemis.fileman.file_getter import get_temp_file, get_file_and_cache, get_file
+
+from artemis.fileman.file_getter import get_file
 from artemis.fileman.images2gif import readGif
 from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.image_ops import get_dark_edge_slice, resize_image
