@@ -224,7 +224,6 @@ class Experiment(object):
                 v.copy_variants(variant)
 
     def _add_config(self, name, arg_constructors, is_root):
-        # TODO: For non-root configs, assert that all args are defined
         assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
         assert '/' not in name, 'Experiment names cannot have "/" in them: {}'.format(name)
