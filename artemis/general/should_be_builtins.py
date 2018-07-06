@@ -453,3 +453,12 @@ def divide_into_subsets(list_of_element, subset_size):
 
 def ceildiv(num, denom):
     return int(math.ceil(float(num)/denom))
+
+
+def unzip(iterable):
+    """
+    Unzip iterable of tuples into tuple of iterables
+    :param iterable: Any iterable object yielding N-tuples
+    :return: A N-tuple of iterables
+    """
+    return zip(*iterable)

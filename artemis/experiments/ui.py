@@ -158,6 +158,8 @@ experiment records.  You can specify records in the following ways:
     invalid|errors  Select all records that are invalid or ended in error (the '|' can be used to "or" any of the above)
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
     finished@last   Select the last finished record of each experiment (the '@' can be used to cascade any of the above)
+    dur>4m          Select records which ran (ie had a duration) of more than 4 minutes
+    age<24h         Select records which are less than 24h old.
 """
 
     def __init__(self, root_experiment = None, catch_errors = True, close_after = False, filterexp=None, filterrec = None,
@@ -717,7 +719,7 @@ class _DisplaySettings(object):
 _exp_record_field_getters = {
     ExpRecordDisplayFields.RUNS: lambda rec: format_time_stamp(rec.info.get_field(ExpInfoFields.TIMESTAMP)),
     ExpRecordDisplayFields.DURATION: lambda rec: format_duration(rec.info.get_field(ExpInfoFields.RUNTIME)) if rec.info.has_field(ExpInfoFields.RUNTIME) else '-',
-    ExpRecordDisplayFields.ARGS_CHANGED: lambda rec: get_record_invalid_arg_string(rec, ignore_valid_keys=_DisplaySettings.get_setting('ignore_valid_keys')),
+    ExpRecordDisplayFields.ARGS_CHANGED: lambda rec: get_record_invalid_arg_string(rec, ignore_valid_keys=_DisplaySettings.get_setting('ignore_valid_keys'), note_version='short'),
     ExpRecordDisplayFields.RESULT_STR: get_oneline_result_string,
     ExpRecordDisplayFields.STATUS: lambda rec: rec.info.get_field_text(ExpInfoFields.STATUS),
     ExpRecordDisplayFields.NOTES: _show_notes

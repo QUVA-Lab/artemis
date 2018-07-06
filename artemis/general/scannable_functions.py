@@ -110,3 +110,34 @@ class Scannable(object):
     @property
     def state(self):
         return self._state.copy()
+
+
+# class StateUpdatingFunction(object):
+#     """
+#     Transform the given function into an object whose call method has the form:
+#
+#         new_obj, y = obj(x)
+#     """
+#
+#     def __init__(self, func=func, state=state, output=output, returns=returns, kwargs=kwargs):
+#
+#
+#     def __call__(self, *args, **kwargs):
+#
+#         values_returned = self.func(*args, **self.state)
+#         if self._output_format is Scannable.SINGLE_OUTPUT_FORMAT:
+#             self._state[self._state_names] = values_returned
+#         else:
+#             try:
+#                 assert len(values_returned) == len(self._output_names), 'The number of outputs: {}, does not match the length of the specified outputs: {} ({})'.format(len(values_returned), len(self._output_names), self._output_names)
+#             except TypeError:
+#                 raise TypeError('{} should have returned an iterable of length {} containing variables {}, but got a non-iterable: {}'.format(self.func.__name__, len(self._output_names), self._output_names, values_returned))
+#             self._state.update((state_name, values_returned[ix]) for state_name, ix in zip(self._state_names, self._state_indices_in_output))
+#
+#
+#         updated_self = StateUpdatingFunction(
+#             output = self.output,
+#             returns=self.returns,
+#             kwargs = self.kwargs
+#             state = new_state
+#         )

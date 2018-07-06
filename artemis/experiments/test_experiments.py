@@ -32,7 +32,7 @@ def test_config_variant():
 
     with experiment_testing_context(new_experiment_lib=True):
 
-        @experiment_function
+        @experiment_root
         def demo_smooth_out_signal(smoother, seed = 1234):
             signal = np.sin(np.linspace(0, 10, 100)) + 0.1*np.random.RandomState(seed).randn(100)
             y = np.array([smoother(xt) for xt in signal])
@@ -57,7 +57,7 @@ def test_config_bug_catching():
 
     with experiment_testing_context(new_experiment_lib=True):
 
-        @experiment_function
+        @experiment_root
         def demo_smooth_out_signal_testing(smoother, seed = 1234):
             signal = np.sin(np.linspace(0, 10, 100)) + 0.1*np.random.RandomState(seed).randn(100)
             y = np.array([smoother(xt) for xt in signal])
@@ -66,9 +66,6 @@ def test_config_bug_catching():
         # The right way
         X = demo_smooth_out_signal_testing.add_config_variant('exp_smooth', smoother = lambda decay=0.1: _ExponentialMovingAverageForTestingPurposes(decay))
 
-        # Also acceptable, so long as arg names do not conflict
-        X = demo_smooth_out_signal_testing.add_config_variant('exp_smooth2', smoother = _ExponentialMovingAverageForTestingPurposes)
-
         with pytest.raises(AssertionError):  # Arg name already used!
             X = demo_smooth_out_signal_testing.add_config_variant('exp_smooth3', smoother = lambda seed=0.1: _ExponentialMovingAverageForTestingPurposes(decay=seed))
 
@@ -76,13 +73,49 @@ def test_config_bug_catching():
             X = demo_smooth_out_signal_testing.add_config_variant('exp_smooth4', smoother = 0.1)
 
         with pytest.raises(AssertionError):  # Make sure we catch when we give the wrong name
-            X = demo_smooth_out_signal_testing.add_config_variant('exp_smooth5', averager = lambda decay: _ExponentialMovingAverageForTestingPurposes(decay=decay))
+            X = demo_smooth_out_signal_testing.add_config_variant('exp_smooth5', smOOOOther = lambda decay: _ExponentialMovingAverageForTestingPurposes(decay=decay))
 
         with pytest.raises(AssertionError):  # Catch when we accidentally give an instance:
-            X = demo_smooth_out_signal_testing.add_config_variant('exp_smooth', smoother = _ExponentialMovingAverageForTestingPurposes(decay=0.1))
+            X = demo_smooth_out_signal_testing.add_config_variant('exp_smooth6', smoother = _ExponentialMovingAverageForTestingPurposes(decay=0.1))
+
+
+def test_args_are_checked():
+
+    with pytest.raises(AssertionError):
+        @experiment_function
+        def my_exp(a, b, c):
+            return a+b*c
+
+    @experiment_root
+    def my_exp(a, b, c):
+        return a+b*c
+
+    with pytest.raises(AssertionError):
+        my_exp.add_variant(a=1, b=2)
+
+    X = my_exp.add_root_variant(a=1, b=2)
+
+    X.add_variant(c=3)
+
+    with pytest.raises(AssertionError):
+       X.add_variant(a=2)
+
+    with pytest.raises(AssertionError):
+        X.add_config_variant('make_b', b=lambda d, e: d*e)
+
+    XX = X.add_config_root_variant('make_b1', b=lambda d, e: d*e)
+
+    with pytest.raises(AssertionError):
+        XX.add_variant(d=1, e=3)
+    XX.add_variant(c=3, d=1, e=3)
+
+    XXX=XX.add_config_root_variant('all are now g', c=lambda g: g, d=lambda g: g, e = lambda g: g)
+    XXXX=XXX.add_variant(g=5)
+    assert XXXX() == 1+(5*5)*5
 
 
 if __name__ == '__main__':
     test_unpicklable_args()
     test_config_variant()
     test_config_bug_catching()
+    test_args_are_checked()

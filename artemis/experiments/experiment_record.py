@@ -11,20 +11,22 @@ import time
 import traceback
 from collections import OrderedDict
 from contextlib import contextmanager
-from datetime import datetime
 from getpass import getuser
 from pickle import PicklingError
+
+from datetime import datetime, timedelta
 from uuid import getnode
 
 from artemis.config import get_artemis_config_value
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_artemis_data_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
-from artemis.general.functional import infer_function_and_derived_arg_values
+from artemis.general.functional import get_partial_chain, get_defined_and_undefined_args
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import nested
 from artemis.general.test_mode import is_test_mode
 from artemis.general.test_mode import set_test_mode
+from artemis import __version__ as ARTEMIS_VERSION
 
 try:
     from enum import Enum
@@ -65,6 +67,7 @@ class ExpInfoFields(Enum):
     USER = 'User'
     MAC = 'MAC Address'
     PID = 'Process ID'
+    ARTEMIS_VERSION = 'Artemis Version'
 
 
 class ExpStatusOptions(Enum):
@@ -295,10 +298,19 @@ class ExperimentRecord(object):
         return self.get_id()[27:]
 
     def get_timestamp(self):
+        return time.mktime(self.get_datetime().timetuple())
+
+    def get_datetime(self):
         try:  # Faster, since we don't need to load the info object
-            return time.mktime(datetime.strptime(self.get_id()[:26], '%Y.%m.%dT%H.%M.%S.%f').timetuple())
+            return datetime.strptime(self.get_id()[:26], '%Y.%m.%dT%H.%M.%S.%f')
         except:
-            return time.mktime(datetime.strptime(self.info.get_field(ExpInfoFields.TIMESTAMP), '%Y-%m-%d %H:%M:%S.%f').timetuple())
+            return datetime.strptime(self.info.get_field(ExpInfoFields.TIMESTAMP), '%Y-%m-%d %H:%M:%S.%f')
+
+    def get_runtime(self):
+        """
+        :return datetime.timedelta: A timedelta object
+        """
+        return timedelta(seconds=self.info.get_field(ExpInfoFields.RUNTIME))
 
     def get_dir(self):
         """
@@ -565,7 +577,7 @@ def get_all_record_ids(experiment_ids=None, filters=None, expdir = None):
     :param experiment_ids: A list of experiment names
     :param filters: A list or regular expressions for matching experiments.
     :param expdir: The experiment directory, or None to use the default.
-    :return: A list of experiment identifiers.
+    :return: A list of ExperimentRecord identifiers.
     """
     if expdir is None:
         expdir = get_experiment_dir()
@@ -576,6 +588,27 @@ def get_all_record_ids(experiment_ids=None, filters=None, expdir = None):
             ids = filter_experiment_ids(record_ids=ids, expr=expr)
     ids = sorted(ids)
     return ids
+
+
+def get_experiment_to_record_mapping(experiments):
+    """
+    Get a dictionary mapping each experiment in the provided list to its list of recrods.
+    :param Sequence[Experiment] experiments: A collection of experiments
+    :return Map[Experiment, Sequence[ExperimentRecord]]: The resulting mapping
+    """
+    all_relavent_record_ids = get_all_record_ids(experiment_ids=[exp.get_id() for exp in experiments])
+    id_map = OrderedDict((ex, []) for ex in experiments)
+    for record_id in all_relavent_record_ids:
+        record = load_experiment_record(record_id=record_id)
+        id_map[record.get_experiment()].append(record)
+    return id_map
+
+
+def get_experiment_to_latest_record_mapping(experiments):
+
+    experiment_to_record_mapping = get_experiment_to_record_mapping(experiments)
+    mapping = OrderedDict((ex, records[-1]) for ex, records in experiment_to_record_mapping.items() if len(records)>0)
+    return mapping
 
 
 def experiment_id_to_record_ids(experiment_identifier):
@@ -689,7 +722,13 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(ExpInfoFields.NAME, experiment_id)
             exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
             exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
-            root_function, args = infer_function_and_derived_arg_values(function)
+
+            root_function = get_partial_chain(function)[0]
+            
+            args, undefined_args = get_defined_and_undefined_args(function)
+            assert len(undefined_args)==0, "Required arguments {} are still undefined!".format(undefined_args)
+
+            # root_function, args = infer_function_and_derived_arg_values(function)
             try:
                 exp_rec.info.set_field(EIF.ARGS, get_serialized_args(args))
                 # exp_rec.info.set_field(EIF.ARGS, list(args.items()))
@@ -706,6 +745,8 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(EIF.USER, getuser())
             exp_rec.info.set_field(EIF.MAC, ':'.join(("%012X" % getnode())[i:i+2] for i in range(0, 12, 2)))
             exp_rec.info.set_field(EIF.PID, os.getpid())
+            exp_rec.info.set_field(EIF.ARTEMIS_VERSION, ARTEMIS_VERSION)
+
             if inspect.isgeneratorfunction(root_function):
                 for result in function():
                     exp_rec.save_result(result)

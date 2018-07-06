@@ -58,7 +58,7 @@ class PersistentOrderedDict(object):
         make_file_dir(self.file_path)
         with open(self.file_path, 'wb') as f:
             self._last_check_code = hash((id(self), time.time()))
-            pickle.dump(self.VERSION_IDENTIFIER)
+            pickle.dump(self.VERSION_IDENTIFIER, f, protocol=self.pickle_protocol)
             pickle.dump(self._last_check_code, f, protocol=self.pickle_protocol)
             pickle.dump(self._dict, f, protocol=self.pickle_protocol)
 
@@ -68,6 +68,7 @@ class PersistentOrderedDict(object):
         :return:
         """
         with open(self.file_path, 'rb') as f:
+            version = pickle.load(f)
             code = pickle.load(f)
             return code!=self._last_check_code
 

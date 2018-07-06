@@ -4,13 +4,13 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
 
-import sys
 from six import string_types
+
 from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
 from artemis.experiments.experiment_record import run_and_record
-from artemis.general.functional import infer_derived_arg_values, get_partial_root
-import types
+from artemis.general.functional import get_partial_root, partial_reparametrization, \
+    advanced_getargspec, PartialReparametrization
 
 
 class Experiment(object):
@@ -37,6 +37,13 @@ class Experiment(object):
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
+
+        if not is_root:
+            all_args, varargs_name, kargs_name, defaults = advanced_getargspec(function)
+            undefined_args = [a for a in all_args if a not in defaults]
+            assert len(undefined_args)==0, "{} is not a root-experiment, but arguments {} are undefined.  Either provide a value for these arguments or define this as a root_experiment (see {})."\
+                .format(self, undefined_args, 'X.add_root_variant(...)' if isinstance(function, partial) else 'X.add_config_root_variant(...)' if isinstance(function, PartialReparametrization) else '@experiment_root')
+
         _register_experiment(self)
 
     @property
@@ -66,7 +73,10 @@ class Experiment(object):
         """
         :return: An OrderedDict of arguments to the experiment
         """
-        return infer_derived_arg_values(self.function)
+        all_arg_names, _, _, defaults = advanced_getargspec(self.function)
+        return OrderedDict((name, defaults[name]) for name in all_arg_names)
+        # return defaults
+        # return infer_derived_arg_values(self.function)
 
     def get_root_function(self):
         return get_partial_root(self.function)
@@ -159,6 +169,7 @@ class Experiment(object):
         return
 
     def _create_experiment_variant(self, args, kwargs, is_root):
+        # TODO: For non-root variants, assert that all args are defined
         assert len(args) in (0, 1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
         assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
@@ -233,50 +244,11 @@ class Experiment(object):
                 v.copy_variants(variant)
 
     def _add_config(self, name, arg_constructors, is_root):
+        # TODO: For non-root configs, assert that all args are defined
         assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
         assert '/' not in name, 'Experiment names cannot have "/" in them: {}'.format(name)
-        get_arg_names = lambda f: inspect.getargspec(f) if sys.version_info < (3, 0) else inspect.getfullargspec(f)[0]
-        arg_to_sub_arg = {}
-        all_arg_names = get_arg_names(self.function)
-        for arg_name, arg_constructor in arg_constructors.items():
-            # assert arg_name in all_arg_names, "Function {} has no argument named '{}'".format(self.function, arg_name)
-            assert callable(arg_constructor), "The configuration for argument '{}' must be a function which constructs the argument.  Got a {}".format(arg_name, type(arg_constructor).__name__)
-            # assert isinstance(arg_constructor, types.FunctionType) or inspect.isclass(arg_constructor), "The constructor '{}' appeared not to be a pure function.  It is probably an instance of a callable class, and you probably meant to give a either a constructor for that instance, or a class object.".format(arg_constructor)
-            assert not inspect.isclass(arg_constructor),  "'{}' is a class object.  You must instead pass a function to construct an instance of this class.  You can use lambda for this.".format(arg_constructor.__name__)
-            assert isinstance(arg_constructor, types.FunctionType),  "The constructor '{}' appeared not to be a pure function.  If it is an instance of a callable class, you probably meant to give a either a constructor for that instance.".format(arg_constructor)
-            sub_arg_names = get_arg_names(arg_constructor)
-            for a in sub_arg_names:
-                assert a not in all_arg_names, "An argument with name '{}' already exists.  You need to come up with a new name.".format(a)
-            arg_to_sub_arg[arg_name] = sub_arg_names
-
-        def put_constructed_args_into_kwargs(kwargs):
-            # Note that this modifies kwargs in place
-
-            # Construct argument specified in config
-            constructed_args = {}
-            for arg_name, arg_constructor in arg_constructors.items():
-                input_args = {k: kwargs[k] for k, v in kwargs.items() if k in arg_to_sub_arg[arg_name]}
-                constructed_args[arg_name] = arg_constructor(**input_args)
-
-            # Remove config args from args that are passed down.
-            for k in set(argname for args in arg_to_sub_arg.values() for argname in args):
-                del kwargs[k]
-
-            kwargs.update(constructed_args)
-
-        if inspect.isgeneratorfunction(get_partial_root(self.function)):
-            def configured_function(**kwargs):
-                put_constructed_args_into_kwargs(kwargs)
-                for result in self.function(**kwargs):
-                    yield result
-        else:
-            def configured_function(**kwargs):
-                put_constructed_args_into_kwargs(kwargs)
-                return self.function(**kwargs)
-
-        configured_function.__doc__ = "Variant of {} with arguments {} configured".format(self.function, list(arg_constructors.keys()))
-
+        configured_function = partial_reparametrization(self.function, **arg_constructors)
         ex = Experiment(
             name=self.name + '.' + name,
             function=configured_function,
@@ -412,7 +384,7 @@ class Experiment(object):
     def test(self, **kwargs):
         self.run(test_mode=True, **kwargs)
 
-    def get_latest_record(self, only_completed=False, err_if_none = True):
+    def get_latest_record(self, only_completed=False, if_none = 'skip'):
         """
         Return the ExperimentRecord from the latest run of this Experiment.
 
@@ -420,9 +392,12 @@ class Experiment(object):
         :param err_if_none: If True, raise an error if no record exists.  Otherwise, just return None in this case.
         :return ExperimentRecord: An ExperimentRecord object
         """
+        assert if_none in ('skip', 'err', 'run')
         records = self.get_records(only_completed=only_completed)
         if len(records)==0:
-            if err_if_none:
+            if if_none=='run':
+                return self.run()
+            elif if_none=='err':
                 raise Exception('No{} records for experiment "{}"'.format(' completed' if only_completed else '', self.name))
             else:
                 return None
@@ -442,7 +417,7 @@ class Experiment(object):
         variants = self.get_all_variants(include_self=True)
 
         if only_last:
-            exp_record_dict = OrderedDict((ex.name, ex.get_latest_record(only_completed=only_completed, err_if_none=False)) for ex in variants)
+            exp_record_dict = OrderedDict((ex.name, ex.get_latest_record(only_completed=only_completed, if_none='skip')) for ex in variants)
             if flat:
                 return [record for record in exp_record_dict.values() if record is not None]
             else:

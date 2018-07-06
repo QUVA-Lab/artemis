@@ -1,7 +1,9 @@
 import getpass
 import shutil
+import tempfile
 import traceback
 from collections import OrderedDict
+from datetime import datetime
 from functools import partial
 from importlib import import_module
 import os
@@ -22,6 +24,7 @@ from artemis.experiments.experiment_record import (load_experiment_record, ExpIn
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
 from artemis.fileman.config_files import get_home_dir,set_non_persistent_config_value
 from artemis.general.hashing import compute_fixed_hash
+from artemis.general.time_parser import parse_time
 from artemis.remote.child_processes import SlurmPythonProcess
 from artemis.remote.nanny import Nanny
 from artemis.general.should_be_builtins import izip_equal, detect_duplicates, remove_common_prefix, memoize, \
@@ -46,16 +49,22 @@ def pull_experiments(user, ip, experiment_names, include_variants=True, need_pas
 
     home = get_home_dir()
 
+    file_list = ["**/*-{exp_name}{variants}/*".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names]
+
+    _, experiment_directory_file = tempfile.mkstemp()
+    with open(experiment_directory_file, 'w') as f:
+        f.write('\n'.join(file_list))
+
     # This one works if you have keys set up
     command = ['rsync', '-a', '-m', '-i']\
         +['{user}@{ip}:~/.artemis/experiments/'.format(user=user, ip=ip)] \
         +['{home}/.artemis/experiments/'.format(home=home)]\
-        +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names] \
+        +["--include-from={}".format(experiment_directory_file)]\
         +["--include='*/'", "--exclude='*'"]
+        # +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names] \
 
     if not need_pass:
         output = subprocess.check_output(command)
-        return output
     else:
         # This one works if you need a password
         password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
@@ -67,7 +76,9 @@ def pull_experiments(user, ip, experiment_names, include_variants=True, need_pas
         else:
             child.sendline(password)
         output = child.read()
-        return output
+
+    os.remove(experiment_directory_file)
+    return output
 
 
 def load_lastest_experiment_results(experiments, error_if_no_result = True):
@@ -78,7 +89,7 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
     :return: OrderedDict<record_id: result>
     """
     experiments = [load_experiment(ex) if isinstance(ex, string_types) else ex for ex in experiments]
-    records = [ex.get_latest_record(err_if_none=error_if_no_result, only_completed=True) for ex in experiments]
+    records = [ex.get_latest_record(if_none='err' if error_if_no_result else 'skip', only_completed=True) for ex in experiments]
     record_results = load_record_results([r for r in records if r is not None], err_if_no_result=error_if_no_result)
     experiment_latest_results = OrderedDict((rec.get_experiment_id(), val) for rec, val in record_results.items())
     return experiment_latest_results
@@ -111,14 +122,6 @@ def select_experiments(user_range, exp_record_dict, return_dict=False):
         return OrderedDict((name, exp_record_dict[name]) for name in exp_record_dict if exp_filter[name])
     else:
         return [name for name in exp_record_dict if exp_filter[name]]
-
-
-def select_last_record_of_experiments(user_range, exp_record_dict):
-    experiments = select_experiments(user_range=user_range, exp_record_dict=exp_record_dict)
-    records = [load_experiment(ex).get_latest_record(only_completed=True, err_if_none=False) for ex in experiments]
-    if None in records:
-        print('WARNING: Experiments {} have no completed records.', [e for e, r in izip_equal(experiments, records) if r is None])
-    return records
 
 
 def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
@@ -245,7 +248,24 @@ _named_record_filters['running'] = lambda rec_ids: [load_experiment_record(rec_i
 
 def _filter_records(user_range, exp_record_dict):
     """
-    :param user_range:
+    :param user_range: A string specifying which records to select.  Examples:
+        4.2             Select record 2 for experiment 4
+        4               Select all records for experiment 4
+        4-6             Select all records for experiments 4, 5, 6
+        4.2-5           Select records 2, 3, 4, 5 for experiment 4
+        4.3,4.4         Select records 4.3, 4.4
+        all             Select all records
+        old             Select all records that are not the the most recent run for that experiment
+        finished        Select all records that have not run to completion
+        invalid         Select all records for which the arguments to their experiments have changed since they were run
+        errors          Select all records that ended in error
+        ~invalid        Select all records that are not invalid (the '~' can be used to negate any of the above)
+        invalid|errors  Select all records that are invalid or ended in error (the '|' can be used to "or" any of the above)
+        invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
+        finished@last   Select the last finished record of each experiment (the '@' can be used to cascade any of the above)
+        dur>4m          Select records which ran (ie had a duration) of more than 4 minutes
+        age<24h         Select records which are less than 24h old.
+
     :param exp_record_dict:
     :return: An OrderedDict<experiment_id -> list<True or False>> indicating whether each record from the given experiment passed the filter
     """
@@ -291,25 +311,41 @@ def _filter_records(user_range, exp_record_dict):
             if rec_number>=len(base[keys[exp_number]]):
                 raise RecordSelectionError('Selection {}.{} does not exist.'.format(exp_number, rec_number))
             base[keys[exp_number]][rec_number] = True
-    elif user_range.startswith('since:'):  # eg. 'since:24'
-        time_id = user_range[len('since:'):]
-        try:
-            seconds_ago = int(time_id)*3600
-        except:
-            raise RecordSelectionError('Cannot interpret "{}" as a time.  Currently, it should be an integer, which means "within the last X hours"'.format(time_id))
-        current_time = time()
-        for exp_id, _ in base.items():
-            base[exp_id] = [(current_time - load_experiment_record(rec_id).get_timestamp())<seconds_ago for rec_id in exp_record_dict[exp_id]]
-    elif user_range.startswith('dur'):  # Eg dur<25  Means "All records that ran less than 25s"
+    # elif user_range.startswith('age'):  # eg. 'since:24'
+    #     try:
+    #         sign = user_range[3]
+    #         assert sign in ('<', '>')
+    #         seconds = int(user_range[4:])
+    #     except:
+    #         raise RecordSelectionError('Could not interpret "{}" as a duration.  Example is dur<25 to select all experiments that ran less than 25s.'.format(user_range))
+    #
+    #     time_id = user_range[len('since:'):]
+    #     try:
+    #         seconds_ago = int(time_id)*3600
+    #     except:
+    #         raise RecordSelectionError('Cannot interpret "{}" as a time.  Currently, it should be an integer, which means "within the last X hours"'.format(time_id))
+    #     current_time = time()
+    #     for exp_id, _ in base.items():
+    #         base[exp_id] = [(current_time - load_experiment_record(rec_id).get_timestamp())<seconds_ago for rec_id in exp_record_dict[exp_id]]
+    elif user_range.startswith('dur') or user_range.startswith('age'):  # Eg dur<25  Means "All records that ran less than 25s"
         try:
             sign = user_range[3]
             assert sign in ('<', '>')
-            seconds = int(user_range[4:])
+            filter_func = (lambda a, b: a<b) if sign == '<' else (lambda a, b: a>b)
+            time_delta = parse_time(user_range[4:])
         except:
-            raise RecordSelectionError('Could not interpret "{}" as a duration.  Example is dur<25 to select all experiments that ran less than 25s.'.format(user_range))
-        for exp_id, _ in base.items():
-            durations = [load_experiment_record(rec_id).info.get_field(ExpInfoFields.RUNTIME, default = None) for rec_id in exp_record_dict[exp_id]]
-            base[exp_id] = [False if dur is None else dur<seconds if sign=='<' else dur>seconds for dur in durations]
+            if user_range.startswith('dur'):
+                raise RecordSelectionError('Could not interpret "{}" as duration.  Example is dur<25s to select all experiments that ran less than 25s.'.format(user_range))
+            else:
+                raise RecordSelectionError('Could not interpret "{}" as age.  Example is age<24h to select all experiments were started in the last 24h.'.format(user_range))
+
+        if user_range.startswith('dur'):
+            for exp_id, _ in base.items():
+                base[exp_id] = [filter_func(load_experiment_record(rec_id).get_runtime(), time_delta) for rec_id in exp_record_dict[exp_id]]
+        else:
+            current_time = datetime.now()
+            for exp_id, _ in base.items():
+                base[exp_id] = [filter_func(current_time - load_experiment_record(rec_id).get_datetime(), time_delta) for rec_id in exp_record_dict[exp_id]]
     else:
         raise RecordSelectionError("Don't know how to interpret subset '{}'.  Possible subsets: {}".format(user_range, list(_named_record_filters.keys())))
     return base

@@ -1,4 +1,5 @@
 from setuptools import setup, find_packages
+from artemis import __version__
 
 setup(
     name='artemis-ml',
@@ -10,6 +11,6 @@ setup(
     extras_require = {
         'remote_plotting': ["paramiko", "netifaces"]
         },
-    version='2.0.0',
+    version=__version__,
     packages=find_packages(),
     scripts=[])
