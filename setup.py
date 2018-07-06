@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
-# Get the version, following advice from https://stackoverflow.com/a/7071358/851699
 import re
+# Get the version, following advice from https://stackoverflow.com/a/7071358/851699
 
 VERSIONFILE="artemis/_version.py"
 verstrline = open(VERSIONFILE, "rt").read()
