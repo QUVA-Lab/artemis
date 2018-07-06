@@ -114,14 +114,14 @@ def test_invalid_arg_text():
         def my_invalid_arg_test(a=2, b={'c': 3, 'd': 4}):
             return a+b['c']+b['d']
 
-        assert get_record_invalid_arg_string(record, recursive=True) == 'Change: {a:1}->{a:2}'
+        assert get_record_invalid_arg_string(record, recursive=True) == 'Change: a:1->2'
         clear_all_experiments()
 
         @experiment_function
         def my_invalid_arg_test(a=2, b={'c': 3, 'd': 2}):
             return a+b['c']+b['d']
 
-        assert get_record_invalid_arg_string(record, recursive=True) == "Change: {a:1,b['d']:4}->{a:2,b['d']:2}"
+        assert get_record_invalid_arg_string(record, recursive=True) == "Change: a:1->2, b['d']:4->2"
 
 
 class MyArgumentObject(object):
@@ -159,7 +159,7 @@ def test_invalid_arg_text_when_object_arg():
         def my_unhashable_arg_test(a=MyArgumentObject(a=4)):
             return a.a+2
 
-        assert get_record_invalid_arg_string(record, recursive=True) == 'Change: {a.a:3}->{a.a:4}'
+        assert get_record_invalid_arg_string(record, recursive=True) == 'Change: a.a:3->4'
 
 
 def test_simple_experiment_show():

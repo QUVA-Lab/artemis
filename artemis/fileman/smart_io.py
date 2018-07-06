@@ -80,7 +80,7 @@ def smart_load(location, use_cache = False):
         elif ext in ('.mpg', '.mp4', '.mpeg'):
             obj = _load_video(local_path)
         else:
-            raise Exception("No method exists yet to load '%s' files.  Add it!" % (ext, ))
+            raise Exception("No method exists yet to load '{}' files.  Add it!  (While trying to load file {})".format(ext, location))
     return obj
 
 

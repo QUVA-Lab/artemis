@@ -80,7 +80,7 @@ def test_get_file():
 def test_temp_file():
 
     with hold_file_root(get_artemis_data_path('file_getter_tests'), delete_after=True, delete_before=True):
-        file_path = get_file_path()
+        file_path = get_file_path(make_folder=True)
         with open(file_path, 'w') as f:
             f.write('1,2,3')
         with open(file_path) as f:

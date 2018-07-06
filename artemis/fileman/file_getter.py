@@ -73,6 +73,7 @@ def get_file(relative_name=None, url = None, use_cache = True, data_transformati
         if data_transformation is not None:
             print('Processing downloaded data...')
             data = data_transformation(data)
+        make_file_dir(full_filename)
         with open(full_filename, 'wb') as f:
             f.write(data)
     return full_filename
@@ -186,6 +187,11 @@ def get_file_path(relative_name = None, url=None, make_folder = False):
 
 
 def get_unnamed_file_hash(url):
+    """
+    Hash the url into a random filename, preserving the extension if any.
+    :param url: A URL
+    :return: A hashed filename based on the url.
+    """
     if url is not None:
         _, ext = os.path.splitext(url)
     else:
@@ -193,8 +199,9 @@ def get_unnamed_file_hash(url):
         import string
         elements = string.ascii_uppercase + string.digits
         url = ''.join(random.choice(elements) for _ in range(256))
+        ext=''
 
     hasher = hashlib.md5()
     hasher.update(url.encode('utf-8'))
-    filename = os.path.join('temp', hasher.hexdigest())
+    filename = os.path.join('temp', hasher.hexdigest()) + ext
     return filename
