@@ -1,12 +1,12 @@
 import itertools
+import os
+import pickle
 import time
 import warnings
-import os
 from collections import OrderedDict
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pickle
 import pytest
 from six.moves import xrange
 
@@ -16,10 +16,11 @@ from artemis.experiments.experiment_management import run_multiple_experiments
 from artemis.experiments.experiment_record import \
     load_experiment_record, ExperimentRecord, record_experiment, \
     delete_experiment_with_id, get_current_record_dir, open_in_record_dir, \
-    ExpStatusOptions, clear_experiment_records, get_current_experiment_id, get_current_experiment_record, \
+    ExpStatusOptions, get_current_experiment_id, get_current_experiment_record, \
     get_current_record_id, has_experiment_record, experiment_id_to_record_ids
 from artemis.experiments.experiments import get_experiment_info, load_experiment, experiment_testing_context, \
     clear_all_experiments
+from artemis.experiments.test_experiments import test_unpicklable_args
 from artemis.general.test_mode import set_test_mode
 
 __author__ = 'peter'
@@ -480,3 +481,4 @@ if __name__ == '__main__':
     test_experiment_corrupt_detection()
     test_current_experiment_access_functions()
     test_generator_experiment()
+    test_unpicklable_args()

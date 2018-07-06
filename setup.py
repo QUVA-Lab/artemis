@@ -1,5 +1,17 @@
 from setuptools import setup, find_packages
 
+# Get the version, following advice from https://stackoverflow.com/a/7071358/851699
+import re
+VERSIONFILE="artemis/artemis/_version.py"
+verstrline = open(VERSIONFILE, "rt").read()
+VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+mo = re.search(VSRE, verstrline, re.M)
+if mo:
+    verstr = mo.group(1)
+else:
+    raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
+
+
 setup(
     name='artemis-ml',
     author='Peter & Matthias',
@@ -10,6 +22,6 @@ setup(
     extras_require = {
         'remote_plotting': ["paramiko", "netifaces"]
         },
-    version='2.0.0',
+    version=verstr,
     packages=find_packages(),
     scripts=[])

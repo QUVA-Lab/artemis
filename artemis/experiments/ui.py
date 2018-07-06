@@ -12,9 +12,9 @@ from six.moves import input
 from tabulate import tabulate
 
 from artemis.experiments.experiment_management import deprefix_experiment_ids, \
-    RecordSelectionError, run_multiple_experiments_with_slurm
+    RecordSelectionError, run_multiple_experiments_with_slurm, archive_record
 from artemis.experiments.experiment_management import get_experient_to_record_dict
-from artemis.experiments.experiment_management import (pull_experiments, select_experiments, select_experiment_records,
+from artemis.experiments.experiment_management import (pull_experiment_records, select_experiments, select_experiment_records,
                                                        select_experiment_records_from_list, interpret_numbers,
                                                        run_multiple_experiments)
 from artemis.experiments.experiment_record import ExpStatusOptions
@@ -104,6 +104,8 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > filterrec ~finished Just show non-completed experiments
 > filterrec finished>last   Just show the last finished runs of each experiment
 > results 4-6         View the results experiments 4, 5, 6
+> archive 4-6         Archive all records for experiments 4,5,6.  This makes it show they don't show up by default
+> showarchived        Toggle display of archived results.
 > view results        View just the columns for experiment name and result
 > view full           View all columns (the default view)
 > show 4              Show the output from the last run of experiment 4 (if it has been run already).
@@ -156,12 +158,14 @@ experiment records.  You can specify records in the following ways:
     invalid|errors  Select all records that are invalid or ended in error (the '|' can be used to "or" any of the above)
     invalid&errors  Select all records that are invalid and ended in error (the '&' can be used to "and" any of the above)
     finished@last   Select the last finished record of each experiment (the '@' can be used to cascade any of the above)
+    dur>4m          Select records which ran (ie had a duration) of more than 4 minutes
+    age<24h         Select records which are less than 24h old.
 """
 
     def __init__(self, root_experiment = None, catch_errors = True, close_after = False, filterexp=None, filterrec = None,
             view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
             ignore_valid_keys=(), cache_result_string = False, slurm_kwargs={}, remove_prefix = None, display_format='nested',
-            show_args=False, catch_selection_errors=True, max_width=None, table_package = 'tabulate'):
+            show_args=False, catch_selection_errors=True, max_width=None, table_package = 'tabulate', show_archived=True):
         """
         :param root_experiment: The Experiment whose (self and) children to browse
         :param catch_errors: Catch errors that arise while running experiments
@@ -207,6 +211,7 @@ experiment records.  You can specify records in the following ways:
         self.catch_selection_errors = catch_selection_errors
         self.max_width = max_width
         self.table_package = table_package
+        self.show_archived = show_archived
 
     def _reload_record_dict(self):
         names = get_nonroot_global_experiment_library().keys()
@@ -247,6 +252,7 @@ experiment records.  You can specify records in the following ways:
             'selectexp': self.selectexp,
             'selectrec': self.selectrec,
             'view': self.view,
+            'archive': self.archive,
             'h': self.help,
             'filter': self.filter,
             'filterrec': self.filterrec,
@@ -288,8 +294,11 @@ experiment records.  You can specify records in the following ways:
             if command is None:
                 user_input = input('Enter command or experiment # to run (h for help) >> ').strip()
             else:
-                user_input = command
-                command = None
+                if ';' in command:
+                    user_input, command = command.split(';', 1)
+                else:
+                    user_input = command
+                    command = None
 
             display_again = True
             out = None
@@ -387,10 +396,10 @@ experiment records.  You can specify records in the following ways:
                 record_table_rows = tabulate(record_rows, headers=full_headers, tablefmt="pipe").split('\n')
                 del record_table_rows[1]  # Get rid of that silly line.
                 experiment_table_rows = tabulate(experiment_rows, numalign='left').split('\n')[1:-1]  # First and last are just borders
-                longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(record_table_rows)>0 else 0
+                longest_row = max(max(len(r) for r in record_table_rows), max(len(r) for r in experiment_table_rows)+4) if len(experiment_table_rows)>0 and len(record_table_rows)>0 else 0
                 record_table_rows = [r if len(r)==longest_row else r[:-1] + ' '*(longest_row-len(r)) + r[-1] for r in record_table_rows]
                 experiment_table_rows = [('=' if i==0 else '-')*longest_row+'\n'+r + ' '*(longest_row-len(r)-1)+'|' for i, r in enumerate(experiment_table_rows)]
-                all_rows = [surround_with_header('Experiments', width=longest_row, char='=')] + insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs) + ['='*longest_row]
+                all_rows = [surround_with_header('Experiments', width=longest_row, char='=')] + (insert_at(record_table_rows, experiment_table_rows, indices=experiment_row_ixs) if len(experiment_table_rows)>0 else ['<No non-root Experiments>']) + ['='*longest_row]
                 table = '\n'.join(all_rows)
             else:
                 raise NotImplementedError(self.table_package)
@@ -469,6 +478,15 @@ experiment records.  You can specify records in the following ways:
                 prompt='Press Enter to Continue, or "q" then Enter to Quit')
         if result=='q':
             quit()
+
+    def archive(self, *args):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', help='A selection of experiments to run.  Examples: "3" or "3-5", or "3,4,5"')
+        args = parser.parse_args(args)
+        records = select_experiment_records(args.user_range, self.exp_record_dict, flat=True)
+        for record in records:
+            archive_record(record)
+        print('{} Experiment Records were archived.'.format(len(records)))
 
     def test(self, user_range):
         ids = select_experiments(user_range, self.exp_record_dict)
@@ -607,7 +625,7 @@ experiment records.  You can specify records in the following ways:
         from artemis.remote.remote_machines import get_remote_machine_info
         info = get_remote_machine_info(args.machine_name)
         exp_names = select_experiments(args.user_range, self.exp_record_dict)
-        output = pull_experiments(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False, need_pass=args.need_password)
+        output = pull_experiment_records(user=info['username'], ip=info['ip'], experiment_names=exp_names, include_variants=False, need_pass=args.need_password)
         print(output)
         return ExperimentBrowser.REFRESH
 
@@ -701,7 +719,7 @@ class _DisplaySettings(object):
 _exp_record_field_getters = {
     ExpRecordDisplayFields.RUNS: lambda rec: format_time_stamp(rec.info.get_field(ExpInfoFields.TIMESTAMP)),
     ExpRecordDisplayFields.DURATION: lambda rec: format_duration(rec.info.get_field(ExpInfoFields.RUNTIME)) if rec.info.has_field(ExpInfoFields.RUNTIME) else '-',
-    ExpRecordDisplayFields.ARGS_CHANGED: lambda rec: get_record_invalid_arg_string(rec, ignore_valid_keys=_DisplaySettings.get_setting('ignore_valid_keys')),
+    ExpRecordDisplayFields.ARGS_CHANGED: lambda rec: get_record_invalid_arg_string(rec, ignore_valid_keys=_DisplaySettings.get_setting('ignore_valid_keys'), note_version='short'),
     ExpRecordDisplayFields.RESULT_STR: get_oneline_result_string,
     ExpRecordDisplayFields.STATUS: lambda rec: rec.info.get_field_text(ExpInfoFields.STATUS),
     ExpRecordDisplayFields.NOTES: _show_notes

@@ -1,13 +1,12 @@
 # coding=utf-8
 from collections import OrderedDict
 
-import numpy as np
 from six import string_types
 
 from artemis.general.should_be_builtins import remove_duplicates
 from artemis.general.tables import build_table
-from artemis.ml.tools.costs import get_evaluation_function
 from artemis.ml.datasets.datasets import DataSet
+from artemis.ml.tools.costs import get_evaluation_function
 from artemis.ml.tools.iteration import zip_minibatch_iterate_info, IterationInfo, minibatch_process
 
 __author__ = 'peter'
@@ -528,39 +527,3 @@ def print_best_score(score_info_pairs, **best_score_kwargs):
     print_score_results(score=best_score, info=best_info)
 
 
-class ParameterSchedule(object):
-
-    def __init__(self, schedule, print_variable_name = None):
-        """
-        Given a schedule for a changing parameter (e.g. learning rate) get the values for this parameter at a given time.
-        e.g.:
-            learning_rate_scheduler = ScheduledParameter({0: 0.1, 10: 0.01, 100: 0.001}, print_variable_name='eta')
-            new_learning_rate = learning_rate_scheduler.get_new_value(epoch=14)
-            assert new_learning_rate == 0.01
-
-        :param schedule: Can be:
-            - A dict<epoch: value> where the epoch is a number indicating the training progress and the value
-              indicates the value that the parameter should take.
-            - A function which takes the epoch and returns a parameter value.
-            - A number or array, in which case the value remains constant
-        """
-        if isinstance(schedule, (int, float, np.ndarray)):
-            schedule = {0: schedule}
-        if isinstance(schedule, dict):
-            assert all(isinstance(num, (int, float)) for num in schedule.keys())
-            self._reverse_sorted_schedule_checkpoints = sorted(schedule.keys(), reverse=True)
-        else:
-            assert callable(schedule)
-        self.schedule = schedule
-        self.print_variable_name = print_variable_name
-        self.last_value = None  # Just used for print statements.
-
-    def get_new_value(self, epoch):
-        if isinstance(self.schedule, dict):
-            new_value = self.schedule[next(e for e in self._reverse_sorted_schedule_checkpoints if e <= epoch)]
-        else:
-            new_value = self.schedule(epoch)
-        if self.last_value != new_value and self.print_variable_name is not None:
-            print('Epoch {}: {} = {}'.format(epoch, self.print_variable_name, new_value))
-            self.last_value = new_value
-        return new_value

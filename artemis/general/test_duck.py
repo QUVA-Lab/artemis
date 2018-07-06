@@ -1,12 +1,9 @@
 from collections import OrderedDict
-
 import pytest
 from pytest import raises
-
-from artemis.general.duck import Duck, InvalidKeyError, InitializerTooShallowError
+from artemis.general.duck import Duck, InvalidKeyError, InitializerTooShallowError, KeyTooDeepError
 from artemis.general.hashing import compute_fixed_hash
 import numpy as np
-
 from artemis.general.should_be_builtins import izip_equal
 
 
@@ -349,7 +346,7 @@ def test_key_values():
     assert list(a.items(depth='full')) == list(zip(a.keys(depth='full'), a.values(depth='full')))
 
 
-_expected_description = """<Duck with 2 keys: ['a', 'b']>
+_expected_description = """<Duck with 2 keys: ['a','b']>
 | a: 
 | | aa1: 1
 | | aa2: 2
@@ -362,7 +359,7 @@ _expected_description = """<Duck with 2 keys: ['a', 'b']>
 | | | subfield2: 7"""
 
 
-_extended_expected_description = """<Duck with 2 keys: ['a', 'b']>
+_extended_expected_description = """<Duck with 2 keys: ['a','b']>
 | a: 
 | | aa1: 1
 | | aa2: 2
@@ -446,25 +443,128 @@ def test_arrayify_axis_demo():
     assert np.array_equal(b['y'], [2, 4])
 
 
+def test_key_get_on_set_bug():
+
+    a = Duck()
+    a['x', next] = {'a': 1, 'b': 2}
+    a['x', next] = {'a': 3, 'b': 4}
+    a['x', next, 'f'] = 4  # This once caused an error
+    a['x', next, 'g'] = 5
+
+
+def get_message(err):
+    # to be portable between python 2/3
+    return err.value.message if hasattr(err.value, 'message') else err.value.args[0]
+
+def test_reasonable_error_messages():
+
+    a = Duck()
+    a['x', next] = {'a': 1, 'b': 2}
+    a['x', next] = {'a': 3, 'b': 4}
+
+
+    with pytest.raises(KeyError) as err:
+        a['x', 0, 'a', 'b', 'c']
+    assert get_message(err) == "This Duck has no key: ['x',0,'a','b','c'].  The deepest valid key was ['x',0].  If you want to break into leaves, use Duck.break_in()."
+
+    with pytest.raises(KeyError) as err:
+        a['x', 0, 'a', 'b', 'c', 'd']
+    assert get_message(err) == "This Duck has no key: ['x',0,'a','b','c','d'].  The deepest valid key was ['x',0].  If you want to break into leaves, use Duck.break_in()."
+
+    with pytest.raises(KeyError) as err:
+        a['x', :, 'a']
+    assert get_message(err) == "This Duck has no key: ['x',:,'a'].  The deepest valid key was ['x',:].  If you want to break into leaves, use Duck.break_in()."
+
+    with pytest.raises(KeyError) as err:
+        a['b', 0, 'a']
+    assert get_message(err) == "This Duck has no key: 'b', so it cannot read sub-key: ['b',0,'a']."
+
+    with pytest.raises(IndexError) as err:
+        a['x', 2, 'a']
+    assert get_message(err) == 'Your index "2" exceeds the range of this DynamicSequence of length 2'
+
+    a['x', next, 'f'] = 4
+
+
+def test_break_in():
+
+    a = Duck()
+    a['x', next] = {'a': 1, 'b': 2}
+    a['x', next] = {'a': 3, 'b': 4}
+
+    with pytest.raises(KeyError) as err:
+        a['x', :, 'a']
+
+    b = a.break_in()
+    assert b['x', :, 'a'] == [1, 3]
+
+    with pytest.raises(KeyError) as err:
+        a['x', :, 'a']
+
+    a.break_in(inplace=True)
+    assert a['x', :, 'a'] == [1, 3]
+
+
+def test_copy():
+    a = _get_standard_test_duck()
+    b = a.copy()
+    assert a==b
+    assert a['b', 1, 'subfield1'] == b['b', 1, 'subfield1']
+
+    b['b', 1, 'subfield1'] = 20
+    assert a!=b
+    assert a['b', 1, 'subfield1'] != b['b', 1, 'subfield1']
+
+
+def test_occasional_value_filter():
+
+    a = Duck()
+    for i in range(20):
+        if i%3 == 0:
+            a[next, ...] = {'a': i, 'b': i}
+        else:
+            a[next, ...] = {'a': i}
+
+    assert a[:, 'a'] == list(range(20))
+    with pytest.raises(KeyError):
+        print(a[:, 'b'])
+
+    assert a.filter[:, 'b'] == list(range(0, 20, 3))
+
+    # Test doc
+    a = Duck()
+    a[next, :] = {'a': 1, 'b': 2}
+    a[next, :] = {'a': 3}
+    a[next, :] = {'a': 4, 'b': 5}
+    with pytest.raises(KeyError):
+        assert a[:, 'b'] == [2, 5]
+    assert a.filter[:, 'b'] == [2, 5]
+
+
 if __name__ == '__main__':
-    test_so_demo()
-    test_dict_assignment()
-    test_dictarraylist()
-    test_simple_growing()
-    test_open_key()
-    test_open_next()
-    test_to_struct()
-    test_next_elipsis_assignment()
-    test_slice_assignment()
-    test_arrayify_empty_stuct()
-    test_slice_on_start()
-    test_assign_tuple_keys()
-    test_broadcast_bug()
-    test_key_values()
-    test_description()
-    test_duck_array_build()
-    test_split_get_assign()
-    test_assign_from_struct()
-    test_arrayify_axis_demo()
-    test_string_slices()
-    test_reasonable_errors_on_wrong_keys()
+    # test_so_demo()
+    # test_dict_assignment()
+    # test_dictarraylist()
+    # test_simple_growing()
+    # test_open_key()
+    # test_open_next()
+    # test_to_struct()
+    # test_next_elipsis_assignment()
+    # test_slice_assignment()
+    # test_arrayify_empty_stuct()
+    # test_slice_on_start()
+    # test_assign_tuple_keys()
+    # test_broadcast_bug()
+    # test_key_values()
+    # test_description()
+    # test_duck_array_build()
+    # test_split_get_assign()
+    # test_assign_from_struct()
+    # test_arrayify_axis_demo()
+    # test_string_slices()
+    # test_reasonable_errors_on_wrong_keys()
+    # test_reasonable_error_messages()
+    test_break_in()
+    test_copy()
+    test_key_get_on_set_bug()
+    test_occasional_value_filter()

@@ -4,12 +4,13 @@ from collections import OrderedDict
 from tabulate import tabulate
 from artemis.experiments.experiment_management import load_lastest_experiment_results
 from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, \
-    load_experiment_record, is_matplotlib_imported
+    load_experiment_record, is_matplotlib_imported, UnPicklableArg
 from artemis.experiments.experiments import is_experiment_loadable, get_global_experiment_library
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, CaptureStdOut, \
     surround_with_header, section_with_header
-from artemis.general.nested_structures import flatten_struct
-from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value, izip_equal
+from artemis.general.nested_structures import flatten_struct, PRIMATIVE_TYPES
+from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value, izip_equal, \
+    remove_duplicates
 from artemis.general.tables import build_table
 from six import string_types
 
@@ -123,18 +124,19 @@ def get_record_invalid_arg_string(record, recursive=True, ignore_valid_keys=(), 
             last_run_args = OrderedDict([(k,v) for k,v in record.get_args().items() if k not in ignore_valid_keys])
             current_args = OrderedDict([(k,v) for k,v in record.get_experiment().get_args().items() if k not in ignore_valid_keys])
             if recursive:
-                last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True))
+                last_run_args = OrderedDict(flatten_struct(last_run_args, first_dict_is_namespace=True, primatives = PRIMATIVE_TYPES + (UnPicklableArg, )))
                 last_run_args = OrderedDict([(k, v) for k, v in last_run_args.items() if k not in ignore_valid_keys])
                 current_args = OrderedDict(flatten_struct(current_args, first_dict_is_namespace=True))
                 current_args = OrderedDict([(k, v) for k, v in current_args.items() if k not in ignore_valid_keys])
 
             validity = record.args_valid(last_run_args=last_run_args, current_args=current_args)
             if validity is False:
-                last_arg_str, this_arg_str = [['{}:{}'.format(k, v) for k, v in argdict.items()] for argdict in (last_run_args, current_args)]
-                common, (old_args, new_args) = separate_common_items([last_arg_str, this_arg_str])
+                common, (old_args, new_args) = separate_common_items([list(last_run_args.items()), list(current_args.items())])
                 if len(old_args)+len(new_args)==0:
                     raise Exception('Error displaying different args.  Bug Peter.')
-                changestr = "{{{}}}->{{{}}}".format(','.join(old_args), ','.join(new_args))
+
+                all_changed_arg_names = remove_duplicates(list(name for name, _ in old_args)+list(name for name, _ in new_args))
+                changestr = ', '.join("{}:{}->{}".format(k, last_run_args[k] if k in last_run_args else '<N/A>', current_args[k] if k in current_args else '<N/A>') for k in all_changed_arg_names)
                 notes = ("Change: " if note_version=='full' else "") + changestr
             elif validity is None:
                 notes = "Cannot Determine: Unhashable Args" if note_version=='full' else '<Unhashable Args>'
@@ -175,13 +177,9 @@ def print_experiment_record_argtable(records):
     Print a table comparing experiment arguments and their results.
     """
     funtion_names = [record.info.get_field(ExpInfoFields.FUNCTION) for record in records]
-    args = [record.info.get_field(ExpInfoFields.ARGS) for record in records]
-    results = [record.get_result(err_if_none=False) for record in records]
-
+    args = [record.get_args() for record in records]
     common_args, different_args = separate_common_items(args)
-
     record_ids = [record.get_id() for record in records]
-
     def lookup_fcn(record_id, column):
         index = record_ids.index(record_id)
         if column=='Function':
@@ -189,9 +187,9 @@ def print_experiment_record_argtable(records):
         elif column=='Run Time':
             return records[index].info.get_field_text(ExpInfoFields.RUNTIME)
         elif column=='Common Args':
-            return ', '.join('{}={}'.format(k, v) for k, v in common_args)
+            return ', '.join('{}={}'.format(k, v) for k, v in common_args.items())
         elif column=='Different Args':
-            return ', '.join('{}={}'.format(k, v) for k, v in different_args[index])
+            return ', '.join('{}={}'.format(k, v) for k, v in different_args[index].items())
         elif column=='Result':
             return get_oneline_result_string(records[index])
         else:
@@ -298,7 +296,7 @@ def find_experiment(*search_terms):
         return found_experiments.values()[0]
 
 
-def make_record_comparison_table(records, args_to_show=None, results_extractor = None, print_table = False):
+def make_record_comparison_table(records, args_to_show=None, results_extractor = None, print_table = False, tablefmt='simple', reorder_by_args=False):
     """
     Make a table comparing the arguments and results of different experiment records.  You can use the output
     of this function with the tabulate package to make a nice readable table.
@@ -330,7 +328,7 @@ def make_record_comparison_table(records, args_to_show=None, results_extractor =
         print tabulate.tabulate(rows, headers=headers, tablefmt=tablefmt)
     """
 
-    args = [rec.info.get_field(ExpInfoFields.ARGS) for rec in records]
+    args = [rec.get_args(ExpInfoFields.ARGS) for rec in records]
     if args_to_show is None:
         common, separate = separate_common_items(args)
         args_to_show = [k for k, v in separate[0]]
@@ -351,13 +349,16 @@ def make_record_comparison_table(records, args_to_show=None, results_extractor =
         results = record.get_result()
         rows.append(args_vals+[f(results) for f in results_extractor.values()])
 
+    if reorder_by_args:
+        rows = sorted(rows)
+
     if print_table:
         import tabulate
-        print(tabulate.tabulate(rows, headers=headers, tablefmt='simple'))
+        print(tabulate.tabulate(rows, headers=headers, tablefmt=tablefmt))
     return headers, rows
 
 
-def separate_common_args(records, return_dict = False):
+def separate_common_args(records, as_dicts=False, return_dict = False, only_shared_argdiffs = False):
     """
 
     :param records: A List of records
@@ -367,6 +368,14 @@ def separate_common_args(records, return_dict = False):
         different is a list (the same lengths of records) of OrderedDicts containing args that are not the same in all records.
     """
     common, argdiff = separate_common_items([list(rec.get_args().items()) for rec in records])
+    if only_shared_argdiffs:
+        args_that_they_all_have = set.intersection(*(set(k for k, v in different) for different in argdiff))
+        argdiff = [[(k, v) for k, v in ad if k in args_that_they_all_have] for ad in argdiff]
+
+    if as_dicts:
+        common = OrderedDict(common)
+        argdiff = [OrderedDict(ad) for ad in argdiff]
+
     if return_dict:
         argdiff = {rec.get_id(): args for rec, args in zip(records, argdiff)}
     return common, argdiff

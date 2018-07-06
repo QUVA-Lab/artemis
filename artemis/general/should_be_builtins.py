@@ -146,7 +146,7 @@ def izip_equal(*iterables):
     sentinel = object()
     for combo in zip_longest(*iterables, fillvalue=sentinel):
         if any(sentinel is c for c in combo):
-            raise ValueError('Iterables have different lengths')
+            raise ValueError('Iterables have different lengths.  Iterable(s) #{} (of 0..{}) ran out first.'.format([i for i, c in enumerate(combo) if c is sentinel], len(combo)-1))
         yield combo
 
 
@@ -383,6 +383,8 @@ def insert_at(list1, list2, indices):
     assert len(list2)==len(indices), 'List 2 has {} elements, but you provided {} indices.  They should have equal length'.format(len(list2), len(indices))
     index_iterator = iter(sorted(indices))
     list_2_iter = iter(list2)
+    if len(list2)==0:
+        return list3
     next_ix = next(index_iterator)
 
     iter_stopped = False
@@ -447,3 +449,16 @@ def divide_into_subsets(list_of_element, subset_size):
     """
     element_gen = (el for el in list_of_element)
     return [[nextel for _, nextel in zip(range(subset_size), element_gen)] for _ in range(int(math.ceil(float(len(list_of_element))/subset_size)))]
+
+
+def ceildiv(num, denom):
+    return int(math.ceil(float(num)/denom))
+
+
+def unzip(iterable):
+    """
+    Unzip iterable of tuples into tuple of iterables
+    :param iterable: Any iterable object yielding N-tuples
+    :return: A N-tuple of iterables
+    """
+    return zip(*iterable)

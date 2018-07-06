@@ -66,7 +66,7 @@ def initialize_weight_matrix(n_in, n_out, mag='xavier', base_dist='normal', scal
     rng = get_rng(rng)
 
     w_base = rng.randn(n_in, n_out) if base_dist == 'normal' else \
-        (np.rand(n_in, n_out) - 0.5)*np.sqrt(12) if base_dist=='uniform' else \
+        (rng.rand(n_in, n_out) - 0.5)*np.sqrt(12) if base_dist=='uniform' else \
         bad_value(base_dist)
 
     mag_number = \
@@ -104,6 +104,8 @@ def activation_function(data, function_name):
         return 1./(1+np.exp(-data))
     elif function_name == 'tanh':
         return np.tanh(data)
+    elif function_name == 'clip':
+        return np.clip(data, 0, 1)
     else:
         raise Exception('No Nonlinearity "{}".  Add it.'.format(function_name))
 

@@ -5,7 +5,8 @@ from contextlib import contextmanager
 from datetime import datetime
 
 import numpy as np
-from artemis.fileman.file_getter import get_temp_file, get_file_and_cache
+
+from artemis.fileman.file_getter import get_file
 from artemis.fileman.images2gif import readGif
 from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.image_ops import get_dark_edge_slice, resize_image
@@ -79,7 +80,7 @@ def smart_load(location, use_cache = False):
         elif ext in ('.mpg', '.mp4', '.mpeg'):
             obj = _load_video(local_path)
         else:
-            raise Exception("No method exists yet to load '%s' files.  Add it!" % (ext, ))
+            raise Exception("No method exists yet to load '{}' files.  Add it!  (While trying to load file {})".format(ext, location))
     return obj
 
 
@@ -158,10 +159,8 @@ def smart_file(location, use_cache = False, make_dir = False):
     its_a_url = is_url(location)
     if its_a_url:
         assert not make_dir, "We cannot 'make the directory' for a URL"
-        if use_cache:
-            local_path = get_file_and_cache(location)
-        else:
-            local_path = get_temp_file(location)
+        local_path = get_file(url=location, use_cache=use_cache)
+
     else:
         local_path = get_artemis_data_path(location)
         if make_dir:

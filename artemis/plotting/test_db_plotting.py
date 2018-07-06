@@ -181,6 +181,23 @@ def test_close_and_open():
         dbplot(np.random.randn(5), 'b')
 
 
+def test_periodic_plotting():
+
+    for t in range(100):
+        with hold_dbplots(draw_every='1s'):
+            dbplot(np.sin(t/10), 'sinusoid')
+            dbplot(np.cos(t/10), 'cosinusoid')
+        time.sleep(0.02)
+
+
+def test_individual_periodic_plotting():
+
+    for t in range(100):
+        dbplot(np.sin(t/10), 'sinusoid', draw_every='0.5s')
+        dbplot(np.cos(t/10), 'cosinusoid', draw_every='1s')
+        time.sleep(0.02)
+
+
 if __name__ == '__main__':
     if is_server_plotting_on():
         test_cornertext()
@@ -227,3 +244,5 @@ if __name__ == '__main__':
         test_dbplot()
         test_custom_axes_placement()
         test_close_and_open()
+        test_periodic_plotting()
+        test_individual_periodic_plotting()

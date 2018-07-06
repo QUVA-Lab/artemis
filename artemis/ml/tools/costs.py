@@ -42,7 +42,7 @@ def softmax_categorical_xe(actual, target):
 
 
 def fraction_correct(actual, target):
-    return np.mean(actual == target)
+    return np.mean(np.equal(actual, target))
 
 
 def percent_correct(actual, target):

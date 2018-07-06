@@ -62,9 +62,9 @@ class RecentRunningAverage(object):
 
     @classmethod
     def batch(cls, x):
-        # return recent_moving_average(x, axis=0)  # Works only for python 2.X, with weave
-        ra = cls()
-        return np.array([ra(x_) for x_ in x])
+        return recent_moving_average(x, axis=0)  # Works only for python 2.X, with weave
+        # ra = cls()
+        # return np.array([ra(x_) for x_ in x])
 
 
 class RunningAverageWithBurnin(object):
@@ -127,6 +127,20 @@ class RunningCenter(IDifferentiableFunction):
         return self.decay_constant * delta_y
 
 
+class ExponentialRunningVariance(object):
+
+    def __init__(self, decay):
+        self.decay = decay
+        self.running_mean = 0
+        self.running_mean_sq = 1
+
+    def __call__(self, x, decay = None):
+
+        decay = self.decay if decay is None else decay
+        self.running_mean = (1-decay) * self.running_mean + decay * x
+        self.running_mean_sq = (1-decay) * self.running_mean_sq + decay * x**2
+        var = self.running_mean_sq - self.running_mean**2
+        return np.maximum(0, var)  # TODO: VERIFY THIS... Due to numerical issues, small negative values are possible...
 
 class RunningNormalize(IDifferentiableFunction):
 

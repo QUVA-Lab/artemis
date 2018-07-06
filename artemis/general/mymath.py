@@ -256,8 +256,8 @@ def cosine_distance(a, b, axis=None):
     return cosine_distance
 
 
-def degrees_between(a, b):
-    return angle_between(a, b, in_degrees=True)
+def degrees_between(a, b, axis=None):
+    return angle_between(a, b, in_degrees=True, axis=axis)
 
 
 def magnitude_ratio(a, b):

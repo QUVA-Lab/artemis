@@ -11,19 +11,22 @@ import time
 import traceback
 from collections import OrderedDict
 from contextlib import contextmanager
-from datetime import datetime
 from getpass import getuser
+from pickle import PicklingError
+
+from datetime import datetime, timedelta
 from uuid import getnode
 
 from artemis.config import get_artemis_config_value
 from artemis.fileman.local_dir import format_filename, make_file_dir, get_artemis_data_path, make_dir
 from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
-from artemis.general.functional import infer_function_and_derived_arg_values
+from artemis.general.functional import get_partial_chain, get_defined_and_undefined_args
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.should_be_builtins import nested
 from artemis.general.test_mode import is_test_mode
 from artemis.general.test_mode import set_test_mode
+from artemis._version import __version__ as ARTEMIS_VERSION
 
 try:
     from enum import Enum
@@ -35,6 +38,15 @@ ARTEMIS_LOGGER = logging.getLogger('artemis')
 ARTEMIS_LOGGER.setLevel(logging.INFO)
 
 __author__ = 'peter'
+
+
+class UnPicklableArg(object):
+
+    def __init__(self, obj):
+        self.str = repr(obj)
+
+    def __str__(self):
+        return 'Unipickable Object: {}'.format(self.str)
 
 
 class ExpInfoFields(Enum):
@@ -55,6 +67,7 @@ class ExpInfoFields(Enum):
     USER = 'User'
     MAC = 'MAC Address'
     PID = 'Process ID'
+    ARTEMIS_VERSION = 'Artemis Version'
 
 
 class ExpStatusOptions(Enum):
@@ -104,8 +117,7 @@ class ExperimentRecordInfo(object):
         assert field in ExpInfoFields, 'Field must be a member of ExperimentRecordInfo.FIELDS'
         if field == ExpInfoFields.STATUS:
             assert value in ExpStatusOptions, 'Status value must be in: {}'.format(ExpStatusOptions)
-        with self.persistent_obj as pod:
-            pod[field] = value
+        self.persistent_obj[field] = value
         if self._text_path is not None:
             with open(self._text_path, 'w') as f:
                 f.write(self.get_text())
@@ -134,7 +146,8 @@ class ExperimentRecordInfo(object):
         elif field is ExpInfoFields.STATUS:
             return self.get_field(field).value
         elif field is ExpInfoFields.ARGS:
-            return ['{}={}'.format(k, v) for k, v in self.get_field(field)]
+            args = load_serialized_args(self.get_field(field))
+            return ['{}={}'.format(k, v) for k, v in args]
         else:
             return str(self.get_field(field))
 
@@ -261,7 +274,7 @@ class ExperimentRecord(object):
         file_path = get_local_experiment_path(os.path.join(self._experiment_directory, 'result.pkl'))
         make_file_dir(file_path)
         with open(file_path, 'wb') as f:
-            pickle.dump(result, f, protocol=2)
+            pickle.dump(result, f, protocol=pickle.HIGHEST_PROTOCOL)
             ARTEMIS_LOGGER.info('Saving Result for Experiment "{}"'.format(self.get_id(),))
 
     def get_id(self):
@@ -285,10 +298,19 @@ class ExperimentRecord(object):
         return self.get_id()[27:]
 
     def get_timestamp(self):
+        return time.mktime(self.get_datetime().timetuple())
+
+    def get_datetime(self):
         try:  # Faster, since we don't need to load the info object
-            return time.mktime(datetime.strptime(self.get_id()[:26], '%Y.%m.%dT%H.%M.%S.%f').timetuple())
+            return datetime.strptime(self.get_id()[:26], '%Y.%m.%dT%H.%M.%S.%f')
         except:
-            return time.mktime(datetime.strptime(self.info.get_field(ExpInfoFields.TIMESTAMP), '%Y-%m-%d %H:%M:%S.%f').timetuple())
+            return datetime.strptime(self.info.get_field(ExpInfoFields.TIMESTAMP), '%Y-%m-%d %H:%M:%S.%f')
+
+    def get_runtime(self):
+        """
+        :return datetime.timedelta: A timedelta object
+        """
+        return timedelta(seconds=self.info.get_field(ExpInfoFields.RUNTIME))
 
     def get_dir(self):
         """
@@ -301,7 +323,7 @@ class ExperimentRecord(object):
         Get the arguments with which this record was run.
         :return: An OrderedDict((arg_name -> arg_value))
         """
-        return OrderedDict(self.info.get_field(ExpInfoFields.ARGS))
+        return OrderedDict(load_serialized_args(self.info.get_field(ExpInfoFields.ARGS)))
 
     def get_status(self):
         try:
@@ -330,12 +352,16 @@ class ExperimentRecord(object):
 
     def args_valid(self, last_run_args=None, current_args=None):
         """
+        :param Optional[OrderedDict] last_run_args: The arguments from the last run
+        :param Optional[OrderedDict] current_args: The arguments from the current experiment in code
         :return: True if the experiment arguments have not changed
             False if they have changed
             None if it cannot be determined because arguments are not hashable objects.
         """
         if last_run_args is None:  # Cast to dict (from OrderedDict) because different arg order shouldn't matter
-            last_run_args = self.info.get_field(ExpInfoFields.ARGS)  # A list of 2-tuples
+            last_run_args = self.get_args()  # A list of 2-tuples
+        if any(isinstance(v, UnPicklableArg) for k, v in last_run_args.items()):
+            return None
         if current_args is None:
             current_args = dict(self.get_experiment().get_args())
         try:
@@ -546,13 +572,15 @@ def filter_experiment_ids(record_ids, expr=None, experiment_ids=None):
     return record_ids
 
 
-def get_all_record_ids(experiment_ids=None, filters=None):
+def get_all_record_ids(experiment_ids=None, filters=None, expdir = None):
     """
     :param experiment_ids: A list of experiment names
     :param filters: A list or regular expressions for matching experiments.
-    :return: A list of experiment identifiers.
+    :param expdir: The experiment directory, or None to use the default.
+    :return: A list of ExperimentRecord identifiers.
     """
-    expdir = get_experiment_dir()
+    if expdir is None:
+        expdir = get_experiment_dir()
     ids = [e for e in os.listdir(expdir) if os.path.isdir(os.path.join(expdir, e))]
     ids = filter_experiment_ids(record_ids=ids, experiment_ids=experiment_ids)
     if filters is not None:
@@ -560,6 +588,35 @@ def get_all_record_ids(experiment_ids=None, filters=None):
             ids = filter_experiment_ids(record_ids=ids, expr=expr)
     ids = sorted(ids)
     return ids
+
+
+def get_experiment_to_record_mapping(experiments):
+    """
+    Get a dictionary mapping each experiment in the provided list to its list of recrods.
+    Note that this is equivalent to, but runs much faster than {ex: ex.get_records() for ex in experiments}
+
+    :param Sequence[Experiment] experiments: A collection of experiments
+    :return Mapping[Experiment, Sequence[ExperimentRecord]]: The resulting mapping
+    """
+    all_relavent_record_ids = get_all_record_ids(experiment_ids=[exp.get_id() for exp in experiments])
+    id_map = OrderedDict((ex, []) for ex in experiments)
+    for record_id in all_relavent_record_ids:
+        record = load_experiment_record(record_id=record_id)
+        id_map[record.get_experiment()].append(record)
+    return id_map
+
+
+def get_experiment_to_latest_record_mapping(experiments):
+    """
+    Given a list of experiments, get the latest record from each one if there is one.
+    Note: This runs much faster than {ex: ex.get_latest_record() for ex in experiments}
+
+    :param Sequence[Experiment] experiments: A list of experimenst
+    :return Mapping[Experiment, ExperimentRecord]: A mapping from experiments with records to the latest record.
+    """
+    experiment_to_record_mapping = get_experiment_to_record_mapping(experiments)
+    mapping = OrderedDict((ex, records[-1]) for ex, records in experiment_to_record_mapping.items() if len(records)>0)
+    return mapping
 
 
 def experiment_id_to_record_ids(experiment_identifier):
@@ -577,13 +634,15 @@ def has_experiment_record(experiment_identifier):
     return len(experiment_id_to_record_ids(experiment_identifier)) != 0
 
 
-def load_experiment_record(record_id):
+def load_experiment_record(record_id, expdir = None):
     """
     Load an ExperimentRecord based on the identifier
     :param record_id: A string identifying the experiment record
     :return: An ExperimentRecord object
     """
-    path = os.path.join(get_experiment_dir(), record_id)
+    if expdir is None:
+        expdir = get_experiment_dir()
+    path = os.path.join(expdir, record_id)
     return ExperimentRecord(path)
 
 
@@ -613,6 +672,35 @@ def save_figure_in_record(name, fig=None, default_ext='.pkl'):
     save_path = os.path.join(get_current_record_dir(), name)
     save_figure(fig, path=save_path, default_ext=default_ext)
     return save_path
+
+
+def get_serialized_args(argdict):
+    """
+    Get the serialized arguments.  Unserializable arguments will be replaced by UnPickleableArg objects.
+    :param argdict: A dict of argument values.
+    :return: The serialzed arguments (arbitrary format defined in this function)
+    """
+    ser_args = []
+    for argname, argval in argdict.items():
+        try:
+            serval = pickle.dumps(argval, protocol=pickle.HIGHEST_PROTOCOL)
+        except:
+            serval = pickle.dumps(UnPicklableArg(argval))
+        ser_args.append((argname, serval))
+    return ('NEW_ARG_FORMAT', ser_args)
+
+
+def load_serialized_args(ser_args):
+    """
+    Load the arguments from the file
+    :param ser_args: Serialized arguments, as returned by get_serialized_args
+    :return: The list of args.
+    """
+    if isinstance(ser_args, tuple) and ser_args[0]=='NEW_ARG_FORMAT':
+        _, actual_args = ser_args
+        return [(argname, pickle.loads(argval)) for argname, argval in actual_args]
+    else:
+        return ser_args
 
 
 def run_and_record(function, experiment_id, print_to_console=True, show_figs=None, test_mode=None, keep_record=None,
@@ -650,9 +738,16 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(ExpInfoFields.NAME, experiment_id)
             exp_rec.info.set_field(ExpInfoFields.ID, exp_rec.get_id())
             exp_rec.info.set_field(ExpInfoFields.DIR, exp_rec.get_dir())
-            root_function, args = infer_function_and_derived_arg_values(function)
-            exp_rec.info.set_field(EIF.ARGS, list(args.items()))
-            # root_function = self.get_root_function()
+
+            root_function = get_partial_chain(function)[0]
+            
+            args, undefined_args = get_defined_and_undefined_args(function)
+            assert len(undefined_args)==0, "Required arguments {} are still undefined!".format(undefined_args)
+            try:
+                exp_rec.info.set_field(EIF.ARGS, get_serialized_args(args))
+            except PicklingError as err:
+                ARTEMIS_LOGGER.error('Could not pickle arguments for experiment: {}.  Artemis demands that arguments be piclable.  If they are not, just make a new function.')
+                raise
             exp_rec.info.set_field(EIF.FUNCTION, root_function.__name__)
             exp_rec.info.set_field(EIF.TIMESTAMP, date)
             module = inspect.getmodule(root_function)
@@ -662,9 +757,12 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             exp_rec.info.set_field(EIF.USER, getuser())
             exp_rec.info.set_field(EIF.MAC, ':'.join(("%012X" % getnode())[i:i+2] for i in range(0, 12, 2)))
             exp_rec.info.set_field(EIF.PID, os.getpid())
+            exp_rec.info.set_field(EIF.ARTEMIS_VERSION, ARTEMIS_VERSION)
+
             if inspect.isgeneratorfunction(root_function):
                 for result in function():
                     exp_rec.save_result(result)
+                    yield exp_rec
             else:
                 result = function()
                 exp_rec.save_result(result)
@@ -679,7 +777,8 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
             if raise_exceptions:
                 raise
             else:
-                return exp_rec
+                yield exp_rec
+                return
         finally:
             exp_rec.info.set_field(EIF.RUNTIME, time.time() - start_time)
             fig_locs = exp_rec.get_figure_locs(include_directory=False)
@@ -692,4 +791,4 @@ def run_and_record(function, experiment_id, print_to_console=True, show_figs=Non
     ARTEMIS_LOGGER.info('{border} Done {mode} Experiment: {name} {border}'.format(border='=' * 10, mode="Testing" if test_mode else "Running", name=experiment_id))
     set_test_mode(old_test_mode)
 
-    return exp_rec
+    yield exp_rec

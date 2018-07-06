@@ -10,6 +10,7 @@ import numpy as np
 from si_prefix import si_format
 from six import string_types
 from six.moves import xrange, StringIO
+import re
 
 __author__ = 'peter'
 
@@ -30,6 +31,29 @@ def arraystr(arr, print_threshold, summary_threshold):
     else:
         return '<{type} with shape={shape}, dtype={dtype}, at {id}>'.format(
             type=type(arr).__name__, shape=arr.shape, dtype=arr.dtype, id=hex(id(arr)))
+
+
+def dict_to_str(d):
+    """
+    Format a dict as a nice human-readable string.  E.g. e.g. {'a':3, 'b': 'aa') becomes "a=3, b='aa'"
+    :param dict d: A dict
+    :return str: A nice, formatted version of this dict.
+    """
+    return ', '.join('{}:{}'.format(k, repr(v)) for k, v in d.items())
+
+
+def pyfuncstring_to_tex(pyfuncstr):
+    """
+    Placeholder - we'd like to fill this out later.  This should be a function that takes a short string representing a
+    python funciton and translates it to latex.  e.g.
+
+        pyfuncstring_to_text 'x**1.5/4' -> x^{1.5}/4
+
+    :param pyfuncstr: A string representing a python function
+    :return: A Tex string what could be used to render the function nicely.
+    """
+    string = pyfuncstr
+    return string
 
 
 def equalize_string_lengths(arr, side = 'left'):

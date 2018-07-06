@@ -3,11 +3,14 @@ import inspect
 from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
+
 from six import string_types
+
 from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
 from artemis.experiments.experiment_record import run_and_record
-from artemis.general.functional import infer_derived_arg_values, get_partial_root
+from artemis.general.functional import get_partial_root, partial_reparametrization, \
+    advanced_getargspec, PartialReparametrization
 
 
 class Experiment(object):
@@ -34,6 +37,13 @@ class Experiment(object):
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
+
+        if not is_root:
+            all_args, varargs_name, kargs_name, defaults = advanced_getargspec(function)
+            undefined_args = [a for a in all_args if a not in defaults]
+            assert len(undefined_args)==0, "{} is not a root-experiment, but arguments {} are undefined.  Either provide a value for these arguments or define this as a root_experiment (see {})."\
+                .format(self, undefined_args, 'X.add_root_variant(...)' if isinstance(function, partial) else 'X.add_config_root_variant(...)' if isinstance(function, PartialReparametrization) else '@experiment_root')
+
         _register_experiment(self)
 
     @property
@@ -48,6 +58,10 @@ class Experiment(object):
     def compare(self):
         return self._compare
 
+    @compare.setter
+    def compare(self, val):
+        self._compare = val
+
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything.  You can also modify with arguments. """
         return self.function(*args, **kwargs)
@@ -57,9 +71,10 @@ class Experiment(object):
 
     def get_args(self):
         """
-        :return: An OrderedDict of arguments to the experiment
+        :return OrderedDict[str, Any]: An OrderedDict of arguments to the experiment
         """
-        return infer_derived_arg_values(self.function)
+        all_arg_names, _, _, defaults = advanced_getargspec(self.function)
+        return OrderedDict((name, defaults[name]) for name in all_arg_names)
 
     def get_root_function(self):
         return get_partial_root(self.function)
@@ -102,29 +117,44 @@ class Experiment(object):
         :param experiment_record_kwargs: Passed to the "record_experiment" context.
         :return: The ExperimentRecord object, if keep_record is true, otherwise None
         """
-        if keep_record is None:
-            keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode
-        exp_rec = run_and_record(
-            function = self.function,
-            experiment_id=self.name,
-            print_to_console=print_to_console,
-            show_figs=show_figs,
-            test_mode=test_mode,
-            keep_record=keep_record,
-            raise_exceptions=raise_exceptions,
-            notes=notes,
-            **experiment_record_kwargs
-        )
-        if display_results:
-            self.show(exp_rec)
+
+        for exp_rec in self.iterator(print_to_console=print_to_console, show_figs=show_figs, test_mode=test_mode, keep_record=keep_record,
+                    raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **experiment_record_kwargs):
+            pass
 
         return exp_rec
 
+    def iterator(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
+            display_results=False, notes = (), **experiment_record_kwargs):
+
+        if keep_record is None:
+            keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode
+
+        exp_rec = None
+        for exp_rec in run_and_record(
+                function = self.function,
+                experiment_id=self.name,
+                print_to_console=print_to_console,
+                show_figs=show_figs,
+                test_mode=test_mode,
+                keep_record=keep_record,
+                raise_exceptions=raise_exceptions,
+                notes=notes,
+                **experiment_record_kwargs
+                ):
+            yield exp_rec
+        assert exp_rec is not None, 'Should nevah happen.'
+        if display_results:
+            self.show(exp_rec)
+        return
+
     def _create_experiment_variant(self, args, kwargs, is_root):
+        # TODO: For non-root variants, assert that all args are defined
         assert len(args) in (0, 1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
         assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
+        assert '/' not in name, 'Experiment names cannot have "/" in them: {}'.format(name)
         ex = Experiment(
             name=self.name + '.' + name,
             function=partial(self.function, **kwargs),
@@ -157,21 +187,6 @@ class Experiment(object):
         """
         return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=False)
 
-    def copy_variants(self, other_experiment):
-        """
-        Copy over the variants from another experiment.
-
-        :param other_experiment: An Experiment Object
-        """
-        base_args = other_experiment.get_args()
-        for variant in other_experiment.get_variants():
-            if variant is not self:
-                variant_args = variant.get_args()
-                different_args = {k: v for k, v in variant_args.items() if base_args[k]!=v}
-                name_diff = variant.get_id()[len(other_experiment.get_id())+1:]
-                v = self.add_variant(name_diff, **different_args)
-                v.copy_variants(variant)
-
     def add_root_variant(self, variant_name=None, **kwargs):
         """
         Add a variant to this experiment, but do NOT register it on the list of experiments.
@@ -193,6 +208,63 @@ class Experiment(object):
         """
         return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=True)
 
+    def copy_variants(self, other_experiment):
+        """
+        Copy over the variants from another experiment.
+
+        :param other_experiment: An Experiment Object
+        """
+        base_args = other_experiment.get_args()
+        for variant in other_experiment.get_variants():
+            if variant is not self:
+                variant_args = variant.get_args()
+                different_args = {k: v for k, v in variant_args.items() if base_args[k]!=v}
+                name_diff = variant.get_id()[len(other_experiment.get_id())+1:]
+                v = self.add_variant(name_diff, **different_args)
+                v.copy_variants(variant)
+
+    def _add_config(self, name, arg_constructors, is_root):
+        assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
+        assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
+        assert '/' not in name, 'Experiment names cannot have "/" in them: {}'.format(name)
+        configured_function = partial_reparametrization(self.function, **arg_constructors)
+        ex = Experiment(
+            name=self.name + '.' + name,
+            function=configured_function,
+            show=self._show,
+            compare=self._compare,
+            one_liner_function=self.one_liner_function,
+            is_root=is_root
+        )
+        self.variants[name] = ex
+        return ex
+
+    def add_config_variant(self, name, **arg_constructors):
+        """
+        Add a variant where you redefine the constructor for arguments to the experiment.  e.g.
+
+            @experiment_function
+            def demo_smooth_out_signal(smoother, signal):
+                y = [smoother.update(xt) for xt in signal]
+                plt.plot(y)
+                return y
+
+            demo_average_sequence.add_config_variant('exp_smooth', averager = lambda decay=0.1: ExponentialMovingAverage(decay))
+
+        This creates a variant "exp_smooth" which can be parameterized by a "decay" argument.
+
+        :param name: Name of the variant
+        :param kwargs: The constructors for the arguments which you'd like to configure.
+        :return: A new experiment.
+        """
+        return self._add_config(name, arg_constructors=arg_constructors, is_root=False)
+
+    def add_config_root_variant(self, name, **arg_constructors):
+        """
+        Add a config variant which requires additional parametrization.  (See add_config_variant)
+        """
+        return self._add_config(name, arg_constructors=arg_constructors, is_root=True)
+
     def get_id(self):
         """
         :return: A string uniquely identifying this experiment.
@@ -203,15 +275,15 @@ class Experiment(object):
         """
         Get a variant on this experiment.
 
-        :param variant_name: The name of the variant, if it has one
+        :param str variant_name: The name of the variant, if it has one
         :param kwargs: Otherwise, the named arguments which were used to define the variant.
-        :return: An Experiment object
+        :return Experiment: An Experiment object
         """
         if variant_name is None:
             variant_name = _kwargs_to_experiment_name(kwargs)
         else:
             assert len(kwargs)==0, 'If you provide a variant name ({}), there is no need to specify the keyword arguments. ({})'.format(variant_name, kwargs)
-        assert variant_name in self.variants, "No variant '{}' exists.  Existing variants: {}".format(variant_name, self.variants.keys())
+        assert variant_name in self.variants, "No variant '{}' exists.  Existing variants: {}".format(variant_name, list(self.variants.keys()))
         return self.variants[variant_name]
 
     def get_records(self, only_completed=False):
@@ -291,17 +363,20 @@ class Experiment(object):
     def test(self, **kwargs):
         self.run(test_mode=True, **kwargs)
 
-    def get_latest_record(self, only_completed=False, err_if_none = True):
+    def get_latest_record(self, only_completed=False, if_none = 'skip'):
         """
         Return the ExperimentRecord from the latest run of this Experiment.
 
         :param only_completed: Only search among records of that have run to completion.
         :param err_if_none: If True, raise an error if no record exists.  Otherwise, just return None in this case.
-        :return: An ExperimentRecord object
+        :return ExperimentRecord: An ExperimentRecord object
         """
+        assert if_none in ('skip', 'err', 'run')
         records = self.get_records(only_completed=only_completed)
         if len(records)==0:
-            if err_if_none:
+            if if_none=='run':
+                return self.run()
+            elif if_none=='err':
                 raise Exception('No{} records for experiment "{}"'.format(' completed' if only_completed else '', self.name))
             else:
                 return None
@@ -321,7 +396,7 @@ class Experiment(object):
         variants = self.get_all_variants(include_self=True)
 
         if only_last:
-            exp_record_dict = OrderedDict((ex.name, ex.get_latest_record(only_completed=only_completed, err_if_none=False)) for ex in variants)
+            exp_record_dict = OrderedDict((ex.name, ex.get_latest_record(only_completed=only_completed, if_none='skip')) for ex in variants)
             if flat:
                 return [record for record in exp_record_dict.values() if record is not None]
             else:
@@ -401,8 +476,9 @@ def is_experiment_loadable(experiment_id):
 
 
 def _kwargs_to_experiment_name(kwargs):
-    return ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
-
+    string = ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
+    string = string.replace('/', '_SLASH_')
+    return string
 
 @contextmanager
 def hold_global_experiment_libary(new_lib = None):

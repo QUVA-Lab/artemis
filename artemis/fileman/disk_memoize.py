@@ -66,7 +66,7 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickl
             return fcn(*args, **kwargs)
 
         result_computed = False
-        full_args = infer_arg_values(fcn, *args, **kwargs)
+        full_args = infer_arg_values(fcn, args, kwargs)
         filepath = get_function_hash_filename(fcn, full_args)
         # The filepath is used as the unique identifier, for both the local path and the disk-path
         # It may be more efficient to use the built-in hashability of certain types for the local cash, and just have special

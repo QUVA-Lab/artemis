@@ -53,7 +53,8 @@ class Checkpoints(object):
     def __init__(self, checkpoint_generator, default_units = None, skip_first = False):
         """
         :param checkpoint_generator: Can be:
-            A generator object returning checkpoints
+            A string e.g. '3s', indicating "plot every 3 seconds"
+            A generator object yielding checkpoints
             A list/tuple/array of checkpoints
             ('even', interval)
             ('exp', first, growth)
@@ -63,7 +64,7 @@ class Checkpoints(object):
         if isinstance(checkpoint_generator, str):
             assert default_units in ('sec', None)
             assert checkpoint_generator.endswith('s')
-            checkpoint_generator = int(checkpoint_generator[:-1])
+            checkpoint_generator = float(checkpoint_generator[:-1])
             default_units = 'sec'
         elif default_units is None:
             default_units = 'iter'
@@ -107,8 +108,38 @@ class Checkpoints(object):
         else:
             return False
 
+    def __iter__(self):
+        while True:
+            yield self()
+
     def get_count(self):
         return self._counter
+
+    @classmethod
+    def from_exp(cls, first, growth, **kwargs):
+        """
+        Generate checkpoints with a growing spacing.  Eg
+
+        is_test = Checkpoints(('exp', first=10, growth=.1))
+        [a for a in range(100) if is_test()]==[0, 10, 22, 37, 54, 74, 97]
+
+        :param first: The first checkpoint (after 0)
+        :param growth: The amount by which the checkpoint interval grows on each iteration
+        :param kwargs: See Checkpoints
+        :return: A Checkpoints object
+        """
+        return Checkpoints(('exp', first, growth), **kwargs)
+
+    @classmethod
+    def from_lin(cls, interval, **kwargs):
+        """
+        Generate checkpoints with fixed spacing.
+
+        :param interval:
+        :param kwargs:
+        :return:
+        """
+        return Checkpoints(('even', interval), **kwargs)
 
 
 _COUNTERS_DICT = {}
