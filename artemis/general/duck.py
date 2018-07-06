@@ -560,14 +560,26 @@ class Duck(UniversalCollection):
 
     def break_in(self, inplace=False):
         """
-        "Break in" to the values of your Duck... e.g.
+        "Break in" to the values of your Duck.  If the leaves of your duck are nested structures, this creates a new
+        Duck which includes those nested structures and whose leaves are not nested structures.
 
-        d = Duck()
-        d['a'] = {'b': 2, 'c': 3}
-        print(d.description())
+            d = Duck()
+            d['a'] = {'b': 2, 'c': 3}
+            print(d.description())
 
-        :param inplace:
-        :return:
+                <Duck with 1 keys: ['a']>
+                | a: {'b': 2, 'c': 3}
+
+            d2 = d.break_in()
+            print(d2.description())
+
+                <Duck with 1 keys: ['a']>
+                | a:
+                | | b: 2
+                | | c: 3
+
+        :param inplace: Do the break in on the current duck inplace
+        :return Duck: A new Duck whose structure includes the structure of the nested leaf values.
         """
         if inplace:
             for k, v in self.items(depth='full'):
@@ -577,6 +589,11 @@ class Duck(UniversalCollection):
             return self.from_struct(self.to_struct())
 
     def copy(self):
+        """
+        Copy the duck.  Note, that while this recursively copies the duck and all sub-Ducks within it, leaf
+        values are just copied by reference, so this is not a deepcopy.
+        :return Duck: A copy of this duck.
+        """
         newduck = Duck()
         for k, v in self.items(depth='full'):
             newduck[k] = v

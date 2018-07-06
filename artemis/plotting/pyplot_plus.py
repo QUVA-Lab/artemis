@@ -102,14 +102,14 @@ def plot_stacked_signals(x_or_y, y=None, draw_zero_lines = True, ax=None, sep=No
     return h, hz
 
 
-
 def stemlight(x_or_y, y=None, ax=None, **plot_kwargs):
     """
-    A ligher version of a stem plot.
-    :param args:
-    :param ax:
-    :param plot_kwargs:
-    :return:
+    A ligher version of a stem plot.  Avoids creating a new plot object for each point.
+    :param x_or_y: The x value (if any) otherwise the y value
+    :param y: The y value, if x provided
+    :param ax: Optionally, the axis to plot on
+    :param plot_kwargs: Passed to plt.plot
+    :return: The handles from plt.plot
     """
     if ax is None:
         ax = plt.gca()
@@ -125,7 +125,15 @@ def stemlight(x_or_y, y=None, ax=None, **plot_kwargs):
 
 
 def event_raster_plot(events, sep=1, ax=None, marker = '+', **scatter_kwargs):
-
+    """
+    Make a "raster plot" of events (something like a spike-raster plot from neuroscience).
+    :param Sequence[Sequence[float]] events: A series of event times
+    :param sep: The vertical spacing between rows in the raster plot
+    :param ax: Optinally, the axis to plot in
+    :param marker: The marker to use to mark events
+    :param scatter_kwargs: Passed to plt.scatter
+    :return: A list of handles returned by plt.scatter
+    """
     if ax is None:
         ax = plt.gca()
     h = [ax.scatter(x=event_list, y=np.zeros_like(event_list)-i*sep, marker=marker, **scatter_kwargs) for i, event_list in enumerate(events)]

@@ -154,10 +154,6 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     if draw_now and not _hold_plots and (draw_every is None or ((fig, name) not in _draw_counters) or _draw_counters[fig, name]()):
         plot.plot()
-
-        # if draw_every is not None:
-        #     if not _draw_counters[fig, name]():
-        #         return _DBPLOT_FIGURES[fig].subplots[name].axis
         if hang:
             plt.figure(_DBPLOT_FIGURES[fig].figure.number)
             plt.show()
