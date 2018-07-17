@@ -1,4 +1,9 @@
-def scannable(state, output=None, returns=None):
+from collections import namedtuple
+
+from artemis.general.should_be_builtins import izip_equal
+
+
+def scannable(state, returns=None, output=None):
     """
     A decorator for turning functions into stateful objects.  The decorator attaches a "scan" method to the given function,
     which can be called to create an object which stores the state that gets fed back into the next function call.  This
@@ -18,18 +23,44 @@ def scannable(state, output=None, returns=None):
 
     :param dict state: A dictionary whose keys are the names of the arguments to feed back, and whose values are the
         default initial state.  These initial values can be overridden when calling function.scan(arg_name, initial_value)
-    :param  Optional[Union[str, Sequence[str]]] output: If there is more than one state variable or more than one output,
+    :param  Optional[Union[str, Sequence[str]]] returns: If there is more than one state variable or more than one output,
         include the list of output names, so that the scan knows which outputs to use to update the state.
-    :param Optional[Union[str, Sequence[str]]] returns: If there is more than one output and you only wish to return a
+    :param Optional[Union[str, Sequence[str]]] output: If there is more than one output and you only wish to return a
         subset of the outputs, indicate here which variables you want to return.
     :return: func, but with a "scan" function attched.
     """
     def wrapper(func):
 
         def create_scannable(**kwargs):
-            return Scannable(func=func, state=state, output=output, returns=returns, kwargs=kwargs)
-
+            return Scannable(func=func, state=state, returns=returns, output=output, kwargs=kwargs)
         func.scan = create_scannable
+
+
+
+
+        class StatelessUpdater(namedtuple('StatelessUpdater for {}'.format(func.__name__))):
+
+            def __call__(self, *args, **kwargs):
+
+
+
+
+                return StatelessUpdater(*(return_value for return_name, return_value in izip_equal(returns, return_values) if return_name in state))
+
+
+        state_object = None if isinstance(state, str) else namedtuple('State of {}'.format(func.__name__), state)
+        output_object = None if isinstance(output, str) else namedtuple('Output of {}'.format(func.__name__, output))
+
+        def standard_form(input_values, state_values):
+
+            kwargs = input_value
+
+
+            return output_values, state_values
+
+
+        func.standard_form = standard_form
+
         return func
 
     return wrapper
@@ -40,7 +71,7 @@ class Scannable(object):
     SINGLE_OUTPUT_FORMAT = object()
     TUPLE_OUTPUT_FORMAT = object()
 
-    def __init__(self, func, state, output, returns, kwargs = None):
+    def __init__(self, func, state, returns, output, kwargs = None):
         """
         See scannable docstring
         """
@@ -52,34 +83,34 @@ class Scannable(object):
         if kwargs is not None:
             state.update(kwargs)
 
-        if output is None:
+        if returns is None:
             assert len(state_names)==1, "If there is more than one state variable, you must specify the output!"
-            output = next(iter(state_names))
-        if isinstance(output, str):
-            assert output in state_names, 'Output name "{}" was not provided not included in the state dict: "{}"'.format(output, state_names)
+            returns = next(iter(state_names))
+        if isinstance(returns, str):
+            assert returns in state_names, 'Output name "{}" was not provided not included in the state dict: "{}"'.format(returns, state_names)
             self._output_format = Scannable.SINGLE_OUTPUT_FORMAT
-            self._state_names = output
-            output_names = [output]
+            self._state_names = returns
+            output_names = [returns]
             self._output_format = Scannable.SINGLE_OUTPUT_FORMAT
         else:
-            assert isinstance(output, (list, tuple)), "output must be a string, a list/tuple, or None"
-            assert all(sn in output for sn in state_names), 'Variabels name(s) {} were listed as state variables but not included in the list of outputs: {}'.format([sn for sn in state_names if sn not in output], output)
-            output_names = output
+            assert isinstance(returns, (list, tuple)), "output must be a string, a list/tuple, or None"
+            assert all(sn in returns for sn in state_names), 'Variabels name(s) {} were listed as state variables but not included in the list of outputs: {}'.format([sn for sn in state_names if sn not in returns], returns)
+            output_names = returns
             self._output_format = Scannable.TUPLE_OUTPUT_FORMAT
             self._state_names = tuple(state_names)
             self._state_indices_in_output = [output_names.index(state_name) for state_name in state_names]
-        if isinstance(returns, str):
-            assert output is not None, 'If you specify returns, you must specify output'
-            if isinstance(output, str):
-                assert returns==output_names
+        if isinstance(output, str):
+            assert returns is not None, 'If you specify returns, you must specify output'
+            if isinstance(returns, str):
+                assert output == output_names
                 return_index = None
             else:
-                assert isinstance(output, (list, tuple))
-                return_index = output.index(returns)
-        elif isinstance(returns, (list, tuple)):
-            return_index = tuple(output_names.index(r) for r in returns)
+                assert isinstance(returns, (list, tuple))
+                return_index = returns.index(output)
+        elif isinstance(output, (list, tuple)):
+            return_index = tuple(output_names.index(r) for r in output)
         else:
-            assert returns is None
+            assert output is None
             return_index = None
 
         self.func = func
@@ -109,3 +140,18 @@ class Scannable(object):
     @property
     def state(self):
         return self._state.copy()
+
+#
+# class ScannableStateLess(object):
+#
+#     def __init__(self, func, inputs, returns, outputs):
+#         pass
+#
+#     def __call__(self, *args, **kwargs):
+#         """
+#         :param args:
+#         :param kwargs:
+#         :return:
+#         """
+
+

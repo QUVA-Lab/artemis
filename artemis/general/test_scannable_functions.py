@@ -8,7 +8,7 @@ def test_simple_moving_average():
 
     seq = np.random.randn(100) + np.sin(np.linspace(0, 10, 100))
 
-    @scannable(state=['avg', 'n'], output=['avg', 'n'], returns='avg')
+    @scannable(state=['avg', 'n'], returns=['avg', 'n'], output='avg')
     def simple_moving_average(x, avg=0, n=0):
         return (n/(1.+n))*avg + (1./(1.+n))*x, n+1
 
@@ -51,7 +51,7 @@ def test_rnn_type_comp():
     w_hh = rng.randn(n_hid, n_hid)
     w_hy = rng.randn(n_hid, n_out)
 
-    @scannable(state='hid', output=['out', 'hid'], returns='out')
+    @scannable(state='hid', returns=['out', 'hid'], output='out')
     def rnn_like_func(x, hid= np.zeros(n_hid)):
         new_hid = np.tanh(x.dot(w_xh) + hid.dot(w_hh))
         out = new_hid.dot(w_hy)
@@ -87,19 +87,19 @@ def test_bad_beheviour_caught():
         simply_smoothed_signal = [f(x=x, decay=1./(t+1)) for t, x in enumerate(seq)]
 
     with pytest.raises(AssertionError):  # Should really be done before instance-creation, but whatever.
-        @scannable(state='avg', output='avgf')
+        @scannable(state='avg', returns='avgf')
         def moving_average_with_typo(x, decay, avg=0):
             return (1-decay)*avg + decay*x
         f = moving_average_with_typo.scan()
 
     with pytest.raises(ValueError):  # Invalid return name
-        @scannable(state=['avg'], output=['avg'], returns='avgf')
+        @scannable(state=['avg'], returns=['avg'], output='avgf')
         def moving_average_with_typo(x, decay, avg=0):
             return (1-decay)*avg + decay*x
         f = moving_average_with_typo.scan()
 
     with pytest.raises(TypeError):  # Wrong output format
-        @scannable(state=['avg'], output=['avg', 'something'], returns='avg')
+        @scannable(state=['avg'], returns=['avg', 'something'], output='avg')
         def moving_average_with_typo(x, decay, avg=0):
             return (1-decay)*avg + decay*x
         f = moving_average_with_typo.scan()
