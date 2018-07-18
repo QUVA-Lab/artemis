@@ -211,6 +211,9 @@ class CaptureStdOut(object):
         sys.stderr = self.old_stderr
         self.close()
 
+    def __getattr__(self, name):
+        return getattr(self.old_stdout, name)
+
     def get_log_file_path(self):
         assert self._log_file_path is not None, "You never specified a path when you created this logger, so don't come back and ask for one now"
         return self._log_file_path

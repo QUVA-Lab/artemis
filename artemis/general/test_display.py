@@ -103,7 +103,7 @@ def test_str_with_arrayopts():
 
     a = np.arange(1, 6, 1./3)
     assert str_with_arrayopts(a, float_format='.3g', threshold=None) == '[1 1.33 1.67 2 2.33 2.67 3 3.33 3.67 4 4.33 4.67 5 5.33 5.67]'
-    assert str_with_arrayopts(a, float_format='.3g', threshold=5) == '[1 1.33 1.67 ..., 5 5.33 5.67]'  # Yeah there's a minimum of 3 on each end.
+    assert str_with_arrayopts(a, float_format='.3g', threshold=5) == '[1 1.33 1.67 ... 5 5.33 5.67]'  # Yeah there's a minimum of 3 on each end.
 
     b = a.reshape(3, 5)
     assert str_with_arrayopts(b, float_format='.3g', threshold=5) == '[[1 1.33 1.67 2 2.33]\n [2.67 3 3.33 3.67 4]\n [4.33 4.67 5 5.33 5.67]]'
