@@ -24,23 +24,41 @@ decorator:
 
     @experiment_function
     def multiply_3_numbers(a=1, b=2, c=3):
-        return a*b*c
+        answer = a*b*c
+        print('{} x {} x {} = {}'.format(a, b, c, answer))
+        return answer
 
-This turns the function into an Experiment object, which, in addition to still being a callable function, has methods ``run()``, ``add_variant(...)`` and ``get_variant()``.   It's important to give this function a unique name (rather than ``main()``, or something) because this name is used to link the experiment to the records that it has produced.
+This turns the function into an `Experiment` object, which, in addition to still being a callable function, has methods ``run()``, ``add_variant(...)`` and ``get_variant()``.   It's important to give this function a unique name (rather than ``main()``, or something) because this name is used to link the experiment to the records that it has produced.
 
 If we want to run our experiment, and save all text outputs and plots to disk, we can call the ``run`` method:
 
 .. code-block:: python
 
     record = multiply_3_numbers.run()
+    
+The `record` is an `ExperimentRecord` object, which contains the computed result, console output, and other information about the experiment.  
 
-Before we get to reviewing the results, we may want to create a "variant" on this experiment, with a different set of parameters.  For this, we can use the ``add_variant`` method: 
+.. code-block:: python
+    
+    >>> record.get_log()
+    '1 x 2 x 3 = 6\n'
+    
+.. code-block:: python
+    
+    >>> record.get_result()
+    6
+    
+.. code-block:: python
+    >>> record.get_args()
+    OrderedDict([('a', 1), ('b', 2), ('c', 3)])
+    
+Now, we may want to create a "variant" on this experiment, with a different set of parameters.  For this, we can use the ``add_variant`` method: 
 
 .. code-block:: python
 
-    multiply_3_numbers.add_variant('higher-ab', a=4, b=5)
+    ex = multiply_3_numbers.add_variant('higher-ab', a=4, b=5)
 
-If we want to access this variant later, we can call ``get_variant``:.
+The variant `ex` is itself just another `Experiment` object, which you can run or create more variants off of.  We can also access this variant later by calling ``get_variant``:.
 
 .. code-block:: python
 
