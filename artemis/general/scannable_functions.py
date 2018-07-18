@@ -1,6 +1,193 @@
 from collections import namedtuple
+from artemis.general.functional import advanced_getargspec
 
-from artemis.general.should_be_builtins import izip_equal
+
+def _normalize_formats(func, returns, state, output, outer_kwargs):
+    """
+
+    :param func:
+    :param returns:
+    :param state:
+    :param output:
+    :return:
+    """
+
+    if returns is None:
+        assert isinstance(state, str), "If there is more than one state variable, you must specify the return variables!"
+        returns = state
+
+    single_return_format = isinstance(returns, str)
+
+    if isinstance(state, str):
+        state = (state, )
+    assert isinstance(state, (list, tuple)), 'State should be a list of state names.  Got a {}'.format(state.__class__)
+
+    arg_names, _, _, initial_state_dict = advanced_getargspec(func)
+
+    for s in state:
+        assert s in arg_names, "The state '{}' is not a parameter to the function '{}'".format(s, func.__name__)
+        assert s==returns if single_return_format else s in returns, "The state variable '{}' is not updated by the returns '{}'".format(s, returns)
+
+    if output is None:
+        output = returns
+
+    if isinstance(state, dict):
+        initial_state_dict = state
+    else:
+        for name in state:
+            assert name in initial_state_dict, "Argument '{}' is part of your state, but it does not have an initial value.  Provide one either by passing in state as a dict or adding a default in the function signature".format(name)
+
+    parameter_kwargs = {}
+    for k, v in outer_kwargs.items():
+        if k in state:
+            initial_state_dict[k] = v
+        else:
+            parameter_kwargs[k] = v
+
+    if isinstance(state, (list, tuple, dict)):
+        return_state_indices = None if single_return_format else [returns.index(s) for s in state]
+    else:
+        raise Exception('State must be a list, tuple, dict, string.  Not {}'.format(output))
+
+    if single_return_format:
+        return_state_names = returns
+    else:
+        return_state_names = [returns[ix] for ix in return_state_indices]
+
+    if isinstance(output, (list, tuple)):
+        output_type = namedtuple('ScanOutputs_of_{}'.format(func.__name__), output)
+        return_output_indices = [returns.index(o) for o in output]
+    elif isinstance(output, str):
+        output_type = None
+        return_output_indices = returns.index(output)
+    else:
+        raise Exception('Output must be a list/tuple or string.  Not {}'.format(output))
+
+    if single_return_format:
+        return_output_indices = None
+
+    return single_return_format, return_output_indices, return_state_indices, return_state_names, initial_state_dict, output_type, parameter_kwargs
+
+
+def immutable_scan(func, returns, state, output, outer_kwargs = {}):
+    """
+    Create a StatelessUpdater object from a function.
+
+    A StatelessUpdater is an Immutable callable object, which stores state.  When called, it returns a new Statelessupdater,
+    containing the new state, and the specified return value.
+
+        e.g.
+
+            def moving_average(avg, x, t=0):
+                return avg*t/(t+1)+x/(t+1), t+1
+
+            sup = immutable_scan(moving_average, state=['avg', 't'], returns = ['avg', 't'], output='avg')
+
+            sup2, avg = sup(3)
+            assert avg==3
+            sup3, avg = sup2(4)
+            assert avg == 3.5
+
+        Note, you may choose to use the @scannable decorator instead:
+
+            @scannable(state=['avg', 't'], returns = ['avg', 't'], output='avg')
+            def moving_average(avg, x, t=0):
+                return avg*t/(t+1)+x/(t+1), t+1
+
+            sup = moving_average.immutable_scan()
+
+    :param Callable func: A function which defines a step in an iterative process
+    :param Union[Sequence[str], str] state: A list of names of state variables.
+    :param Union[Sequence[str], str] returns: A list of names of variables returned from the function.
+    :param Union[Sequence[str], str] output: A list of names of "output" variables
+    :return Callable[[...], Tuple[Callable, Any]]: An immutable callable of the form:
+        new_object_state, outputs = old_object_state(**inputs)
+    """
+
+    single_return_format, return_output_indices, return_state_indices, return_state_names, initial_state_dict, output_type, parameter_kwargs = _normalize_formats(func=func, returns=returns,  state=state, output=output, outer_kwargs=outer_kwargs)
+    single_output_format = not isinstance(return_output_indices, (list, tuple))
+
+    class ImmutableScan(namedtuple('ImmutableScan_of_{}'.format(func.__name__), state)):
+
+        def __call__(self, *args, **kwargs):
+            """
+            :param args:
+            :param kwargs:
+            :return StatelessUpdater, Any:
+                Where the second output is an arbitrary value if output is specified as a string, or a namedtuple if outputs is specified as a list/tuple
+            """
+            arguments = self._asdict()
+            arguments.update(**parameter_kwargs)
+            arguments.update(**kwargs)
+            return_values = func(*args, **arguments)
+
+            if single_return_format:
+                if single_output_format:
+                    output_values = return_values
+                else:
+                    output_values = output_type(return_values)
+                new_state = ImmutableScan(return_values)
+            else:
+                try:
+                    assert len(return_values) == len(returns), 'The number of return values: {}, does not match the length of the specified return variables: {} ({})'.format(len(return_values), len(returns), returns)
+                except TypeError:
+                    raise TypeError('{} should have returned an iterable of length {} containing variables {}, but got a non-iterable: {}'.format(func.__name__, len(returns), returns, return_values))
+                if single_output_format:
+                    output_values = return_values[return_output_indices]
+                else:
+                    output_values = output_type(*(return_values[i] for i in return_output_indices))
+                new_state = ImmutableScan(*(return_values[ix] for ix in return_state_indices))
+
+            return new_state, output_values
+
+    return ImmutableScan(**initial_state_dict)
+
+
+def mutable_scan(func, state, returns, output, outer_kwargs = {}):
+
+    single_return_format, return_output_indices, return_state_indices, return_state_names, initial_state_dict, output_type, parameter_kwargs = _normalize_formats(func=func, returns=returns,  state=state, output=output, outer_kwargs=outer_kwargs)
+    single_output_format = not isinstance(return_output_indices, (list, tuple))
+
+    try:
+        from recordclass import recordclass
+    except:
+        raise ImportError('Stateful Updaters require recordclass to be installed.  Run "pip install recordclass".')
+
+    class MutableScan(recordclass('MutableScan_of_{}'.format(func.__name__), state)):
+
+        def __call__(self, *args, **kwargs):
+            """
+            :param args:
+            :param kwargs:
+            :return StatelessUpdater, Any:
+                Where the second output is an arbitrary value if output is specified as a string, or a namedtuple if outputs is specified as a list/tuple
+            """
+            arguments = self._asdict()
+            arguments.update(**parameter_kwargs)
+            arguments.update(**kwargs)
+            return_values = func(*args, **arguments)
+
+            if single_return_format:
+                if single_output_format:
+                    output_values = return_values
+                else:
+                    output_values = output_type(return_values)
+                setattr(self, return_state_names, return_values)
+            else:
+                try:
+                    assert len(return_values) == len(returns), 'The number of return values: {}, does not match the length of the specified return variables: {} ({})'.format(len(return_values), len(returns), returns)
+                except TypeError:
+                    raise TypeError('{} should have returned an iterable of length {} containing variables {}, but got a non-iterable: {}'.format(func.__name__, len(returns), returns, return_values))
+                if single_output_format:
+                    output_values = return_values[return_output_indices]
+                else:
+                    output_values = output_type(*(return_values[i] for i in return_output_indices))
+                for ix, name in zip(return_state_indices, return_state_names):
+                    setattr(self, name, return_values[ix])
+
+            return output_values
+
+    return MutableScan(**initial_state_dict)
 
 
 def scannable(state, returns=None, output=None):
@@ -31,127 +218,14 @@ def scannable(state, returns=None, output=None):
     """
     def wrapper(func):
 
-        def create_scannable(**kwargs):
-            return Scannable(func=func, state=state, returns=returns, output=output, kwargs=kwargs)
-        func.scan = create_scannable
+        def make_mutable_scan(**kwargs):
+            return mutable_scan(func=func, state=state, returns=returns, output=output, outer_kwargs=kwargs)
+        func.mutable_scan = make_mutable_scan
 
+        def make_immutable_scan(**kwargs):
+            return immutable_scan(func=func, state=state, returns=returns, output=output, outer_kwargs=kwargs)
 
-
-
-        class StatelessUpdater(namedtuple('StatelessUpdater for {}'.format(func.__name__))):
-
-            def __call__(self, *args, **kwargs):
-
-
-
-
-                return StatelessUpdater(*(return_value for return_name, return_value in izip_equal(returns, return_values) if return_name in state))
-
-
-        state_object = None if isinstance(state, str) else namedtuple('State of {}'.format(func.__name__), state)
-        output_object = None if isinstance(output, str) else namedtuple('Output of {}'.format(func.__name__, output))
-
-        def standard_form(input_values, state_values):
-
-            kwargs = input_value
-
-
-            return output_values, state_values
-
-
-        func.standard_form = standard_form
-
+        func.immutable_scan = make_immutable_scan
         return func
 
     return wrapper
-
-
-class Scannable(object):
-
-    SINGLE_OUTPUT_FORMAT = object()
-    TUPLE_OUTPUT_FORMAT = object()
-
-    def __init__(self, func, state, returns, output, kwargs = None):
-        """
-        See scannable docstring
-        """
-        if isinstance(state, str):
-            state = (state, )
-        assert isinstance(state, (list, tuple)), 'State should be a list of state names.  Got a {}'.format(state.__class__)
-        state_names = state
-        state = {}
-        if kwargs is not None:
-            state.update(kwargs)
-
-        if returns is None:
-            assert len(state_names)==1, "If there is more than one state variable, you must specify the output!"
-            returns = next(iter(state_names))
-        if isinstance(returns, str):
-            assert returns in state_names, 'Output name "{}" was not provided not included in the state dict: "{}"'.format(returns, state_names)
-            self._output_format = Scannable.SINGLE_OUTPUT_FORMAT
-            self._state_names = returns
-            output_names = [returns]
-            self._output_format = Scannable.SINGLE_OUTPUT_FORMAT
-        else:
-            assert isinstance(returns, (list, tuple)), "output must be a string, a list/tuple, or None"
-            assert all(sn in returns for sn in state_names), 'Variabels name(s) {} were listed as state variables but not included in the list of outputs: {}'.format([sn for sn in state_names if sn not in returns], returns)
-            output_names = returns
-            self._output_format = Scannable.TUPLE_OUTPUT_FORMAT
-            self._state_names = tuple(state_names)
-            self._state_indices_in_output = [output_names.index(state_name) for state_name in state_names]
-        if isinstance(output, str):
-            assert returns is not None, 'If you specify returns, you must specify output'
-            if isinstance(returns, str):
-                assert output == output_names
-                return_index = None
-            else:
-                assert isinstance(returns, (list, tuple))
-                return_index = returns.index(output)
-        elif isinstance(output, (list, tuple)):
-            return_index = tuple(output_names.index(r) for r in output)
-        else:
-            assert output is None
-            return_index = None
-
-        self.func = func
-        self._state = state
-        self._return_index = return_index
-        self._output_names = output_names
-
-    def __str__(self):
-        output = self._output_names[0] if self._output_format is Scannable.SINGLE_OUTPUT_FORMAT else self._output_names
-        returns = None if self._return_index is None else repr(self._output_names[self._return_index]) if isinstance(self._return_index, int) else tuple(self._output_names[i] for i in self._return_index)
-        self._strrep = '{}(func={}, state={}, output={}, returns={})'.format(self.__class__.__name__, self.func.__name__, self._state, output, returns)
-        return self._strrep
-
-    def __call__(self, *args, **kwargs):
-        kwargs.update(self._state)
-        values_returned = self.func(*args, **kwargs)
-        if self._output_format is Scannable.SINGLE_OUTPUT_FORMAT:
-            self._state[self._state_names] = values_returned
-        else:
-            try:
-                assert len(values_returned) == len(self._output_names), 'The number of outputs: {}, does not match the length of the specified outputs: {} ({})'.format(len(values_returned), len(self._output_names), self._output_names)
-            except TypeError:
-                raise TypeError('{} should have returned an iterable of length {} containing variables {}, but got a non-iterable: {}'.format(self.func.__name__, len(self._output_names), self._output_names, values_returned))
-            self._state.update((state_name, values_returned[ix]) for state_name, ix in zip(self._state_names, self._state_indices_in_output))
-        return values_returned if self._return_index is None else values_returned[self._return_index] if isinstance(self._return_index, int) else tuple(values_returned[i] for i in self._return_index)
-
-    @property
-    def state(self):
-        return self._state.copy()
-
-#
-# class ScannableStateLess(object):
-#
-#     def __init__(self, func, inputs, returns, outputs):
-#         pass
-#
-#     def __call__(self, *args, **kwargs):
-#         """
-#         :param args:
-#         :param kwargs:
-#         :return:
-#         """
-
-
