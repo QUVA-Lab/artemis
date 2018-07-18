@@ -46,4 +46,4 @@ if __name__ == '__main__':
     # Try
     #   run all
     #   compare all
-    #   display 1
+    #   show 1
