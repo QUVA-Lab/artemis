@@ -36,7 +36,7 @@ If we want to run our experiment, and save all text outputs and plots to disk, w
 
     record = multiply_3_numbers.run()
     
-The `record` is an `ExperimentRecord` object, which contains the computed result, console output, and other information about the experiment.  
+The ``record`` is an ``ExperimentRecord`` object, which contains the computed result, console output, and other information about the execution of the experiment.  
 
 .. code-block:: python
     
@@ -58,7 +58,7 @@ Now, we may want to create a "variant" on this experiment, with a different set 
 
     ex = multiply_3_numbers.add_variant('higher-ab', a=4, b=5)
 
-The variant `ex` is itself just another `Experiment` object, which you can run or create more variants off of.  We can also access this variant later by calling ``get_variant``:.
+The variant ``ex`` is itself just another ``Experiment`` object, which you can run or create more variants off of.  We can also access this variant later by calling ``get_variant``:.
 
 .. code-block:: python
 
