@@ -64,7 +64,7 @@ def pull_experiment_records(user, ip, experiment_names, include_variants=True, n
         # +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names]  # This was the old line, but it could be too long for many experiments.
 
     if not need_pass:
-        output = subprocess.check_output(command)
+        output = subprocess.check_output(' '.join(command), shell=True)
     else:
         # This one works if you need a password
         password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
