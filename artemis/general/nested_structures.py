@@ -3,7 +3,7 @@ from collections import OrderedDict
 import numpy as np
 from six import string_types, next
 
-from artemis.general.should_be_builtins import all_equal
+from artemis.general.should_be_builtins import all_equal, izip_equal
 
 __author__ = 'peter'
 
@@ -65,10 +65,10 @@ _primitive_containers = (list, tuple, dict, set)
 
 
 def _is_primitive_container(obj):
-    return isinstance(obj, _primitive_containers)
+    return isinstance(obj, _primitive_containers) or hasattr(obj, '_fields')
 
 
-def get_meta_object(data_object, is_container_func = _is_primitive_container):
+def get_meta_object(data_object, is_container = _is_primitive_container):
     """
     Given an arbitrary data structure, return a "meta object" which is the same structure, except all non-container
     objects are replaced by their types.
@@ -77,16 +77,53 @@ def get_meta_object(data_object, is_container_func = _is_primitive_container):
         get_meta_obj([1, 2, {'a':(3, 4), 'b':['hey', 'yeah']}, 'woo']) == [int, int, {'a':(int, int), 'b':[str, str]}, str]
 
     :param data_object: A data object with arbitrary nested structure
-    :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
+    :param is_container: A callback which returns True if an object is to be considered a container and False otherwise
     :return:
     """
-    if is_container_func(data_object):
-        if isinstance(data_object, (list, tuple, set)):
-            return type(data_object)(get_meta_object(x, is_container_func=is_container_func) for x in data_object)
+    if is_container(data_object):
+        if hasattr(data_object, '_fields'):
+            return type(data_object)(*(get_meta_object(x, is_container=is_container) for x in data_object))
+        elif isinstance(data_object, (list, tuple, set)):
+            return type(data_object)(get_meta_object(x, is_container=is_container) for x in data_object)
         elif isinstance(data_object, dict):
-            return type(data_object)((k, get_meta_object(v, is_container_func=is_container_func)) for k, v in data_object.items())
+            return type(data_object)((k, get_meta_object(v, is_container=is_container)) for k, v in data_object.items())
     else:
         return type(data_object)
+
+
+def broadcast_into_meta_object(meta_object, data_object, is_container = _is_primitive_container, check_types = True):
+    """
+    "Broadcast" the data object into the meta object.  This puts the data into the structure of the meta-object.
+    E.g.
+
+        >>> broadcast_into_meta_object([int, int, int], 1)
+        [1, 1, 1]
+        >>> broadcast_into_meta_object([int, (int, int), int], (1, 2, 3))
+        [1, (2, 2), 3]
+
+    :param meta_object: A nested structure of types
+    :param data_object: A nested structure of data
+    :param is_container: A function that returns True if an object is considered to be in a container.
+    :return: A new data object with the structure of the meta object and the data of the data object.
+    """
+    kwargs = dict(check_types=check_types, is_container=is_container)
+    if is_container(meta_object):
+        if isnamedtupleinstance(meta_object):
+            if isinstance(data_object, (list, tuple, set)):
+                return meta_object.__class__(*(broadcast_into_meta_object(m, d, **kwargs) for m, d in izip_equal(meta_object, data_object)))
+            else:
+                return meta_object.__class__(*(broadcast_into_meta_object(m, data_object, **kwargs) for m in meta_object))
+        elif isinstance(meta_object, (list, tuple, set)):
+            if isinstance(data_object, (list, tuple, set)):
+                return meta_object.__class__(broadcast_into_meta_object(m, d, **kwargs) for m, d in izip_equal(meta_object, data_object))
+            else:
+                return meta_object.__class__(broadcast_into_meta_object(m, data_object, **kwargs) for m in meta_object)
+        else:
+            raise NotImplementedError('Dict iteration not supported yet.')
+    else:
+        if check_types:
+            assert isinstance(data_object, meta_object), "Data object {} does not have type of meta-object: {}".format(data_object, meta_object)
+        return data_object
 
 
 class NestedType(object):
@@ -122,14 +159,29 @@ class NestedType(object):
     def __eq__(self, other):
         return self.meta_object == other.meta_object
 
-    def get_leaves(self, data_object, check_types = True, is_container_func = _is_primitive_container):
+    def broadcast(self, data_object, is_container = _is_primitive_container, check_types=True):
+        """
+        "Broadcast" a data object to have the given structure.  e.g.
+
+                >>> structure = NestedType([int, (int, int), int])
+                >>> structure.broadcast((1, 2, 3))
+                [1, (2, 2), 3]
+
+        :param data_object: A nested data object which can be broadcast onto this structure.
+        :return: A new data object with a structure matching this object's.
+        """
+        return broadcast_into_meta_object(meta_object=self.meta_object, data_object=data_object, is_container=is_container, check_types=check_types)
+
+    def get_leaves(self, data_object, check_types = True, broadcast=False, is_container = _is_primitive_container):
         """
         :param data_object: Given a nested object, get the "leaf" values in Depth-First Order
         :return: A list of leaf values.
         """
-        if check_types:
+        if broadcast:
+            data_object = self.broadcast(data_object, check_types=check_types, is_container=is_container)
+        elif check_types:
             self.check_type(data_object)
-        return get_leaf_values(data_object, is_container_func=is_container_func)
+        return get_leaf_values(data_object, is_container_func=is_container)
 
     def expand_from_leaves(self, leaves, check_types = True, assert_fully_used=True, is_container_func = _is_primitive_container):
         """
@@ -149,17 +201,15 @@ class NestedType(object):
         :param is_container_func: A callback which returns True if an object is to be considered a container and False otherwise
         :return: A NestedType object
         """
-        return NestedType(get_meta_object(data_object, is_container_func=is_container_func))
+        return NestedType(get_meta_object(data_object, is_container=is_container_func))
 
 
-def isnestedinstance(data, meta_obj):
-    """
-    Check if the data is
-    :param data:
-    :param meta_obj:
-    :return:
-    """
-    raise NotImplementedError()
+def isnamedtuple(thing):
+    return hasattr(thing, '_fields') and len(thing.__bases__)==1 and thing.__bases__[0]==tuple
+
+
+def isnamedtupleinstance(thing):
+    return isnamedtuple(thing.__class__)
 
 
 def get_leaf_values(data_object, is_container_func = _is_primitive_container):
@@ -206,7 +256,9 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
 
     try:
         if is_container_func(meta_object):
-            if isinstance(meta_object, (list, tuple, set)):
+            if isnamedtupleinstance(meta_object):
+                filled_object = type(meta_object)(*(_fill_meta_object(None, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func) for x in meta_object._fields))
+            elif isinstance(meta_object, (list, tuple, set)):
                 filled_object = type(meta_object)(_fill_meta_object(x, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func) for x in meta_object)
             elif isinstance(meta_object, OrderedDict):
                 filled_object = type(meta_object)((k, _fill_meta_object(val, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k, val in meta_object.items())
@@ -216,7 +268,7 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
                 raise Exception('Cannot handle container type: "{}"'.format(type(meta_object)))
         else:
             next_data = next(data_iteratable)
-            if check_types and meta_object is not type(next_data):
+            if check_types and meta_object is not type(next_data) and meta_object is not None:
                 raise TypeError('The type of the data object: {} did not match type from the meta object: {}'.format(type(next_data), meta_object))
             filled_object = next_data
     except StopIteration:
@@ -245,11 +297,10 @@ def nested_map(func, *nested_objs, **kwargs):
     is_container_func = kwargs['is_container_func'] if 'is_container_func' in kwargs else _is_primitive_container
     check_types = kwargs['check_types'] if 'check_types' in kwargs else False
     assert len(nested_objs)>0, 'nested_map requires at least 2 args'
-
     assert callable(func), 'func must be a function with one argument.'
     nested_types = [NestedType.from_data(nested_obj, is_container_func=is_container_func) for nested_obj in nested_objs]
     assert all_equal(nested_types), "The nested objects you provided had different data structures:\n{}".format('\n'.join(str(s) for s in nested_types))
-    leaf_values = zip(*[nested_type.get_leaves(nested_obj, is_container_func=is_container_func, check_types=check_types) for nested_type, nested_obj in zip(nested_types, nested_objs)])
+    leaf_values = zip(*[nested_type.get_leaves(nested_obj, is_container=is_container_func, check_types=check_types) for nested_type, nested_obj in zip(nested_types, nested_objs)])
     new_leaf_values = [func(*v) for v in leaf_values]
     new_nested_obj = nested_types[0].expand_from_leaves(new_leaf_values, check_types=check_types, is_container_func=is_container_func)
     return new_nested_obj

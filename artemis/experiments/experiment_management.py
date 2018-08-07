@@ -323,6 +323,10 @@ def _filter_records(user_range, exp_record_dict):
             current_time = datetime.now()
             for exp_id, _ in base.items():
                 base[exp_id] = [filter_func(current_time - load_experiment_record(rec_id).get_datetime(), time_delta) for rec_id in exp_record_dict[exp_id]]
+    elif user_range.startswith('has:'):
+        phrase = user_range[len('has:'):]
+        for exp_id, records in base.items():
+            base[exp_id] = [True]*len(records) if phrase in exp_id else [False]*len(records)
     else:
         raise RecordSelectionError("Don't know how to interpret subset '{}'.  Possible subsets: {}".format(user_range, list(_named_record_filters.keys())))
     return base

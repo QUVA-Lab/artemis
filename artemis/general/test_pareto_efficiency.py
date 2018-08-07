@@ -1,7 +1,7 @@
 import numpy as np
 from artemis.general.ezprofile import EZProfiler
-from artemis.general.pareto_efficiency import is_pareto_efficient_ixs, is_pareto_efficient_dumb, \
-    is_pareto_efficient
+from artemis.general.pareto_efficiency import is_pareto_efficient_dumb, \
+    is_pareto_efficient, is_pareto_efficient_indexed
 
 __author__ = 'peter'
 
@@ -13,7 +13,7 @@ def test_is_pareto_efficient(plot=False):
         rng = np.random.RandomState(1234)
 
         costs = rng.rand(1000, n_costs)
-        ixs = is_pareto_efficient_ixs(costs)
+        ixs = is_pareto_efficient_indexed(costs, return_mask=True)
 
         assert np.sum(ixs)>0
         for c in costs[ixs]:
@@ -26,24 +26,31 @@ def test_is_pareto_efficient(plot=False):
             plt.show()
 
 
-def profile_pareto_efficient():
+def profile_pareto_efficient(n_points=5000, n_costs=2, include_dumb = True):
 
     rng = np.random.RandomState(1234)
 
-    costs = rng.rand(5000, 2)
+    costs = rng.rand(n_points, n_costs)
 
-    with EZProfiler('dumb'):
-        dumb_ixs = is_pareto_efficient_dumb(costs)
+    if include_dumb:
+        with EZProfiler('is_pareto_efficient_dumb'):
+            base_ixs = dumb_ixs = is_pareto_efficient_dumb(costs)
 
-    with EZProfiler('smart'):
+    with EZProfiler('is_pareto_efficient'):
         less_dumb__ixs = is_pareto_efficient(costs)
-    assert np.array_equal(dumb_ixs, less_dumb__ixs)
+        if not include_dumb:
+            base_ixs = less_dumb__ixs
+    assert np.array_equal(base_ixs, less_dumb__ixs)
 
-    with EZProfiler('index-tracking'):
-        smart_ixs = is_pareto_efficient_ixs(costs)
+    with EZProfiler('is_pareto_efficient_indexed'):
+        smart_indexed = is_pareto_efficient_indexed(costs, return_mask=True)
+    assert np.array_equal(base_ixs, smart_indexed)
 
-    assert np.array_equal(dumb_ixs, smart_ixs)
+    with EZProfiler('is_pareto_efficient_indexed_reordered'):
+        smart_indexed = is_pareto_efficient_indexed(costs, return_mask=True, rank_reorder=True)
+    assert np.array_equal(base_ixs, smart_indexed)
 
 
 if __name__ == '__main__':
-    test_is_pareto_efficient()
+    # test_is_pareto_efficient()
+    profile_pareto_efficient(n_points=100000, n_costs=2, include_dumb=False)

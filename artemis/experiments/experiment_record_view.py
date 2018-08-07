@@ -112,7 +112,7 @@ def get_record_full_string(record, show_info = True, show_logs = True, truncate_
         return '\n'.join(parts)
 
 
-def get_record_invalid_arg_string(record, recursive=True, ignore_valid_keys=(), note_version = 'full'):
+def get_record_invalid_arg_string(record, recursive=False, ignore_valid_keys=(), note_version = 'full'):
     """
     Return a string identifying ig the arguments for this experiment are still valid.
     :return:
