@@ -5,7 +5,8 @@ import numpy as np
 from artemis.plotting.demo_dbplot import demo_dbplot
 from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot, \
     dbplot_hang
-from artemis.plotting.matplotlib_backend import LinePlot, HistogramPlot, MovingPointPlot, is_server_plotting_on
+from artemis.plotting.matplotlib_backend import LinePlot, HistogramPlot, MovingPointPlot, is_server_plotting_on, \
+    ResamplingLineHistory
 import pytest
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -69,9 +70,14 @@ def test_history_plot_updating():
 
 def test_moving_point_multiple_points():
     reset_dbplot()
-    for i in xrange(5):
-        dbplot(np.sin([i/10., i/15.]), 'unlim buffer', plot_type = partial(MovingPointPlot))
-        dbplot(np.sin([i/10., i/15.]), 'lim buffer', plot_type = partial(MovingPointPlot,buffer_len=20))
+    p1 = 5.
+    p2 = 8.
+    for i in xrange(50):
+        with hold_dbplots(draw_every=5):
+            dbplot(np.sin([i/p1, i/p2]), 'unlim buffer', plot_type = partial(MovingPointPlot))
+            dbplot(np.sin([i/p1, i/p2]), 'lim buffer', plot_type = partial(MovingPointPlot,buffer_len=20))
+            dbplot(np.sin([i/p1, i/p2]), 'resampling buffer', plot_type = partial(ResamplingLineHistory, buffer_len=20))  # Only looks bad because of really small buffer length from testing.
+
 
 def test_same_object():
     """

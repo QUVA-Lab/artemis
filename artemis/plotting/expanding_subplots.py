@@ -264,7 +264,7 @@ def vstack_plots(spacing=0, sharex=True, sharey = False, show_x = 'once', show_y
         new_subplots[-1].tick_params(axis='x', labelbottom='on')
 
     if xlabel is not None:
-        new_subplots[-1].set_xlabel(xlabel)
+        new_subplots[-1].set_xlabcel(xlabel)
 
     if remove_ticks:
         new_subplots[-1].get_xaxis().set_visible(True)

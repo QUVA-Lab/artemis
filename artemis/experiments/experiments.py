@@ -3,12 +3,13 @@ import inspect
 from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
-
 from six import string_types
-
 from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
 from artemis.experiments.experiment_record import run_and_record
+from artemis.experiments.experiment_record_view import compare_experiment_records, show_record
+from artemis.general.display import sensible_str
+
 from artemis.general.functional import get_partial_root, partial_reparametrization, \
     advanced_getargspec, PartialReparametrization
 
@@ -19,7 +20,7 @@ class Experiment(object):
     create variants using decorated_function.add_variant()
     """
 
-    def __init__(self, function=None, show=None, compare=None, one_liner_function=None,
+    def __init__(self, function=None, show=None, compare=None, one_liner_function=None, result_parser = None,
                  name=None, is_root=False):
         """
         :param function: The function defining the experiment
@@ -31,9 +32,10 @@ class Experiment(object):
         """
         self.name = name
         self.function = function
-        self._show = show
-        self._one_liner_results = one_liner_function
-        self._compare = compare
+        self._show = show_record if show is None else show
+        self._one_liner_results = sensible_str if one_liner_function is None else one_liner_function
+        self._result_parser = (lambda result: [('Result', self.one_liner_function(result))]) if result_parser is None else result_parser
+        self._compare = compare_experiment_records if compare is None else compare
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
@@ -61,6 +63,10 @@ class Experiment(object):
     @compare.setter
     def compare(self, val):
         self._compare = val
+
+    @property
+    def result_parser(self):
+        return self._result_parser
 
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything.  You can also modify with arguments. """
@@ -161,6 +167,7 @@ class Experiment(object):
             show=self._show,
             compare=self._compare,
             one_liner_function=self.one_liner_function,
+            result_parser=self._result_parser,
             is_root=is_root
         )
         self.variants[name] = ex
@@ -183,7 +190,7 @@ class Experiment(object):
 
         :param variant_name: Optionally, the name of the experiment
         :param kwargs: The named arguments which will differ from the base experiment.
-        :return: The experiment.
+        :return Experiment: The experiment.
         """
         return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=False)
 
@@ -204,7 +211,7 @@ class Experiment(object):
 
         :param variant_name: Optionally, the name of the experiment
         :param kwargs: The named arguments which will differ from the base experiment.
-        :return: The experiment.
+        :return Experiment: The experiment.
         """
         return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=True)
 
@@ -320,12 +327,13 @@ class Experiment(object):
         :param display_format: How experements and their records are displayed: 'nested' or 'flat'.  'nested' might be
             better for narrow console outputs.
         """
-        from artemis.experiments.ui import browse_experiments
-        browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after,
-            filterexp=filterexp, filterrec=filterrec,
-            view_mode=view_mode, raise_display_errors=raise_display_errors, run_args=run_args, keep_record=keep_record,
-            truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, remove_prefix=remove_prefix,
-            display_format=display_format, **kwargs)
+        from artemis.experiments.ui import ExperimentBrowser
+        experiments = get_ordered_descendents_of_root(root_experiment=self)
+        browser = ExperimentBrowser(experiments=experiments, catch_errors=catch_errors, close_after=close_after,
+            filterexp=filterexp, filterrec=filterrec, view_mode=view_mode, raise_display_errors=raise_display_errors,
+            run_args=run_args, keep_record=keep_record, truncate_result_to=truncate_result_to, cache_result_string=cache_result_string,
+            remove_prefix=remove_prefix, display_format=display_format, **kwargs)
+        browser.launch(command=command)
 
     # Above this line is the core api....
     # -----------------------------------
@@ -434,7 +442,6 @@ def capture_created_experiments():
             return a+b
 
         with capture_created_experiments() as exps:
-            add_two_numbers.add_variant(a=2)
             add_two_numbers.add_variant(a=3)
 
         for ex in exps:
@@ -445,7 +452,7 @@ def capture_created_experiments():
     current_len = len(_GLOBAL_EXPERIMENT_LIBRARY)
     new_experiments = []
     yield new_experiments
-    for ex in _GLOBAL_EXPERIMENT_LIBRARY.values()[current_len:]:
+    for ex in list(_GLOBAL_EXPERIMENT_LIBRARY.values())[current_len:]:
         new_experiments.append(ex)
 
 
@@ -456,6 +463,16 @@ def _register_experiment(experiment):
 
 def get_nonroot_global_experiment_library():
     return OrderedDict((name, exp) for name, exp in _GLOBAL_EXPERIMENT_LIBRARY.items() if not exp.is_root)
+
+
+def get_ordered_descendents_of_root(root_experiment):
+    """
+    :param Experiment root_experiment: An experiment which has variants
+    :return List[Experiment]: A list of the descendents (i.e. variants and subvariants) of the root experiment, in the
+        order in which they were created
+    """
+    descendents_of_root = set(ex for ex in root_experiment.get_all_variants(include_self=True))
+    return [ex for ex in get_nonroot_global_experiment_library().values() if ex in descendents_of_root]
 
 
 def get_experiment_info(name):
@@ -479,6 +496,7 @@ def _kwargs_to_experiment_name(kwargs):
     string = ','.join('{}={}'.format(argname, kwargs[argname]) for argname in sorted(kwargs.keys()))
     string = string.replace('/', '_SLASH_')
     return string
+
 
 @contextmanager
 def hold_global_experiment_libary(new_lib = None):

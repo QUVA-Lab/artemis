@@ -289,6 +289,21 @@ def is_parallel(a, b, angular_tolerance = 1e-7):
     return angle < angular_tolerance
 
 
+def vector_projection(v, u, axis=-1, norm_factor=0.):
+    """
+    Project v onto u.
+    :param v: A vector or collection of vectors
+    :param u: A vector or collection of vectors which is broadcastable against v
+    :param axis: The axis of v along which the vector is defined.
+    :return: An array the same shape as v projected onto u.
+    """
+    return u*((norm_factor+(u*v).sum(axis=axis, keepdims=True)) / (norm_factor+(u*u).sum(axis=axis, keepdims=True)))
+    # true_axis = v.ndim+axis if axis<0 else axis
+    # u_norm = u/(u*u).sum(axis=axis, keepdims=True)
+    # vu_dot = (u*v).sum(axis=axis, keepdims=True) / (u*u).sum(axis=axis, keepdims=True)
+    # return vu_dot*u
+
+
 def align_curves(xs, ys, n_bins='median', xrange = ('min', 'max'), spacing = 'lin'):
     """
     Given multiple curves with different x-coordinates, interpolate so that each has the same x points.

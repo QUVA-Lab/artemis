@@ -5,7 +5,7 @@ from six import string_types
 
 from artemis.config import get_artemis_config_value
 from artemis.general.checkpoint_counter import Checkpoints
-from artemis.plotting.matplotlib_backend import BarPlot, BoundingBoxPlot
+from artemis.plotting.matplotlib_backend import BarPlot, BoundingBoxPlot, ResamplingLineHistory
 from matplotlib.axes import Axes
 from matplotlib.gridspec import SubplotSpec
 from contextlib import contextmanager
@@ -48,13 +48,16 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     :param data: Any data.  Hopefully, we at dbplot will be able to figure out a plot for it.
     :param name: A name uniquely identifying this plot.
-    :param plot_type: A specialized constructor to be used the first time when plotting.  You can also pass
-        certain string to give hints as to what kind of plot you want (can resolve cases where the given data could be
-        plotted in multiple ways):
-        'line': Plots a line plot
-        'img': An image plot
-        'colour': A colour image plot
-        'pic': A picture (no scale bars, axis labels, etc).
+    :param Union[Callable[[],LinePlot],str,Tuple[Callable, Dict]] plot_type : A specialized constructor to be used the
+        first time when plotting.  Several predefined constructors are defined in the DBPlotTypes class - you can pass
+        those.  For back-compatibility you can also pass a string matching the name of one of the fields in the DBPlotTypes
+        class.
+        DBPlotTypes.LINE: Plots a line plot
+        DBPlotTypes.IMG: An image plot
+        DBPlotTypes.COLOUR: A colour image plot
+        DBPlotTypes.PIC: A picture (no scale bars, axis labels, etc)
+        You can also, pass a tuple of (constructor, keyword_args) where keyword args is a dict of arcuments to the plot
+        constructor.
     :param axis: A string identifying which axis to plot on.  By default, it is the same as "name".  Only use this
         argument if you indend to make multiple dbplots share the same axis.
     :param plot_mode: Influences how the data should be used to choose the plot type:
@@ -95,11 +98,16 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     if name not in suplot_dict:  # Initialize new axis
 
         if isinstance(plot_type, str):
-            plot = PLOT_CONSTRUCTORS[plot_type]()
+            plot = DBPlotTypes.from_string(plot_type)()
         elif isinstance(plot_type, tuple):
             assert len(plot_type)==2 and isinstance(plot_type[0], str) and isinstance(plot_type[1], dict), 'If you specify a tuple for plot_type, we expect (name, arg_dict).  Got: {}'.format(plot_type)
             plot_type_name, plot_type_args = plot_type
-            plot = PLOT_CONSTRUCTORS[plot_type_name](**plot_type_args)
+            if isinstance(plot_type_name, str):
+                plot = DBPlotTypes.from_string(plot_type_name)(**plot_type_args)
+            elif callable(plot_type_name):
+                plot = plot_type_name(**plot_type_args)
+            else:
+                raise Exception('The first argument of the plot type tuple must be a plot type name or a callable plot type constructor.')
         elif plot_type is None:
             plot = get_plot_from_data(data, mode=plot_mode)
         else:
@@ -154,11 +162,8 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
 
     if draw_now and not _hold_plots and (draw_every is None or ((fig, name) not in _draw_counters) or _draw_counters[fig, name]()):
         plot.plot()
-        if hang:
-            plt.figure(_DBPLOT_FIGURES[fig].figure.number)
-            plt.show()
-        else:
-            redraw_figure(_DBPLOT_FIGURES[fig].figure)
+        display_figure(_DBPLOT_FIGURES[fig].figure, hang=hang)
+
     return _DBPLOT_FIGURES[fig].subplots[name].axis
 
 
@@ -179,32 +184,36 @@ _hold_plot_counter = None
 _default_layout = 'grid'
 
 
-PLOT_CONSTRUCTORS = {
-    'line': LinePlot,
-    'thick-line': partial(LinePlot, plot_kwargs={'linewidth': 3}),
-    'pos_line': partial(LinePlot, y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-    'bbox': partial(BoundingBoxPlot, linewidth=2, axes_update_mode='expand'),
-    'bbox_r': partial(BoundingBoxPlot, linewidth=2, color='r', axes_update_mode='expand'),
-    'bbox_b': partial(BoundingBoxPlot, linewidth=2, color='b', axes_update_mode='expand'),
-    'bbox_g': partial(BoundingBoxPlot, linewidth=2, color='g', axes_update_mode='expand'),
-    'bar': BarPlot,
-    'img': ImagePlot,
-    'cimg': partial(ImagePlot, channel_first=True),
-    'line_history': MovingPointPlot,
-    'img_stable': partial(ImagePlot, only_grow_clims=True),
-    'colour': partial(ImagePlot, is_colour_data=True),
-    'equal_aspect': partial(ImagePlot, aspect='equal'),
-    'image_history': MovingImagePlot,
-    'fixed_line_history': partial(MovingPointPlot, buffer_len=100),
-    'pic': partial(ImagePlot, show_clims=False, aspect='equal'),
-    'notice': partial(TextPlot, max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large'),
-    'cost': partial(MovingPointPlot, y_bounds=(0, None), y_bound_extend=(0, 0.05)),
-    'percent': partial(MovingPointPlot, y_bounds=(0, 100)),
-    'trajectory': partial(Moving2DPointPlot, axes_update_mode='expand'),
-    'trajectory+': partial(Moving2DPointPlot, axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None)),
-    'histogram': partial(HistogramPlot, edges = np.linspace(-5, 5, 20)),
-    'cumhist': partial(CumulativeLineHistogram, edges = np.linspace(-5, 5, 20)),
-    }
+class DBPlotTypes:
+    LINE= LinePlot
+    THICK_LINE= partial(LinePlot, plot_kwargs={'linewidth': 3})
+    POS_LINE= partial(LinePlot, y_bounds=(0, None), y_bound_extend=(0, 0.05))
+    BBOX= partial(BoundingBoxPlot, linewidth=2, axes_update_mode='expand')
+    BBOX_R= partial(BoundingBoxPlot, linewidth=2, color='r', axes_update_mode='expand')
+    BBOX_B= partial(BoundingBoxPlot, linewidth=2, color='b', axes_update_mode='expand')
+    BBOX_G= partial(BoundingBoxPlot, linewidth=2, color='g', axes_update_mode='expand')
+    BAR= BarPlot
+    IMG= ImagePlot
+    CIMG= partial(ImagePlot, channel_first=True)
+    LINE_HISTORY= MovingPointPlot
+    IMG_STABLE= partial(ImagePlot, only_grow_clims=True)
+    COLOUR= partial(ImagePlot, is_colour_data=True)
+    EQUAL_ASPECT= partial(ImagePlot, aspect='equal')
+    IMAGE_HISTORY= MovingImagePlot
+    FIXED_LINE_HISTORY= partial(MovingPointPlot, buffer_len=100)
+    LINE_HISTORY_RESAMPLED= partial(ResamplingLineHistory, buffer_len=400)
+    PIC= partial(ImagePlot, show_clims=False, aspect='equal')
+    NOTICE= partial(TextPlot, max_history=1, horizontal_alignment='center', vertical_alignment='center', size='x-large')
+    COST= partial(MovingPointPlot, y_bounds=(0, None), y_bound_extend=(0, 0.05))
+    PERCENT= partial(MovingPointPlot, y_bounds=(0, 100))
+    TRAJECTORY= partial(Moving2DPointPlot, axes_update_mode='expand')
+    TRAJECTORY_PLUS= partial(Moving2DPointPlot, axes_update_mode='expand', x_bounds=(0, None), y_bounds=(0, None))
+    HISTOGRAM= partial(HistogramPlot, edges = np.linspace(-5, 5, 20))
+    CUMHIST= partial(CumulativeLineHistogram, edges = np.linspace(-5, 5, 20))
+
+    @classmethod
+    def from_string(cls, str):  # For back-compatibility
+        return getattr(cls, str.upper().replace('-', '_').replace('+', '_PLUS'))
 
 
 def reset_dbplot():
@@ -253,17 +262,30 @@ def freeze_all_dbplots(fig = None):
         freeze_dbplot(name, fig=fig)
 
 
-def replot_and_redraw_figure(fig):
+def replot_and_redraw_figure(fig, hang):
 
     for subplot in _DBPLOT_FIGURES[fig].subplots.values():
         plt.subplot(subplot.axis)
         subplot.plot_object.plot()
 
-    redraw_figure(_DBPLOT_FIGURES[fig].figure)
+    display_figure(_DBPLOT_FIGURES[fig].figure, hang)
+
+
+def display_figure(fig, hang):
+    if hang is True:
+        plt.figure(fig.number)
+        plt.show()
+    elif hang in (None, False):
+        redraw_figure(fig)
+    elif isinstance(hang, (int, float)):
+        redraw_figure(fig)
+        plt.pause(hang)
+    else:
+        raise TypeError("Can't interpret hang argument {}".format(hang))
 
 
 @contextmanager
-def hold_dbplots(fig = None, draw_every = None):
+def hold_dbplots(fig = None, hang=False, draw_every = None):
     """
     Use this in a "with" statement to prevent plotting until the end.
     :param fig:
@@ -291,7 +313,7 @@ def hold_dbplots(fig = None, draw_every = None):
         plot_now = True
 
     if plot_now and fig in _DBPLOT_FIGURES:
-        replot_and_redraw_figure(fig)
+        replot_and_redraw_figure(fig, hang = hang)
 
 
 def clear_dbplot(fig = None):
@@ -309,11 +331,15 @@ def get_dbplot_axis(axis_name, fig=None):
     return _DBPLOT_FIGURES[fig].axes[axis_name]
 
 
-def dbplot_hang():
-    plt.show()
+def dbplot_hang(timeout=None):
+    if timeout is None:
+        plt.show()
+    else:
+        redraw_figure()
+        plt.pause(timeout)
 
 
-def dbplot_collection(collection, name, axis = None, draw_every=None, **kwargs):
+def dbplot_collection(collection, name, hang=False, axis = None, draw_every=None, **kwargs):
     """
     Plot a collection of items in one go.
     :param collection:
@@ -321,7 +347,7 @@ def dbplot_collection(collection, name, axis = None, draw_every=None, **kwargs):
     :param kwargs:
     :return:
     """
-    with hold_dbplots(draw_every=draw_every):
+    with hold_dbplots(draw_every=draw_every, hang=hang):
         if isinstance(collection, (list, tuple)):
             for i, el in enumerate(collection):
                 dbplot(el, '{}[{}]'.format(name, i), axis='{}[{}]'.format(axis, i) if axis is not None else None, **kwargs)

@@ -7,8 +7,9 @@ from six import string_types
 
 from artemis.config import get_artemis_config_value
 from artemis.general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import (put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array,
-    UnlimitedRecordBuffer)
+from artemis.plotting.data_conversion import (put_data_in_grid, RecordBuffer, data_to_image,
+                                              put_list_of_images_in_array,
+                                              UnlimitedRecordBuffer, ResamplingRecordBuffer)
 from matplotlib import pyplot as plt
 import numpy as np
 from six.moves import xrange
@@ -365,6 +366,21 @@ class MovingPointPlot(LinePlot):
         buffer_data = self._buffer.retrieve_data()
         x_data = np.arange(len(buffer_data)) if self.x_data is None else self.x_data
         LinePlot.update(self, (x_data, buffer_data))
+        LinePlot.plot(self)
+
+
+class ResamplingLineHistory(LinePlot):
+
+    def __init__(self, buffer_len, cull_factor=2, **kwargs):
+        LinePlot.__init__(self, **kwargs)
+        self._buffer = ResamplingRecordBuffer(buffer_len=buffer_len, cull_factor=cull_factor)
+
+    def update(self, data):
+        self._buffer.insert_data(data)
+
+    def plot(self):
+        x_data, y_data = self._buffer.retrieve_data()
+        LinePlot.update(self, (x_data, y_data))
         LinePlot.plot(self)
 
 

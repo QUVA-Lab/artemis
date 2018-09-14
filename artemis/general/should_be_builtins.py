@@ -162,8 +162,9 @@ def remove_duplicates(sequence, hashable=True, key=None, keep_last=False):
     :param keep_last: Keep the last element, rather than the first (only makes sense if key is not None)
     :returns: A list that maintains the order, but with duplicates removed
     """
+    sequence = list(sequence)
     is_dup = detect_duplicates(sequence, hashable=hashable, key=key, keep_last=keep_last)
-    return [x for x, is_duplicate in zip(sequence, is_dup) if not is_duplicate]
+    return (x for x, is_duplicate in zip(sequence, is_dup) if not is_duplicate)
 
 
 def uniquify_duplicates(sequence_of_strings):
@@ -257,7 +258,7 @@ def separate_common_items(list_of_lists):
     if are_dicts:
         list_of_lists = [el.items() for el in list_of_lists]
     all_items = [item for list_of_items in list_of_lists for item in list_of_items]
-    common_items = remove_duplicates([k for k, c in count_unique_items(all_items) if c==len(list_of_lists)], hashable=False)
+    common_items = list(remove_duplicates([k for k, c in count_unique_items(all_items) if c==len(list_of_lists)], hashable=False))
     different_items = [[item for item in list_of_items if item not in common_items] for list_of_items in list_of_lists]
     if are_dicts:
         return dict(common_items), [dict(el) for el in different_items]
@@ -462,3 +463,19 @@ def unzip(iterable):
     :return: A N-tuple of iterables
     """
     return zip(*iterable)
+
+
+def entries_to_table(tuplelist, fill_value = None):
+    """
+    Turn a bunch of entries into a table.  e.g.
+
+        >>> entries_to_table([[('a', 1), ('b', 2)], [('a', 3), ('b', 4), ('c', 5)]])
+        (['a', 'b', 'c'], [[1, 2, None], [3, 4, 5]])
+
+    :param Sequence[Sequence[Tuple[str, Any]]] tuplelist: N_samples samples of N_observations observations, each represented by (observation_name, observation_value)
+    :return Tuple[Sequence[str], Sequence[Sequence[Any]]: (observation_names, data) A list of observation_names and the data suitable for tabular plotting.
+    """
+    all_entries = list(remove_duplicates((k for sample in tuplelist for k, v in (sample.items() if isinstance(sample, dict) else sample))))
+    data = [dict(sample) for sample in tuplelist]
+    new_data = [[d[k] if k in d else fill_value for k in all_entries] for d in data]
+    return all_entries, new_data

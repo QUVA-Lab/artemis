@@ -38,15 +38,16 @@ class ProgressIndicator(object):
     def __call__(self, iteration = None):
         self.print_update(iteration)
 
-    def print_update(self, progress=None):
+    def print_update(self, progress=None, info=None):
         self._current_time = time.time()
         elapsed = self._current_time - self._start_time
         if self._expected_iterations is None:
             if self._should_update():
-                print ('Progress{}: {:.1f}s Elapsed.  {}.  {} calls averaging {:.2g} calls/s'.format(
+                print ('Progress{}: {:.1f}s Elapsed{}{}.  {} calls averaging {:.2g} calls/s'.format(
                     '' if self.name is None else ' of '+self.name,
                     elapsed,
-                    self._post_info_callback() if self._post_info_callback is not None else '',
+                    '. '+ self._post_info_callback() if self._post_info_callback is not None else '',
+                    ', '+ info if info is not None else '',
                     self._i+1,
                     (self._i+1)/elapsed
                     ))
@@ -62,15 +63,16 @@ class ProgressIndicator(object):
                 else:
                     remaining = elapsed * (1 / frac - 1) if frac > 0 else float('NaN')
                 elapsed = self._current_time - self._start_time
-                print('Progress{}: {}%.  {:.1f}s Elapsed, {:.1f}s Remaining{}.  {}  {} calls averaging {:.2g} calls/s'.format(
-                    '' if self.name is None else ' of '+self.name,
-                    int(100*frac),
-                    elapsed,
-                    remaining,
-                    ', {:.1f}s Total'.format(elapsed+remaining) if self.show_total else '',
-                    self._post_info_callback() if self._post_info_callback is not None else '',
-                    self._i+1,
-                    (self._i+1)/elapsed
+                print('Progress{name}: {progress}%.  {elapsed:.1f}s Elapsed, {remaining:.1f}s Remaining{total}. {info_cb}{info}{n_calls} calls averaging {rate:.2g} calls/s'.format(
+                    name = '' if self.name is None else ' of '+self.name,
+                    progress = int(100*frac),
+                    elapsed = elapsed,
+                    remaining = remaining,
+                    total = ', {:.1f}s Total'.format(elapsed+remaining) if self.show_total else '',
+                    info_cb = '. '+ self._post_info_callback() if self._post_info_callback is not None else '',
+                    info=', '+ info if info is not None else '',
+                    n_calls=self._i+1,
+                    rate=(self._i+1)/elapsed
                     ))
                 self._last_update = progress if self._update_unit == 'iterations' else self._current_time
         self._i += 1

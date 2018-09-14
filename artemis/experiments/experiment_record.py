@@ -289,7 +289,7 @@ class ExperimentRecord(object):
         """
         Load the experiment associated with this record.
         Note that this will raise an ExperimentNotFoundError if the experiment has not been imported.
-        :return: An Experiment object
+        :return Experiment: An Experiment object
         """
         from artemis.experiments.experiments import load_experiment
         return load_experiment(self.get_experiment_id())

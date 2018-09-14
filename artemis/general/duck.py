@@ -410,9 +410,12 @@ class Duck(UniversalCollection):
             new_substruct = self._struct[first_selector]
             if isinstance(new_substruct, UniversalCollection) and not isinstance(new_substruct, Duck):  # This will happen if the selector is a slice or something...
                 new_substruct = Duck(new_substruct, recurse=False)
+
             if len(indices)==1:  # Case 1: Simple... this is the last selector, so we can just return it.
                 return new_substruct
-            else:  # Case 2:
+            else:  # Case 2: There are deeper indices to get
+                if not isinstance(new_substruct, Duck):
+                    raise KeyError('Leave value "{}" can not be broken into with {}'.format(new_substruct, indices[1:]))
                 if isinstance(first_selector, (list, np.ndarray, slice)):  # Sliced selection, with more sub-indices
                     return new_substruct.map(lambda x: x.__getitem__(indices[1:]))
                 else:  # Simple selection, with more sub-indices
@@ -634,8 +637,15 @@ class Duck(UniversalCollection):
         ixs = tuple(-1 if ix is next else ix for ix in ixs)
         return self[ixs]
 
-    def has_key(self, *key_chain):
-        return self._struct.has_key()
+    def has_key(self, key, *deeper_keys):
+
+        try:
+            self[(key, )+deeper_keys]
+            return True
+        except (KeyError, AttributeError):
+            return False
+        # Alternate definition that checks for exact key values but does not handle slices, negative indices, etc.
+        # return self._struct.has_key(key) and (len(deeper_keys)==0 or (isinstance(self._struct[key], Duck) and self._struct[key].has_key(*deeper_keys)))
 
     def keys(self, depth=None):
         if depth is None:

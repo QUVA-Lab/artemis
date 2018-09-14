@@ -153,7 +153,7 @@ _lines_colour_cycle = (p['color'] for p in plt.rcParams['axes.prop_cycle'])
 
 
 def get_lines_color_cycle():
-    return _lines_colour_cycle
+    return (p['color'] for p in plt.rcParams['axes.prop_cycle'])
 
 
 def get_color_cycle_map(name, length):
@@ -169,7 +169,7 @@ def set_lines_color_cycle_map(name, length):
 
 
 def get_line_color(ix, modifier=None):
-    colour = _lines_colour_cycle[ix]
+    colour = next(c for i, c in enumerate(get_lines_color_cycle()) if i==ix)
     if modifier=='dark':
         return tuple(c/2 for c in colors.hex2color(colour))
     elif modifier=='light':

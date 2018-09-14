@@ -8,7 +8,8 @@ from six.moves import xrange
 
 from artemis.general.nested_structures import (flatten_struct, get_meta_object, NestedType,
                                                seqstruct_to_structseq, structseq_to_seqstruct, nested_map,
-                                               get_leaf_values, broadcast_into_meta_object)
+                                               get_leaf_values, broadcast_into_meta_object,
+                                               get_leaves_and_rebuilder)
 
 
 def test_flatten_struct():
@@ -152,6 +153,24 @@ def test_namedtuple_breakin():
     assert struct.broadcast([1, 2]) == [thing(1, 1), thing(2, 2)]
 
 
+def test_flatten_nested_struct_and_rebuild():
+
+    obj = [1, 2, {'a': (3, 4.), 'b': 'c'}]
+    flat_list, rebuilder = get_leaves_and_rebuilder(obj)
+    assert flat_list==[1, 2, 3, 4., 'c']
+    new_obj = rebuilder(flat_list)
+    assert new_obj==obj
+
+    obj = ((j for j in range(i)) for i in range(2, 5))
+    flat_list, rebuilder = get_leaves_and_rebuilder(obj)
+    assert flat_list == [0, 1, 0, 1, 2, 0, 1, 2, 3]
+    assert rebuilder(flat_list) == ((0, 1), (0, 1, 2), (0, 1, 2, 3))
+    assert rebuilder((f*2 for f in flat_list)) == ((0, 2), (0, 2, 4), (0, 2, 4, 6))
+
+    flat_list, rebuilder = get_leaves_and_rebuilder({'a': 1, 'b': (2, 3)})
+    assert flat_list == [1, 2, 3]
+    assert rebuilder(a*2 for a in flat_list) == {'a': 2, 'b': (4, 6)}
+
 
 if __name__ == '__main__':
     test_flatten_struct()
@@ -164,3 +183,4 @@ if __name__ == '__main__':
     test_none_bug()
     test_nested_struct_broadcast()
     test_namedtuple_breakin()
+    test_flatten_nested_struct_and_rebuild()

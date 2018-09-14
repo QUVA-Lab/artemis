@@ -1,21 +1,20 @@
 import re
 from collections import OrderedDict
 
+from six import string_types
 from tabulate import tabulate
-from artemis.experiments.experiment_management import load_lastest_experiment_results
+import numpy as np
 from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, \
     load_experiment_record, is_matplotlib_imported, UnPicklableArg
-from artemis.experiments.experiments import is_experiment_loadable, get_global_experiment_library
-from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, CaptureStdOut, \
-    surround_with_header, section_with_header
+from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, \
+    surround_with_header, section_with_header, dict_to_str
 from artemis.general.nested_structures import flatten_struct, PRIMATIVE_TYPES
-from artemis.general.should_be_builtins import separate_common_items, all_equal, bad_value, izip_equal, \
-    remove_duplicates
+from artemis.general.should_be_builtins import separate_common_items, bad_value, izip_equal, \
+    remove_duplicates, get_unique_name, entries_to_table
 from artemis.general.tables import build_table
-from six import string_types
 
 
-def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False):
+def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False, default_one_liner_func=str):
     """
     Get a string representing the result of the experiment.
     :param record:
@@ -36,7 +35,7 @@ def get_record_result_string(record, func='deep', truncate_to = None, array_prin
             return '<No result has been saved>'
         string = func(result)
         if not isinstance(string, string_types):
-            string = str(string)
+            string = default_one_liner_func(string)
 
     if truncate_to is not None:
         string = truncate_string(string, truncation=truncate_to, message = '...<truncated>')
@@ -117,6 +116,7 @@ def get_record_invalid_arg_string(record, recursive=False, ignore_valid_keys=(),
     Return a string identifying ig the arguments for this experiment are still valid.
     :return:
     """
+    from artemis.experiments.experiments import is_experiment_loadable
     assert note_version in ('full', 'short')
     experiment_id = record.get_experiment_id()
     if is_experiment_loadable(experiment_id):
@@ -149,7 +149,7 @@ def get_record_invalid_arg_string(record, recursive=False, ignore_valid_keys=(),
     return notes
 
 
-def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g', array_print_threshold=8):
+def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g', array_print_threshold=8, default_one_liner_func=dict_to_str):
     """
     Get a string that describes the result of the record in one line.  This can optionally be specified by
     experiment.one_liner_function.
@@ -160,16 +160,17 @@ def get_oneline_result_string(record, truncate_to=None, array_float_format='.3g'
     :param array_print_threshold:
     :return: A string with no newlines briefly describing the result of the record.
     """
+    from artemis.experiments.experiments import is_experiment_loadable
     if isinstance(record, string_types):
         record = load_experiment_record(record)
     if not is_experiment_loadable(record.get_experiment_id()):
-        one_liner_function=str
+        one_liner_function=default_one_liner_func
     else:
         one_liner_function = record.get_experiment().one_liner_function
         if one_liner_function is None:
-            one_liner_function = str
+            one_liner_function = default_one_liner_func
     return get_record_result_string(record, func=one_liner_function, truncate_to=truncate_to, array_print_threshold=array_print_threshold,
-        array_float_format=array_float_format, oneline=True)
+        array_float_format=array_float_format, oneline=True, default_one_liner_func=default_one_liner_func)
 
 
 def print_experiment_record_argtable(records):
@@ -204,6 +205,69 @@ def print_experiment_record_argtable(records):
     print(tabulate(rows))
 
 
+def get_column_change_ordering(tabular_data):
+    """
+    Get the order in which to rearrange the columns so that the fastest-changing data comes last.
+
+    :param tabular_data: A list of equal-length lists
+    :return: A set of permutation indices for the columns.
+    """
+    n_rows, n_columns = len(tabular_data), len(tabular_data[0])
+    deltas = [sum(row_prev[i]!=row[i] for row_prev, row in zip(tabular_data[:-1], tabular_data[1:])) for i in range(n_columns)]
+    return np.argsort(deltas)
+
+
+def get_different_args(args, no_arg_filler = 'N/A', arrange_by_deltas=False):
+    """
+    Get a table of different args between records.
+    :param Sequence[List[Tuple[str, Any]]] args: A list of lists of argument (name, value) pairs.
+    :param no_arg_filler: The filler value to use if a record does not have a particular argument (possibly due to an argument being added to the code after the record was made)
+    :param arrange_by_deltas: If true, order arguments so that the fastest-changing ones are in the last column
+    :return Tuple[List[str], List[List[Any]]]: (arg_names, arg_values) where:
+        arg_names is a list of arguments that differ between records
+        arg_values is a len(records)-list of len(arg_names) lists of values of the arguments for each record.
+    """
+    args = list(args)
+    common_args, different_args = separate_common_items(args)
+    all_different_args = list(remove_duplicates((k for dargs in different_args for k in dargs.keys())))
+    values = [[record_args[argname] if argname in record_args else no_arg_filler for argname in all_different_args] for record_args in args]
+    if arrange_by_deltas:
+        col_shuf_ixs = get_column_change_ordering(values)
+        all_different_args = [all_different_args[i] for i in col_shuf_ixs]
+        values = [[row[i] for i in col_shuf_ixs] for row in values]
+    return all_different_args, values
+
+
+def get_exportiment_record_arg_result_table(records):
+    record_ids = [record.get_id() for record in records]
+    all_different_args, arg_values = get_different_args([r.get_args() for r in records], no_arg_filler='N/A')
+
+    parsed_results = [record.get_experiment().result_parser(record.get_result()) for record in records]
+    result_fields, result_data = entries_to_table(parsed_results)
+    result_fields = [get_unique_name(rf, all_different_args) for rf in result_fields]  # Just avoid name collisions
+
+    # result_column_name = get_unique_name('Results', taken_names=all_different_args)
+
+    def lookup_fcn(record_id, arg_or_result_name):
+        row_index = record_ids.index(record_id)
+        if arg_or_result_name in result_fields:
+            return result_data[row_index][result_fields.index(arg_or_result_name)]
+        else:
+            column_index = all_different_args.index(arg_or_result_name)
+            return arg_values[row_index][column_index]
+
+    rows = build_table(lookup_fcn,
+        row_categories=record_ids,
+        column_categories=all_different_args + result_fields,
+        prettify_labels=False,
+        include_row_category=False,
+        )
+
+    return rows[0], rows[1:]
+
+    # return tabulate(rows[1:], headers=rows[0])
+
+
 def show_record(record, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
     """
     Show the results of an experiment record.
@@ -221,8 +285,6 @@ def show_record(record, show_logs=True, truncate_logs=None, truncate_result=1000
 
     has_matplotlib_figures = any(loc.endswith('.pkl') for loc in record.get_figure_locs())
     if has_matplotlib_figures:
-        from matplotlib import pyplot as plt
-        from artemis.plotting.saving_plots import interactive_matplotlib_context
         record.show_figures(hang=hang)
     print(string)
 
@@ -278,22 +340,6 @@ def compare_experiment_records(records, parallel_text=None, show_logs=True, trun
                 rec.show_figures()
 
     return has_matplotlib_figures
-
-
-def find_experiment(*search_terms):
-    """
-    Find an experiment.  Invoke
-    :param search_term: A term that will be used to search for an experiment.
-    :return:
-    """
-    global_lib = get_global_experiment_library()
-    found_experiments = OrderedDict((name, ex) for name, ex in global_lib.items() if all(re.search(term, name) for term in search_terms))
-    if len(found_experiments)==0:
-        raise Exception("None of the {} experiments matched the search: '{}'".format(len(global_lib), search_terms))
-    elif len(found_experiments)>1:
-        raise Exception("More than one experiment matched the search '{}', you need to be more specific.  Found: {}".format(search_terms, found_experiments.keys()))
-    else:
-        return found_experiments.values()[0]
 
 
 def make_record_comparison_table(records, args_to_show=None, results_extractor = None, print_table = False, tablefmt='simple', reorder_by_args=False):
