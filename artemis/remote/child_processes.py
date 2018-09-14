@@ -26,6 +26,7 @@ from artemis.remote.plotting.utils import handle_socket_accepts
 from artemis.config import get_artemis_config_value
 from artemis.remote.utils import get_local_ips, get_socket, get_ssh_connection, check_pid
 
+KILL_SIGNAL = signal.SIGKILL if hasattr(signal, "SIGKILL") else signal.SIGTERM
 
 class ChildProcess(object):
     '''
@@ -79,14 +80,14 @@ class ChildProcess(object):
     def get_extended_command(self,command):
         return "echo $$ ; exec %s"%command
 
-    def deconstruct(self, signum=signal.SIGKILL, system_signal=False):
+    def deconstruct(self, signum=KILL_SIGNAL, system_signal=False):
         '''
         This completely and safely deconstructs a remote connection. It might also be called at program shutdown, if take_care_of_deconstruct is set to True
         kills itself if alive, then closes remote connection if applicable
         :return:
         '''
         if self.cp_started:
-            if signum == signal.SIGKILL:
+            if signum == KILL_SIGNAL:
                 self.kill(signum=signum)
             elif signum == signal.SIGINT:
                 self.kill(signum=signum)
