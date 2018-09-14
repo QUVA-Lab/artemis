@@ -99,7 +99,7 @@ def test_deepstr():
     # For now, no assertions, because string contains IDS which will always change.  We can come up with some way to do this later with regular experessions if needed.
 
 
-def test_str_with_arrayopts():
+def test_str_with_arrayopts(): 
 
     a = np.arange(1, 6, 1./3)
     assert str_with_arrayopts(a, float_format='.3g', threshold=None) == '[1 1.33 1.67 2 2.33 2.67 3 3.33 3.67 4 4.33 4.67 5 5.33 5.67]'
