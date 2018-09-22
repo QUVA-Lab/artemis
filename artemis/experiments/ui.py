@@ -110,6 +110,7 @@ plots, results, referenced by (E#.R# - for example 4.1) created by running these
 > showarchived        Toggle display of archived results.
 > view results        View just the columns for experiment name and result
 > view full           View all columns (the default view)
+> kill 4.1,4.5        Kill the selected currently running records (you'll be prompted for confirmation)
 > show 4              Show the output from the last run of experiment 4 (if it has been run already).
 > show 4-6            Show the output of experiments 4,5,6 together.
 > records             Browse through all experiment records.
@@ -517,12 +518,12 @@ experiment records.  You can specify records in the following ways:
         # First verify that all args are included...
         all_arg_names = set(a for exp_name in self.exp_record_dict.keys() for a, v in load_experiment(exp_name).get_args().items())
         if any(a not in all_arg_names for a in args):
-            raise RecordSelectionError('Arg(s) [{}] were not included in any experiments')
+            raise RecordSelectionError('Arg(s) {} were not included in any experiments.  Possible names: {}'.format(list(a for a in args if a not in all_arg_names), all_arg_names))
 
         # Define a comparison function that will always compare.
         def key_sorting_function(exp_name):
             exp_args = load_experiment(exp_name).get_args()
-            return tuple(() if name not in exp_args else (None, exp_args[name]) if isinstance(exp_args[name], (int, float)) else (str(type(exp_args[name])), exp_args[name]) for name in args)
+            return tuple(() if name not in exp_args else ('!', float(exp_args[name])) if isinstance(exp_args[name], (int, float)) else (str(type(exp_args[name])), exp_args[name]) for name in args)
 
         self._sortkey = key_sorting_function
         return ExperimentBrowser.REFRESH
@@ -691,7 +692,7 @@ experiment records.  You can specify records in the following ways:
 
     def kill(self, *args):
         parser = argparse.ArgumentParser()
-        parser.add_argument('user_range', action='store', help='A selection of experiments whose records to pull.  Examples: "3" or "3-5", or "3,4,5"')
+        parser.add_argument('user_range', action='store', help='A selection of experiments whose records to kill.  Examples: "3.2" or "3-5", or "3,4,5"')
         parser.add_argument('-s', '--skip', action='store_true', default=True, help='Skip the check that all selected records are currently running (just filter running ones)')
         args = parser.parse_args(args)
 

@@ -164,14 +164,14 @@ def add_subplot(layout = None, fig = None, **subplot_args):
     return select_subplot(name=None, fig=fig, layout=layout, **subplot_args)
 
 
-def subplot_at(row, col, fig=None):
+def subplot_at(row, col, fig=None, **subplot_args):
     """
     Create or select a the subplot at position (row, col)
     :param row: The row
     :param col: The column
     :return: An axes object
     """
-    return select_subplot(position=(row, col), fig=None)
+    return select_subplot(position=(row, col), fig=None, **subplot_args)
 
 
 @contextmanager

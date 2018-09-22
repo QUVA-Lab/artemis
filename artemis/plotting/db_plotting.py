@@ -81,6 +81,9 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
         dbplot_remotely(arg_locals=arg_locals)
         return
 
+    if data.__class__.__module__ == 'torch' and data.__class__.__name__ == 'Tensor':
+        data = data.detach().cpu().numpy()
+
     if isinstance(fig, plt.Figure):
         assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
         _DBPLOT_FIGURES[None] = _PlotWindow(figure=fig, subplots=OrderedDict(), axes={})

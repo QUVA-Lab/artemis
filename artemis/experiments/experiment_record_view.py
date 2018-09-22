@@ -425,3 +425,27 @@ def separate_common_args(records, as_dicts=False, return_dict = False, only_shar
     if return_dict:
         argdiff = {rec.get_id(): args for rec, args in zip(records, argdiff)}
     return common, argdiff
+
+
+def compare_timeseries_records(records, yfield, xfield = None):
+    """
+    :param Sequence[ExperimentRecord] records: A list of records containing results of the form
+        Sequence[Dict[str, number]]
+    :param yfield: The name of the fields for the x-axis
+    :param xfield: The name of the field for the y-axis
+    """
+    from matplotlib import pyplot as plt
+    results = [rec.get_result() for rec in records]
+    all_different_args, values = get_different_args([r.get_args() for r in records])
+
+    ax = plt.figure().add_subplot(1, 1, 1)
+    for result, argvals in izip_equal(results, values):
+        xvals = [r[xfield] for r in result] if xfield is not None else list(range(len(result)))
+        yvals = [r[yfield] for r in result]
+        ax.plot(xvals, yvals, label=', '.join(f'{argname}={argval}' for argname, argval in izip_equal(all_different_args, argvals)))
+    ax.grid(True)
+    if xfield is not None:
+        ax.set_xlabel(xfield)
+    ax.set_ylabel(yfield)
+    plt.legend()
+    plt.show()
