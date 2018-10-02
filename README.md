@@ -4,7 +4,7 @@
 
 Artemis is a collection of tools that make it easier to run experiments in Python.  These include:
 
-**A [framework for defining experiments](http://artemis-ml.readthedocs.io/en/latest/experiments.html) and logging their results (text output and figures) so that they can be reviewed later and replicated easily.**
+### A [framework for defining experiments](http://artemis-ml.readthedocs.io/en/latest/experiments.html) and logging their results (text output and figures) so that they can be reviewed later and replicated easily.
 
 e.g.
 ```
@@ -23,18 +23,18 @@ ex = multiply_3_numbers.add_variant(a=4, b=5)  # Make a new experiment with diff
 multiply_3_numbers.browse()  # Open a UI to browse through all experiments and results.
 ```
 
-**An easy-to-use system for making live plots, to monitor variables in a running experiment.**`
+### An easy-to-use system for making live plots, to monitor variables in a running experiment.
 
 e.g.
 ```
 from artemis.plotting.db_plotting import dbplot
 import numpy as np
 for t in np.linspace(0, 10, 100):
-    dbplot(np.sin(t), 'sin of the times')
+    dbplot(np.sin(t), 'sin of the times')  # Detects data type and makes appropriate plot
 ```
 (this can also be set up in the browser for remote live plotting)
 
-**Functions for easy download and loading of numerical data.**`
+### Functions for easy download and loading of numerical data.
 
 e.g.
 ```
@@ -44,7 +44,7 @@ img = smart_load('https://cdn.britannica.com/s:700x450/54/13354-004-2F9AE1B2.jpg
 dbplot(im, 'artemis', hang=True)
 ```
 
-**A system for downloading/caching files to a local directory, so the same code can work on different machines.**`
+### A system for downloading/caching files to a local directory, so the same code can work on different machines.
 
 ```
 from artemis.fileman.file_getter import get_file
@@ -52,8 +52,8 @@ import os
 local_path = get_file(url = 'https://cdn.britannica.com/s:700x450/54/13354-004-2F9AE1B2.jpg')  # Downloads first time, caches after 
 print('Image "{}" has a size of {:.2g}kB'.format(local_path, os.path.getsize(local_path)/1000.))
 ```
-
 For more examples of how to use artemis, read the [Artemis Documentation](http://artemis-ml.readthedocs.io)
+
 
 ## Installation
 
