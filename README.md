@@ -33,7 +33,7 @@ for t in np.linspace(0, 10, 100):
     dbplot(np.sin(t), 'sin of the times')  # Detects data type and makes appropriate plot
     dbplot(np.sin(-4*t+np.sin(t/4.)*sum(xi**2 for xi in np.meshgrid(*[np.linspace(-20, 20, 200)]*2))), "Instaaaaall Arrrteeeemis")
 ```
-(this can also be set up in the browser for remote live plotting)
+(this can also be set up in the browser for [remote live plotting](https://github.com/QUVA-Lab/artemis/blob/master/artemis/remote/README.md))
 
 ### Functions for easy download and loading of numerical data.
 
