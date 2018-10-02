@@ -10,7 +10,7 @@ e.g.
 ```
 from artemis.experiments import experiment_function
 
-@experiment_function
+@experiment_function  # Decorate your main function to turn it into an Experiment object
 def multiply_3_numbers(a=1, b=2, c=3):
     answer = a*b*c
     print('{} x {} x {} = {}'.format(a, b, c, answer))
