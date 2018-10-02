@@ -16,7 +16,7 @@ def multiply_3_numbers(a=1, b=2, c=3):
     print('{} x {} x {} = {}'.format(a, b, c, answer))
     return answer
     
-record = multiply_3_numbers.run()  # Run experiment, save arguments, console output, return value to disk
+record = multiply_3_numbers.run()  # Run experiment and save arguments, console output, and return value to disk
 print(record.get_log())  # Pring console output of last run      
 print(record.get_result())  # Print return value of last run
 ex = multiply_3_numbers.add_variant(a=4, b=5)  # Make a new experiment with different paremters.
