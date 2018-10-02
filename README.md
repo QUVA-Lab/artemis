@@ -34,11 +34,26 @@ for t in np.linspace(0, 10, 100):
 ```
 (this can also be set up in the browser for remote live plotting)
 
-- A browser-based plotter for displaying live plots.
-- 
-- A system for downloading/caching files, to a local directory, so the same code can work on different machines.
+**Functions for easy download and loading of numerical data.**`
 
-For examples of how to use artemis, read the [Artemis Documentation](http://artemis-ml.readthedocs.io)
+e.g.
+```
+from artemis.plotting.db_plotting import dbplot
+from artemis.fileman.smart_io import smart_load
+img = smart_load('https://cdn.britannica.com/s:700x450/54/13354-004-2F9AE1B2.jpg')  # Detects data type and loads into numpy array
+dbplot(im, 'artemis', hang=True)
+```
+
+**A system for downloading/caching files to a local directory, so the same code can work on different machines.**`
+
+```
+from artemis.fileman.file_getter import get_file
+import os
+local_path = get_file(url = 'https://cdn.britannica.com/s:700x450/54/13354-004-2F9AE1B2.jpg')  # Downloads first time, caches after 
+print('Image "{}" has a size of {:.2g}kB'.format(local_path, os.path.getsize(local_path)/1000.))
+```
+
+For more examples of how to use artemis, read the [Artemis Documentation](http://artemis-ml.readthedocs.io)
 
 ## Installation
 
