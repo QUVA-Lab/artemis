@@ -4,7 +4,7 @@
 
 Artemis is a collection of tools that make it easier to run experiments in Python.  These include:
 
-### A [framework for defining experiments](http://artemis-ml.readthedocs.io/en/latest/experiments.html) and logging their results (text output and figures) so that they can be reviewed later and replicated easily.
+### A [simple framework for organizing your experiments](http://artemis-ml.readthedocs.io/en/latest/experiments.html) and logging their results (text output and figures) so that they can be reviewed later and replicated easily.
 
 e.g.
 ```
@@ -23,7 +23,7 @@ ex = multiply_3_numbers.add_variant(a=4, b=5)  # Make a new experiment with diff
 multiply_3_numbers.browse()  # Open a UI to browse through all experiments and results.
 ```
 
-### An easy-to-use system for making live plots, to monitor variables in a running experiment.
+### A [dbplot function](https://artemis-ml.readthedocs.io/en/latest/plotting.html), for making live "debug" plots of numeric data on the fly.
 
 e.g.
 ```
