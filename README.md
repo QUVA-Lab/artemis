@@ -4,9 +4,38 @@
 
 Artemis is a collection of tools that make it easier to run experiments in Python.  These include:
 
-- An easy-to-use system for making live plots, to monitor variables in a running experiment.
+**A [framework for defining experiments](http://artemis-ml.readthedocs.io/en/latest/experiments.html) and logging their results (text output and figures) so that they can be reviewed later and replicated easily.**
+
+e.g.
+```
+from artemis.experiments import experiment_function
+
+@experiment_function
+def multiply_3_numbers(a=1, b=2, c=3):
+    answer = a*b*c
+    print('{} x {} x {} = {}'.format(a, b, c, answer))
+    return answer
+    
+record = multiply_3_numbers.run()
+print(record.get_log())  # Pring console output       
+print(record.get_result())  # Print return value
+ex = multiply_3_numbers.add_variant(a=4, b=5)  # Make a new experiment with different paremters.
+multiply_3_numbers.browse()  # Open a UI to browse through all experiments and results.
+```
+
+**An easy-to-use system for making live plots, to monitor variables in a running experiment.**`
+
+e.g.
+```
+from artemis.plotting.db_plotting import dbplot
+import numpy as np
+for t in np.linspace(0, 10, 100):
+    dbplot(np.sin(t), 'sin of the times')
+```
+(this can also be set up in the browser for remote live plotting)
+
 - A browser-based plotter for displaying live plots.
-- A [framework for defining experiments](http://artemis-ml.readthedocs.io/en/latest/experiments.html) and logging their results (text output and figures) so that they can be reviewed later and replicated easily.
+- 
 - A system for downloading/caching files, to a local directory, so the same code can work on different machines.
 
 For examples of how to use artemis, read the [Artemis Documentation](http://artemis-ml.readthedocs.io)
