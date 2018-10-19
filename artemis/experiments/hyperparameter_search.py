@@ -1,7 +1,3 @@
-from skopt import gp_minimize
-from skopt.utils import use_named_args
-from tabulate import tabulate
-
 from artemis.general.iteratorize import Iteratorize
 
 
@@ -14,6 +10,8 @@ def parameter_search(objective, space, n_calls, n_random_starts=3, acq_optimizer
     :param acq_optimizer:
     :return Generator[{'names': List[str], 'x_iters': List[]:
     """  # TODO: Finish building this
+    from skopt import gp_minimize  # Soft requirements are imported in here.
+    from skopt.utils import use_named_args
 
     for k, var in space.items():
         var.name=k
