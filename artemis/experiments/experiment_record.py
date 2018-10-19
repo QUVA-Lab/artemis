@@ -310,7 +310,10 @@ class ExperimentRecord(object):
         """
         :return datetime.timedelta: A timedelta object
         """
-        return timedelta(seconds=self.info.get_field(ExpInfoFields.RUNTIME))
+        try:
+            return timedelta(seconds=self.info.get_field(ExpInfoFields.RUNTIME))
+        except KeyError:  # Which will happen if the experiment is still running or was killed without due process
+            return None
 
     def get_dir(self):
         """
@@ -506,6 +509,7 @@ def get_current_record_id():
 def get_current_record_dir(default_if_none = True):
     """
     The directory in which the results of the current experiment are recorded.
+    :param default_if_none: True to put records in the "default" dir if no experiment is running.
     """
     if _CURRENT_EXPERIMENT_RECORD is None and default_if_none:
         return get_artemis_data_path('experiments/default/', make_local_dir=True)

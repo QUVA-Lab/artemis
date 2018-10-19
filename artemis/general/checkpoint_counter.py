@@ -89,14 +89,18 @@ class Checkpoints(object):
         elif isinstance(checkpoint_generator, (int, float)):
             step = checkpoint_generator
             checkpoint_generator = (step*i for i in itertools.count(0))
+        elif checkpoint_generator is None:
+            checkpoint_generator = (np.inf for _ in itertools.count(0))
         else:
             assert isinstance(checkpoint_generator, types.GeneratorType)
 
-        if skip_first:
-            next(checkpoint_generator)
-
-        self.checkpoint_generator = checkpoint_generator
-        self._next_checkpoint = float('inf') if checkpoint_generator is None else next(checkpoint_generator)
+        try:
+            if skip_first:
+                next(checkpoint_generator)
+            self.checkpoint_generator = checkpoint_generator
+            self._next_checkpoint = next(checkpoint_generator)
+        except StopIteration:
+            raise Exception('Your checkpoint generator provided no checkpoints.')
         self._counter = 0
         self._start_time = time.time()
 

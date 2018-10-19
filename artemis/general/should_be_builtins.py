@@ -313,7 +313,6 @@ def remove_common_prefix(list_of_lists, max_elements=None, keep_base = True):
     count = 0
 
     min_len = 1 if keep_base else 0
-
     while min(len(parts) for parts in list_of_lists)>min_len:
         if max_elements is not None and count >= max_elements:
             break
@@ -479,3 +478,8 @@ def entries_to_table(tuplelist, fill_value = None):
     data = [dict(sample) for sample in tuplelist]
     new_data = [[d[k] if k in d else fill_value for k in all_entries] for d in data]
     return all_entries, new_data
+
+
+def print_thru(x):
+    print(x)
+    return x

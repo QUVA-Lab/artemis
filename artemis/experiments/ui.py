@@ -18,6 +18,7 @@ from artemis.experiments.experiment_management import (pull_experiment_records, 
                                                        select_experiment_records_from_list, interpret_numbers,
                                                        run_multiple_experiments)
 from artemis.experiments.experiment_record import ExpStatusOptions
+from artemis.experiments.experiment_record import ExperimentRecord
 from artemis.experiments.experiment_record import (get_all_record_ids, clear_experiment_records,
                                                    load_experiment_record, ExpInfoFields)
 from artemis.experiments.experiment_record_view import (get_record_full_string, get_record_invalid_arg_string,
@@ -27,7 +28,8 @@ from artemis.experiments.experiment_record_view import (get_record_full_string, 
 from artemis.experiments.experiment_record_view import show_record, show_multiple_records
 from artemis.experiments.experiments import load_experiment, get_nonroot_global_experiment_library
 from artemis.fileman.local_dir import get_artemis_data_path
-from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header, format_duration, format_time_stamp
+from artemis.general.display import IndentPrint, side_by_side, truncate_string, surround_with_header, format_duration, \
+    format_time_stamp, section_with_header
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.mymath import levenshtein_distance
 from artemis.general.should_be_builtins import all_equal, insert_at, izip_equal, separate_common_items, bad_value
@@ -278,7 +280,9 @@ experiment records.  You can specify records in the following ways:
             'q': self.quit,
             'records': self.records,
             'pull': self.pull,
+            'info': self.info,
             'clearcache': clear_ui_cache,
+            'logs': self.logs,
             }
 
         display_again = True
@@ -571,6 +575,28 @@ experiment records.  You can specify records in the following ways:
         else:
             show_multiple_records(records, func)
         _warn_with_prompt(use_prompt=False)
+
+    def info(self, *args):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', help='A selection of experiment records to show. ')
+        args = parser.parse_args(args)
+        user_range = args.user_range
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+        for record in records:
+            print('='*64)
+            print(record.info.get_text())
+        print('='*64)
+
+    def logs(self, *args):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', help='A selection of experiment records to show. ')
+        args = parser.parse_args(args)
+        user_range = args.user_range
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)  # type: list[ExperimentRecord]
+        for record in records:
+            print('='*64)
+            print(record.get_log())
+        print('='*64)
 
     def compare(self, *args):
         parser = argparse.ArgumentParser()

@@ -265,7 +265,7 @@ def freeze_all_dbplots(fig = None):
         freeze_dbplot(name, fig=fig)
 
 
-def replot_and_redraw_figure(fig, hang):
+def dbplot_redraw_all(fig = None, hang = False):
 
     for subplot in _DBPLOT_FIGURES[fig].subplots.values():
         plt.subplot(subplot.axis)
@@ -316,7 +316,7 @@ def hold_dbplots(fig = None, hang=False, draw_every = None):
         plot_now = True
 
     if plot_now and fig in _DBPLOT_FIGURES:
-        replot_and_redraw_figure(fig, hang = hang)
+        dbplot_redraw_all(fig, hang = hang)
 
 
 def clear_dbplot(fig = None):

@@ -126,7 +126,11 @@ def select_experiments(user_range, exp_record_dict, return_dict=False):
 
 def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
 
-    if user_range.startswith('~'):
+    if '|' in user_range:
+        is_in = [any(xs) for xs in zip(*(_filter_experiments(subrange, exp_record_dict, return_is_in=True) for subrange in user_range.split('|')))]
+    elif '&' in user_range:
+        is_in = [all(xs) for xs in zip(*(_filter_experiments(subrange, exp_record_dict, return_is_in=True) for subrange in user_range.split('&')))]
+    elif user_range.startswith('~'):
         is_in = _filter_experiments(user_range=user_range[1:], exp_record_dict=exp_record_dict, return_is_in=True)
         is_in = [not r for r in is_in]
     else:
@@ -141,6 +145,9 @@ def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
             elif user_range.startswith('has:'):
                 phrase = user_range[len('has:'):]
                 is_in = [phrase in exp_id for exp_id in exp_record_dict]
+            elif user_range.startswith('tag:'):
+                tag = user_range[len('tag:'):]
+                is_in = [tag in load_experiment(exp_id).get_tags() for exp_id in exp_record_dict]
             elif user_range.startswith('1diff:'):
                 base_range = user_range[len('1diff:'):]
                 base_range_exps = select_experiments(base_range, exp_record_dict) # list<experiment_id>
@@ -308,7 +315,7 @@ def _filter_records(user_range, exp_record_dict):
         try:
             sign = user_range[3]
             assert sign in ('<', '>')
-            filter_func = (lambda a, b: a<b) if sign == '<' else (lambda a, b: a>b)
+            filter_func = (lambda a, b: (a is not None and b is not None) and a<b) if sign == '<' else (lambda a, b: (a is not None and b is not None) and a>b)
             time_delta = parse_time(user_range[4:])
         except:
             if user_range.startswith('dur'):

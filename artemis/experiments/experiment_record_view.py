@@ -1,6 +1,7 @@
 import re
 from collections import OrderedDict
 
+import itertools
 from six import string_types
 from tabulate import tabulate
 import numpy as np
@@ -238,12 +239,25 @@ def get_different_args(args, no_arg_filler = 'N/A', arrange_by_deltas=False):
     return all_different_args, values
 
 
-def get_exportiment_record_arg_result_table(records):
+def get_exportiment_record_arg_result_table(records, result_parser = None, fill_value='N/A', arg_rename_dict = None):
+    """
+    Given a list of ExperimentRecords, make a table containing the arguments that differ between them, and their results.
+    :param Sequence[ExperimentRecord] records:
+    :param Optional[Callable] result_parser: Takes the result and returns either:
+        - a List[Tuple[str, Any]], containing the (name, value) pairs of results which will form the rightmost columns of the table
+        - Anything else, in which case the header of the last column is taken to be "Result" and the value is put in the table
+    :param fill_value: Value to fill in when the experiment does not have a particular argument.
+    :return Tuple[List[str], List[List[Any]]]: headers, results
+    """
+    if arg_rename_dict is not None:
+        arg_processor = lambda args: OrderedDict((arg_rename_dict[name] if name in arg_rename_dict else name, val) for name, val in args.items() if name not in arg_rename_dict or arg_rename_dict[name] is not None)
+    else:
+        arg_processor = lambda args: args
     record_ids = [record.get_id() for record in records]
-    all_different_args, arg_values = get_different_args([r.get_args() for r in records], no_arg_filler='N/A')
+    all_different_args, arg_values = get_different_args([arg_processor(r.get_args()) for r in records], no_arg_filler=fill_value)
 
-    parsed_results = [record.get_experiment().result_parser(record.get_result()) for record in records]
-    result_fields, result_data = entries_to_table(parsed_results)
+    parsed_results = [(result_parser or record.get_experiment().result_parser)(record.get_result()) if record.has_result() else [('Result', 'N/A')] for record in records]
+    result_fields, result_data = entries_to_table(parsed_results, fill_value = fill_value)
     result_fields = [get_unique_name(rf, all_different_args) for rf in result_fields]  # Just avoid name collisions
 
     # result_column_name = get_unique_name('Results', taken_names=all_different_args)
@@ -298,6 +312,7 @@ def show_multiple_records(records, func = None):
         from artemis.plotting.manage_plotting import delay_show
         with delay_show():
             for rec in records:
+
                 func(rec)
     else:
         for rec in records:
@@ -427,7 +442,7 @@ def separate_common_args(records, as_dicts=False, return_dict = False, only_shar
     return common, argdiff
 
 
-def compare_timeseries_records(records, yfield, xfield = None):
+def compare_timeseries_records(records, yfield, xfield = None, hang=True, ax=None):
     """
     :param Sequence[ExperimentRecord] records: A list of records containing results of the form
         Sequence[Dict[str, number]]
@@ -438,14 +453,22 @@ def compare_timeseries_records(records, yfield, xfield = None):
     results = [rec.get_result() for rec in records]
     all_different_args, values = get_different_args([r.get_args() for r in records])
 
-    ax = plt.figure().add_subplot(1, 1, 1)
+    if not isinstance(yfield, (list, tuple)):
+        yfield = [yfield]
+
+    ax = ax if ax is not None else plt.figure().add_subplot(1, 1, 1)
     for result, argvals in izip_equal(results, values):
         xvals = [r[xfield] for r in result] if xfield is not None else list(range(len(result)))
-        yvals = [r[yfield] for r in result]
-        ax.plot(xvals, yvals, label=', '.join(f'{argname}={argval}' for argname, argval in izip_equal(all_different_args, argvals)))
+        # yvals = [r[yfield[0]] for r in result]
+        h, = ax.plot(xvals, [r[yfield[0]] for r in result], label=(yfield[0]+': ' if len(yfield)>1 else '')+', '.join(f'{argname}={argval}' for argname, argval in izip_equal(all_different_args, argvals)))
+        for yf, linestyle in zip(yfield[1:], itertools.cycle(['--', ':', '-.'])):
+            ax.plot(xvals, [r[yf] for r in result], linestyle=linestyle, color=h.get_color(), label=yf+': '+', '.join(f'{argname}={argval}' for argname, argval in izip_equal(all_different_args, argvals)))
+
     ax.grid(True)
     if xfield is not None:
         ax.set_xlabel(xfield)
-    ax.set_ylabel(yfield)
+    if len(yfield)==1:
+        ax.set_ylabel(yfield[0])
     plt.legend()
-    plt.show()
+    if hang:
+        plt.show()

@@ -7,7 +7,7 @@ class ParameterSchedule(object):
         """
         Given a schedule for a changing parameter (e.g. learning rate) get the values for this parameter at a given time.
         e.g.:
-            learning_rate_scheduler = ScheduledParameter({0: 0.1, 10: 0.01, 100: 0.001}, print_variable_name='eta')
+            learning_rate_scheduler = ParameterSchedule({0: 0.1, 10: 0.01, 100: 0.001}, print_variable_name='eta')
             new_learning_rate = learning_rate_scheduler.get_new_value(epoch=14)
             assert new_learning_rate == 0.01
 

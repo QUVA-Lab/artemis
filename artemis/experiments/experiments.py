@@ -4,14 +4,18 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
 from six import string_types
+
 from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
 from artemis.experiments.experiment_record import run_and_record
 from artemis.experiments.experiment_record_view import compare_experiment_records, show_record
+from artemis.experiments.hyperparameter_search import parameter_search
 from artemis.general.display import sensible_str
 
 from artemis.general.functional import get_partial_root, partial_reparametrization, \
     advanced_getargspec, PartialReparametrization
+from artemis.general.should_be_builtins import izip_equal
+from artemis.general.test_mode import is_test_mode
 
 
 class Experiment(object):
@@ -39,6 +43,7 @@ class Experiment(object):
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
+        self._tags= set()
 
         if not is_root:
             all_args, varargs_name, kargs_name, defaults = advanced_getargspec(function)
@@ -415,6 +420,71 @@ class Experiment(object):
                 return [record for records in exp_record_dict.values() for record in records]
             else:
                 return exp_record_dict
+
+    def add_parameter_search(self, name='parameter_search', space = None, n_calls=100, search_params = None, scalar_func=None):
+        """
+        :param name: Name of the Experiment to be created
+        :param dict[str, skopt.space.Dimension] space: A dict mapping param name to Dimension.
+            e.g.    space=dict(a = Real(1, 100, 'log-uniform'), b = Real(1, 100, 'log-uniform'))
+        :param Callable[[Any], float] scalar_func: Takes the return value of the experiment and turns it into a scalar
+            which we aim to minimize.
+        :param dict[str, Any] search_params: Args passed to parameter_search
+        :return Experiment: A new experiment which runs the search and yields current-best parameters with every iteration.
+        """
+        assert space is not None, "You must specify a parameter search space.  See this method's documentation"
+        if name is None:  # TODO: Set name=None in the default after deadline
+            name = 'parameter_search[{}]'.format(','.join(space.keys()))
+
+        if search_params is None:
+            search_params = {}
+
+        def objective(**current_params):
+            output = self.call(**current_params)
+            if scalar_func is not None:
+                output = scalar_func(output)
+            return output
+
+        from artemis.experiments import ExperimentFunction
+
+        @ExperimentFunction(name = self.name + '.'+ name, show = show_parameter_search_record, one_liner_function=parameter_search_one_liner)
+        def search_exp():
+            if is_test_mode():
+                nonlocal n_calls
+                n_calls = 3  # When just verifying that experiment runs, do the minimum
+
+            for iter_info in parameter_search(objective, n_calls=n_calls, space=space, **search_params):
+                info = dict(names=list(space.keys()), x_iters =iter_info.x_iters, func_vals=iter_info.func_vals, score = iter_info.func_vals, x=iter_info.x, fun=iter_info.fun)
+                latest_info = {name: val for name, val in izip_equal(info['names'], iter_info.x_iters[-1])}
+                print(f'Latest: {latest_info}, Score: {iter_info.func_vals[-1]:.3g}')
+                yield info
+
+        self.variants[name] = search_exp
+        search_exp.tag('psearch')  # Secret feature that makes it easy to select all parameter experiments in ui with "filter tag:psearch"
+        return search_exp
+
+    def tag(self, tag):
+        """
+        Add a "tag" - a string identifying the experiment as being in some sort of group.
+        You can use tags in the UI with 'filter tag:my_tag' to select experiments with a given tag
+        :param tag:
+        :return:
+        """
+        self._tags.add(tag)
+        return self
+
+    def get_tags(self):
+        return self._tags
+
+
+def show_parameter_search_record(record):
+    from tabulate import tabulate
+    result = record.get_result()
+    table = tabulate([list(xs)+[fun] for xs, fun in zip(result['x_iters'], result['func_vals'])], headers=list(result['names'])+['score'])
+    print(table)
+
+
+def parameter_search_one_liner(result):
+    return f'{len(result["x_iters"])} Runs : ' + ', '.join(f'{k}={v:.3g}' for k, v in izip_equal(result['names'], result['x'])) + f' : Score = {result["fun"]:.3g}'
 
 
 _GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()
