@@ -281,7 +281,7 @@ def generator_pool(generator_generator):
         yield generator
 
 
-def batchify_generator(generator_generator, batch_size, receive_input=False, out_format ='array'):
+def batchify_generator(generator_generator, batch_size = None, receive_input=False, out_format ='array'):
     """
     Best understood by example:
 
@@ -300,7 +300,7 @@ def batchify_generator(generator_generator, batch_size, receive_input=False, out
     new movies to start.
 
     :param generator_generator: An generator which generates generators
-    :param batch_size: The size if the batch you want to yield
+    :param batch_size: The size if the batch you want to yield.
     :param receive_input: Expect a "send" to this generatoer AFTER it yields.  (see Python coroutines)
     :param out_format: 'array' or 'tuple_of_arrays' currently supported.
     :yield: An array consisting of batch_size of the outputs of the subgenerator, batched together.
@@ -310,7 +310,15 @@ def batchify_generator(generator_generator, batch_size, receive_input=False, out
     total = batch_size
 
     assert out_format in ('array', 'tuple_of_arrays')
-    generators = [next(generator_generator) for _ in range(batch_size)]
+
+    if batch_size is not None:
+        generators = [next(generator_generator) for _ in range(batch_size)]
+    else:
+        assert isinstance(generator_generator, (list, tuple)), "If you don't specify a batch size your generator-generator must be a finite list."
+        batch_size = len(generator_generator)
+        generators = generator_generator
+        generator_generator = iter(generator_generator)
+
     while True:
         items = []
         for i in range(batch_size):

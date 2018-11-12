@@ -4,7 +4,7 @@ import pytest
 
 from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items, remove_duplicates, \
     detect_duplicates, remove_common_prefix, all_equal, get_absolute_module, insert_at, get_shifted_key_value, \
-    divide_into_subsets, entries_to_table
+    divide_into_subsets, entries_to_table, natural_keys
 
 __author__ = 'peter'
 
@@ -122,6 +122,11 @@ def test_entries_to_table():
     assert entries_to_table([[('a', 1), ('b', 2)], [('a', 3), ('b', 4), ('c', 5)]]) == (['a', 'b', 'c'], [[1, 2, None], [3, 4, 5]])
 
 
+def test_natural_keys():
+
+    assert sorted(['y8', 'x10', 'x2', 'y12', 'x9'], key=natural_keys) == ['x2', 'x9', 'x10', 'y8', 'y12']
+
+
 if __name__ == '__main__':
     test_separate_common_items()
     test_reducemap()
@@ -135,3 +140,4 @@ if __name__ == '__main__':
     test_get_shifted_key_value()
     test_divide_into_subsets()
     test_entries_to_table()
+    test_natural_keys()

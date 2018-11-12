@@ -191,6 +191,7 @@ class DBPlotTypes:
     LINE= LinePlot
     THICK_LINE= partial(LinePlot, plot_kwargs={'linewidth': 3})
     POS_LINE= partial(LinePlot, y_bounds=(0, None), y_bound_extend=(0, 0.05))
+    SCATTER= partial(LinePlot, plot_kwargs=dict(marker='.', markersize=7), linestyle='')
     BBOX= partial(BoundingBoxPlot, linewidth=2, axes_update_mode='expand')
     BBOX_R= partial(BoundingBoxPlot, linewidth=2, color='r', axes_update_mode='expand')
     BBOX_B= partial(BoundingBoxPlot, linewidth=2, color='b', axes_update_mode='expand')

@@ -4,7 +4,7 @@ import time
 import numpy as np
 from artemis.plotting.demo_dbplot import demo_dbplot
 from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot, \
-    dbplot_hang
+    dbplot_hang, DBPlotTypes
 from artemis.plotting.matplotlib_backend import LinePlot, HistogramPlot, MovingPointPlot, is_server_plotting_on, \
     ResamplingLineHistory
 import pytest
@@ -204,51 +204,31 @@ def test_individual_periodic_plotting():
         time.sleep(0.02)
 
 
+def test_bbox_display():
+
+    # It once was the case that bboxes failed when in a hold block with their image.  Not any more.
+    with hold_dbplots():
+        dbplot((np.random.rand(40, 40)*255.999).astype(np.uint8), 'gfdsg')
+        dbplot((np.random.rand(40, 40)*255.999).astype(np.uint8), 'img')
+        dbplot([10, 20, 25, 30], 'bbox', axis='img', plot_type=DBPlotTypes.BBOX)
+
+
 if __name__ == '__main__':
-    if is_server_plotting_on():
-        test_cornertext()
-        time.sleep(2.)
-        test_trajectory_plot()
-        time.sleep(2.)
-        test_demo_dbplot()
-        time.sleep(2.)
-        test_two_plots_in_the_same_axis_version_1()
-        time.sleep(2.)
-        test_two_plots_in_the_same_axis_version_2()
-        time.sleep(2.)
-        test_moving_point_multiple_points()
-        time.sleep(2.)
-        test_list_of_images()
-        time.sleep(2.)
-        test_multiple_figures()
-        time.sleep(2.)
-        test_same_object()
-        time.sleep(2.)
-        test_history_plot_updating()
-        time.sleep(2.)
-        test_particular_plot()
-        time.sleep(2.)
-        test_dbplot()
-        time.sleep(2.)
-        test_custom_axes_placement()
-        time.sleep(2.)
-        test_close_and_open()
-        time.sleep(2.)
-    else:
-        test_cornertext()
-        test_trajectory_plot()
-        test_demo_dbplot()
-        test_freeze_dbplot()
-        test_two_plots_in_the_same_axis_version_1()
-        test_two_plots_in_the_same_axis_version_2()
-        test_moving_point_multiple_points()
-        test_list_of_images()
-        test_multiple_figures()
-        test_same_object()
-        test_history_plot_updating()
-        test_particular_plot()
-        test_dbplot()
-        test_custom_axes_placement()
-        test_close_and_open()
-        test_periodic_plotting()
-        test_individual_periodic_plotting()
+    test_cornertext()
+    test_trajectory_plot()
+    test_demo_dbplot()
+    test_freeze_dbplot()
+    test_two_plots_in_the_same_axis_version_1()
+    test_two_plots_in_the_same_axis_version_2()
+    test_moving_point_multiple_points()
+    test_list_of_images()
+    test_multiple_figures()
+    test_same_object()
+    test_history_plot_updating()
+    test_particular_plot()
+    test_dbplot()
+    test_custom_axes_placement()
+    test_close_and_open()
+    test_periodic_plotting()
+    test_individual_periodic_plotting()
+    test_bbox_display()

@@ -2,7 +2,7 @@ import inspect
 from collections import OrderedDict
 import itertools
 import os
-
+import re
 import math
 from six.moves import xrange, zip_longest
 
@@ -483,3 +483,21 @@ def entries_to_table(tuplelist, fill_value = None):
 def print_thru(x):
     print(x)
     return x
+
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+
+def natural_keys(text):
+    """
+    A key function to use for sorting strings.  This captures numbers in the strings, so for example it will sort
+
+    sorted(['y8', 'x10', 'x2', 'y12', 'x9'], key=natural_keys) == ['x2', 'x9', 'x10', 'y8', 'y12']
+
+    Taken from: https://stackoverflow.com/a/5967539/851699
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
+    """
+    return tuple(atoi(c) for c in re.split('(\d+)', text))

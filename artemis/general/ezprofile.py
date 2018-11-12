@@ -1,7 +1,7 @@
 from logging import Logger
 from time import time
 from collections import OrderedDict
-
+from contextlib import contextmanager
 __author__ = 'peter'
 
 
@@ -34,6 +34,10 @@ class EZProfiler(object):
     def get_current_time(self):
         return time() - self._lap_times['Start']
 
+    def get_total_time(self):
+        assert 'Stop' in self._lap_times, "The profiler has not exited yet, so you cannot get total time."
+        return self._lap_times['Stop'] - self._lap_times['Start']
+
     def __enter__(self):
         start_time = time()
         self.start_time = start_time
@@ -60,3 +64,30 @@ class EZProfiler(object):
             deltas = OrderedDict((key, self._lap_times[key] - self._lap_times[last_key]) for last_key, key in zip(keys[:-1], keys[1:]))
             return self.profiler_name + '\n  '.join(['']+['%s: Elapsed time is %.4gs' % (key, val) for key, val in deltas.items()] +
                 (['Total: %.4gs' % (self._lap_times.values()[-1] - self._lap_times.values()[0])] if len(deltas)>1 else []))
+
+
+_profile_contexts = OrderedDict()
+
+
+@contextmanager
+def profile_context(name, print_result = False):
+
+    with EZProfiler(name, print_result=print_result) as prof:
+        yield prof
+    if name in _profile_contexts:
+        n_calls, elapsed = _profile_contexts[name]
+    else:
+        n_calls, elapsed = 0, 0.
+    n_calls, elapsed = n_calls+1, elapsed + prof.get_total_time()
+    _profile_contexts[name] = (n_calls, elapsed)
+
+
+def get_profile_contexts(names=None, fill_empty_with_zero = False):
+
+    if names is None:
+        return _profile_contexts
+    else:
+        if fill_empty_with_zero:
+            return OrderedDict((k, _profile_contexts[k] if k in _profile_contexts else 0) for k in names)
+        else:
+            return OrderedDict((k, _profile_contexts[k]) for k in names)

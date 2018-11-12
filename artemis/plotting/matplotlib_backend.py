@@ -321,12 +321,15 @@ class BoundingBoxPlot(LinePlot):
         self._image_handle = None
         self._last_data_shape = None
 
-    def update(self, data):
+    def _plot_last_data(self, data):
         """
         :param data: A (left, bottom, right, top) bounding box.
         """
         if self._image_handle is None:
-            self._image_handle = next(c for c in plt.gca().get_children() if isinstance(c, AxesImage))
+            try:
+                self._image_handle = next(c for c in plt.gca().get_children() if isinstance(c, AxesImage))
+            except StopIteration:
+                raise Exception('Could not find any image plots in the current axis to draw bounding boxes on!  Check that "axis" argument matches the name of a previous image plot')
 
         data_shape = self._image_handle.get_array().shape # Hopefully this isn't copying
         if data_shape != self._last_data_shape:
@@ -342,7 +345,7 @@ class BoundingBoxPlot(LinePlot):
         x = np.array([l, l, r, r, l])  # Note: should we be adding .5? The extend already subtracts .5
         y = np.array([t, b, b, t, t])
 
-        LinePlot.update(self, (x, y))
+        LinePlot._plot_last_data(self, (x, y))
 
 
 class MovingPointPlot(LinePlot):

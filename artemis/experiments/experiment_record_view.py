@@ -1,6 +1,6 @@
 import re
 from collections import OrderedDict
-
+from functools import partial
 import itertools
 from six import string_types
 from tabulate import tabulate
@@ -13,6 +13,7 @@ from artemis.general.nested_structures import flatten_struct, PRIMATIVE_TYPES
 from artemis.general.should_be_builtins import separate_common_items, bad_value, izip_equal, \
     remove_duplicates, get_unique_name, entries_to_table
 from artemis.general.tables import build_table
+import os
 
 
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False, default_one_liner_func=str):
@@ -446,8 +447,8 @@ def compare_timeseries_records(records, yfield, xfield = None, hang=True, ax=Non
     """
     :param Sequence[ExperimentRecord] records: A list of records containing results of the form
         Sequence[Dict[str, number]]
-    :param yfield: The name of the fields for the x-axis
-    :param xfield: The name of the field for the y-axis
+    :param yfield: The name of the field for the x-axis
+    :param xfield: The name of the field(s) for the y-axis
     """
     from matplotlib import pyplot as plt
     results = [rec.get_result() for rec in records]
@@ -472,3 +473,85 @@ def compare_timeseries_records(records, yfield, xfield = None, hang=True, ax=Non
     plt.legend()
     if hang:
         plt.show()
+
+
+def get_timeseries_record_comparison_function(yfield, xfield = None, hang=True, ax=None):
+    """
+    :param yfield: The name of the field for the x-axis
+    :param xfield: The name of the field(s) for the y-axis
+    """
+    return lambda records: compare_timeseries_records(records, yfield, xfield = xfield, hang=hang, ax=ax)
+
+
+
+def timeseries_oneliner_function(result, fields, show_len, show = 'last'):
+    assert show=='last', 'Only support showing last element now'
+    return (f'{len(result)} items.  ' if show_len else '')+', '.join(f'{k}: {result[-1][k]:.3g}' if isinstance(result[-1][k], float) else f'{k}: {result[-1][k]}'  for k in fields)
+
+
+def get_timeseries_oneliner_function(fields, show_len=False, show='last'):
+    return partial(timeseries_oneliner_function, fields=fields, show_len=show_len, show=show)
+
+
+def browse_record_figs(record):
+    """
+    Browse through the figures associated with an experiment record
+    :param ExperimentRecord record: An experiment record
+    """
+    # TODO: Generalize this to just browse through the figures in a directory.
+
+    from artemis.plotting.saving_plots import interactive_matplotlib_context
+    import pickle
+    from matplotlib import pyplot as plt
+    from artemis.plotting.drawing_plots import redraw_figure
+    fig_locs = record.get_figure_locs()
+
+    class nonlocals:
+        this_fig = None
+        figno = 0
+
+    def show_figure(ix):
+        path = fig_locs[ix]
+        dir, name = os.path.split(path)
+        if nonlocals.this_fig is not None:
+            plt.close(nonlocals.this_fig)
+        # with interactive_matplotlib_context():
+        plt.close(plt.gcf())
+        with open(path, "rb") as f:
+            fig = pickle.load(f)
+            fig.canvas.set_window_title(record.get_id()+': ' +name+': (Figure {}/{})'.format(ix+1, len(fig_locs)))
+            fig.canvas.mpl_connect('key_press_event', changefig)
+        print('Showing {}: Figure {}/{}.  Full path: {}'.format(name, ix+1, len(fig_locs), path))
+        # redraw_figure()
+        plt.show()
+        nonlocals.this_fig = plt.gcf()
+
+    def changefig(keyevent):
+        if keyevent.key=='right':
+            nonlocals.figno = (nonlocals.figno+1)%len(fig_locs)
+        elif keyevent.key=='left':
+            nonlocals.figno = (nonlocals.figno-1)%len(fig_locs)
+        elif keyevent.key=='up':
+            nonlocals.figno = (nonlocals.figno-10)%len(fig_locs)
+        elif keyevent.key=='down':
+            nonlocals.figno = (nonlocals.figno+10)%len(fig_locs)
+
+        elif keyevent.key==' ':
+            nonlocals.figno = queryfig()
+        else:
+            print("No handler for key: {}.  Changing Nothing".format(keyevent.key))
+        show_figure(nonlocals.figno)
+
+    def queryfig():
+        user_input = input('Which Figure (of 1-{})?  >>'.format(len(fig_locs)))
+        try:
+            nonlocals.figno = int(user_input)-1
+        except:
+            if user_input=='q':
+                raise Exception('Quit')
+            else:
+                print("No handler for input '{}'".format(user_input))
+        return nonlocals.figno
+
+    print('Use Left/Right arrows to navigate, ')
+    show_figure(nonlocals.figno)

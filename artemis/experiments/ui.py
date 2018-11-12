@@ -267,6 +267,7 @@ experiment records.  You can specify records in the following ways:
             'view': self.view,
             'archive': self.archive,
             'h': self.help,
+            'figures': self.figures,
             'filter': self.filter,
             'filterrec': self.filterrec,
             'displayformat': self.displayformat,
@@ -586,6 +587,17 @@ experiment records.  You can specify records in the following ways:
             print('='*64)
             print(record.info.get_text())
         print('='*64)
+
+    def figures(self, *args):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('user_range', action='store', help='A selection of experiment records to show. ')
+        args = parser.parse_args(args)
+        user_range = args.user_range
+        records = select_experiment_records(user_range, self.exp_record_dict, flat=True)
+        if len(records)>1:
+            raise RecordSelectionError('Can only show figures for one record at a time.  You selected {}'.format(len(records)))
+        from artemis.experiments.experiment_record_view import browse_record_figs
+        browse_record_figs(records[0])
 
     def logs(self, *args):
         parser = argparse.ArgumentParser()

@@ -42,7 +42,7 @@ class PartialReparametrization(object):
             assert arg_name in all_arg_names, "Function {} has no argument named '{}'".format(func, arg_name)
             assert callable(arg_constructor), "The configuration for argument '{}' must be a function which constructs the argument.  Got a {}".format(arg_name, type(arg_constructor).__name__)
             assert not inspect.isclass(arg_constructor),  "'{}' is a class object.  You must instead pass a function to construct an instance of this class.  You can use lambda for this.".format(arg_constructor.__name__)
-            assert isinstance(arg_constructor, types.FunctionType),  "The constructor '{}' appeared not to be a pure function.  If it is an instance of a callable class, you probably meant to give a either a constructor for that instance.".format(arg_constructor)
+            assert isinstance(arg_constructor, types.FunctionType),  "The constructor '{}' appeared not to be a pure function.  If it is an instance of a callable class, you should instead give a staticmethod constructor for that instance.".format(arg_constructor)
             sub_arg_names, _, _, _ = advanced_getargspec(arg_constructor)
             for a in sub_arg_names:
                 if a != arg_name:  # If the name of your reparemetrizing argument is not the same as the argument you are replacing....
@@ -162,7 +162,7 @@ def advanced_getargspec(f):
                     assert k in all_arg_names, "Constructed Argument '{}' appears not to exist in function {}".format(k, chain[0])
                 sub_all_arg_names, sub_varargs_name, sub_kwargs_name, sub_defaults = advanced_getargspec(constructor)
                 assert sub_varargs_name is None, "Currently can't handle unnamed arguments for argument constructor {}={}".format(k, constructor)
-                assert sub_kwargs_name is None, "Currently can't handle unnamed keyword arguments for argument constructor {}={}".format(k, constructor)
+                assert sub_kwargs_name is None, "Currently can't handle unnamed keyword arguments.  Constructor {}={}".format(k, constructor)
                 all_arg_names.remove(k)  # Since the argument has been reparameterized, it is removed from the  list of constructor signature
                 current_layer_arg_names.remove(k)
                 assert not any(a in current_layer_arg_names for a in sub_all_arg_names), "The constructor for argument '{}' has name '{}', which us already used by the function '{}'.  Rename it.".format(k, next(a for a in sub_all_arg_names if a in current_layer_arg_names), chain[0])

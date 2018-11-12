@@ -405,7 +405,7 @@ def format_duration(seconds):
         else:
             return res
     else:
-        days = seconds//_seconds_in_day
+        days = int(seconds//_seconds_in_day)
         return '{:d}d,{}'.format(days, format_duration(seconds % _seconds_in_day))
 
 
