@@ -9,6 +9,7 @@ from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFie
     load_experiment_record, is_matplotlib_imported, UnPicklableArg
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, \
     surround_with_header, section_with_header, dict_to_str
+from artemis.general.duck import Duck
 from artemis.general.nested_structures import flatten_struct, PRIMATIVE_TYPES
 from artemis.general.should_be_builtins import separate_common_items, bad_value, izip_equal, \
     remove_duplicates, get_unique_name, entries_to_table
@@ -358,6 +359,29 @@ def compare_experiment_records(records, parallel_text=None, show_logs=True, trun
     return has_matplotlib_figures
 
 
+def make_record_comparison_duck(records, only_different_args = False, results_extractor = None):
+    """
+    Make a data structure containing arguments and results of the experiment.
+    :param Sequence[ExperimentRecord] records:
+    :param Optional[Callable] results_extractor:
+    :return Duck: A Duck with one entry per record.  Each entry has keys ['args', 'result']
+    """
+    duck = Duck()
+
+    if only_different_args:
+        common, diff = separate_common_args(records)
+    else:
+        common = None
+
+    for rec in records:
+        duck[next, 'args', :] = rec.get_args() if common is None else OrderedDict((k, v) for k, v in rec.get_args().items() if k not in common)
+        result = rec.get_result()
+        if results_extractor is not None:
+            result = results_extractor(result)
+        duck[-1, 'result', ...] = result
+    return duck
+
+
 def make_record_comparison_table(records, args_to_show=None, results_extractor = None, print_table = False, tablefmt='simple', reorder_by_args=False):
     """
     Make a table comparing the arguments and results of different experiment records.  You can use the output
@@ -425,7 +449,7 @@ def separate_common_args(records, as_dicts=False, return_dict = False, only_shar
 
     :param records: A List of records
     :param return_dict: Return the different args as a dict<ExperimentRecord: args>
-    :return: (common, different)
+    :return Tuple[OrderedDict[str, Any], List[OrderedDict[str, Any]]: (common, different)
         Where common is an OrderedDict of common args
         different is a list (the same lengths of records) of OrderedDicts containing args that are not the same in all records.
     """

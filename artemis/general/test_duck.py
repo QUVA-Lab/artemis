@@ -554,6 +554,19 @@ def test_has_key():
     assert not duck.has_key('q')
 
 
+def test_boolean_indexing():
+
+    d = Duck()
+    d[next, :] = {'a': 1, 'b': 2}
+    d[next, :] = {'a': 4, 'b': 3}
+    d[next, :] = {'a': 3, 'b': 6}
+    d[next, :] = {'a': 6, 'b': 2}
+
+    assert d[[True, False, False, True], 'a'] == [1, 6]
+    assert d[d[:, 'b'].each_eq(2), 'a'] == [1, 6]
+    assert d[d[:, 'b'].each_in({3, 6}), 'a'] == [4, 3]
+
+
 if __name__ == '__main__':
     test_so_demo()
     test_dict_assignment()
@@ -582,3 +595,4 @@ if __name__ == '__main__':
     test_key_get_on_set_bug()
     test_occasional_value_filter()
     test_has_key()
+    test_boolean_indexing()

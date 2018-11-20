@@ -87,6 +87,8 @@ class UniversalCollection(object):
             return DynamicSequence(struct)
         elif isinstance(struct, dict):
             return UniversalOrderedStruct(struct)
+        elif isinstance(struct, Duck):
+            return UniversalCollection.from_struct(struct.to_struct())
         elif struct is None or isinstance(struct, EmptyCollection):
             return EmptyCollection()
         else:
@@ -167,8 +169,17 @@ class DynamicSequence(list, UniversalCollection):
     def __getitem__(self, ix):
         if isinstance(ix, slice):
             return DynamicSequence(list.__getitem__(self, ix))
+        elif isinstance(ix, UniversalCollection):
+            return self.__getitem__(ix.to_struct())
         elif isinstance(ix, (list, tuple)):
-            return DynamicSequence((list.__getitem__(self, i) for i in ix))
+            arrix = np.array(ix)
+            if arrix.dtype==np.bool:
+                if len(arrix) != len(self):
+                    raise InvalidKeyError('If you use boolean indices, the length ({} here) must match the length of the collection ({} here)'.format(len(arrix), len(self)))
+                else:
+                    return DynamicSequence(a for a, b in izip_equal(self, arrix) if b)
+            else:
+                return DynamicSequence((list.__getitem__(self, i) for i in ix))
         else:
             try:
                 return list.__getitem__(self, ix)
@@ -416,7 +427,7 @@ class Duck(UniversalCollection):
             else:  # Case 2: There are deeper indices to get
                 if not isinstance(new_substruct, Duck):
                     raise KeyError('Leave value "{}" can not be broken into with {}'.format(new_substruct, indices[1:]))
-                if isinstance(first_selector, (list, np.ndarray, slice)):  # Sliced selection, with more sub-indices
+                if isinstance(first_selector, (list, np.ndarray, slice, UniversalCollection)):  # Sliced selection, with more sub-indices
                     return new_substruct.map(lambda x: x.__getitem__(indices[1:]))
                 else:  # Simple selection, with more sub-indices
                     return new_substruct[indices[1:]]
@@ -715,3 +726,19 @@ class Duck(UniversalCollection):
             if i>max_expansion:
                 break
         return ('' if _skip_intro else (str(self) + '')) + indent_string(key_value_string, indent='| ', include_first=False)
+
+    def each_eq(self, item):
+        """
+        :param item: Any python object.
+        :return: A new Duck filled with boolean values indicating if each element of this Duck is equal to the given item.
+            (this can be used for boolean indexing)
+        """
+        return self.map(lambda x: item==x)
+
+    def each_in(self, item_set):
+        """
+        :param Sequence item: A set of items
+        :return: A new Duck filled with boolean values indicating if each element of this Duck is in the set.
+            (this can be used for boolean indexing)
+        """
+        return self.map(lambda x: (x in item_set))
