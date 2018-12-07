@@ -65,7 +65,7 @@ def get_config_value(config_filename, section, option, default_generator=None, w
         config = _get_config_object(config_path)
         if not config.has_section(section):
             config.add_section(section)
-        config.set(section, option, value)
+        config.set(section, option, str(value))
         with open(config_path, 'w') as f:
             config.write(f)
 

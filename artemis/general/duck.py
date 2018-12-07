@@ -58,6 +58,15 @@ class UniversalCollection(object):
     def __eq__(self, other):
         return self.to_struct() == (other.to_struct() if isinstance(other, UniversalCollection) else other)
 
+    def __and__(self, other):
+        return self.from_struct([a & b for a, b in izip_equal(self, other)])
+
+    def __or__(self, other):
+        return self.from_struct([a | b for a, b in izip_equal(self, other)])
+
+    def __invert__(self):
+        return self.from_struct([not a for a in self])
+
     @abstractmethod
     def to_struct(self):
         raise NotImplementedError()
@@ -181,6 +190,7 @@ class DynamicSequence(list, UniversalCollection):
             else:
                 return DynamicSequence((list.__getitem__(self, i) for i in ix))
         else:
+            assert not isinstance(ix, bool), 'You cannot index with a boolean.'
             try:
                 return list.__getitem__(self, ix)
             except TypeError:
@@ -693,6 +703,15 @@ class Duck(UniversalCollection):
     def items(self, depth=None):
         for k in self.keys(depth=depth):
             yield k, self[k]
+
+    def only(self):
+        """
+        Assert that this duck contains only one element, and return that element.
+        :return: The only element inside this duck.
+        """
+        keys = list(self.keys())
+        assert len(keys)==1, 'You called Duck.only() on a duck with {} elements.  "only" can only be called on single-element ducks.'.format(len(self))
+        return self[keys[0]]
 
     def __str__(self, max_key_len=4):
         keys = list(self.keys())

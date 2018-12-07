@@ -36,7 +36,11 @@ class RecentRunningAverage(object):
 
     @classmethod
     def batch(cls, x):
-        return recent_moving_average(x, axis=0)  # Works only for python 2.X, with weave
+        try:
+            return recent_moving_average(x, axis=0)  # Works only for python 2.X, with weave
+        except ModuleNotFoundError:
+            rma = RecentRunningAverage()
+            return np.array([rma(xt) for xt in x])
 
 
 class OptimalStepSizeAverage(object):

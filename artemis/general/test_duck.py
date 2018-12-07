@@ -557,14 +557,16 @@ def test_has_key():
 def test_boolean_indexing():
 
     d = Duck()
-    d[next, :] = {'a': 1, 'b': 2}
-    d[next, :] = {'a': 4, 'b': 3}
-    d[next, :] = {'a': 3, 'b': 6}
-    d[next, :] = {'a': 6, 'b': 2}
+    d[next, :] = {'a': 1, 'b': 2, 'c': 7}
+    d[next, :] = {'a': 4, 'b': 3, 'c': 8}
+    d[next, :] = {'a': 3, 'b': 6, 'c': 9}
+    d[next, :] = {'a': 6, 'b': 2, 'c': 0}
 
     assert d[[True, False, False, True], 'a'] == [1, 6]
     assert d[d[:, 'b'].each_eq(2), 'a'] == [1, 6]
     assert d[d[:, 'b'].each_in({3, 6}), 'a'] == [4, 3]
+    assert d[d[:, 'b'].each_eq(3) | d[:, 'b'].each_eq(6), 'a'] == [4, 3]
+    assert d[d[:, 'b'].each_in({3, 6}) & ~d[:, 'a'].each_in({3, 6})].only()['c'] == 8  # "Find the 'c' value of the only item in the duck where b is in {3, 6} and 'a' is not in {3, 6}
 
 
 if __name__ == '__main__':

@@ -378,6 +378,8 @@ def make_record_comparison_duck(records, only_different_args = False, results_ex
         result = rec.get_result()
         if results_extractor is not None:
             result = results_extractor(result)
+        duck[-1, 'exp_id'] = rec.get_experiment_id()
+        duck[-1, 'id'] = rec.get_id()
         duck[-1, 'result', ...] = result
     return duck
 

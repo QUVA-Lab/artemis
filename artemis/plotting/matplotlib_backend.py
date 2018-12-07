@@ -620,4 +620,4 @@ def get_plotting_server_address():
     return _PLOTTING_SERVER
 
 
-BACKEND = get_artemis_config_value(section='plotting', option='backend')
+BACKEND = get_artemis_config_value(section='plotting', option='backend', default_generator=lambda: 'matplotlib', write_default=True)

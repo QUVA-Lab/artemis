@@ -226,7 +226,7 @@ def hstack_plots(spacing=0, sharex=False, sharey = True, grid=False, show_x=True
         with _define_plot_settings(layout='h', show_y = False if show_y=='once' else show_y, show_x = show_x, grid=grid, sharex=sharex, sharey=sharey, xlabel=xlabel, xlim=xlim, ylim=ylim):
             set_figure_border_size(wspace=spacing, left=left_pad, right=right_pad, top=top_pad, bottom=bottom_pad)
             yield
-    new_subplots = cap.get_new_subplots().values()
+    new_subplots = list(cap.get_new_subplots().values())
 
     if clip_x:
         set_same_xlims(new_subplots)

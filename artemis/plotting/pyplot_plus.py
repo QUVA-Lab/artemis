@@ -169,14 +169,34 @@ def set_lines_color_cycle_map(name, length):
 
 
 def get_line_color(ix, modifier=None):
-    colour = next(c for i, c in enumerate(get_lines_color_cycle()) if i==ix)
-    if modifier=='dark':
-        return tuple(c/2 for c in colors.hex2color(colour))
-    elif modifier=='light':
-        return tuple(1-(1-c)/2 for c in colors.hex2color(colour))
+    # Back compatibilituy
+    return modify_color(ix, modifier=modifier)
+
+
+def modify_color(color_specifier, modifier):
+    rgba = get_color_from_spec(color_specifier)
+    if callable(modifier):
+        return modifier(rgba)
+    elif isinstance(modifier, str):
+        if modifier=='dark':
+            return tuple(c/2 for c in colors.hex2color(rgba))
+        elif modifier=='light':
+            return tuple(1-(1-c)/2 for c in colors.hex2color(rgba))
+        elif modifier.startswith('alpha:'):
+            alpha_val = float(modifier[len('alpha:'):])
+            return rgba[:3]+(alpha_val, )
+        else:
+            raise NotImplementedError(modifier)
     elif modifier is not None:
         raise NotImplementedError(modifier)
-    return colors.hex2color(colour)
+
+
+def get_color_from_spec(spec):
+    if isinstance(spec, int):
+        colour = next(c for i, c in enumerate(get_lines_color_cycle()) if i==spec)
+        return colour + (1., )
+    else:
+        return tuple(colors.to_rgba(spec))
 
 
 def relabel_axis(axis, value_array, n_points = 5, format_str='{:.2g}'):
