@@ -32,7 +32,7 @@ def is_pareto_efficient_simple(costs):
     return is_efficient
 
 
-# Fastest than is_pareto_efficient, but less readable.
+# Faster than is_pareto_efficient_simple, but less readable.
 def is_pareto_efficient(costs, return_mask = True):
     """
     Find the pareto-efficient points

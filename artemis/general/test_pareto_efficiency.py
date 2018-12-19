@@ -69,8 +69,8 @@ def profile_pareto_efficient(n_points=5000, n_costs=2, include_dumb = True):
 
 
 if __name__ == '__main__':
-    # test_is_pareto_efficient()
-    # test_is_pareto_efficient_integer()
+    test_is_pareto_efficient()
+    test_is_pareto_efficient_integer()
     profile_pareto_efficient(n_points=10000, n_costs=2, include_dumb=True)
     profile_pareto_efficient(n_points=1000000, n_costs=2, include_dumb=False)
     profile_pareto_efficient(n_points=10000, n_costs=15, include_dumb=True)
