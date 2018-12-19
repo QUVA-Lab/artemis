@@ -1,5 +1,6 @@
 import numpy as np
 
+from artemis.general.global_rates import is_elapsed
 from artemis.general.global_vars import get_global
 from artemis.general.mymath import recent_moving_average
 from artemis.ml.tools.processors import IDifferentiableFunction
@@ -156,3 +157,9 @@ def get_global_running_average(value, identifier, ra_type='simple'):
     """
     running_averager = get_global(identifier=identifier, constructor=lambda: (ra_type() if callable(ra_type) else {'simple': RunningAverage, 'recent': RecentRunningAverage, 'osa': OptimalStepSizeAverage}[ra_type]()))
     return running_averager(value)
+
+
+def periodically_report_running_average(identifier, time, period, value, ra_type = 'simple', format_str = '{identifier}: Average at t={time:.3g}: {avg:.3g} '):
+    avg = get_global_running_average(value=value, identifier=identifier, ra_type=ra_type)
+    if is_elapsed(identifier, period=period, current=time):
+        print(format_str.format(identifier=identifier, time=time, avg=avg))

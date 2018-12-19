@@ -122,7 +122,7 @@ def get_leaves_and_rebuilder(nested_object, is_container = is_container_or_gener
     # TODO: Consider making leaves a generator so this could be used for streams.
     leaves = []
     meta_obj = get_meta_object(nested_object, is_container=is_container, flat_list=leaves)
-    return leaves, (lambda data_iteratable: _fill_meta_object(meta_object=meta_obj, data_iteratable=iter(data_iteratable), check_types=check_types, assert_fully_used=assert_fully_used, is_container_func=is_container))
+    return leaves, (lambda data_iteratable: fill_meta_object(meta_object=meta_obj, data_iteratable=iter(data_iteratable), check_types=check_types, assert_fully_used=assert_fully_used, is_container_func=is_container))
 
 
 def get_leaves(nested_object, is_container = is_primitive_container):
@@ -238,7 +238,7 @@ class NestedType(object):
         :param assert_fully_used: Assert that all the leaf values are used
         :return: A nested object, filled with the leaf data, whose structure is represented in this NestedType instance.
         """
-        return _fill_meta_object(self.meta_object, (x for x in leaves), check_types=check_types, assert_fully_used=assert_fully_used, is_container_func=is_container_func)
+        return fill_meta_object(self.meta_object, (x for x in leaves), check_types=check_types, assert_fully_used=assert_fully_used, is_container_func=is_container_func)
 
     @staticmethod
     def from_data(data_object, is_container_func = is_primitive_container):
@@ -291,7 +291,7 @@ def get_leaf_values(data_object, is_container_func = is_primitive_container):
         return [data_object]
 
 
-def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, check_types = True, is_container_func = is_primitive_container):
+def fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, check_types = True, is_container_func = is_primitive_container):
     """
     Fill the data from the iterable into the meta_object.
     :param meta_object: A nested type descripter.  See NestedType init
@@ -304,13 +304,13 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
     try:
         if is_container_func(meta_object):
             if isnamedtupleinstance(meta_object):
-                filled_object = type(meta_object)(*(_fill_meta_object(None, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func) for x in meta_object._fields))
+                filled_object = type(meta_object)(*(fill_meta_object(None, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func) for x in meta_object._fields))
             elif isinstance(meta_object, (list, tuple, set)):
-                filled_object = type(meta_object)(_fill_meta_object(x, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func) for x in meta_object)
+                filled_object = type(meta_object)(fill_meta_object(x, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func) for x in meta_object)
             elif isinstance(meta_object, OrderedDict):
-                filled_object = type(meta_object)((k, _fill_meta_object(val, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k, val in meta_object.items())
+                filled_object = type(meta_object)((k, fill_meta_object(val, data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k, val in meta_object.items())
             elif isinstance(meta_object, dict):
-                filled_object = type(meta_object)((k, _fill_meta_object(meta_object[k], data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k in sorted(meta_object.keys(), key=str))
+                filled_object = type(meta_object)((k, fill_meta_object(meta_object[k], data_iteratable, assert_fully_used=False, check_types=check_types, is_container_func=is_container_func)) for k in sorted(meta_object.keys(), key=str))
             else:
                 raise Exception('Cannot handle container type: "{}"'.format(type(meta_object)))
         else:
@@ -328,6 +328,9 @@ def _fill_meta_object(meta_object, data_iteratable, assert_fully_used = True, ch
         except StopIteration:
             pass
     return filled_object
+
+
+_fill_meta_object = fill_meta_object  # For backwards compatibility
 
 
 def nested_map(func, *nested_objs, **kwargs):
