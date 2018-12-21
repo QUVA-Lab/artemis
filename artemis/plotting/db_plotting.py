@@ -84,16 +84,9 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
     if data.__class__.__module__ == 'torch' and data.__class__.__name__ == 'Tensor':
         data = data.detach().cpu().numpy()
 
-    if isinstance(fig, plt.Figure):
-        assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
-        _DBPLOT_FIGURES[None] = _PlotWindow(figure=fig, subplots=OrderedDict(), axes={})
-        fig = None
-    elif fig not in _DBPLOT_FIGURES or not plt.fignum_exists(_DBPLOT_FIGURES[fig].figure.number):  # Second condition handles closed figures.
-        _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
-        if fig is not None:
-            _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
+    plot_object = _get_dbplot_plot_object(fig)  # type: _PlotWindow
 
-    suplot_dict = _DBPLOT_FIGURES[fig].subplots
+    suplot_dict = plot_object.subplots
 
     if axis is None:
         axis=name
@@ -123,51 +116,51 @@ def dbplot(data, name = None, plot_type = None, axis=None, plot_mode = 'live', d
             ax = axis
             ax_name = str(axis)
         elif isinstance(axis, string_types) or axis is None:
-            ax = select_subplot(axis, fig=_DBPLOT_FIGURES[fig].figure, layout=_default_layout if layout is None else layout)
+            ax = select_subplot(axis, fig=plot_object.figure, layout=_default_layout if layout is None else layout)
             ax_name = axis
             # ax.set_title(axis)
         else:
             raise Exception("Axis specifier must be a string, an Axis object, or a SubplotSpec object.  Not {}".format(axis))
 
-        if ax_name not in _DBPLOT_FIGURES[fig].axes:
+        if ax_name not in plot_object.axes:
             ax.set_title(name)
-            _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=ax, plot_object=plot)
-            _DBPLOT_FIGURES[fig].axes[ax_name] = ax
+            plot_object.subplots[name] = _Subplot(axis=ax, plot_object=plot)
+            plot_object.axes[ax_name] = ax
 
-        _DBPLOT_FIGURES[fig].subplots[name] = _Subplot(axis=_DBPLOT_FIGURES[fig].axes[ax_name], plot_object=plot)
-        plt.sca(_DBPLOT_FIGURES[fig].axes[ax_name])
+        plot_object.subplots[name] = _Subplot(axis=plot_object.axes[ax_name], plot_object=plot)
+        plt.sca(plot_object.axes[ax_name])
         if xlabel is not None:
-            _DBPLOT_FIGURES[fig].subplots[name].axis.set_xlabel(xlabel)
+            plot_object.subplots[name].axis.set_xlabel(xlabel)
         if ylabel is not None:
-            _DBPLOT_FIGURES[fig].subplots[name].axis.set_ylabel(ylabel)
+            plot_object.subplots[name].axis.set_ylabel(ylabel)
         if draw_every is not None:
             _draw_counters[fig, name] = Checkpoints(draw_every)
 
         if grid:
             plt.grid()
 
-    plot = _DBPLOT_FIGURES[fig].subplots[name].plot_object
+    plot = plot_object.subplots[name].plot_object
     if reset_color_cycle:
-        get_dbplot_axis(axis_name=axis, fig=fig).set_color_cycle(None)
+        use_dbplot_axis(axis, fig=fig, clear=False).set_color_cycle(None)
 
     plot.update(data)
 
     # Update Labels...
     if cornertext is not None:
-        if not hasattr(_DBPLOT_FIGURES[fig].figure, '__cornertext'):
-            _DBPLOT_FIGURES[fig].figure.__cornertext = next(iter(_DBPLOT_FIGURES[fig].subplots.values())).axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
+        if not hasattr(plot_object.figure, '__cornertext'):
+            plot_object.figure.__cornertext = next(iter(plot_object.subplots.values())).axis.annotate(cornertext, xy=(0, 0), xytext=(0.01, 0.98), textcoords='figure fraction')
         else:
-            _DBPLOT_FIGURES[fig].figure.__cornertext.set_text(cornertext)
+            plot_object.figure.__cornertext.set_text(cornertext)
     if title is not None:
-        _DBPLOT_FIGURES[fig].subplots[name].axis.set_title(title)
+        plot_object.subplots[name].axis.set_title(title)
     if legend is not None:
-        _DBPLOT_FIGURES[fig].subplots[name].axis.legend(legend, loc='best', framealpha=0.5)
+        plot_object.subplots[name].axis.legend(legend, loc='best', framealpha=0.5)
 
     if draw_now and not _hold_plots and (draw_every is None or ((fig, name) not in _draw_counters) or _draw_counters[fig, name]()):
         plot.plot()
-        display_figure(_DBPLOT_FIGURES[fig].figure, hang=hang)
+        display_figure(plot_object.figure, hang=hang)
 
-    return _DBPLOT_FIGURES[fig].subplots[name].axis
+    return plot_object.subplots[name].axis
 
 
 _PlotWindow = namedtuple('PlotWindow', ['figure', 'subplots', 'axes'])
@@ -241,6 +234,18 @@ def set_dbplot_default_layout(layout):
 
 def get_dbplot_figure(name=None):
     return _DBPLOT_FIGURES[name].figure
+
+
+def _get_dbplot_plot_object(fig):
+    if isinstance(fig, plt.Figure):
+        assert None not in _DBPLOT_FIGURES, "If you pass a figure, you can only do it on the first call to dbplot (for now)"
+        _DBPLOT_FIGURES[None] = _PlotWindow(figure=fig, subplots=OrderedDict(), axes={})
+        fig = None
+    elif fig not in _DBPLOT_FIGURES or not plt.fignum_exists(_DBPLOT_FIGURES[fig].figure.number):  # Second condition handles closed figures.
+        _DBPLOT_FIGURES[fig] = _PlotWindow(figure = _make_dbplot_figure(), subplots=OrderedDict(), axes = {})
+        if fig is not None:
+            _DBPLOT_FIGURES[fig].figure.canvas.set_window_title(fig)
+    return _DBPLOT_FIGURES[fig]
 
 
 def get_dbplot_subplot(name, fig_name=None):
@@ -328,11 +333,11 @@ def clear_dbplot(fig = None):
         _DBPLOT_FIGURES[fig].axes.clear()
 
 
-def get_dbplot_axis(axis_name, fig=None):
-    """
-    Get the named axis of a dbplot.
-    """
-    return _DBPLOT_FIGURES[fig].axes[axis_name]
+def use_dbplot_axis(name, fig=None, layout=None, clear = False, ):
+    ax = select_subplot(name, fig=_get_dbplot_plot_object(fig).figure, layout=_default_layout if layout is None else layout)
+    if clear:
+        ax.clear()
+    return ax
 
 
 def dbplot_hang(timeout=None):

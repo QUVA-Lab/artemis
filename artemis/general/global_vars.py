@@ -24,6 +24,10 @@ def get_global(identifier, constructor=None):
     return _GLOBALS[identifier]
 
 
+def has_global(identifier):
+    return identifier in _GLOBALS
+
+
 def set_global(identifier, value):
 
     _GLOBALS[identifier] = value

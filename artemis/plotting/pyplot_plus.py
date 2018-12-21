@@ -260,6 +260,7 @@ register_cmap('redblackblue', LinearSegmentedColormap('redgreyblue', {
         }))
 
 
+
 def center_colour_scale(h):
     current_min, current_max = h.get_clim()
     absmax = np.maximum(np.abs(current_min), np.abs(current_max))

@@ -4,7 +4,7 @@ import time
 import numpy as np
 from artemis.plotting.demo_dbplot import demo_dbplot
 from artemis.plotting.db_plotting import dbplot, clear_dbplot, hold_dbplots, freeze_all_dbplots, reset_dbplot, \
-    dbplot_hang, DBPlotTypes
+    dbplot_hang, DBPlotTypes, use_dbplot_axis
 from artemis.plotting.matplotlib_backend import LinePlot, HistogramPlot, MovingPointPlot, is_server_plotting_on, \
     ResamplingLineHistory
 import pytest
@@ -213,6 +213,17 @@ def test_bbox_display():
         dbplot([10, 20, 25, 30], 'bbox', axis='img', plot_type=DBPlotTypes.BBOX)
 
 
+def test_inline_custom_plots():
+
+    for t in range(10):
+        with hold_dbplots():
+            x = np.sin(t/10. + np.linspace(0, 10, 200))
+            dbplot(x, 'x', plot_type='line')
+            use_dbplot_axis('custom', clear=True)
+            plt.plot(x, label='x', linewidth=2)
+            plt.plot(x**2, label='$x**2$', linewidth=2)
+
+
 if __name__ == '__main__':
     test_cornertext()
     test_trajectory_plot()
@@ -232,3 +243,4 @@ if __name__ == '__main__':
     test_periodic_plotting()
     test_individual_periodic_plotting()
     test_bbox_display()
+    test_inline_custom_plots()

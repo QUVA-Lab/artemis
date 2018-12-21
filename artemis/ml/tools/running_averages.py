@@ -1,7 +1,7 @@
 import numpy as np
 
 from artemis.general.global_rates import is_elapsed
-from artemis.general.global_vars import get_global
+from artemis.general.global_vars import get_global, has_global, set_global
 from artemis.general.mymath import recent_moving_average
 from artemis.ml.tools.processors import IDifferentiableFunction
 
@@ -147,7 +147,14 @@ class RunningNormalize(IDifferentiableFunction):
 _running_averages = {}
 
 
-def get_global_running_average(value, identifier, ra_type='simple'):
+def construct_running_averager(ra_type):
+    if callable(ra_type):
+        return ra_type()
+    else:
+        return {'simple': RunningAverage, 'recent': RecentRunningAverage, 'osa': OptimalStepSizeAverage}[ra_type]()
+
+
+def get_global_running_average(value, identifier, ra_type='simple', reset=False):
     """
     Get the running average of a variable.
     :param value: The latest value of the variable
@@ -155,11 +162,19 @@ def get_global_running_average(value, identifier, ra_type='simple'):
     :param ra_type: The type of running averge.  Options are 'simple', 'recent', 'osa'
     :return: The running average
     """
-    running_averager = get_global(identifier=identifier, constructor=lambda: (ra_type() if callable(ra_type) else {'simple': RunningAverage, 'recent': RecentRunningAverage, 'osa': OptimalStepSizeAverage}[ra_type]()))
-    return running_averager(value)
+
+    if not has_global(identifier):
+        set_global(identifier, construct_running_averager(ra_type))
+    running_averager = get_global(identifier=identifier)
+    avg = running_averager(value)
+    if reset:
+        set_global(identifier, construct_running_averager(ra_type))
+    return avg
 
 
-def periodically_report_running_average(identifier, time, period, value, ra_type = 'simple', format_str = '{identifier}: Average at t={time:.3g}: {avg:.3g} '):
-    avg = get_global_running_average(value=value, identifier=identifier, ra_type=ra_type)
-    if is_elapsed(identifier, period=period, current=time):
+def periodically_report_running_average(identifier, time, period, value, ra_type = 'simple', format_str = '{identifier}: Average at t={time:.3g}: {avg:.3g} ', reset_between = False):
+
+    report_time = is_elapsed(identifier, period=period, current=time, count_initial=False)
+    avg = get_global_running_average(value=value, identifier=identifier, ra_type=ra_type, reset=reset_between and report_time)
+    if report_time:
         print(format_str.format(identifier=identifier, time=time, avg=avg))

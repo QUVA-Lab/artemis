@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 
-from artemis.general.global_vars import get_global, set_global
+from artemis.general.global_vars import get_global, set_global, has_global
 import time
 
 
@@ -44,21 +44,27 @@ class _LastTimeMeasureSingleton:
     pass
 
 
-def is_elapsed(identifier, period, current = None):
+def is_elapsed(identifier, period, current = None, count_initial = True):
     """
     Return True if the given span has elapsed since this function last returned True
     :param identifier: A string, or anything identifier
     :param period: The span which should have elapsed for this to return True again.  This is measured in time in seconds
         if no argument is provided for "current" or for whatever the unit of "current" is otherwise.
     :param current: Optionally, the current state of progress.  If ommitted, this defaults to the current time.
+    :param count_initial: Count the initial point
     :return bool: True if first call or at least "span" units of time have elapsed.
     """
     if current is None:
         current = time.time()
     key = (_LastTimeMeasureSingleton, identifier)
-    last = get_global(key, constructor=lambda: -float('inf'))
-    assert current>=last, f"Current value ({current}) must be greater or equal to the last value ({last})"
-    has_elapsed = current - last >= period
-    if has_elapsed:
+
+    if not has_global(key):
         set_global(key, current)
-    return has_elapsed
+        return count_initial
+    else:
+        last = get_global(key)
+        assert current>=last, f"Current value ({current}) must be greater or equal to the last value ({last})"
+        has_elapsed = current - last >= period
+        if has_elapsed:
+            set_global(key, current)
+        return has_elapsed
