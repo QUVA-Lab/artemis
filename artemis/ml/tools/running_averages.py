@@ -172,9 +172,12 @@ def get_global_running_average(value, identifier, ra_type='simple', reset=False)
     return avg
 
 
-def periodically_report_running_average(identifier, time, period, value, ra_type = 'simple', format_str = '{identifier}: Average at t={time:.3g}: {avg:.3g} ', reset_between = False):
+def periodically_report_running_average(identifier, time, period, value, ra_type = 'simple', format_str = '{identifier}: Average at t={time:.3g}: {avg} ', reset_between = False):
 
     report_time = is_elapsed(identifier, period=period, current=time, count_initial=False)
-    avg = get_global_running_average(value=value, identifier=identifier, ra_type=ra_type, reset=reset_between and report_time)
+    if not isinstance(value, dict):
+        avg = get_global_running_average(value=value, identifier=identifier, ra_type=ra_type, reset=reset_between and report_time)
+    else:
+        avg = {k: f'{get_global_running_average(value=v, identifier=(identifier, k), ra_type=ra_type, reset=reset_between and report_time):.3g}' for k, v in value.items()}
     if report_time:
         print(format_str.format(identifier=identifier, time=time, avg=avg))
