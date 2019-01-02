@@ -1,4 +1,4 @@
-from multiprocessing import Process, Queue, Manager, Value, Lock
+from multiprocessing import Process, Queue, Manager, Lock, set_start_method
 import time
 
 
@@ -37,7 +37,7 @@ class Uninitialized:
     pass
 
 
-def iter_latest_asynchonously(gen_func, timeout = None, empty_value = None):
+def iter_latest_asynchonously(gen_func, timeout = None, empty_value = None, use_forkserver = False, uninitialized_wait = None):
     """
     Given a generator function, make an iterator that pulls the latest value yielded when running it asynchronously.
     If a value has never been set, or timeout is exceeded, yield empty_value instead.
@@ -45,6 +45,9 @@ def iter_latest_asynchonously(gen_func, timeout = None, empty_value = None):
     :param gen_func: A generator function (a function returning a generator);
     :return:
     """
+    if use_forkserver:
+        set_start_method('forkserver')  # On macos this is necessary to start camera in separate thread
+
     m = Manager()
     namespace = m.Namespace()
 
@@ -60,7 +63,13 @@ def iter_latest_asynchonously(gen_func, timeout = None, empty_value = None):
             lasttime, item = namespace.time_and_data
         if item is PoisonPill:  # The generator has terminated
             break
-        elif item is Uninitialized or timeout is not None and (time.time() - lasttime) > timeout:  # Nothing written or nothing recent enough
+        elif item is Uninitialized:
+            if uninitialized_wait is not None:
+                time.sleep(uninitialized_wait)
+                continue
+            else:
+                yield empty_value
+        elif timeout is not None and (time.time() - lasttime) > timeout:  # Nothing written or nothing recent enough
             yield empty_value
         else:
             yield item
