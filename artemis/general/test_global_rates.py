@@ -30,5 +30,5 @@ def test_limit_rate_iterator():
 
 
 if __name__ == '__main__':
-    # test_limit_rate()
+    test_limit_rate()
     test_limit_rate_iterator()
