@@ -44,6 +44,25 @@ class _LastTimeMeasureSingleton:
     pass
 
 
+def elapsed_time(identifier, current = None):
+    """
+    Return the time that has elapsed since this function was called with the given identifier.
+    """
+    if current is None:
+        current = time.time()
+    key = (_LastTimeMeasureSingleton, identifier)
+
+    if not has_global(key):
+        set_global(key, current)
+        return float('inf')
+    else:
+        last = get_global(key)
+        assert current>=last, f"Current value ({current}) must be greater or equal to the last value ({last})"
+        elapsed = current - last
+        set_global(key, current)
+        return elapsed
+
+
 def is_elapsed(identifier, period, current = None, count_initial = True):
     """
     Return True if the given span has elapsed since this function last returned True
@@ -68,3 +87,35 @@ def is_elapsed(identifier, period, current = None, count_initial = True):
         if has_elapsed:
             set_global(key, current)
         return has_elapsed
+
+
+def limit_rate(identifier, period):
+    """
+    :param identifier: Any python object to uniquely identify what you're limiting.
+    :param period: The minimum period
+    :param current: The time measure (if None, system time will be used)
+    :return: Whether the rate was exceeded (True) or not (False)
+    """
+
+    enter_time = time.time()
+    key = (_LastTimeMeasureSingleton, identifier)
+    if not has_global(key):  # First call
+        set_global(key, enter_time)
+        return False
+    else:
+        last = get_global(key)
+        assert enter_time>=last, f"Current value ({current}) must be greater or equal to the last value ({last})"
+        elapsed = enter_time - last
+        if elapsed < period:  # Rate has been exceeded
+            time.sleep(period - elapsed)
+            set_global(key, time.time())
+            return False
+        else:
+            set_global(key, enter_time)
+            return True
+
+
+def limit_iteration_rate(iterable, period):
+    for x in iterable:
+        limit_rate(id(iterable), period=period)
+        yield x
