@@ -83,11 +83,22 @@ def profile_context(name, print_result = False):
 
 
 def get_profile_contexts(names=None, fill_empty_with_zero = False):
-
+    """
+    :param names: Names of profiling contexts to get (from previous calls to profile_context).  If None, use all.
+    :param fill_empty_with_zero: If names are not found, just fill with zeros.
+    :return: An OrderedDict <name: (n_calls, elapsed)>
+    """
     if names is None:
         return _profile_contexts
     else:
         if fill_empty_with_zero:
-            return OrderedDict((k, _profile_contexts[k] if k in _profile_contexts else 0) for k in names)
+            return OrderedDict((k, _profile_contexts[k] if k in _profile_contexts else (0, 0.)) for k in names)
         else:
             return OrderedDict((k, _profile_contexts[k]) for k in names)
+
+
+def get_profile_contexts_string(names=None, fill_empty_with_zero = False):
+
+    profile = get_profile_contexts(names=names, fill_empty_with_zero=fill_empty_with_zero)
+    string = ', '.join(f'{name}: {elapsed/n_calls:.3g}s/iter' for name, (n_calls, elapsed) in profile.items())
+    return string
