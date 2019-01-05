@@ -100,5 +100,5 @@ def get_profile_contexts(names=None, fill_empty_with_zero = False):
 def get_profile_contexts_string(names=None, fill_empty_with_zero = False):
 
     profile = get_profile_contexts(names=names, fill_empty_with_zero=fill_empty_with_zero)
-    string = ', '.join(f'{name}: {elapsed/n_calls:.3g}s/iter' for name, (n_calls, elapsed) in profile.items())
+    string = ', '.join('{}: {:.3g}s/iter'.format(name, elapsed/n_calls) for name, (n_calls, elapsed) in profile.items())
     return string
