@@ -150,6 +150,19 @@ def izip_equal(*iterables):
         yield combo
 
 
+def adjacent_pairs(iterable):
+    """
+    Given an iterable like ['a', 'b', 'c', 'd'], yield adjacent pairs like [('a', 'b'), ('b', 'c'), ('c', 'd')]
+    :param iterable:
+    :return:
+    """
+    iterator = iter(iterable)
+    last = next(iterator)
+    for item in iterator:
+        yield (last, item)
+        last = item
+
+
 def remove_duplicates(sequence, hashable=True, key=None, keep_last=False):
     """
     Remove duplicates while maintaining order.
