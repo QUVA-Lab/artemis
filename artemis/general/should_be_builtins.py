@@ -514,3 +514,35 @@ def natural_keys(text):
     (See Toothy's implementation in the comments)
     """
     return tuple(atoi(c) for c in re.split('(\d+)', text))
+
+
+class switch:
+    """
+    A switch statement, made by Ian Bell at https://stackoverflow.com/a/30012053/851699
+
+    Usage:
+
+        with switch(name) as case:
+            if case('bob', 'nancy'):
+                print("Come in, you're on the guest list")
+            elif case('drew'):
+                print("Sorry, after last time we can't let you in")
+            else:
+                print("Sorry, {}, we can't let you in.".format(case.value))
+    """
+
+    def __init__(self, value):
+        self._val = value
+
+    @property
+    def value(self):
+        return self._val
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        return False  # Allows traceback to occur
+
+    def __call__(self, *mconds):
+        return self._val in mconds

@@ -173,7 +173,7 @@ def parse_user_function_call(cmd_str, arg_handling_mode = 'fallback'):
             arg_name, arg_val = arg.split('=', 1)
             kwargs[arg_name] = parse_arg(arg_val)
 
-    return func_name, args, kwargs
+    return func_name, tuple(args), kwargs
 
     # if forgive_unquoted_strings:
     #     cmd_args = [cmd_args[0]] + [_quote_args_that_you_forgot_to_quote(arg) for arg in cmd_args[1:]]

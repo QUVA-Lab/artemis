@@ -17,7 +17,7 @@ class ParameterSchedule(object):
             - A function which takes the epoch and returns a parameter value.
             - A number or array, in which case the value remains constant
         """
-        if isinstance(schedule, (int, float, np.ndarray)):
+        if isinstance(schedule, (int, float, np.ndarray, str)):
             schedule = {0: schedule}
         if isinstance(schedule, dict):
             assert all(isinstance(num, (int, float)) for num in schedule.keys())

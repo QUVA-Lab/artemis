@@ -4,7 +4,7 @@ import pytest
 
 from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items, remove_duplicates, \
     detect_duplicates, remove_common_prefix, all_equal, get_absolute_module, insert_at, get_shifted_key_value, \
-    divide_into_subsets, entries_to_table, natural_keys
+    divide_into_subsets, entries_to_table, natural_keys, switch
 
 __author__ = 'peter'
 
@@ -127,6 +127,27 @@ def test_natural_keys():
     assert sorted(['y8', 'x10', 'x2', 'y12', 'x9'], key=natural_keys) == ['x2', 'x9', 'x10', 'y8', 'y12']
 
 
+def test_switch_statement():
+
+    responses = []
+    for name in ['nancy', 'joe', 'bob', 'drew']:
+        with switch(name) as case:
+            if case('bob', 'nancy'):
+                response = "Come in, you're on the guest list"
+            elif case('drew'):
+                response = "Sorry, after what happened last time we can't let you in"
+            else:
+                response = "Sorry, {}, we can't let you in.".format(case.value)
+        responses.append(response)
+
+    assert responses == [
+        "Come in, you're on the guest list",
+        "Sorry, joe, we can't let you in.",
+        "Come in, you're on the guest list",
+        "Sorry, after what happened last time we can't let you in"
+    ]
+
+
 if __name__ == '__main__':
     test_separate_common_items()
     test_reducemap()
@@ -141,3 +162,4 @@ if __name__ == '__main__':
     test_divide_into_subsets()
     test_entries_to_table()
     test_natural_keys()
+    test_switch_statement()
