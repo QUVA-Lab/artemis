@@ -185,9 +185,12 @@ def get_defined_and_undefined_args(func):
     """
     undefined_arg_names, varargs_name, kwargs_name, defined_args = advanced_getargspec(func)
     assert varargs_name is None
-    assert kwargs_name is None
     for k in defined_args.keys():
-        undefined_arg_names.remove(k)
+        if kwargs_name is None:  # If the function does not have **kwargs
+            undefined_arg_names.remove(k)
+        else:
+            if k in undefined_arg_names:
+                undefined_arg_names.remove(k)
     return defined_args, undefined_arg_names
 
 

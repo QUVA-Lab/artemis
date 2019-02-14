@@ -381,7 +381,10 @@ class Experiment(object):
         Return the ExperimentRecord from the latest run of this Experiment.
 
         :param only_completed: Only search among records of that have run to completion.
-        :param err_if_none: If True, raise an error if no record exists.  Otherwise, just return None in this case.
+        :param if_none: What to do if no record exists.  Options are:
+            'skip': Return None
+            'err': Raise an exception
+            'run': Run the experiment to get the record
         :return ExperimentRecord: An ExperimentRecord object
         """
         assert if_none in ('skip', 'err', 'run')
@@ -421,9 +424,10 @@ class Experiment(object):
             else:
                 return exp_record_dict
 
-    def add_parameter_search(self, name='parameter_search', space = None, n_calls=100, search_params = None, scalar_func=None):
+    def add_parameter_search(self, name='parameter_search', fixed_args = {}, space = None, n_calls=100, search_params = None, scalar_func=None):
         """
         :param name: Name of the Experiment to be created
+        :param dict[str, Any] fixed_args: Any fixed-arguments to provide to all experiments.
         :param dict[str, skopt.space.Dimension] space: A dict mapping param name to Dimension.
             e.g.    space=dict(a = Real(1, 100, 'log-uniform'), b = Real(1, 100, 'log-uniform'))
         :param Callable[[Any], float] scalar_func: Takes the return value of the experiment and turns it into a scalar
@@ -446,18 +450,27 @@ class Experiment(object):
 
         from artemis.experiments import ExperimentFunction
 
-        @ExperimentFunction(name = self.name + '.'+ name, show = show_parameter_search_record, one_liner_function=parameter_search_one_liner)
-        def search_exp():
+        def search_func(fixed):
             if is_test_mode():
                 nonlocal n_calls
                 n_calls = 3  # When just verifying that experiment runs, do the minimum
 
-            for iter_info in parameter_search(objective, n_calls=n_calls, space=space, **search_params):
+            this_objective = partial(objective, **fixed)
+
+            for iter_info in parameter_search(this_objective, n_calls=n_calls, space=space, **search_params):
                 info = dict(names=list(space.keys()), x_iters =iter_info.x_iters, func_vals=iter_info.func_vals, score = iter_info.func_vals, x=iter_info.x, fun=iter_info.fun)
                 latest_info = {name: val for name, val in izip_equal(info['names'], iter_info.x_iters[-1])}
                 print(f'Latest: {latest_info}, Score: {iter_info.func_vals[-1]:.3g}')
                 yield info
 
+        # The following is a hack to dynamically create a function with the given args
+        # arg_string = ', '.join('{}={}'.format(k, v) for k, v in fixed_args.items())
+        # param_search = None
+        # exec('global param_search\ndef func({fixed}): search_func(fixed_args=dict({fixed})); param_search=func'.format(fixed=arg_string))
+        # param_search = locals()['param_search']
+        search_exp_func = partial(search_func, fixed=fixed_args)  # We do this so that the fixed parameters will be recorded and we will see if they changed.
+
+        search_exp = ExperimentFunction(name = self.name + '.'+ name, show = show_parameter_search_record, one_liner_function=parameter_search_one_liner)(search_exp_func)
         self.variants[name] = search_exp
         search_exp.tag('psearch')  # Secret feature that makes it easy to select all parameter experiments in ui with "filter tag:psearch"
         return search_exp
