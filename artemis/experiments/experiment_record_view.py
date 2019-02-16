@@ -2,6 +2,7 @@ import re
 from collections import OrderedDict
 from functools import partial
 import itertools
+
 from six import string_types
 from tabulate import tabulate
 import numpy as np
@@ -15,6 +16,9 @@ from artemis.general.should_be_builtins import separate_common_items, bad_value,
     remove_duplicates, get_unique_name, entries_to_table
 from artemis.general.tables import build_table
 import os
+
+from artemis.plotting.parallel_coords_plots import plot_hyperparameter_search_parallel_coords
+from artemis.plotting.pyplot_plus import get_color_cycle_map
 
 
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False, default_one_liner_func=str):
@@ -581,3 +585,25 @@ def browse_record_figs(record):
 
     print('Use Left/Right arrows to navigate, ')
     show_figure(nonlocals.figno)
+
+
+def plot_hyperparameter_search(record, relabel = None, show_order_first = True, show_score_last = True, score_name='score'):
+    """
+    Create a parallel coordinates plot representing a hyperparameter search experiment record.
+    :param record:
+    :param show_order_first:
+    :param show_score_last:
+    :param score_name:
+    :return:
+    """
+    result = record.get_result()
+
+    assert {'names', 'x_iters', 'func_vals'}.issubset(result.keys()), "Record {} does not appear to be from a Parameter Search experiment!".format(record)
+
+    names, x_iters, func_vals = result['names'], result['x_iters'], result['func_vals']
+
+    if relabel is not None:
+        assert set(relabel.keys()).issubset(names), 'Not all relabeling keys {} were found in names {}'.format(list(relabel.keys()), list(names))
+        names = [relabel[n] if n in relabel else n for n in names]
+
+    return plot_hyperparameter_search_parallel_coords(field_names=list(names), x_iters=x_iters, func_vals=func_vals, show_iter_first=show_order_first, show_score_last=show_score_last, score_name=score_name)

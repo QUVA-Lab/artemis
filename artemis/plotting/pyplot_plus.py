@@ -15,7 +15,7 @@ An few extension functions to pyplot
 """
 
 
-def axhlines(ys, ax=None, **plot_kwargs):
+def axhlines(ys, lims=None, ax=None, **plot_kwargs):
     """
     Draw horizontal lines across plot
     :param ys: A scalar, list, or 1D array of vertical offsets
@@ -26,14 +26,14 @@ def axhlines(ys, ax=None, **plot_kwargs):
     if ax is None:
         ax = plt.gca()
     ys = np.array((ys, ) if np.isscalar(ys) else ys, copy=False)
-    lims = ax.get_xlim()
+    lims = ax.get_xlim() if lims is None else lims
     y_points = np.repeat(ys[:, None], repeats=3, axis=1).flatten()
     x_points = np.repeat(np.array(lims + (np.nan, ))[None, :], repeats=len(ys), axis=0).flatten()
     plot = ax.plot(x_points, y_points, scalex = False, **plot_kwargs)
     return plot
 
 
-def axvlines(xs, ax=None, **plot_kwargs):
+def axvlines(xs, lims=None, ax=None, **plot_kwargs):
     """
     Draw vertical lines on plot
     :param xs: A scalar, list, or 1D array of horizontal offsets
@@ -44,7 +44,7 @@ def axvlines(xs, ax=None, **plot_kwargs):
     if ax is None:
         ax = plt.gca()
     xs = np.array((xs, ) if np.isscalar(xs) else xs, copy=False)
-    lims = ax.get_ylim()
+    lims = ax.get_ylim() if lims is None else lims
     x_points = np.repeat(xs[:, None], repeats=3, axis=1).flatten()
     y_points = np.repeat(np.array(lims + (np.nan, ))[None, :], repeats=len(xs), axis=0).flatten()
     plot = ax.plot(x_points, y_points, scaley = False, **plot_kwargs)
