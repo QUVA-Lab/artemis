@@ -545,6 +545,34 @@ def run_multiple_experiments(experiments, prefixes = None, parallel = False, dis
         return [ex.run(raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **run_args) for ex in experiments]
 
 
+def get_multiple_records(experiment, n, only_completed=True, if_not_enough='run'):
+    """
+    Get n records from a single experiment.
+    :param Experiment experiment: The experiment
+    :param int n: Number of records to get
+    :param only_completed: True if you only want completed records
+    :param if_not_enough: What to do if there are not enough records ready.
+        'run': Run more
+        'cut': Just return the number that are already calculated
+        'err': Raise an excepetion
+    :return:
+    """
+    if isinstance(experiment, str):
+        experiment = load_experiment(experiment)
+    assert if_not_enough in ('run', 'cut', 'err')
+    records = experiment.get_records(only_completed=only_completed)
+    if if_not_enough == 'err':
+        assert len(records) >= n, "You asked for {} records, but only {} were available".format(n, len(records))
+        return records[-n:]
+    elif if_not_enough=='run':
+        for k in range(n-len(records)):
+            record = experiment.run()
+            records.append(record)
+        return records[-n:]
+    else:
+        return records
+
+
 def remove_common_results_prefix(results_dict):
     """
     Remove the common prefix for the results you are comparing.
