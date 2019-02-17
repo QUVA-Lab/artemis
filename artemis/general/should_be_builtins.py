@@ -2,7 +2,7 @@ import inspect
 from collections import OrderedDict
 import itertools
 import os
-
+import re
 import math
 from six.moves import xrange, zip_longest
 
@@ -150,6 +150,19 @@ def izip_equal(*iterables):
         yield combo
 
 
+def adjacent_pairs(iterable):
+    """
+    Given an iterable like ['a', 'b', 'c', 'd'], yield adjacent pairs like [('a', 'b'), ('b', 'c'), ('c', 'd')]
+    :param iterable:
+    :return:
+    """
+    iterator = iter(iterable)
+    last = next(iterator)
+    for item in iterator:
+        yield (last, item)
+        last = item
+
+
 def remove_duplicates(sequence, hashable=True, key=None, keep_last=False):
     """
     Remove duplicates while maintaining order.
@@ -162,8 +175,9 @@ def remove_duplicates(sequence, hashable=True, key=None, keep_last=False):
     :param keep_last: Keep the last element, rather than the first (only makes sense if key is not None)
     :returns: A list that maintains the order, but with duplicates removed
     """
+    sequence = list(sequence)
     is_dup = detect_duplicates(sequence, hashable=hashable, key=key, keep_last=keep_last)
-    return [x for x, is_duplicate in zip(sequence, is_dup) if not is_duplicate]
+    return (x for x, is_duplicate in zip(sequence, is_dup) if not is_duplicate)
 
 
 def uniquify_duplicates(sequence_of_strings):
@@ -257,7 +271,7 @@ def separate_common_items(list_of_lists):
     if are_dicts:
         list_of_lists = [el.items() for el in list_of_lists]
     all_items = [item for list_of_items in list_of_lists for item in list_of_items]
-    common_items = remove_duplicates([k for k, c in count_unique_items(all_items) if c==len(list_of_lists)], hashable=False)
+    common_items = list(remove_duplicates([k for k, c in count_unique_items(all_items) if c==len(list_of_lists)], hashable=False))
     different_items = [[item for item in list_of_items if item not in common_items] for list_of_items in list_of_lists]
     if are_dicts:
         return dict(common_items), [dict(el) for el in different_items]
@@ -312,7 +326,6 @@ def remove_common_prefix(list_of_lists, max_elements=None, keep_base = True):
     count = 0
 
     min_len = 1 if keep_base else 0
-
     while min(len(parts) for parts in list_of_lists)>min_len:
         if max_elements is not None and count >= max_elements:
             break
@@ -462,3 +475,74 @@ def unzip(iterable):
     :return: A N-tuple of iterables
     """
     return zip(*iterable)
+
+
+def entries_to_table(tuplelist, fill_value = None):
+    """
+    Turn a bunch of entries into a table.  e.g.
+
+        >>> entries_to_table([[('a', 1), ('b', 2)], [('a', 3), ('b', 4), ('c', 5)]])
+        (['a', 'b', 'c'], [[1, 2, None], [3, 4, 5]])
+
+    :param Sequence[Sequence[Tuple[str, Any]]] tuplelist: N_samples samples of N_observations observations, each represented by (observation_name, observation_value)
+    :return Tuple[Sequence[str], Sequence[Sequence[Any]]: (observation_names, data) A list of observation_names and the data suitable for tabular plotting.
+    """
+    all_entries = list(remove_duplicates((k for sample in tuplelist for k, v in (sample.items() if isinstance(sample, dict) else sample))))
+    data = [dict(sample) for sample in tuplelist]
+    new_data = [[d[k] if k in d else fill_value for k in all_entries] for d in data]
+    return all_entries, new_data
+
+
+def print_thru(x):
+    print(x)
+    return x
+
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+
+def natural_keys(text):
+    """
+    A key function to use for sorting strings.  This captures numbers in the strings, so for example it will sort
+
+    sorted(['y8', 'x10', 'x2', 'y12', 'x9'], key=natural_keys) == ['x2', 'x9', 'x10', 'y8', 'y12']
+
+    Taken from: https://stackoverflow.com/a/5967539/851699
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
+    """
+    return tuple(atoi(c) for c in re.split('(\d+)', text))
+
+
+class switch:
+    """
+    A switch statement, made by Ian Bell at https://stackoverflow.com/a/30012053/851699
+
+    Usage:
+
+        with switch(name) as case:
+            if case('bob', 'nancy'):
+                print("Come in, you're on the guest list")
+            elif case('drew'):
+                print("Sorry, after last time we can't let you in")
+            else:
+                print("Sorry, {}, we can't let you in.".format(case.value))
+    """
+
+    def __init__(self, value):
+        self._val = value
+
+    @property
+    def value(self):
+        return self._val
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        return False  # Allows traceback to occur
+
+    def __call__(self, *mconds):
+        return self._val in mconds

@@ -64,7 +64,7 @@ def pull_experiment_records(user, ip, experiment_names, include_variants=True, n
         # +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names]  # This was the old line, but it could be too long for many experiments.
 
     if not need_pass:
-        output = subprocess.check_output(command)
+        output = subprocess.check_output(' '.join(command), shell=True)
     else:
         # This one works if you need a password
         password = getpass.getpass("Enter password for {}@{}:".format(user, ip))
@@ -126,7 +126,11 @@ def select_experiments(user_range, exp_record_dict, return_dict=False):
 
 def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
 
-    if user_range.startswith('~'):
+    if '|' in user_range:
+        is_in = [any(xs) for xs in zip(*(_filter_experiments(subrange, exp_record_dict, return_is_in=True) for subrange in user_range.split('|')))]
+    elif '&' in user_range:
+        is_in = [all(xs) for xs in zip(*(_filter_experiments(subrange, exp_record_dict, return_is_in=True) for subrange in user_range.split('&')))]
+    elif user_range.startswith('~'):
         is_in = _filter_experiments(user_range=user_range[1:], exp_record_dict=exp_record_dict, return_is_in=True)
         is_in = [not r for r in is_in]
     else:
@@ -141,6 +145,9 @@ def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
             elif user_range.startswith('has:'):
                 phrase = user_range[len('has:'):]
                 is_in = [phrase in exp_id for exp_id in exp_record_dict]
+            elif user_range.startswith('tag:'):
+                tag = user_range[len('tag:'):]
+                is_in = [tag in load_experiment(exp_id).get_tags() for exp_id in exp_record_dict]
             elif user_range.startswith('1diff:'):
                 base_range = user_range[len('1diff:'):]
                 base_range_exps = select_experiments(base_range, exp_record_dict) # list<experiment_id>
@@ -308,7 +315,7 @@ def _filter_records(user_range, exp_record_dict):
         try:
             sign = user_range[3]
             assert sign in ('<', '>')
-            filter_func = (lambda a, b: a<b) if sign == '<' else (lambda a, b: a>b)
+            filter_func = (lambda a, b: (a is not None and b is not None) and a<b) if sign == '<' else (lambda a, b: (a is not None and b is not None) and a>b)
             time_delta = parse_time(user_range[4:])
         except:
             if user_range.startswith('dur'):
@@ -323,6 +330,10 @@ def _filter_records(user_range, exp_record_dict):
             current_time = datetime.now()
             for exp_id, _ in base.items():
                 base[exp_id] = [filter_func(current_time - load_experiment_record(rec_id).get_datetime(), time_delta) for rec_id in exp_record_dict[exp_id]]
+    elif user_range.startswith('has:'):
+        phrase = user_range[len('has:'):]
+        for exp_id, records in base.items():
+            base[exp_id] = [True]*len(records) if phrase in exp_id else [False]*len(records)
     else:
         raise RecordSelectionError("Don't know how to interpret subset '{}'.  Possible subsets: {}".format(user_range, list(_named_record_filters.keys())))
     return base
@@ -532,6 +543,34 @@ def run_multiple_experiments(experiments, prefixes = None, parallel = False, dis
         return p.map(target_func, zip(experiment_identifiers, prefixes))
     else:
         return [ex.run(raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **run_args) for ex in experiments]
+
+
+def get_multiple_records(experiment, n, only_completed=True, if_not_enough='run'):
+    """
+    Get n records from a single experiment.
+    :param Experiment experiment: The experiment
+    :param int n: Number of records to get
+    :param only_completed: True if you only want completed records
+    :param if_not_enough: What to do if there are not enough records ready.
+        'run': Run more
+        'cut': Just return the number that are already calculated
+        'err': Raise an excepetion
+    :return:
+    """
+    if isinstance(experiment, str):
+        experiment = load_experiment(experiment)
+    assert if_not_enough in ('run', 'cut', 'err')
+    records = experiment.get_records(only_completed=only_completed)
+    if if_not_enough == 'err':
+        assert len(records) >= n, "You asked for {} records, but only {} were available".format(n, len(records))
+        return records[-n:]
+    elif if_not_enough=='run':
+        for k in range(n-len(records)):
+            record = experiment.run()
+            records.append(record)
+        return records[-n:]
+    else:
+        return records
 
 
 def remove_common_results_prefix(results_dict):

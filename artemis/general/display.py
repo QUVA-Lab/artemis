@@ -39,7 +39,13 @@ def dict_to_str(d):
     :param dict d: A dict
     :return str: A nice, formatted version of this dict.
     """
-    return ', '.join('{}:{}'.format(k, repr(v)) for k, v in d.items())
+    if isinstance(d, (list, tuple)) and all(isinstance(el, (list, tuple)) and len(el)==2 for el in d):
+        items = d
+    elif isinstance(d, dict):
+        items = d.items()
+    else:
+        raise Exception("Can't interpret object {}".format(d))
+    return ', '.join('{}:{:.3g}'.format(k, v) if isinstance(v, float) else '{}:{}'.format(k, repr(v)) for k, v in items)
 
 
 def pyfuncstring_to_tex(pyfuncstr):
@@ -399,7 +405,7 @@ def format_duration(seconds):
         else:
             return res
     else:
-        days = seconds//_seconds_in_day
+        days = int(seconds//_seconds_in_day)
         return '{:d}d,{}'.format(days, format_duration(seconds % _seconds_in_day))
 
 

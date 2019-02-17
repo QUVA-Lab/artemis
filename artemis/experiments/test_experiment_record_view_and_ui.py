@@ -1,25 +1,27 @@
 import pytest
 
 from artemis.experiments.decorators import ExperimentFunction, experiment_function
+from artemis.experiments.experiment_record import save_figure_in_record
 from artemis.experiments.experiment_record_view import get_oneline_result_string, print_experiment_record_argtable, \
-    compare_experiment_records, get_record_invalid_arg_string
+    compare_experiment_records, get_record_invalid_arg_string, browse_record_figs
 from artemis.experiments.experiments import experiment_testing_context, clear_all_experiments
 from artemis.general.display import CaptureStdOut, assert_things_are_printed
+import numpy as np
 
 
-def display_it(result):
-    print(str(result) + 'aaa')
+def display_it(record):
+    print(str(record.get_result()) + 'aaa')
 
 
 def one_liner(result):
     return str(result) + 'bbb'
 
 
-def compare_them(results):
-    print(', '.join('{}: {}'.format(k, results[k]) for k in sorted(results.keys())))
+def compare_them(records):
+    print(', '.join('{}: {}'.format(record.get_experiment().name, record.get_result()) for record in records))
 
 
-@ExperimentFunction(display_function=display_it, one_liner_function=one_liner, comparison_function=compare_them)
+@ExperimentFunction(show=display_it, one_liner_function=one_liner, compare=compare_them)
 def my_xxxyyy_test_experiment(a=1, b=2):
 
     if b==17:
@@ -82,8 +84,8 @@ def test_experiment_function_ui():
         import time
         time.sleep(0.1)
 
-        with assert_things_are_printed(min_len=1200, things=['Common Args', 'Different Args', 'Result', 'a=1, b=2', 'a=2, b=2', 'a=1, b=17']):
-            my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
+        # with assert_things_are_printed(min_len=1200, things=['Common Args', 'Different Args', 'Result', 'a=1, b=2', 'a=2, b=2', 'a=1, b=17']):
+        #     my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='argtable all', close_after=True)
 
         with assert_things_are_printed(min_len=600, things=['my_xxxyyy_test_experiment: 3', 'my_xxxyyy_test_experiment.a2: 4']):
             my_xxxyyy_test_experiment.browse(raise_display_errors=True, command='compare all -r', close_after=True)
@@ -219,6 +221,23 @@ def test_duplicate_headers_when_no_records_bug_is_gone():
     assert string.count('Start Time') == 1
 
 
+def demo_browse_record_figs():
+
+    from artemis.plotting.db_plotting import dbplot
+    from matplotlib import pyplot as plt
+    with experiment_testing_context(new_experiment_lib=True):
+        @experiment_function
+        def my_exp():
+            for t in range(4):
+                pts = np.linspace(0, 3*(t+1), 400)
+                dbplot((pts*np.cos(pts), pts*np.sin(pts)), 'plot', title='t={}'.format(t), plot_type='line')
+                save_figure_in_record()
+            plt.close(plt.gcf())
+        rec = my_exp.run()  # type: ExperimentRecord
+
+        browse_record_figs(rec)
+
+
 if __name__ == '__main__':
     test_experiments_function_additions()
     test_experiment_function_ui()
@@ -227,3 +246,4 @@ if __name__ == '__main__':
     test_simple_experiment_show()
     test_view_modes()
     test_duplicate_headers_when_no_records_bug_is_gone()
+    # demo_browse_record_figs()
