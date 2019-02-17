@@ -587,23 +587,18 @@ def browse_record_figs(record):
     show_figure(nonlocals.figno)
 
 
-def plot_hyperparameter_search(record, relabel = None, show_order_first = True, show_score_last = True, score_name='score'):
+def plot_hyperparameter_search(record, relabel = None, assert_all_relabels_used = True, **hypersearch_parallel_kwargs):
     """
     Create a parallel coordinates plot representing a hyperparameter search experiment record.
-    :param record:
-    :param show_order_first:
-    :param show_score_last:
-    :param score_name:
-    :return:
+    :param ExperimentRecord record: An experiment record object
+    :param hypersearch_parallel_kwargs: See plot_hyperparameter_search_parallel_coords
+    :return: A bunch of plot handels
     """
     result = record.get_result()
-
-    assert {'names', 'x_iters', 'func_vals'}.issubset(result.keys()), "Record {} does not appear to be from a Parameter Search experiment!".format(record)
-
-    names, x_iters, func_vals = result['names'], result['x_iters'], result['func_vals']
-
+    assert {'names', 'x_iters', 'func_vals', 'x'}.issubset(result.keys()), "Record {} does not appear to be from a Parameter Search experiment!".format(record)
+    names, x_iters, func_vals, x = result['names'], result['x_iters'], result['func_vals'], result['x']
     if relabel is not None:
-        assert set(relabel.keys()).issubset(names), 'Not all relabeling keys {} were found in names {}'.format(list(relabel.keys()), list(names))
+        if assert_all_relabels_used:
+            assert set(relabel.keys()).issubset(names), 'Not all relabeling keys {} were found in names {}'.format(list(relabel.keys()), list(names))
         names = [relabel[n] if n in relabel else n for n in names]
-
-    return plot_hyperparameter_search_parallel_coords(field_names=list(names), x_iters=x_iters, func_vals=func_vals, show_iter_first=show_order_first, show_score_last=show_score_last, score_name=score_name)
+    return plot_hyperparameter_search_parallel_coords(field_names=list(names), param_sequence=x_iters, func_vals=func_vals, final_params=x, **hypersearch_parallel_kwargs)
