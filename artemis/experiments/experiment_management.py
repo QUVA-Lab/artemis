@@ -175,7 +175,7 @@ def select_experiment_records(user_range, exp_record_dict, flat=True, load_recor
     :param user_range:
     :param exp_record_dict: An OrderedDict<experiment_name: list<experiment_record_name>>
     :param flat: Return a list of experiment records, instead of an OrderedDict
-    :return: if not flat, an An OrderedDict<experiment_name: list<experiment_record_name>>
+    :return: if not flat, an OrderedDict<experiment_name: list<experiment_record_name>>
         otherwise a list<experiment_record_name>
     """
     filters = _filter_records(user_range, exp_record_dict)
