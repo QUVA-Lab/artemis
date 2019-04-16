@@ -1,8 +1,6 @@
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 from __future__ import absolute_import
-from builtins import range
-from builtins import input
-from builtins import zip
+from six.moves import input
 import inspect
 import shlex
 from collections import OrderedDict
@@ -139,11 +137,6 @@ def parse_user_function_call(cmd_str, arg_handling_mode = 'fallback'):
     """
 
     assert arg_handling_mode in ('str', 'literal', 'fallback')
-
-    # def _fake_func(*args, **kwargs):
-    #     Just exists to help with extracting args, kwargs
-        # return args, kwargs
-
     cmd_args = shlex.split(cmd_str, posix=False)
     assert len(cmd_args) == len(shlex.split(cmd_str, posix=True)), "Parse error on string '{}'. You're not allowed having spaces in the values of string keyword args:".format(cmd_str)
 

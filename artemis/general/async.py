@@ -1,4 +1,4 @@
-from multiprocessing import Process, Queue, Manager, Lock, set_start_method
+from multiprocessing import Process, Queue, Manager, Lock
 import time
 
 
@@ -46,6 +46,7 @@ def iter_latest_asynchonously(gen_func, timeout = None, empty_value = None, use_
     :return:
     """
     if use_forkserver:
+        from multiprocessing import set_start_method  # Only Python 3.X
         set_start_method('forkserver')  # On macos this is necessary to start camera in separate thread
 
     m = Manager()

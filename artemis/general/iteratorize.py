@@ -4,10 +4,12 @@
 Thanks to Brice for this piece of code.  Taken from https://stackoverflow.com/a/9969000/851699
 
 """
-
-# from thread import start_new_thread
 from collections import Iterable
-from queue import Queue
+import sys
+if sys.version_info < (3, 0):
+    from Queue import Queue
+else:
+    from queue import Queue
 from threading import Thread
 
 
@@ -22,7 +24,6 @@ class Iteratorize(Iterable):
         :param Callable[Callable, Any] func: A function that takes a callback as an argument then runs.
         """
         self.mfunc = func
-        # self.ifunc = ifunc
         self.q = Queue(maxsize=1)
         self.sentinel = object()
 

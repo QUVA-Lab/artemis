@@ -1,11 +1,7 @@
-import matplotlib
-import pytest
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.testing import is_called_from_pytest
+import pytest
 from six.moves import xrange
-if not is_called_from_pytest():
-    matplotlib.use('TkAgg')
 
 __author__ = 'peter'
 
