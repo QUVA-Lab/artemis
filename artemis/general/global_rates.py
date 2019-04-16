@@ -84,7 +84,7 @@ def is_elapsed(identifier, period, current = None, count_initial = True):
         return count_initial
     else:
         last = get_global(key)
-        assert current>=last, f"Current value ({current}) must be greater or equal to the last value ({last})"
+        assert current>=last, "Current value ({}) must be greater or equal to the last value ({})".format(current, last)
         has_elapsed = current - last >= period
         if has_elapsed:
             set_global(key, current)
@@ -106,7 +106,7 @@ def limit_rate(identifier, period):
         return False
     else:
         last = get_global(key)
-        assert enter_time>=last, f"Current value ({current}) must be greater or equal to the last value ({last})"
+        assert enter_time>=last, "Current value ({}) must be greater or equal to the last value ({})".format(enter_time, last)
         elapsed = enter_time - last
         if elapsed < period:  # Rate has been exceeded
             time.sleep(period - elapsed)

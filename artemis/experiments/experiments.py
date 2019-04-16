@@ -424,7 +424,7 @@ class Experiment(object):
             else:
                 return exp_record_dict
 
-    def add_parameter_search(self, name='parameter_search', fixed_args = {}, space = None, n_calls=100, search_params = None, scalar_func=None):
+    def add_parameter_search(self, name='parameter_search', fixed_args = {}, space = None, n_calls=None, search_params = None, scalar_func=None):
         """
         :param name: Name of the Experiment to be created
         :param dict[str, Any] fixed_args: Any fixed-arguments to provide to all experiments.
@@ -435,6 +435,7 @@ class Experiment(object):
         :param dict[str, Any] search_params: Args passed to parameter_search
         :return Experiment: A new experiment which runs the search and yields current-best parameters with every iteration.
         """
+
         assert space is not None, "You must specify a parameter search space.  See this method's documentation"
         if name is None:  # TODO: Set name=None in the default after deadline
             name = 'parameter_search[{}]'.format(','.join(space.keys()))
@@ -451,13 +452,9 @@ class Experiment(object):
         from artemis.experiments import ExperimentFunction
 
         def search_func(fixed):
-            if is_test_mode():
-                nonlocal n_calls
-                n_calls = 3  # When just verifying that experiment runs, do the minimum
-
+            n_calls_to_make = n_calls if n_calls is not None else 3 if is_test_mode() else 100
             this_objective = partial(objective, **fixed)
-
-            for iter_info in parameter_search(this_objective, n_calls=n_calls, space=space, **search_params):
+            for iter_info in parameter_search(this_objective, n_calls=n_calls_to_make, space=space, **search_params):
                 info = dict(names=list(space.keys()), x_iters =iter_info.x_iters, func_vals=iter_info.func_vals, score = iter_info.func_vals, x=iter_info.x, fun=iter_info.fun)
                 latest_info = {name: val for name, val in izip_equal(info['names'], iter_info.x_iters[-1])}
                 print(f'Latest: {latest_info}, Score: {iter_info.func_vals[-1]:.3g}')

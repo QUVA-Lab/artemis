@@ -127,7 +127,7 @@ def test_parameter_search():
         ex_search = bowl.add_parameter_search(
             space = {'x': Real(-5, 5, 'uniform'), 'y': Real(-5, 5, 'uniform')},
             scalar_func=lambda result: result['z'],
-            search_params=dict(n_calls=5)
+            search_params=dict(n_calls=5),
             )
 
         record = ex_search.run()

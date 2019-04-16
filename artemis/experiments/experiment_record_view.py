@@ -491,9 +491,9 @@ def compare_timeseries_records(records, yfield, xfield = None, hang=True, ax=Non
     for result, argvals in izip_equal(results, values):
         xvals = [r[xfield] for r in result] if xfield is not None else list(range(len(result)))
         # yvals = [r[yfield[0]] for r in result]
-        h, = ax.plot(xvals, [r[yfield[0]] for r in result], label=(yfield[0]+': ' if len(yfield)>1 else '')+', '.join(f'{argname}={argval}' for argname, argval in izip_equal(all_different_args, argvals)))
+        h, = ax.plot(xvals, [r[yfield[0]] for r in result], label=(yfield[0]+': ' if len(yfield)>1 else '')+', '.join('{}={}'.format(argname, argval) for argname, argval in izip_equal(all_different_args, argvals)))
         for yf, linestyle in zip(yfield[1:], itertools.cycle(['--', ':', '-.'])):
-            ax.plot(xvals, [r[yf] for r in result], linestyle=linestyle, color=h.get_color(), label=yf+': '+', '.join(f'{argname}={argval}' for argname, argval in izip_equal(all_different_args, argvals)))
+            ax.plot(xvals, [r[yf] for r in result], linestyle=linestyle, color=h.get_color(), label=yf+': '+', '.join('{}={}'.format(argname, argval) for argname, argval in izip_equal(all_different_args, argvals)))
 
     ax.grid(True)
     if xfield is not None:

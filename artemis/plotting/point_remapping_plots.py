@@ -34,6 +34,6 @@ if __name__ == '__main__':
     # Apply some transformation
     theta = 5*np.pi/6
     transform_matrix = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-    new_xy_points = np.tanh(old_xy_points @ transform_matrix)
+    new_xy_points = np.tanh(np.dot(old_xy_points, transform_matrix))
 
     plot_2D_mapping(old_xy_points, new_xy_points)

@@ -1,6 +1,7 @@
 import pytest
 
 from artemis.experiments.decorators import ExperimentFunction, experiment_function
+from artemis.experiments.experiment_record import ExperimentRecord
 from artemis.experiments.experiment_record import save_figure_in_record
 from artemis.experiments.experiment_record_view import get_oneline_result_string, print_experiment_record_argtable, \
     compare_experiment_records, get_record_invalid_arg_string, browse_record_figs
@@ -246,4 +247,3 @@ if __name__ == '__main__':
     test_simple_experiment_show()
     test_view_modes()
     test_duplicate_headers_when_no_records_bug_is_gone()
-    # demo_browse_record_figs()

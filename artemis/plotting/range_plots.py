@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 
-def plot_sample_mean_and_var(*x_and_ys, var_rep ='std', fill_alpha = 0.25, **plot_kwargs):
+def plot_sample_mean_and_var(x_or_ys, ys=None, var_rep ='std', fill_alpha = 0.25, **plot_kwargs):
     """
     Given a collection of signals, plot their mean and fill a range around the mean.  Example:
             x = np.arange(-5, 5)
@@ -17,12 +17,11 @@ def plot_sample_mean_and_var(*x_and_ys, var_rep ='std', fill_alpha = 0.25, **plo
     :param plot_kwargs:
     :return:
     """
-    if len(x_and_ys)==2:
-        x, ys = x_and_ys
-    else:
-        assert len(x_and_ys) == 1, "You must provide unnamed arguments in order (ys) or (x, ys)"
-        ys, = x_and_ys
+    if ys is None:
+        ys = x_or_ys
         x = range(len(ys[0]))
+    else:
+        x = x_or_ys
 
     assert var_rep in ('std', 'sterr', 'lim')
 
