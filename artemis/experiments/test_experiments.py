@@ -114,6 +114,7 @@ def test_args_are_checked():
     assert XXXX() == 1+(5*5)*5
 
 
+@pytest.mark.skipif(True, reason='We dont want to make scikit-optimize a hard requirement just for this so we skip the test.')
 def test_parameter_search():
 
     from skopt.space import Real
