@@ -1,6 +1,6 @@
 import time
 
-from decorator import contextmanager
+from contextlib import contextmanager
 
 
 class ProgressIndicator(object):

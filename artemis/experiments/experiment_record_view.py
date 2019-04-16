@@ -513,10 +513,9 @@ def get_timeseries_record_comparison_function(yfield, xfield = None, hang=True, 
     return lambda records: compare_timeseries_records(records, yfield, xfield = xfield, hang=hang, ax=ax)
 
 
-
 def timeseries_oneliner_function(result, fields, show_len, show = 'last'):
     assert show=='last', 'Only support showing last element now'
-    return (f'{len(result)} items.  ' if show_len else '')+', '.join(f'{k}: {result[-1][k]:.3g}' if isinstance(result[-1][k], float) else f'{k}: {result[-1][k]}'  for k in fields)
+    return ('{} items.  '.format(len(result)) if show_len else '')+', '.join('{}: {:.3g}'.format(k, result[-1][k]) if isinstance(result[-1][k], float) else '{}: {}'.format(k, result[-1][k]) for k in fields)
 
 
 def get_timeseries_oneliner_function(fields, show_len=False, show='last'):

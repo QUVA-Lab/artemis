@@ -457,7 +457,7 @@ class Experiment(object):
             for iter_info in parameter_search(this_objective, n_calls=n_calls_to_make, space=space, **search_params):
                 info = dict(names=list(space.keys()), x_iters =iter_info.x_iters, func_vals=iter_info.func_vals, score = iter_info.func_vals, x=iter_info.x, fun=iter_info.fun)
                 latest_info = {name: val for name, val in izip_equal(info['names'], iter_info.x_iters[-1])}
-                print(f'Latest: {latest_info}, Score: {iter_info.func_vals[-1]:.3g}')
+                print('Latest: {}, Score: {:.3g}'.format(latest_info, iter_info.func_vals[-1]))
                 yield info
 
         # The following is a hack to dynamically create a function with the given args
@@ -494,7 +494,7 @@ def show_parameter_search_record(record):
 
 
 def parameter_search_one_liner(result):
-    return f'{len(result["x_iters"])} Runs : ' + ', '.join(f'{k}={v:.3g}' for k, v in izip_equal(result['names'], result['x'])) + f' : Score = {result["fun"]:.3g}'
+    return '{} Runs : '.format(len(result["x_iters"])) + ', '.join('{}={:.3g}'.format(k, v) for k, v in izip_equal(result['names'], result['x'])) + ' : Score = {:.3g}'.format(result["fun"])
 
 
 _GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()

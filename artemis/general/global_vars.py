@@ -1,4 +1,4 @@
-from decorator import contextmanager
+from contextlib import contextmanager
 
 _GLOBALS = {}
 

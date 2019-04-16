@@ -188,7 +188,10 @@ def recent_moving_average(x, axis = 0):
         a[t] = (1-frac)*a[t-1] + frac*x[t]
     """
 
-    import weave  # ONLY WORKS IN PYTHON 2.X !!!
+    try:
+        import weave  # ONLY WORKS IN PYTHON 2.X !!!
+    except:
+        raise ImportError('Weave module could not be found.  Maybe because it only works in Python 2.X')
     if x.ndim!=2:
         y = recent_moving_average(x.reshape(x.shape[0], x.size//x.shape[0]), axis=0)
         return y.reshape(x.shape)
