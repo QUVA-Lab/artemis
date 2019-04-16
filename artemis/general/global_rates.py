@@ -59,7 +59,7 @@ def elapsed_time(identifier, current = None):
         return float('inf')
     else:
         last = get_global(key)
-        assert current>=last, f"Current value ({current}) must be greater or equal to the last value ({last})"
+        assert current>=last, "Current value ({}) must be greater or equal to the last value ({})".format(current, last)
         elapsed = current - last
         set_global(key, current)
         return elapsed
