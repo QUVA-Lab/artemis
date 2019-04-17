@@ -1,5 +1,5 @@
 from artemis.ml.tools.iteration import minibatch_index_generator, checkpoint_minibatch_index_generator, \
-    zip_minibatch_iterate_info, minibatch_process
+    zip_minibatch_iterate_info, minibatch_process, batchify_generator
 
 __author__ = 'peter'
 import numpy as np
@@ -113,9 +113,19 @@ def test_minibatch_process():
     assert np.allclose(y1, y2)  # weird numpy rounding makes it not exactly equal
 
 
+def test_batchify_generator():
+
+    a = [x for x in batchify_generator(batch_size=2, generator_generator=[[1, 2, 3], [4, 5], [6, 7, 8], [9, 10, 11, 12]])]
+    assert np.array_equal(a, [[1, 4], [2, 5], [3, 6], [9, 7], [10, 8]])
+
+    a = [x for x in batchify_generator(batch_size=None, generator_generator=[[1, 2, 3], [4, 5], [6, 7, 8], [9, 10, 11, 12]])]
+    assert np.array_equal(a, [[1, 4, 6, 9], [2, 5, 7, 10]])
+
+
 if __name__ == '__main__':
     test_minibatch_index_even()
     test_minibatch_process()
     test_minibatch_iterate_info()
     test_minibatch_index_generator()
     test_checkpoint_minibatch_generator()
+    test_batchify_generator()

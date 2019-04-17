@@ -71,4 +71,4 @@ venv/
 # Files
 /Data
 /docs/build
-
+.pytest_cache

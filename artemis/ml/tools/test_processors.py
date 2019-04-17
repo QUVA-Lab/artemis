@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from six.moves import xrange
 
-from artemis.ml.tools.processors import RunningAverage, RecentRunningAverage
+from artemis.ml.tools.running_averages import RunningAverage, RecentRunningAverage
 
 __author__ = 'peter'
 

@@ -1,6 +1,9 @@
 import hashlib
 from contextlib import contextmanager
+from io import BytesIO
 from shutil import rmtree
+
+import sys
 from six.moves import StringIO
 import gzip
 import tarfile
@@ -166,7 +169,10 @@ def get_archive(url, relative_path=None, force_extract=False, archive_type = Non
 
 
 def unzip_gz(data):
-    return gzip.GzipFile(fileobj = StringIO(data)).read()
+    if sys.version_info[0] < 3:
+        return gzip.GzipFile(fileobj = StringIO(data)).read()
+    else:
+        return gzip.GzipFile(fileobj = BytesIO(data)).read()
 
 
 def get_file_path(relative_name = None, url=None, make_folder = False):

@@ -8,7 +8,7 @@ from artemis.general.should_be_builtins import bad_value
 from artemis.ml.tools.costs import get_evaluation_function
 from artemis.ml.tools.iteration import checkpoint_minibatch_index_generator
 from artemis.general.mymath import sqrtspace
-from artemis.ml.tools.processors import RunningAverage
+from artemis.ml.tools.running_averages import RunningAverage
 
 
 def compare_predictors(dataset, online_predictors={}, offline_predictors={}, minibatch_size = 'full',

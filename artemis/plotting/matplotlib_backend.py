@@ -7,8 +7,9 @@ from six import string_types
 
 from artemis.config import get_artemis_config_value
 from artemis.general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import (put_data_in_grid, RecordBuffer, data_to_image, put_list_of_images_in_array,
-    UnlimitedRecordBuffer)
+from artemis.plotting.data_conversion import (put_data_in_grid, RecordBuffer, data_to_image,
+                                              put_list_of_images_in_array,
+                                              UnlimitedRecordBuffer, ResamplingRecordBuffer)
 from matplotlib import pyplot as plt
 import numpy as np
 from six.moves import xrange
@@ -320,12 +321,15 @@ class BoundingBoxPlot(LinePlot):
         self._image_handle = None
         self._last_data_shape = None
 
-    def update(self, data):
+    def _plot_last_data(self, data):
         """
         :param data: A (left, bottom, right, top) bounding box.
         """
         if self._image_handle is None:
-            self._image_handle = next(c for c in plt.gca().get_children() if isinstance(c, AxesImage))
+            try:
+                self._image_handle = next(c for c in plt.gca().get_children() if isinstance(c, AxesImage))
+            except StopIteration:
+                raise Exception('Could not find any image plots in the current axis to draw bounding boxes on!  Check that "axis" argument matches the name of a previous image plot')
 
         data_shape = self._image_handle.get_array().shape # Hopefully this isn't copying
         if data_shape != self._last_data_shape:
@@ -341,7 +345,7 @@ class BoundingBoxPlot(LinePlot):
         x = np.array([l, l, r, r, l])  # Note: should we be adding .5? The extend already subtracts .5
         y = np.array([t, b, b, t, t])
 
-        LinePlot.update(self, (x, y))
+        LinePlot._plot_last_data(self, (x, y))
 
 
 class MovingPointPlot(LinePlot):
@@ -365,6 +369,21 @@ class MovingPointPlot(LinePlot):
         buffer_data = self._buffer.retrieve_data()
         x_data = np.arange(len(buffer_data)) if self.x_data is None else self.x_data
         LinePlot.update(self, (x_data, buffer_data))
+        LinePlot.plot(self)
+
+
+class ResamplingLineHistory(LinePlot):
+
+    def __init__(self, buffer_len, cull_factor=2, **kwargs):
+        LinePlot.__init__(self, **kwargs)
+        self._buffer = ResamplingRecordBuffer(buffer_len=buffer_len, cull_factor=cull_factor)
+
+    def update(self, data):
+        self._buffer.insert_data(data)
+
+    def plot(self):
+        x_data, y_data = self._buffer.retrieve_data()
+        LinePlot.update(self, (x_data, y_data))
         LinePlot.plot(self)
 
 
@@ -601,4 +620,4 @@ def get_plotting_server_address():
     return _PLOTTING_SERVER
 
 
-BACKEND = get_artemis_config_value(section='plotting', option='backend')
+BACKEND = get_artemis_config_value(section='plotting', option='backend', default_generator=lambda: 'matplotlib', write_default=True)

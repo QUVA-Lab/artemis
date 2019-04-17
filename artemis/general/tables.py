@@ -7,7 +7,7 @@ from six.moves import xrange
 
 
 def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_headers = True, prettify_labels = True,
-            row_header_labels = None, remove_unchanging_cols = False):
+            row_header_labels = None, remove_unchanging_cols = False, include_row_category=True, include_column_category = True):
     """
     Build the rows of a table.  You can feed these rows into tabulate to generate pretty things.
 
@@ -43,11 +43,13 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
     :param clear_repeated_headers: True to not repeat row headers.
     :param row_header_labels: Labels for the row headers.
     :param remove_unchanging_cols: Remove columns for which all d
-    :return: A list of rows.
+    :param include_row_category: Include the row category in the table (as the first column in each row)
+    :param include_column_category: Include the column category in the table (as the first row of each column)
+    :return Sequence[Sequence[Any]]: A list of lists containing the entries of the table.
     """
     # Now, build that table!
-    single_row_category = all(isinstance(c, string_types) for c in row_categories)
-    single_column_category = all(isinstance(c, string_types) for c in column_categories)
+    single_row_category = all(not isinstance(c, (list, tuple)) for c in row_categories)
+    single_column_category = all(not isinstance(c, (list, tuple)) for c in column_categories)
 
     if single_row_category:
         row_categories = [row_categories]
@@ -57,10 +59,11 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
         assert len(row_header_labels) == len(row_categories)
     rows = []
     column_headers = list(zip(*itertools.product(*column_categories)))
-    for i, c in enumerate(column_headers):
-        row_header = row_header_labels if row_header_labels is not None and i==len(column_headers)-1 else [' ']*len(row_categories)
-        row = row_header+(blank_out_repeats(c) if clear_repeated_headers else list(c))
-        rows.append([prettify_label(el) for el in row] if prettify_labels else row)
+    if include_column_category:
+        for i, c in enumerate(column_headers):
+            row_header = [] if not include_row_category else row_header_labels if row_header_labels is not None and i==len(column_headers)-1 else [' ']*len(row_categories)
+            row = row_header+(blank_out_repeats(c) if clear_repeated_headers else list(c))
+            rows.append([prettify_label(el) for el in row] if prettify_labels else row)
     last_row_data = [' ']*len(row_categories)
     for row_info in itertools.product(*row_categories):
         if clear_repeated_headers:
@@ -70,7 +73,7 @@ def build_table(lookup_fcn, row_categories, column_categories, clear_repeated_he
         if prettify_labels:
             row_header = [prettify_label(str(el)) for el in row_header]
         data = [lookup_fcn(row_info[0] if single_row_category else row_info, column_info[0] if single_column_category else column_info) for column_info in itertools.product(*column_categories)]
-        rows.append(list(row_header) + data)
+        rows.append(list(row_header) + data if include_row_category else data)
     assert all_equal((len(r) for r in rows)), "All rows must have equal length.  They now have lengths: {}".format([len(r) for r in rows])
 
     if remove_unchanging_cols:

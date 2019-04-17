@@ -541,30 +541,60 @@ def test_occasional_value_filter():
     assert a.filter[:, 'b'] == [2, 5]
 
 
+def test_has_key():
+    duck = _get_standard_test_duck()
+    assert duck.has_key('b')
+    assert duck.has_key('b', 0)
+    assert duck.has_key('b', 0, 'subfield1')
+    assert not duck.has_key('b', 0, 'subfield1', 'dadadada')
+    assert not duck.has_key('b', 0, 'subfield1XXX')
+    assert duck.has_key('b', -1, 'subfield1')
+    assert duck.has_key('b', slice(None), 'subfield1')
+    assert not duck.has_key(slice(None), slice(None), 'subfield1')
+    assert not duck.has_key('q')
+
+
+def test_boolean_indexing():
+
+    d = Duck()
+    d[next, :] = {'a': 1, 'b': 2, 'c': 7}
+    d[next, :] = {'a': 4, 'b': 3, 'c': 8}
+    d[next, :] = {'a': 3, 'b': 6, 'c': 9}
+    d[next, :] = {'a': 6, 'b': 2, 'c': 0}
+
+    assert d[[True, False, False, True], 'a'] == [1, 6]
+    assert d[d[:, 'b'].each_eq(2), 'a'] == [1, 6]
+    assert d[d[:, 'b'].each_in({3, 6}), 'a'] == [4, 3]
+    assert d[d[:, 'b'].each_eq(3) | d[:, 'b'].each_eq(6), 'a'] == [4, 3]
+    assert d[d[:, 'b'].each_in({3, 6}) & ~d[:, 'a'].each_in({3, 6})].only()['c'] == 8  # "Find the 'c' value of the only item in the duck where b is in {3, 6} and 'a' is not in {3, 6}
+
+
 if __name__ == '__main__':
-    # test_so_demo()
-    # test_dict_assignment()
-    # test_dictarraylist()
-    # test_simple_growing()
-    # test_open_key()
-    # test_open_next()
-    # test_to_struct()
-    # test_next_elipsis_assignment()
-    # test_slice_assignment()
-    # test_arrayify_empty_stuct()
-    # test_slice_on_start()
-    # test_assign_tuple_keys()
-    # test_broadcast_bug()
-    # test_key_values()
-    # test_description()
-    # test_duck_array_build()
-    # test_split_get_assign()
-    # test_assign_from_struct()
-    # test_arrayify_axis_demo()
-    # test_string_slices()
-    # test_reasonable_errors_on_wrong_keys()
-    # test_reasonable_error_messages()
+    test_so_demo()
+    test_dict_assignment()
+    test_dictarraylist()
+    test_simple_growing()
+    test_open_key()
+    test_open_next()
+    test_to_struct()
+    test_next_elipsis_assignment()
+    test_slice_assignment()
+    test_arrayify_empty_stuct()
+    test_slice_on_start()
+    test_assign_tuple_keys()
+    test_broadcast_bug()
+    test_key_values()
+    test_description()
+    test_duck_array_build()
+    test_split_get_assign()
+    test_assign_from_struct()
+    test_arrayify_axis_demo()
+    test_string_slices()
+    test_reasonable_errors_on_wrong_keys()
+    test_reasonable_error_messages()
     test_break_in()
     test_copy()
     test_key_get_on_set_bug()
     test_occasional_value_filter()
+    test_has_key()
+    test_boolean_indexing()

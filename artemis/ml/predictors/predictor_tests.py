@@ -1,11 +1,10 @@
 import numpy as np
 
 from artemis.ml.predictors.predictor_comparison import assess_online_predictor
-from artemis.ml.predictors.train_and_test import percent_argmax_correct
-from plato.tools.common.bureaucracy import multichannel
 from artemis.ml.datasets.synthetic_clusters import get_synthetic_clusters_dataset
+from artemis.ml.tools.costs import percent_argmax_correct
 from artemis.ml.tools.processors import OneHotEncoding
-
+from plato.tools.common.bureaucracy import multichannel
 
 __author__ = 'peter'
 

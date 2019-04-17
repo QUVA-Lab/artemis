@@ -71,8 +71,8 @@ Plotting Demos
 ######################
 
 * `A demo of showing how to make various kinds of live updating plots. </artemis/plotting/demo_dbplot.py>`_
-* `A demo repo showing how to use Artemis from your code <https://github.com/QUVA-Lab/demo_repo)>`_
-* `A guide on using Artemis for remote plotting <https://github.com/QUVA-Lab/artemis/blob/master/artemis/remote/README.md)>`_
+* `A demo repo showing how to use Artemis from your code <https://github.com/QUVA-Lab/demo_repo>`_
+* `A guide on using Artemis for remote plotting <https://github.com/QUVA-Lab/artemis/blob/master/artemis/remote/README.md>`_
 
 
 ######################

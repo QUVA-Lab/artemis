@@ -20,3 +20,4 @@ class Speedometer(object):
             self._last_time = this_time
         return speed
 
+

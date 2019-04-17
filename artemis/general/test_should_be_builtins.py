@@ -4,7 +4,7 @@ import pytest
 
 from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items, remove_duplicates, \
     detect_duplicates, remove_common_prefix, all_equal, get_absolute_module, insert_at, get_shifted_key_value, \
-    divide_into_subsets
+    divide_into_subsets, entries_to_table, natural_keys, switch
 
 __author__ = 'peter'
 
@@ -32,11 +32,11 @@ def test_separate_common_items():
 
 
 def test_remove_duplicates():
-    assert remove_duplicates(['a', 'b', 'a', 'c', 'c'])==['a', 'b', 'c']
-    assert remove_duplicates(['a', 'b', 'a', 'c', 'c'], keep_last=True)==['b', 'a', 'c']
-    assert remove_duplicates(['Alfred', 'Bob', 'Cindy', 'Alina', 'Karol', 'Betty'], key=lambda x: x[0])==['Alfred', 'Bob', 'Cindy', 'Karol']
-    assert remove_duplicates(['Alfred', 'Bob', 'Cindy', 'Alina', 'Karol', 'Betty'], key=lambda x: x[0], keep_last=True)==['Cindy', 'Alina', 'Karol', 'Betty']
-    assert remove_duplicates(['Alfred', 'Bob', 'Cindy', 'Alina', 'Karol', 'Betty'], key=lambda x: x[0], keep_last=True, hashable=False)==['Cindy', 'Alina', 'Karol', 'Betty']
+    assert list(remove_duplicates(['a', 'b', 'a', 'c', 'c']))==['a', 'b', 'c']
+    assert list(remove_duplicates(['a', 'b', 'a', 'c', 'c'], keep_last=True))==['b', 'a', 'c']
+    assert list(remove_duplicates(['Alfred', 'Bob', 'Cindy', 'Alina', 'Karol', 'Betty'], key=lambda x: x[0]))==['Alfred', 'Bob', 'Cindy', 'Karol']
+    assert list(remove_duplicates(['Alfred', 'Bob', 'Cindy', 'Alina', 'Karol', 'Betty'], key=lambda x: x[0], keep_last=True))==['Cindy', 'Alina', 'Karol', 'Betty']
+    assert list(remove_duplicates(['Alfred', 'Bob', 'Cindy', 'Alina', 'Karol', 'Betty'], key=lambda x: x[0], keep_last=True, hashable=False))==['Cindy', 'Alina', 'Karol', 'Betty']
 
 
 def test_detect_duplicates():
@@ -117,6 +117,37 @@ def test_divide_into_subsets():
     assert divide_into_subsets(range(9), subset_size=3) == [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
 
 
+def test_entries_to_table():
+
+    assert entries_to_table([[('a', 1), ('b', 2)], [('a', 3), ('b', 4), ('c', 5)]]) == (['a', 'b', 'c'], [[1, 2, None], [3, 4, 5]])
+
+
+def test_natural_keys():
+
+    assert sorted(['y8', 'x10', 'x2', 'y12', 'x9'], key=natural_keys) == ['x2', 'x9', 'x10', 'y8', 'y12']
+
+
+def test_switch_statement():
+
+    responses = []
+    for name in ['nancy', 'joe', 'bob', 'drew']:
+        with switch(name) as case:
+            if case('bob', 'nancy'):
+                response = "Come in, you're on the guest list"
+            elif case('drew'):
+                response = "Sorry, after what happened last time we can't let you in"
+            else:
+                response = "Sorry, {}, we can't let you in.".format(case.value)
+        responses.append(response)
+
+    assert responses == [
+        "Come in, you're on the guest list",
+        "Sorry, joe, we can't let you in.",
+        "Come in, you're on the guest list",
+        "Sorry, after what happened last time we can't let you in"
+    ]
+
+
 if __name__ == '__main__':
     test_separate_common_items()
     test_reducemap()
@@ -129,3 +160,6 @@ if __name__ == '__main__':
     test_insert_at()
     test_get_shifted_key_value()
     test_divide_into_subsets()
+    test_entries_to_table()
+    test_natural_keys()
+    test_switch_statement()

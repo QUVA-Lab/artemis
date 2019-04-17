@@ -1,6 +1,5 @@
 from abc import abstractmethod
 import numpy as np
-from artemis.general.mymath import recent_moving_average
 from six.moves import xrange
 
 __author__ = 'peter'
@@ -31,57 +30,6 @@ class OneHotEncoding(object):
         return np.argmax(data, axis = 1)
 
 
-class RunningAverage(object):
-
-    def __init__(self):
-        self._n_samples_seen = 0
-        self._average = 0
-
-    def __call__(self, data):
-        self._n_samples_seen+=1
-        frac = 1./self._n_samples_seen
-        self._average = (1-frac)*self._average + frac*data
-        return self._average
-
-    @classmethod
-    def batch(cls, x):
-        return np.cumsum(x, axis=0)/np.arange(1, len(x)+1).astype(np.float)[(slice(None), )+(None, )*(x.ndim-1)]
-
-
-class RecentRunningAverage(object):
-
-    def __init__(self):
-        self._n_samples_seen = 0
-        self._average = 0
-
-    def __call__(self, data):
-        self._n_samples_seen+=1
-        frac = 1/self._n_samples_seen**.5
-        self._average = (1-frac)*self._average + frac*data
-        return self._average
-
-    @classmethod
-    def batch(cls, x):
-        return recent_moving_average(x, axis=0)  # Works only for python 2.X, with weave
-        # ra = cls()
-        # return np.array([ra(x_) for x_ in x])
-
-
-class RunningAverageWithBurnin(object):
-
-    def __init__(self, burn_in_steps):
-        self._burn_in_step_remaining = burn_in_steps
-        self.averager = RunningAverage()
-
-    def __call__(self, x):
-
-        if self._burn_in_step_remaining > 0:
-            self._burn_in_step_remaining-=1
-            return x
-        else:
-            return self.averager(x)
-
-
 class IDifferentiableFunction(object):
 
     @abstractmethod
@@ -106,74 +54,6 @@ class NonNormalize(IDifferentiableFunction):
 
     def backprop_delta(self, delta_y):
         return delta_y
-
-
-class RunningCenter(IDifferentiableFunction):
-    """
-    Keep an exponentially decaying running mean, subtract this from the value.
-    """
-    def __init__(self, half_life):
-        self.decay_constant = np.exp(-np.log(2)/half_life)
-        self.one_minus_decay_constant = 1-self.decay_constant
-        self.running_mean = None
-
-    def __call__(self, x):
-        if self.running_mean is None:
-            self.running_mean = np.zeros_like(x)
-        self.running_mean[:] = self.decay_constant * self.running_mean + self.one_minus_decay_constant * x
-        return x - self.running_mean
-
-    def backprop_delta(self, delta_y):
-        return self.decay_constant * delta_y
-
-
-class ExponentialRunningVariance(object):
-
-    def __init__(self, decay):
-        self.decay = decay
-        self.running_mean = 0
-        self.running_mean_sq = 1
-
-    def __call__(self, x, decay = None):
-
-        decay = self.decay if decay is None else decay
-        self.running_mean = (1-decay) * self.running_mean + decay * x
-        self.running_mean_sq = (1-decay) * self.running_mean_sq + decay * x**2
-        var = self.running_mean_sq - self.running_mean**2
-        return np.maximum(0, var)  # TODO: VERIFY THIS... Due to numerical issues, small negative values are possible...
-
-class RunningNormalize(IDifferentiableFunction):
-
-    def __init__(self, half_life, eps = 1e-7, initial_std=1):
-        self.decay_constant = np.exp(-np.log(2)/half_life)
-        self.one_minus_decay_constant = 1-self.decay_constant
-        self.running_mean = None
-        self.eps = eps
-        self.initial_std = initial_std
-
-    def __call__(self, x):
-        if self.running_mean is None:
-            self.running_mean = np.zeros_like(x)
-            self.running_mean_sq = np.zeros_like(x) + self.initial_std**2
-        self.running_mean[:] = self.decay_constant * self.running_mean + self.one_minus_decay_constant * x
-        self.running_mean_sq[:] = self.decay_constant * self.running_mean_sq + self.one_minus_decay_constant * x**2
-        std = np.sqrt(self.running_mean_sq - self.running_mean**2)
-        return (x - self.running_mean) / (std+self.eps)
-
-    def backprop_delta(self, delta_y):
-        """
-        Ok, we're not doing this right at all, but lets just ignore the contribution of the current
-        sample to the mean/std.  This makes the gradient waaaaaay simpler.  If you want to see the real thing, put
-
-        (x-(a*u+(1-a)*x))/sqrt((a*s+(1-a)*x^2 - (a*u+(1-a)*x)^2))
-        into http://www.derivative-calculator.net/
-        (a stands for lambda here)
-
-        :param delta_y: The derivative of the cost wrt the output of this normalizer
-        :return: delta_x: The derivative of the cost wrt the input of this normalizer
-        """
-        std = np.sqrt(self.running_mean_sq - self.running_mean**2)
-        return delta_y/std
 
 
 def single_to_batch(fcn, *batch_inputs, **batch_kwargs):
