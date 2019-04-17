@@ -285,8 +285,6 @@ def get_exportiment_record_arg_result_table(records, result_parser = None, fill_
 
     return rows[0], rows[1:]
 
-    # return tabulate(rows[1:], headers=rows[0])
-
 
 def show_record(record, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
     """
@@ -544,14 +542,12 @@ def browse_record_figs(record):
         dir, name = os.path.split(path)
         if nonlocals.this_fig is not None:
             plt.close(nonlocals.this_fig)
-        # with interactive_matplotlib_context():
         plt.close(plt.gcf())
         with open(path, "rb") as f:
             fig = pickle.load(f)
             fig.canvas.set_window_title(record.get_id()+': ' +name+': (Figure {}/{})'.format(ix+1, len(fig_locs)))
             fig.canvas.mpl_connect('key_press_event', changefig)
         print('Showing {}: Figure {}/{}.  Full path: {}'.format(name, ix+1, len(fig_locs), path))
-        # redraw_figure()
         plt.show()
         nonlocals.this_fig = plt.gcf()
 

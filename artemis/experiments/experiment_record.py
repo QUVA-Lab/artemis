@@ -663,21 +663,6 @@ def clear_experiment_records(ids):
         ExperimentRecord(exp_path).delete()
 
 
-#
-#
-# def save_figure_in_current_experiment_directory(name='fig-{}.pkl', figure = None):
-#
-#     if figure is None:
-#         figure = plt.gcf()
-#
-#     current_dir = get_current_record_dir()
-#     start_ix = _figure_ixs[current_dir] if current_dir in _figure_ixs else 0
-#     for ix in count(start_ix):
-#         full_path = os.path.join(current_dir, name).format(ix)
-#         if not os.path.exists(_figure_ixs[current_dir]):
-#             save_figure(figure, path = full_path)
-#             _figure_ixs[current_dir] = ix+1
-#             return full_path
 _figure_ixs = {}
 
 
