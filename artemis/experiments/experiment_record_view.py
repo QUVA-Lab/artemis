@@ -542,14 +542,12 @@ def browse_record_figs(record):
         dir, name = os.path.split(path)
         if nonlocals.this_fig is not None:
             plt.close(nonlocals.this_fig)
-        # with interactive_matplotlib_context():
         plt.close(plt.gcf())
         with open(path, "rb") as f:
             fig = pickle.load(f)
             fig.canvas.set_window_title(record.get_id()+': ' +name+': (Figure {}/{})'.format(ix+1, len(fig_locs)))
             fig.canvas.mpl_connect('key_press_event', changefig)
         print('Showing {}: Figure {}/{}.  Full path: {}'.format(name, ix+1, len(fig_locs), path))
-        # redraw_figure()
         plt.show()
         nonlocals.this_fig = plt.gcf()
 
