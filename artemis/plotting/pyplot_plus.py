@@ -15,7 +15,7 @@ An few extension functions to pyplot
 """
 
 
-def axhlines(ys, ax=None, **plot_kwargs):
+def axhlines(ys, lims=None, ax=None, **plot_kwargs):
     """
     Draw horizontal lines across plot
     :param ys: A scalar, list, or 1D array of vertical offsets
@@ -26,14 +26,14 @@ def axhlines(ys, ax=None, **plot_kwargs):
     if ax is None:
         ax = plt.gca()
     ys = np.array((ys, ) if np.isscalar(ys) else ys, copy=False)
-    lims = ax.get_xlim()
+    lims = ax.get_xlim() if lims is None else lims
     y_points = np.repeat(ys[:, None], repeats=3, axis=1).flatten()
     x_points = np.repeat(np.array(lims + (np.nan, ))[None, :], repeats=len(ys), axis=0).flatten()
     plot = ax.plot(x_points, y_points, scalex = False, **plot_kwargs)
     return plot
 
 
-def axvlines(xs, ax=None, **plot_kwargs):
+def axvlines(xs, lims=None, ax=None, **plot_kwargs):
     """
     Draw vertical lines on plot
     :param xs: A scalar, list, or 1D array of horizontal offsets
@@ -44,7 +44,7 @@ def axvlines(xs, ax=None, **plot_kwargs):
     if ax is None:
         ax = plt.gca()
     xs = np.array((xs, ) if np.isscalar(xs) else xs, copy=False)
-    lims = ax.get_ylim()
+    lims = ax.get_ylim() if lims is None else lims
     x_points = np.repeat(xs[:, None], repeats=3, axis=1).flatten()
     y_points = np.repeat(np.array(lims + (np.nan, ))[None, :], repeats=len(xs), axis=0).flatten()
     plot = ax.plot(x_points, y_points, scaley = False, **plot_kwargs)
@@ -153,7 +153,7 @@ _lines_colour_cycle = (p['color'] for p in plt.rcParams['axes.prop_cycle'])
 
 
 def get_lines_color_cycle():
-    return _lines_colour_cycle
+    return (p['color'] for p in plt.rcParams['axes.prop_cycle'])
 
 
 def get_color_cycle_map(name, length):
@@ -169,14 +169,34 @@ def set_lines_color_cycle_map(name, length):
 
 
 def get_line_color(ix, modifier=None):
-    colour = _lines_colour_cycle[ix]
-    if modifier=='dark':
-        return tuple(c/2 for c in colors.hex2color(colour))
-    elif modifier=='light':
-        return tuple(1-(1-c)/2 for c in colors.hex2color(colour))
+    # Back compatibilituy
+    return modify_color(ix, modifier=modifier)
+
+
+def modify_color(color_specifier, modifier):
+    rgba = get_color_from_spec(color_specifier)
+    if callable(modifier):
+        return modifier(rgba)
+    elif isinstance(modifier, str):
+        if modifier=='dark':
+            return tuple(c/2 for c in colors.hex2color(rgba))
+        elif modifier=='light':
+            return tuple(1-(1-c)/2 for c in colors.hex2color(rgba))
+        elif modifier.startswith('alpha:'):
+            alpha_val = float(modifier[len('alpha:'):])
+            return rgba[:3]+(alpha_val, )
+        else:
+            raise NotImplementedError(modifier)
     elif modifier is not None:
         raise NotImplementedError(modifier)
-    return colors.hex2color(colour)
+
+
+def get_color_from_spec(spec):
+    if isinstance(spec, int):
+        colour = next(c for i, c in enumerate(get_lines_color_cycle()) if i==spec)
+        return colour + (1., )
+    else:
+        return tuple(colors.to_rgba(spec))
 
 
 def relabel_axis(axis, value_array, n_points = 5, format_str='{:.2g}'):
@@ -238,6 +258,7 @@ register_cmap('redblackblue', LinearSegmentedColormap('redgreyblue', {
         'green': [(0, 0, 0), (1, 0, 0)],
         'blue': [(0, 0, 0), (0.5, 0, 0), (1, 1, 1)],
         }))
+
 
 
 def center_colour_scale(h):

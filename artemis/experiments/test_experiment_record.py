@@ -17,7 +17,7 @@ from artemis.experiments.experiment_record import \
     load_experiment_record, ExperimentRecord, record_experiment, \
     delete_experiment_with_id, get_current_record_dir, open_in_record_dir, \
     ExpStatusOptions, get_current_experiment_id, get_current_experiment_record, \
-    get_current_record_id, has_experiment_record, experiment_id_to_record_ids
+    get_current_record_id, has_experiment_record, experiment_id_to_record_ids, save_figure_in_record
 from artemis.experiments.experiments import get_experiment_info, load_experiment, experiment_testing_context, \
     clear_all_experiments
 from artemis.experiments.test_experiments import test_unpicklable_args
@@ -459,6 +459,23 @@ def test_generator_experiment():
         assert rec2.get_result() == 3
 
 
+def test_figure_saving_and_loading():
+
+    from artemis.plotting.db_plotting import dbplot
+    with experiment_testing_context(new_experiment_lib=True):
+        @experiment_function
+        def my_exp():
+            for t in range(4):
+                dbplot(np.random.randn(20, 20, 3), 'plot')
+                save_figure_in_record()
+
+        rec = my_exp.run()  # type: ExperimentRecord
+
+        fig_locs = rec.get_figure_locs()
+
+        assert set(fig_locs) == {os.path.join(rec.get_dir(), 'fig-{}.pkl'.format(i)) for i in range(4)}
+
+
 if __name__ == '__main__':
 
     set_test_mode(True)
@@ -482,3 +499,4 @@ if __name__ == '__main__':
     test_current_experiment_access_functions()
     test_generator_experiment()
     test_unpicklable_args()
+    test_figure_saving_and_loading()

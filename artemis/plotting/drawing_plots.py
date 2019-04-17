@@ -2,7 +2,7 @@ from artemis.config import get_artemis_config_value
 from matplotlib import pyplot as plt
 __author__ = 'peter'
 
-_plotting_mode = get_artemis_config_value(section='plotting', option='mode')
+_plotting_mode = get_artemis_config_value(section='plotting', option='mode', default_generator=lambda: 'safe')
 
 if _plotting_mode == 'safe':
 

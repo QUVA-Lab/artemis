@@ -24,12 +24,12 @@ def vector_length_to_tile_dims(vector_length, ):
     return grid_shape
 
 
-def put_vector_in_grid(vec, shape = None):
+def put_vector_in_grid(vec, shape = None, empty_val = 0):
     if shape is None:
         n_rows, n_cols = vector_length_to_tile_dims(len(vec))
     else:
         n_rows, n_cols = shape
-    grid = np.zeros(n_rows*n_cols, dtype = vec.dtype)
+    grid = np.zeros(n_rows*n_cols, dtype = vec.dtype) + empty_val
     grid[:len(vec)]=vec
     grid=grid.reshape(n_rows, n_cols)
     return grid
@@ -276,3 +276,43 @@ class UnlimitedRecordBuffer(DataBuffer):
 
     def retrieve_data(self):
         return self._buffer[:self._index]
+
+
+class ResamplingRecordBuffer(DataBuffer):
+    """
+    Keeps a buffer of incoming data.  When this data reaches the buffer size, it is culled (one of every cull_factor
+    samples is kept and the rest thrown away).  Not that this will throw away some data.
+    """
+    # TODO: Add option for averaging, instead of throwing away culled samples.
+
+    def __init__(self, buffer_len, cull_factor=2):
+        self._buffer = None
+        self._buffer_len = buffer_len
+        self._index = 0
+        self._cull_factor = cull_factor
+        self._sample_times = np.arange(buffer_len)
+        self._count = 0
+        self._n_culls = 0
+
+    def insert_data(self, data):
+
+        if self._count % (self._n_culls+1) == 0:
+
+            if self._buffer is None:
+                shape = () if np.isscalar(data) else data.shape
+                dtype = data.dtype if isinstance(data, np.ndarray) else type(data) if isinstance(data, (int, float, bool)) else object
+                self._buffer = np.empty((self._buffer_len, )+shape, dtype = dtype)
+
+            if self._index==self._buffer_len:
+                self._buffer[:int(np.ceil(self._buffer_len/float(self._cull_factor)))] = self._buffer[::self._cull_factor].copy()
+                self._sample_times = self._sample_times*self._cull_factor
+                self._index //= self._cull_factor
+                self._n_culls += 1
+
+            self._buffer[self._index] = data
+            self._index += 1
+
+        self._count+=1
+
+    def retrieve_data(self):
+        return self._sample_times[:self._index], self._buffer[:self._index]
