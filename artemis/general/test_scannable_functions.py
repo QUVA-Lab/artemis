@@ -31,7 +31,7 @@ def test_moving_average():
     simply_smoothed_signal = [f(x=x, decay=1./(t+1)) for t, x in enumerate(seq)]
     truth = np.cumsum(seq)/np.arange(1, len(seq)+1)
     assert np.allclose(simply_smoothed_signal, truth)
-    assert list(f._fields)==['avg']
+    assert list(f._asdict().keys())==['avg']
     assert np.allclose(f.avg, np.mean(seq))
 
     f = moving_average.mutable_scan()
