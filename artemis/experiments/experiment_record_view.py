@@ -285,8 +285,6 @@ def get_exportiment_record_arg_result_table(records, result_parser = None, fill_
 
     return rows[0], rows[1:]
 
-    # return tabulate(rows[1:], headers=rows[0])
-
 
 def show_record(record, show_logs=True, truncate_logs=None, truncate_result=10000, header_width=100, show_result ='deep', hang=True):
     """
