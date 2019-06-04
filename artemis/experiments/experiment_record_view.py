@@ -14,7 +14,6 @@ from artemis.general.should_be_builtins import separate_common_items, all_equal,
 from artemis.general.tables import build_table
 from six import string_types
 
-
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False):
     """
     Get a string representing the result of the experiment.
