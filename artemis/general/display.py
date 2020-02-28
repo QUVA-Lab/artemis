@@ -164,7 +164,7 @@ class CaptureStdOut(object):
         if log_file_path is not None:
             # self._log_file_path = os.path.join(base_dir, log_file_path.replace('%T', now))
             make_file_dir(log_file_path)
-            self.log = open(log_file_path, 'w')
+            self.log = open(log_file_path, 'a+')
         else:
             self.log = StringIO()
         self._log_file_path = log_file_path

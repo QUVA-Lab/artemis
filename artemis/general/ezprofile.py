@@ -53,10 +53,10 @@ class EZProfiler(object):
         print(self.get_report())
 
     def get_report(self):
-        keys = self._lap_times.keys()
+        keys = list(self._lap_times.keys())
         if len(keys)==2:
             return '%s: Elapsed time is %.4gs' % (self.profiler_name, self._lap_times['Stop']-self._lap_times['Start'])
         else:
             deltas = OrderedDict((key, self._lap_times[key] - self._lap_times[last_key]) for last_key, key in zip(keys[:-1], keys[1:]))
             return self.profiler_name + '\n  '.join(['']+['%s: Elapsed time is %.4gs' % (key, val) for key, val in deltas.items()] +
-                (['Total: %.4gs' % (self._lap_times.values()[-1] - self._lap_times.values()[0])] if len(deltas)>1 else []))
+                (['Total: %.4gs' % (list(self._lap_times.values())[-1] - list(self._lap_times.values())[0])] if len(deltas)>1 else []))
