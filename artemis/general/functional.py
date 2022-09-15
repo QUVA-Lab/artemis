@@ -3,6 +3,9 @@ from abc import abstractmethod
 from collections import OrderedDict
 from functools import partial
 import collections
+
+from cv2.gapi.ie.detail import PARAM_DESC_KIND_LOAD
+
 from artemis.general.should_be_builtins import separate_common_items
 import sys
 import types
@@ -206,23 +209,38 @@ def infer_arg_values(f, args=(), kwargs={}):
     :param kwargs: A dict of keyword args
     :return: An OrderedDict(arg_name->arg_value)
     """
-    all_arg_names, varargs_name, kwargs_name, defaults = inspect.getargspec(f)
+    # all_arg_names, varargs_name, kwargs_name, defaults = inspect.getargspec(f)
 
-    assert varargs_name is None, "This function doesn't work with unnamed args"
-    default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-(len(defaults) if defaults is not None else 0):], defaults if defaults is not None else [])}
-    args_with_values = set(all_arg_names[:len(args)]+list(default_args.keys())+list(kwargs.keys()))
-    assert set(all_arg_names).issubset(args_with_values), "Arguments {} require values but are not given any.  ".format(tuple(set(all_arg_names).difference(args_with_values)))
+    sig = inspect.signature(f)
+    all_arg_names = sig.parameters
+
+    bound_args = sig.bind(*args, **kwargs)
+    bound_args.apply_defaults()
+
+    assert not any(p.kind.name=='VAR_POSITIONAL' for p in sig.parameters.values()), "This function doesn't work with unnamed args"
+    # assert varargs_name is None, "This function doesn't work with unnamed args"
+    # default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-(len(defaults) if defaults is not None else 0):], defaults if defaults is not None else [])}
+    # args_with_values = set(all_arg_names[:len(args)]+list(default_args.keys())+list(kwargs.keys()))
+
+
+    # assert set(all_arg_names).issubset(args_with_values), "Arguments {} require values but are not given any.  ".format(tuple(set(all_arg_names).difference(args_with_values)))
     assert len(args) <= len(all_arg_names), "You provided {} arguments, but the function only takes {}".format(len(args), len(all_arg_names))
-    full_args = tuple(
-        list(zip(all_arg_names, args))  # Handle unnamed args f(1, 2)
-        + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]]  # Handle named keyworkd args f(a=1, b=2)
-        + [(name, kwargs[name]) for name in kwargs if name not in all_arg_names[len(args):]]  # Need to handle case if f takes **kwargs
-        )
-    duplicates = tuple(item for item, count in collections.Counter([a for a, _ in full_args]).items() if count > 1)
-    assert len(duplicates)==0, 'Arguments {} have been defined multiple times: {}'.format(duplicates, full_args)
 
-    common_args, (different_args, different_given_args) = separate_common_items([tuple(all_arg_names), tuple(n for n, _ in full_args)])
-    if kwargs_name is None:  # There is no **kwargs
-        assert len(different_given_args)==0, "Function {} was given args {} but didn't ask for them".format(f, different_given_args)
-    assert len(different_args)==0, "Function {} needs values for args {} but didn't get them".format(f, different_args)
+    full_args = bound_args.arguments
+    # full_args = tuple(
+    #     (pname, )
+    # )
+    #
+    # full_args = tuple(
+    #     list(zip(all_arg_names, args))  # Handle unnamed args f(1, 2)
+    #     + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]]  # Handle named keyworkd args f(a=1, b=2)
+    #     + [(name, kwargs[name]) for name in kwargs if name not in all_arg_names[len(args):]]  # Need to handle case if f takes **kwargs
+    #     )
+    # duplicates = tuple(item for item, count in collections.Counter([a for a, _ in full_args]).items() if count > 1)
+    # assert len(duplicates)==0, 'Arguments {} have been defined multiple times: {}'.format(duplicates, full_args)
+
+    # common_args, (different_args, different_given_args) = separate_common_items([tuple(all_arg_names), tuple(n for n, _ in full_args)])
+    # if kwargs_name is None:  # There is no **kwargs
+    #     assert len(different_given_args)==0, "Function {} was given args {} but didn't ask for them".format(f, different_given_args)
+    # assert len(different_args)==0, "Function {} needs values for args {} but didn't get them".format(f, different_args)
     return OrderedDict(full_args)

@@ -15,6 +15,14 @@ def compute_slow_thing(a, b, c):
     return (a+b)/float(c), call_time
 
 
+
+@memoize_to_disk_test
+def compute_slow_thing_with_type_annotations(a, b, c: int =3):
+    call_time = time.time()
+    time.sleep(0.01)
+    return (a+b)/float(c), call_time
+
+
 def test_memoize_to_disk():
 
     clear_memo_files_for_function(compute_slow_thing)
@@ -106,7 +114,7 @@ def test_clear_error_for_missing_arg():
 
     clear_memo_files_for_function(compute_slow_thing)
 
-    with raises(AssertionError):
+    with raises(TypeError):
         compute_slow_thing(1)
 
 
@@ -114,7 +122,7 @@ def test_clear_arror_for_wrong_arg():
 
     clear_memo_files_for_function(compute_slow_thing)
 
-    with raises(AssertionError):
+    with raises(TypeError):
         compute_slow_thing(a=1, b=2, c=3, d=4)
 
 
@@ -129,7 +137,7 @@ def test_unnoticed_wrong_arg_bug_is_dead():
 
     clear_memo_files_for_function(compute_slow_thing)
     compute_slow_thing(a=1, b=2, c=3)  # Creates a memo
-    with raises(AssertionError):
+    with raises(TypeError):
         compute_slow_thing(a=1, b=2, see=3)  # Previously, this was not caught, leading you not to notice your typo
 
 
@@ -151,12 +159,43 @@ def test_catch_kwarg_error():
     assert t3 == t1
 
 
+def test_memoize_to_disk_with_annotations():
+
+    clear_memo_files_for_function(compute_slow_thing_with_type_annotations)
+
+    t = time.time()
+    num, t1 = compute_slow_thing_with_type_annotations(1, 3)
+    assert t-t1 < 0.01
+    assert num == (1+3)/3.
+
+    num, t2 = compute_slow_thing_with_type_annotations(1, 3)
+    assert num == (1+3)/3.
+    assert t2==t1
+
+
+@memoize_to_disk_test
+def iter_slowly():
+    for i in range(5):
+        time.sleep(0.01)
+        yield time.time(), i
+
+
+def test_memoize_iter_slowly():
+
+    clear_memo_files_for_function(iter_slowly)
+    results_1 = list(iter_slowly())
+    results_2 = list(iter_slowly())
+    assert results_1 == results_2
+
+
 if __name__ == '__main__':
     set_test_mode(True)
-    test_unnoticed_wrong_arg_bug_is_dead()
-    test_catch_kwarg_error()
-    test_clear_arror_for_wrong_arg()
-    test_clear_error_for_missing_arg()
-    test_memoize_to_disk_and_cache()
-    test_memoize_to_disk()
-    test_complex_args()
+    # test_unnoticed_wrong_arg_bug_is_dead()
+    # test_catch_kwarg_error()
+    # test_clear_arror_for_wrong_arg()
+    # test_clear_error_for_missing_arg()
+    # test_memoize_to_disk_and_cache()
+    # test_memoize_to_disk()
+    # test_complex_args()
+    # test_memoize_to_disk()
+    test_memoize_iter_slowly()

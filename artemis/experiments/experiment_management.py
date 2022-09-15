@@ -13,6 +13,7 @@ import subprocess
 from time import time
 
 import math
+from typing import Union, Sequence, Mapping
 
 from artemis.fileman.local_dir import make_dir
 from artemis.general.display import equalize_string_lengths
@@ -20,9 +21,9 @@ from six import string_types
 from six.moves import reduce, xrange
 from artemis.experiments.experiment_record import (load_experiment_record, ExpInfoFields,
                                                    ExpStatusOptions, ARTEMIS_LOGGER, record_id_to_experiment_id,
-                                                   get_all_record_ids, get_experiment_dir, has_experiment_record)
+                                                   get_all_record_ids, get_experiment_dir, has_experiment_record, ExperimentRecord)
 from artemis.experiments.experiments import load_experiment, get_global_experiment_library
-from artemis.fileman.config_files import get_home_dir,set_non_persistent_config_value
+from artemis.fileman.config_files import get_home_dir, set_non_persistent_config_value
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.time_parser import parse_time
 from artemis.remote.child_processes import SlurmPythonProcess
@@ -31,7 +32,7 @@ from artemis.general.should_be_builtins import izip_equal, detect_duplicates, re
     divide_into_subsets
 
 
-def pull_experiment_records(user, ip, experiment_names, include_variants=True, need_pass = False):
+def pull_experiment_records(user, ip, experiment_names, include_variants=True, need_pass=False):
     """
     Pull experiments from another computer matching the given experiment name.
 
@@ -49,19 +50,19 @@ def pull_experiment_records(user, ip, experiment_names, include_variants=True, n
 
     home = get_home_dir()
 
-    file_list = ["**/*-{exp_name}{variants}/*".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names]
+    file_list = ["**/*-{exp_name}{variants}/*".format(exp_name=exp_name, variants='*' if include_variants else '') for exp_name in experiment_names]
 
     _, experiment_directory_file = tempfile.mkstemp()
     with open(experiment_directory_file, 'w') as f:
         f.write('\n'.join(file_list))
 
     # This one works if you have keys set up
-    command = ['rsync', '-a', '-m', '-i']\
-        +['{user}@{ip}:~/.artemis/experiments/'.format(user=user, ip=ip)] \
-        +['{home}/.artemis/experiments/'.format(home=home)]\
-        +["--include-from={}".format(experiment_directory_file)]\
-        +["--include='*/'", "--exclude='*'"]
-        # +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names]  # This was the old line, but it could be too long for many experiments.
+    command = ['rsync', '-a', '-m', '-i'] \
+              + ['{user}@{ip}:~/.artemis/experiments/'.format(user=user, ip=ip)] \
+              + ['{home}/.artemis/experiments/'.format(home=home)] \
+              + ["--include-from={}".format(experiment_directory_file)] \
+              + ["--include='*/'", "--exclude='*'"]
+    # +["--include='**/*-{exp_name}{variants}/*'".format(exp_name=exp_name, variants = '*' if include_variants else '') for exp_name in experiment_names]  # This was the old line, but it could be too long for many experiments.
 
     if not need_pass:
         output = subprocess.check_output(' '.join(command), shell=True)
@@ -81,7 +82,7 @@ def pull_experiment_records(user, ip, experiment_names, include_variants=True, n
     return output
 
 
-def load_lastest_experiment_results(experiments, error_if_no_result = True):
+def load_lastest_experiment_results(experiments, error_if_no_result=True):
     """
     Given a list of experiments (or experiment ids), return an OrderedDict<record_id: result>
     :param experiments: A list of Experiment objects (or strings identifying experiment ID is ok too)
@@ -95,7 +96,7 @@ def load_lastest_experiment_results(experiments, error_if_no_result = True):
     return experiment_latest_results
 
 
-def load_record_results(records, err_if_no_result =True, index_by_id = False):
+def load_record_results(records, err_if_no_result=True, index_by_id=False):
     """
     Given a list of experiment records, return an OrderedDict<record: result>
     :param records: A list of ExperimentRecord objects
@@ -116,7 +117,7 @@ def load_record_results(records, err_if_no_result =True, index_by_id = False):
     return results
 
 
-def select_experiments(user_range, exp_record_dict, return_dict=False):
+def select_experiments(user_range, exp_record_dict, return_dict=False) -> Union[Sequence[ExperimentRecord], Mapping[str, ExperimentRecord]]:
     exp_filter = _filter_experiments(user_range, exp_record_dict)
     if return_dict:
         return OrderedDict((name, exp_record_dict[name]) for name in exp_record_dict if exp_filter[name])
@@ -124,8 +125,7 @@ def select_experiments(user_range, exp_record_dict, return_dict=False):
         return [name for name in exp_record_dict if exp_filter[name]]
 
 
-def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
-
+def _filter_experiments(user_range, exp_record_dict, return_is_in=False):
     if '|' in user_range:
         is_in = [any(xs) for xs in zip(*(_filter_experiments(subrange, exp_record_dict, return_is_in=True) for subrange in user_range.split('|')))]
     elif '&' in user_range:
@@ -135,13 +135,15 @@ def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
         is_in = [not r for r in is_in]
     else:
         if user_range in exp_record_dict:
-            is_in = [k==user_range for k in exp_record_dict]
+            is_in = [k == user_range for k in exp_record_dict]
+        elif user_range in (k.split('.')[-1] for k in exp_record_dict):
+            is_in = [user_range == k.split('.')[-1] for k in exp_record_dict]
         else:
             number_range = interpret_numbers(user_range)
             if number_range is not None:
                 is_in = [i in number_range for i in xrange(len(exp_record_dict))]
             elif user_range == 'all':
-                is_in = [True]*len(exp_record_dict)
+                is_in = [True] * len(exp_record_dict)
             elif user_range.startswith('has:'):
                 phrase = user_range[len('has:'):]
                 is_in = [phrase in exp_id for exp_id in exp_record_dict]
@@ -150,9 +152,10 @@ def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
                 is_in = [tag in load_experiment(exp_id).get_tags() for exp_id in exp_record_dict]
             elif user_range.startswith('1diff:'):
                 base_range = user_range[len('1diff:'):]
-                base_range_exps = select_experiments(base_range, exp_record_dict) # list<experiment_id>
-                all_exp_args_hashes = {eid: set(compute_fixed_hash(a) for a in load_experiment(eid).get_args().items()) for eid in exp_record_dict} # dict<experiment_id : set<arg_hashes>>
-                is_in = [any(len(all_exp_args_hashes[eid].difference(all_exp_args_hashes[other_eid]))<=1 for other_eid in base_range_exps) for eid in exp_record_dict]
+                base_range_exps = select_experiments(base_range, exp_record_dict)  # list<experiment_id>
+                all_exp_args_hashes = {eid: set(compute_fixed_hash(a) for a in load_experiment(eid).get_args().items()) for eid in
+                                       exp_record_dict}  # dict<experiment_id : set<arg_hashes>>
+                is_in = [any(len(all_exp_args_hashes[eid].difference(all_exp_args_hashes[other_eid])) <= 1 for other_eid in base_range_exps) for eid in exp_record_dict]
             elif user_range.startswith('hasnot:'):
                 phrase = user_range[len('hasnot:'):]
                 is_in = [phrase not in exp_id for exp_id in exp_record_dict]
@@ -170,7 +173,7 @@ def _filter_experiments(user_range, exp_record_dict, return_is_in = False):
         return OrderedDict((exp_id, exp_is_in) for exp_id, exp_is_in in izip_equal(exp_record_dict, is_in))
 
 
-def select_experiment_records(user_range, exp_record_dict, flat=True, load_records = True):
+def select_experiment_records(user_range, exp_record_dict, flat=True, load_records=True):
     """
     :param user_range:
     :param exp_record_dict: An OrderedDict<experiment_name: list<experiment_record_name>>
@@ -218,16 +221,15 @@ def _bitwise_not(a):
 
 
 def _bitwise_filter_op(op, *filter_sets):
-
     output_set = filter_sets[0].copy()
-    if op=='not':
-        assert len(filter_sets)==1
+    if op == 'not':
+        assert len(filter_sets) == 1
         for k in output_set.keys():
             output_set[k] = _bitwise_not(filter_sets[0][k])
     elif op in ('and', 'or'):
         for k in output_set.keys():
-            output_set[k] = reduce(_bitwise_and if op=='and' else _bitwise_or, [fs[k] for fs in filter_sets])
-    elif op=='andcascade':
+            output_set[k] = reduce(_bitwise_and if op == 'and' else _bitwise_or, [fs[k] for fs in filter_sets])
+    elif op == 'andcascade':
         for k in output_set.keys():
             output_set[k] = reduce(_bitwise_andcascade, [fs[k] for fs in filter_sets[::-1]])
     else:
@@ -236,14 +238,14 @@ def _bitwise_filter_op(op, *filter_sets):
 
 
 _named_record_filters = {}
-_named_record_filters['old'] = lambda rec_ids: ([True]*(len(rec_ids)-1)+[False]) if len(rec_ids)>0 else []
-_named_record_filters['corrupt'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_status_field()==ExpStatusOptions.CORRUPT for rec_id in rec_ids]
+_named_record_filters['old'] = lambda rec_ids: ([True] * (len(rec_ids) - 1) + [False]) if len(rec_ids) > 0 else []
+_named_record_filters['corrupt'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_status_field() == ExpStatusOptions.CORRUPT for rec_id in rec_ids]
 _named_record_filters['finished'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.FINISHED for rec_id in rec_ids]
 _named_record_filters['invalid'] = lambda rec_ids: [load_experiment_record(rec_id).args_valid() is False for rec_id in rec_ids]
-_named_record_filters['all'] = lambda rec_ids: [True]*len(rec_ids)
-_named_record_filters['errors'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.ERROR for rec_id in rec_ids]
+_named_record_filters['all'] = lambda rec_ids: [True] * len(rec_ids)
+_named_record_filters['errors'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.ERROR for rec_id in rec_ids]
 _named_record_filters['result'] = lambda rec_ids: [load_experiment_record(rec_id).has_result() for rec_id in rec_ids]
-_named_record_filters['running'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS)==ExpStatusOptions.STARTED for rec_id in rec_ids]
+_named_record_filters['running'] = lambda rec_ids: [load_experiment_record(rec_id).info.get_field(ExpInfoFields.STATUS) == ExpStatusOptions.STARTED for rec_id in rec_ids]
 
 
 def _filter_records(user_range, exp_record_dict):
@@ -270,9 +272,9 @@ def _filter_records(user_range, exp_record_dict):
     :return: An OrderedDict<experiment_id -> list<True or False>> indicating whether each record from the given experiment passed the filter
     """
 
-    if user_range=='unfinished':
+    if user_range == 'unfinished':
         return _filter_records('~finished', exp_record_dict)
-    elif user_range=='last':
+    elif user_range == 'last':
         return _filter_records('~old', exp_record_dict)
     elif '|' in user_range:
         return _bitwise_filter_op('or', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('|')])
@@ -280,7 +282,7 @@ def _filter_records(user_range, exp_record_dict):
         return _bitwise_filter_op('and', *[_filter_records(subrange, exp_record_dict) for subrange in user_range.split('&')])
     elif '@' in user_range:
         ix = user_range.index('@')
-        first_part, second_part = user_range[:ix], user_range[ix+1:]
+        first_part, second_part = user_range[:ix], user_range[ix + 1:]
         _first_stage_filters = _filter_records(first_part, exp_record_dict)
         _new_dict = _select_record_ids_from_filters(_first_stage_filters, exp_record_dict)
         _second_stage_filters = _filter_records(second_part, _new_dict)
@@ -289,9 +291,9 @@ def _filter_records(user_range, exp_record_dict):
     elif user_range.startswith('~'):
         return _bitwise_filter_op('not', _filter_records(user_range[1:], exp_record_dict))
 
-    base = OrderedDict((k, [False]*len(v)) for k, v in exp_record_dict.items())
+    base = OrderedDict((k, [False] * len(v)) for k, v in exp_record_dict.items())
     if user_range in exp_record_dict:  # User just lists an experiment
-        base[user_range] = [True]*len(base[user_range])
+        base[user_range] = [True] * len(base[user_range])
         return base
 
     number_range = interpret_numbers(user_range)
@@ -302,20 +304,20 @@ def _filter_records(user_range, exp_record_dict):
             base[exp_id] = _named_record_filters[user_range](exp_record_dict[exp_id])
     elif number_range is not None:  # e.g. '6-12'
         for i in number_range:
-            if i>len(keys):
-                raise RecordSelectionError('Experiment {} does not exist (they go from 0 to {})'.format(i, len(keys)-1))
-            base[keys[i]] = [True]*len(base[keys[i]])
+            if i > len(keys):
+                raise RecordSelectionError('Experiment {} does not exist (they go from 0 to {})'.format(i, len(keys) - 1))
+            base[keys[i]] = [True] * len(base[keys[i]])
     elif '.' in user_range:  # e.b. 6.3-4
         exp_rec_pairs = interpret_record_identifier(user_range)
         for exp_number, rec_number in exp_rec_pairs:
-            if rec_number>=len(base[keys[exp_number]]):
+            if rec_number >= len(base[keys[exp_number]]):
                 raise RecordSelectionError('Selection {}.{} does not exist.'.format(exp_number, rec_number))
             base[keys[exp_number]][rec_number] = True
     elif user_range.startswith('dur') or user_range.startswith('age'):  # Eg dur<25  Means "All records that ran less than 25s"
         try:
             sign = user_range[3]
             assert sign in ('<', '>')
-            filter_func = (lambda a, b: (a is not None and b is not None) and a<b) if sign == '<' else (lambda a, b: (a is not None and b is not None) and a>b)
+            filter_func = (lambda a, b: (a is not None and b is not None) and a < b) if sign == '<' else (lambda a, b: (a is not None and b is not None) and a > b)
             time_delta = parse_time(user_range[4:])
         except:
             if user_range.startswith('dur'):
@@ -333,26 +335,25 @@ def _filter_records(user_range, exp_record_dict):
     elif user_range.startswith('has:'):
         phrase = user_range[len('has:'):]
         for exp_id, records in base.items():
-            base[exp_id] = [True]*len(records) if phrase in exp_id else [False]*len(records)
+            base[exp_id] = [True] * len(records) if phrase in exp_id else [False] * len(records)
     else:
         raise RecordSelectionError("Don't know how to interpret subset '{}'.  Possible subsets: {}".format(user_range, list(_named_record_filters.keys())))
     return base
 
 
 class RecordSelectionError(Exception):
-
     pass
 
 
 def _filter_experiment_record_list(user_range, experiment_record_ids):
-    if user_range=='all':
-        return [True]*len(experiment_record_ids)
-    elif user_range=='new':
+    if user_range == 'all':
+        return [True] * len(experiment_record_ids)
+    elif user_range == 'new':
         return detect_duplicates(experiment_record_ids, key=record_id_to_experiment_id, keep_last=True)
         # return [n for n, is_old in izip_equal(get_record_ids(), old) if not old]
-    elif user_range=='old':
+    elif user_range == 'old':
         return [not x for x in _filter_records(user_range, 'new')]
-    elif user_range=='orphans':
+    elif user_range == 'orphans':
         orphans = []
         global_lib = get_global_experiment_library()
         for i, record_id in enumerate(experiment_record_ids):
@@ -373,7 +374,7 @@ def _filter_experiment_record_list(user_range, experiment_record_ids):
         which_ones = interpret_numbers(user_range)
         if which_ones is None:
             raise Exception('Could not interpret user range: "{}"'.format(user_range))
-        filters = [False]*len(experiment_record_ids)
+        filters = [False] * len(experiment_record_ids)
         for i in which_ones:
             filters[i] = True
         return filters
@@ -410,12 +411,13 @@ def interpret_numbers(user_range):
     """
     if all(d in '0123456789-,' for d in user_range):
         numbers_and_ranges = user_range.split(',')
-        numbers = [n for lst in [[int(s)] if '-' not in s else range(int(s[:s.index('-')]), int(s[s.index('-')+1:])+1) for s in numbers_and_ranges] for n in lst]
+        numbers = [n for lst in [[int(s)] if '-' not in s else range(int(s[:s.index('-')]), int(s[s.index('-') + 1:]) + 1) for s in numbers_and_ranges] for n in lst]
         return numbers
     else:
         return None
 
-def run_experiment(experiment, slurm_job = False, experiment_path=None, **experiment_record_kwargs):
+
+def run_experiment(experiment, slurm_job=False, experiment_path=None, **experiment_record_kwargs):
     """
     Run an experiment and save the results.  Return a string which uniquely identifies the experiment.
     You can run the experiment again later by calling show_experiment(location_string):
@@ -438,11 +440,12 @@ def run_experiment(experiment, slurm_job = False, experiment_path=None, **experi
         I am aware that we could potentially save code and make this super slick by designing a subclass of Experiment which would be a 'DistributedSlurmExperiment', but this is future work.
         For now, this works.
         """
-        assert "SLURM_NODEID" in os.environ.keys(), "You indicated that the experiment '{}' is run within a SLURM call, however the environment variable 'SLURM_NODEID' could not be found".format(experiment.get_id())
+        assert "SLURM_NODEID" in os.environ.keys(), "You indicated that the experiment '{}' is run within a SLURM call, however the environment variable 'SLURM_NODEID' could not be found".format(
+            experiment.get_id())
         if int(os.environ["SLURM_NODEID"]) > 0:
             return
     if experiment_path:
-        'As mentioned above, global variables are reset, so I reset the one element I actually use' #TODO: Make this more elegant
+        'As mentioned above, global variables are reset, so I reset the one element I actually use'  # TODO: Make this more elegant
         set_non_persistent_config_value(config_filename=".artemisrc", section="experiments", option="experiment_directory", value=experiment_path)
 
     return experiment.run(**experiment_record_kwargs)
@@ -464,7 +467,7 @@ def run_experiment_by_name(name, exp_dict='global', slurm_job=False, experiment_
     if exp_dict == 'global':
         exp_dict = get_global_experiment_library()
     experiment = exp_dict[name]
-    return run_experiment(experiment,slurm_job, experiment_path, **experiment_record_kwargs)
+    return run_experiment(experiment, slurm_job, experiment_path, **experiment_record_kwargs)
 
 
 def run_experiment_ignoring_errors(name, **kwargs):
@@ -480,28 +483,28 @@ def run_multiple_experiments_with_slurm(experiments, n_parallel=None, max_proces
     '''
     if n_parallel and n_parallel > 1:
         # raise NotImplementedError("No parallel Slurm execution at the moment. Implement it!")
-        print ('Warning... parallel-slurm integration is very beta. Use with caution')
+        print('Warning... parallel-slurm integration is very beta. Use with caution')
         experiment_subsets = divide_into_subsets(experiments, subset_size=n_parallel)
         for i, exp_subset in enumerate(experiment_subsets):
             nanny = Nanny()
             function_call = partial(run_multiple_experiments,
-                experiments=exp_subset,
-                parallel=n_parallel if max_processes_per_node is None else max_processes_per_node,
-                display_results=False,
-                run_args = run_args
-                )
-            spp = SlurmPythonProcess(name="Group %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
+                                    experiments=exp_subset,
+                                    parallel=n_parallel if max_processes_per_node is None else max_processes_per_node,
+                                    display_results=False,
+                                    run_args=run_args
+                                    )
+            spp = SlurmPythonProcess(name="Group %i" % i, function=function_call, ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
             # Using Nanny only for convenient stdout & stderr forwarding.
-            nanny.register_child_process(spp,monitor_for_termination=False)
+            nanny.register_child_process(spp, monitor_for_termination=False)
             nanny.execute_all_child_processes(time_out=2)
     else:
-        for i,exp in enumerate(experiments):
+        for i, exp in enumerate(experiments):
             nanny = Nanny()
             function_call = partial(run_experiment, experiment=exp, slurm_job=True, experiment_path=get_experiment_dir(),
-                raise_exceptions=raise_exceptions,display_results=False, **run_args)
-            spp = SlurmPythonProcess(name="Exp %i"%i, function=function_call,ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
+                                    raise_exceptions=raise_exceptions, display_results=False, **run_args)
+            spp = SlurmPythonProcess(name="Exp %i" % i, function=function_call, ip_address="127.0.0.1", slurm_kwargs=slurm_kwargs)
             # Using Nanny only for convenient stdout & stderr forwarding.
-            nanny.register_child_process(spp,monitor_for_termination=False)
+            nanny.register_child_process(spp, monitor_for_termination=False)
             nanny.execute_all_child_processes(time_out=2)
 
 
@@ -513,7 +516,7 @@ def _parallel_run_target(experiment_id_and_prefix, raise_exceptions, **kwargs):
         return run_experiment_ignoring_errors(experiment_id, prefix=prefix, **kwargs)
 
 
-def run_multiple_experiments(experiments, prefixes = None, parallel = False, display_results=False, raise_exceptions=True, notes = (), run_args = {}):
+def run_multiple_experiments(experiments, prefixes=None, parallel=False, display_results=False, raise_exceptions=True, notes=(), run_args={}):
     """
     Run multiple experiments, optionally in parallel with multiprocessing.
 
@@ -535,8 +538,8 @@ def run_multiple_experiments(experiments, prefixes = None, parallel = False, dis
         experiment_identifiers = [ex.get_id() for ex in experiments]
         if prefixes is None:
             prefixes = range(len(experiment_identifiers))
-        prefixes = [s+': ' for s in equalize_string_lengths(prefixes, side='right')]
-        print ('Prefix key: \n'+'\n'.join('{}{}'.format(p, eid) for p, eid in izip_equal(prefixes, experiment_identifiers)))
+        prefixes = [s + ': ' for s in equalize_string_lengths(prefixes, side='right')]
+        print('Prefix key: \n' + '\n'.join('{}{}'.format(p, eid) for p, eid in izip_equal(prefixes, experiment_identifiers)))
         target_func = partial(_parallel_run_target, notes=notes, raise_exceptions=raise_exceptions, **run_args)
         p = multiprocessing.Pool(processes=parallel)
 
@@ -564,8 +567,8 @@ def get_multiple_records(experiment, n, only_completed=True, if_not_enough='run'
     if if_not_enough == 'err':
         assert len(records) >= n, "You asked for {} records, but only {} were available".format(n, len(records))
         return records[-n:]
-    elif if_not_enough=='run':
-        for k in range(n-len(records)):
+    elif if_not_enough == 'run':
+        for k in range(n - len(records)):
             record = experiment.run()
             records.append(record)
         return records[-n:]
@@ -587,7 +590,7 @@ def remove_common_results_prefix(results_dict):
     return OrderedDict((k, v) for k, v in izip_equal(trimmed_keys, results_dict.values()))
 
 
-def get_experient_to_record_dict(experiment_ids = None):
+def get_experient_to_record_dict(experiment_ids=None):
     """
     Given a list of experiment ids, return an OrderedDict whose keys are the experiment ids and whose values
     are lists of experiment record ids.
@@ -626,15 +629,15 @@ def deprefix_experiment_ids(experiment_ids):
         if exp_id in exp_to_parent:
             parent_id = exp_to_parent[exp_id]
             parent_tuple = get_experiment_tuple(parent_id)
-            return parent_tuple + (exp_id[len(parent_id)+1:], )
+            return parent_tuple + (exp_id[len(parent_id) + 1:],)
         else:
-            return (exp_id, )
+            return (exp_id,)
 
     # Then for each experiment in the list,
     tuples = [get_experiment_tuple(eid) for eid in experiment_ids]
     de_prefixed_tuples = remove_common_prefix(tuples, keep_base=False)
-    start_with = '' if len(de_prefixed_tuples[0])==len(tuples[0]) else '.'
-    new_strings = [start_with+'.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
+    start_with = '' if len(de_prefixed_tuples[0]) == len(tuples[0]) else '.'
+    new_strings = [start_with + '.'.join(ex_tup) for ex_tup in de_prefixed_tuples]
     return new_strings
 
 

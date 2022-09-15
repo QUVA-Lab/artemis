@@ -78,7 +78,7 @@ def equalize_string_lengths(arr, side = 'left'):
     return strings
 
 
-def sensible_str(data, size_limit=4, compact=True):
+def sensible_str(data, size_limit=4, compact=True) -> str:
     """
     Crawl through an data structure and try to make a sensible compact representation of it.
     :param data: Some data structure.

@@ -78,6 +78,7 @@ def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _co
         for k in keys:
             compute_fixed_hash(k, **kwargs)
             compute_fixed_hash(obj.__dict__[k], **kwargs)
+
     else:
         # TODO: Consider whether to pickle by default.  Note that pickle strings are not necessairly the same for identical objects.
         raise NotImplementedError("Don't have a method for hashing this %s" % (obj, ))
