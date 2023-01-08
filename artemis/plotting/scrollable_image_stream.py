@@ -139,8 +139,3 @@ def show_scrollable_image_sequence(
                 print(f'Unknown key {key}.  Advancing frame')
             lookup_index += 1
         lookup_index = max(0, lookup_index)
-
-
-
-
-
