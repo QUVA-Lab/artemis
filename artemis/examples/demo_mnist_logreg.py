@@ -18,7 +18,7 @@ There are two ways to interact with the experiment framework:
 2) Through the experiment API.
 
 In the bottom of this file, you an see example code for running either the UI or API.  You can try the different versions
-by either running this file as "python demo_mnist_logreg.py ui" or "python demo_mnist_logreg.py api"
+by either running this file as "ui_code demo_mnist_logreg.py ui" or "ui_code demo_mnist_logreg.py api"
 """
 
 

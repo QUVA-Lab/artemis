@@ -10,7 +10,7 @@ def experiment_function(f):
     """
     Use this decorator (@experiment_function) on a function that you want to run.  e.g.
 
-    .. code-block:: python
+    .. code-block:: ui_code
 
         @experiment_function
         def demo_my_experiment(a=1, b=2, c=3):
@@ -27,7 +27,7 @@ def experiment_root(f):
     """
     Use this decorator on a function that you want to build variants off of:
 
-    .. code-block:: python
+    .. code-block:: ui_code
 
         @experiment_root
         def demo_my_experiment(a, b=2, c=3):
@@ -65,7 +65,7 @@ class ExperimentFunction(object):
             show = lambda rec: display_function(rec.get_result())
 
         if comparison_function is not None:
-            assert compare is None, "You can't set both display function and show.  (display_function is deprecated)"
+            # assert sh is None, "You can't set both display function and show.  (display_function is deprecated)"
 
             def compare(records):
                 record_experiment_ids_uniquified = uniquify_duplicates(rec.get_experiment_id() for rec in records)

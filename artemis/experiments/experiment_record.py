@@ -32,7 +32,7 @@ from artemis._version import __version__ as ARTEMIS_VERSION
 try:
     from enum import Enum
 except ImportError:
-    raise ImportError("Failed to import the enum package. This was added in python 3.4 but backported back to 2.4.  To install, run 'pip install --upgrade pip enum34'")
+    raise ImportError("Failed to import the enum package. This was added in ui_code 3.4 but backported back to 2.4.  To install, run 'pip install --upgrade pip enum34'")
 
 logging.basicConfig()
 ARTEMIS_LOGGER = logging.getLogger('artemis')
@@ -227,7 +227,7 @@ class ExperimentRecord(object):
                 txt = f.read()
 
         :param filename: Path within experiment directory (it can include subdirectories)
-        :param args, kwargs: Forwarded to python's "open" function
+        :param args, kwargs: Forwarded to ui_code's "open" function
         :return: A file object
         """
         full_path = os.path.join(self._experiment_directory, filename)
@@ -527,7 +527,7 @@ def open_in_record_dir(filename, *args, **kwargs):
         f.write('blahblahblah')
 
     :param filename: The name of the file, relative to your experiment directory,
-    :param args,kwargs: See python built-in "open" function
+    :param args,kwargs: See ui_code built-in "open" function
     :yield: The file object
     """
     return get_current_experiment_record().open_file(filename, *args, **kwargs)

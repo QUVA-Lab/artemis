@@ -351,7 +351,7 @@ def get_absolute_module(obj):
 
         e.g. assert get_absolute_module(get_absolute_module) == 'artemis.general.should_be_builtins'
 
-    :param obj: A python module, class, method, function, traceback, frame, or code object
+    :param obj: A ui_code module, class, method, function, traceback, frame, or code object
     :return: A string representing the import path.
     """
     file_path = inspect.getfile(obj)
@@ -424,7 +424,7 @@ except ImportError:
     @contextmanager
     def nested(*contexts):
         """
-        Reimplementation of nested in python 3.
+        Reimplementation of nested in ui_code 3.
         """
         with ExitStack() as stack:
             for ctx in contexts:

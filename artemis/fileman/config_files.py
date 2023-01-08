@@ -32,7 +32,7 @@ def get_config_value(config_filename, section, option, default_generator=None, w
     :param write_default: Set to true if property was not found and you want to write the default value into the file.
     :param read_method: The method to read your setting.
         If left at None (default) it just returns the string.
-        If 'eval' it parses the setting into a python object
+        If 'eval' it parses the setting into a ui_code object
         If it is a function, it passes the value through the function before returning it.
     :param use_cashed_config: If set, will not read the config file from the file system but use the previously read and stored config file.
         Since the cashed config file might have been modified since reading it from disk, the returned value might be different from the value

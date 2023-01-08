@@ -38,7 +38,7 @@ class RecentRunningAverage(object):
     @classmethod
     def batch(cls, x):
         try:
-            return recent_moving_average(x, axis=0)  # Works only for python 2.X, with weave
+            return recent_moving_average(x, axis=0)  # Works only for ui_code 2.X, with weave
         except ImportError:
             rma = RecentRunningAverage()
             return np.array([rma(xt) for xt in x])

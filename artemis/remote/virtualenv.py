@@ -13,19 +13,19 @@ from artemis.remote.utils import get_ssh_connection
 
 def get_remote_installed_packages(ip_address):
     '''
-    This method queries a remote python installation about the installed packages.
+    This method queries a remote ui_code installation about the installed packages.
     All necessary information is extracted from ~/.artemisrc
     :param address: Ip address of remote server
     :return:
     '''
-    python_executable = get_artemis_config_value(section=ip_address, option="python")
+    python_executable = get_artemis_config_value(section=ip_address, option="ui_code")
     function = "%s -c 'import pip; import json; print json.dumps({i.key: i.version  for i in pip.get_installed_distributions() })' "%python_executable
 
     ssh_conn = get_ssh_connection(ip_address)
     stdin , stdout, stderr = ssh_conn.exec_command(function)
     err = stderr.read()
     if err:
-        msg="Quering %s python installation at %s sent a message on stderr. If you are confident that the error can be ignored, catch this RuntimeError" \
+        msg="Quering %s ui_code installation at %s sent a message on stderr. If you are confident that the error can be ignored, catch this RuntimeError" \
             "accordingly. The error is: %s"%(ip_address, python_executable, err)
         raise RuntimeError(msg)
 
@@ -46,7 +46,7 @@ def install_packages_on_remote_virtualenv(ip_address, packages):
     if len(packages) == 0:
         return
     print("installing/upgrading remote packages ...")
-    python_path = get_artemis_config_value(ip_address,"python")
+    python_path = get_artemis_config_value(ip_address,"ui_code")
     activate_path = os.path.join(os.path.dirname(python_path),"activate") # TODO: Make this work without the user using virtualenv
     activate_command = "source %s"%activate_path
     ssh_conn = get_ssh_connection(ip_address)

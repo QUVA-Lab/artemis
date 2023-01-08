@@ -93,7 +93,7 @@ def is_elapsed(identifier, period, current = None, count_initial = True):
 
 def limit_rate(identifier, period):
     """
-    :param identifier: Any python object to uniquely identify what you're limiting.
+    :param identifier: Any ui_code object to uniquely identify what you're limiting.
     :param period: The minimum period
     :param current: The time measure (if None, system time will be used)
     :return: Whether the rate was exceeded (True) or not (False)

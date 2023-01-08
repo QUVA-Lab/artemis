@@ -121,8 +121,8 @@ class DeadEasyUI(object):
 
 def parse_user_function_call(cmd_str, arg_handling_mode = 'fallback'):
     """
-    A simple way to parse a user call to a python function.  The purpose of this is to make it easy for a user
-    to specify a python function and the arguments to call it with from the console.  Example:
+    A simple way to parse a user call to a ui_code function.  The purpose of this is to make it easy for a user
+    to specify a ui_code function and the arguments to call it with from the console.  Example:
 
         parse_user_function_call("my_function 1 'two' a='three'") == ('my_function', (1, 'two'), {'a': 'three'})
 

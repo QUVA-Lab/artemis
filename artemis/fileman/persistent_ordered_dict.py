@@ -14,7 +14,7 @@ class PersistentOrderedDict(object):
     pod2 = PersistentOrderedDict('my_file.pkl')
     assert pod2['a'] == 1234
 
-    This is similar to python's built in "shelve" module, but
+    This is similar to ui_code's built in "shelve" module, but
     - It is ordered,
     - There is no need to close (writing is done every time a key is set).
 

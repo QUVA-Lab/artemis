@@ -3,6 +3,7 @@ import inspect
 from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
+from types import SimpleNamespace
 from typing import Optional, Mapping, Callable, Any, Iterator, Tuple
 from typing import Sequence
 
@@ -96,6 +97,10 @@ class Experiment(object):
 
     def __str__(self):
         return 'Experiment {}'.format(self.name)
+
+    @property
+    def args(self) -> SimpleNamespace:
+        return SimpleNamespace(**self.get_args())
 
     def get_args(self) -> Mapping[str, Any]:
         """
@@ -207,7 +212,7 @@ class Experiment(object):
         Add a variant to this experiment, and register it on the list of experiments.
         There are two ways you can do this:
 
-        .. code-block:: python
+        .. code-block:: ui_code
 
             # Name the experiment explicitely, then list the named arguments
             my_experiment_function.add_variant('big_a', a=10000)
@@ -229,7 +234,7 @@ class Experiment(object):
         Add a variant to this experiment, but do NOT register it on the list of experiments.
         There are two ways you can do this:
 
-        .. code-block:: python
+        .. code-block:: ui_code
 
             # Name the experiment explicitely, then list the named arguments
             my_experiment_function.add_root_variant('big_a', a=10000)
@@ -502,7 +507,7 @@ class Experiment(object):
         search_exp.tag('psearch')  # Secret feature that makes it easy to select all parameter experiments in ui with "filter tag:psearch"
         return search_exp
 
-    def tag(self, tag):
+    def tag(self, tag: str):
         """
         Add a "tag" - a string identifying the experiment as being in some sort of group.
         You can use tags in the UI with 'filter tag:my_tag' to select experiments with a given tag
@@ -514,6 +519,35 @@ class Experiment(object):
 
     def get_tags(self):
         return self._tags
+
+    def used_to_define(self, *args):
+        """
+        The function does nothing, simply lets you link your experiment to an object in the code
+        which is defined as a result of findings in the experiment.  E.g.
+
+            @experiment_function
+            def ex_train_classifiers_and_get_Score(
+                classifiers: Mapping[str, Classifier]
+                ) -> float:
+                ...
+
+            ex_train_classifiers_and_get_Score.add_variant(
+                'find_learning_rate',
+                classifiers = {
+                    f'learning-rate-{lr}': MyClassifier(learning_rate = lr)
+                    for lr in [0.1, 0.01, 0.001]
+                }
+            ).used_to_define(BEST_LEARNING_RATE)  # Refers to a constant (e.g. BEST_LEARNING_RATE=0.01) which may be used elsewhere.
+        """
+        return self
+
+    def in_reference_to(self, *args):
+        """
+        Like used_to_define - this funtion actually does nothing, but it can be used as a form of
+        documentation to remind you that this experiment was made in reference to some
+        other code object (e.g. another experiment - to expand on results found there)
+        """
+        return self
 
 
 def show_parameter_search_record(record):
@@ -546,7 +580,7 @@ def capture_created_experiments():
     A convenient way to cross-breed experiments.  If you define experiments in this block, you can capture them for
     later use (for instance by modifying them). e.g.:
 
-    .. code-block:: python
+    .. code-block:: ui_code
 
         @experiment_function
         def add_two_numbers(a=1, b=2):

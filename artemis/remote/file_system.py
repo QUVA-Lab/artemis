@@ -17,7 +17,7 @@ def check_config_file(ip_address,file_path=".artemisrc"):
     :param ip_address: The section to look for. Remote ip is assumed. Makes no sense for local ip.
     :return:
     '''
-    mandatory_options = ["username","python"]
+    mandatory_options = ["username","ui_code"]
     artemisrc_path = os.path.expanduser("~/%s"%file_path)
     for option in mandatory_options:
         try:
@@ -55,18 +55,18 @@ def check_config_file(ip_address,file_path=".artemisrc"):
                   "Please make sure you have correctly set up your private key for %s " %(artemisrc_path,private_key_path,ip_address))
 
 
-    #python tests:
-    python_path = get_artemis_config_value(section=ip_address,option="python")
+    #ui_code tests:
+    python_path = get_artemis_config_value(section=ip_address,option="ui_code")
 
-    command = "python -c 'import os; print(os.path.isfile(os.path.expanduser(\"%s\")))'"%python_path
+    command = "ui_code -c 'import os; print(os.path.isfile(os.path.expanduser(\"%s\")))'"%python_path
     ssh_conn = get_ssh_connection(ip_address)
     _,stdout,stderr = ssh_conn.exec_command(command)
-    assert stdout.read().strip()=="True", "The provided path to the remote python installation on %s does not exist. You provided %s" %(ip_address, python_path)
+    assert stdout.read().strip()=="True", "The provided path to the remote ui_code installation on %s does not exist. You provided %s" %(ip_address, python_path)
 
     command = "%s -c 'print(\"Success\")'" % python_path
     _,stdout,stderr = ssh_conn.exec_command(command)
     err = stderr.read().strip()
-    assert stdout.read().strip()=="Success" and not err, "The provided python path on %s does not seem to point to a python executable. " \
+    assert stdout.read().strip()=="Success" and not err, "The provided ui_code path on %s does not seem to point to a ui_code executable. " \
                                                          "You provided %s, which resulted in the following error on the remote machine: " %(ip_address, python_path, err)
 
 

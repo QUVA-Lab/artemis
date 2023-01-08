@@ -748,7 +748,7 @@ class Duck(UniversalCollection):
 
     def each_eq(self, item):
         """
-        :param item: Any python object.
+        :param item: Any ui_code object.
         :return: A new Duck filled with boolean values indicating if each element of this Duck is equal to the given item.
             (this can be used for boolean indexing)
         """

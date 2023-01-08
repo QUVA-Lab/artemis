@@ -163,7 +163,7 @@ def check_if_port_is_free(ip_address, port):
     else:
         check_ssh_connection(ip_address)
         ssh_connect = get_ssh_connection(ip_address=ip_address)
-        check_port_function = 'python -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM);s.bind((\'%s\',%i));s.close()"'%(ip_address,port)
+        check_port_function = 'ui_code -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_STREAM);s.bind((\'%s\',%i));s.close()"'%(ip_address,port)
         stdin , stdout, stderr = ssh_connect.exec_command(check_port_function)
         err = stderr.read()
         assert not err, "The remote address %s cannot allocate port %i. The following error was raised: \n %s" % (ip_address, port,err.strip().split("\n")[-1])
@@ -194,7 +194,7 @@ def check_ssh_connection(ip_address):
     :return:
     '''
 
-    test_function = 'python -c "import socket; print([l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith(\'127.\')][:1], [[(s.connect((\'8.8.8.8\', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])"'
+    test_function = 'ui_code -c "import socket; print([l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith(\'127.\')][:1], [[(s.connect((\'8.8.8.8\', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0])"'
     ssh_conn = get_ssh_connection(ip_address=ip_address)
     stdin , stdout, stderr = ssh_conn.exec_command(test_function)
     out = stdout.read().strip()

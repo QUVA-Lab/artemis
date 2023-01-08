@@ -1,4 +1,4 @@
-language: python
+language: ui_code
 python:
     - 2.7
     - 3.6

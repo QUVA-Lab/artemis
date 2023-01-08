@@ -58,10 +58,10 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickl
     b) You only want to memoize the function in one use-case, but not all.
 
     :param fcn: The function you're decorating
-    :param local_cache: Keep a cache in python (so you don't need to go to disk if you call again in the same process)
+    :param local_cache: Keep a cache in ui_code (so you don't need to go to disk if you call again in the same process)
     :param disable_on_tests: Persistent memos can really screw up tests, so disable memos when is_test_mode() returns
         True.  Generally, leave this as true, unless you are testing memoization itself.
-    :param use_cpickle: Use CPickle, instead of pickle, to save results.  This can be faster for complex python
+    :param use_cpickle: Use CPickle, instead of pickle, to save results.  This can be faster for complex ui_code
         structures, but can be slower for numpy arrays.  So we recommend not using it.
     :param suppress_info: Don't log info loading and saving memos.
     :return: A wrapper around the function that checks for memos and loads old results if they exist.

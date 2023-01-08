@@ -12,7 +12,7 @@ _END_CODE = 'e0abd6b36d6e295b6c8859cdffc773df'.encode('utf-8')
 def fixed_hash_eq(obj1, obj2):
     """
     Return True if the objects have equal fixed-hashes.  You can use this instead of the "==" operator when comparing
-    two objects that don't contain all python primatives.  All objects contained must be either primatives, numpy arrays,
+    two objects that don't contain all ui_code primatives.  All objects contained must be either primatives, numpy arrays,
     or extend the FixedHashObject interface.
 
     :param obj1: An arbitrary object
@@ -97,7 +97,7 @@ class FixedHashObject(object):
 
     def get_hash_description(self):
         """
-        Override this method to return some primitive (python ond numpy only) data structure that represents your object.
+        Override this method to return some primitive (ui_code ond numpy only) data structure that represents your object.
         This will be used to create the fixed hash.  Be careful.  It's up to you to ensure that the data stryucture you
         return fully represents the state of your object.
         :return: Any data structure consisting only of Python and Numpy primatives.

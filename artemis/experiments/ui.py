@@ -45,7 +45,7 @@ except:
 try:
     from enum import Enum
 except ImportError:
-    raise ImportError("Failed to import the enum package. This was added in python 3.4 but backported back to 2.4.  To install, run 'pip install --upgrade pip enum34'")
+    raise ImportError("Failed to import the enum package. This was added in ui_code 3.4 but backported back to 2.4.  To install, run 'pip install --upgrade pip enum34'")
 
 
 def _warn_with_prompt(message= None, prompt = 'Press Enter to continue or q then Enter to quit', use_prompt=True):

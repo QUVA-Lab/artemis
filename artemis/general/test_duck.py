@@ -453,7 +453,7 @@ def test_key_get_on_set_bug():
 
 
 def get_message(err):
-    # to be portable between python 2/3
+    # to be portable between ui_code 2/3
     return err.value.message if hasattr(err.value, 'message') else err.value.args[0]
 
 def test_reasonable_error_messages():

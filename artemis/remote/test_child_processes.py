@@ -25,7 +25,7 @@ def get_test_functions_path(ip_address):
 
 def test_simple_pcp():
     for ip_address in ip_addresses:
-        command = "python %s --callback=%s"%(get_test_functions_path(ip_address),"success_function")
+        command = "ui_code %s --callback=%s"%(get_test_functions_path(ip_address),"success_function")
         pyc = PythonChildProcess(ip_address=ip_address,command=command)
         (stdin, stdout, stderr) = pyc.execute_child_process()
         stderr_out =stderr.readlines()
@@ -36,7 +36,7 @@ def test_simple_pcp():
 
 def test_simple_pcp_list():
     for ip_address in ip_addresses:
-        command = ["python", get_test_functions_path(ip_address), "--callback=success_function"]
+        command = ["ui_code", get_test_functions_path(ip_address), "--callback=success_function"]
         pyc = PythonChildProcess(ip_address=ip_address,command=command)
         (stdin, stdout, stderr) = pyc.execute_child_process()
         stderr_out = stderr.readlines()
@@ -47,7 +47,7 @@ def test_simple_pcp_list():
 
 def test_interrupt_process_gently():
     for ip_address in ip_addresses:
-        command = ["python", get_test_functions_path(ip_address), "--callback=count_high"]
+        command = ["ui_code", get_test_functions_path(ip_address), "--callback=count_high"]
 
         cp = PythonChildProcess(ip_address, command)
         stdin , stdout, stderr = cp.execute_child_process()
@@ -64,7 +64,7 @@ def test_interrupt_process_gently():
 
 def test_kill_process_gently():
     for ip_address in ip_addresses:
-        command = ["python", get_test_functions_path(ip_address), "--callback=sleep_function"]
+        command = ["ui_code", get_test_functions_path(ip_address), "--callback=sleep_function"]
 
         cp = PythonChildProcess(ip_address, command)
         stdin , stdout, stderr = cp.execute_child_process()
@@ -77,7 +77,7 @@ def test_kill_process_gently():
 
 def test_kill_process_strongly():
     for ip_address in ip_addresses:
-        command = ["python", get_test_functions_path(ip_address), "--callback=hanging_sleep_function"]
+        command = ["ui_code", get_test_functions_path(ip_address), "--callback=hanging_sleep_function"]
 
         cp = PythonChildProcess(ip_address, command)
         stdin , stdout, stderr = cp.execute_child_process()
@@ -93,7 +93,7 @@ def test_kill_process_strongly():
 
 def test_remote_graphics():
     for ip_address in ip_addresses:
-        command = ["python", get_test_functions_path(ip_address), "--callback=remote_graphics"]
+        command = ["ui_code", get_test_functions_path(ip_address), "--callback=remote_graphics"]
 
         cp = PythonChildProcess(ip_address=ip_address,command=command,take_care_of_deconstruct=True)
         i, stdout, stderr = cp.execute_child_process()
