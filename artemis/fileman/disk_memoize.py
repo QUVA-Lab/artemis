@@ -10,7 +10,7 @@ from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.functional import infer_arg_values
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.test_mode import is_test_mode
-from eagle_eyes.utils.utils_for_testing import hold_tempdir
+from artemis.general.utils_for_testing import hold_tempdir
 
 logging.basicConfig()
 LOGGER = logging.getLogger(__name__)
