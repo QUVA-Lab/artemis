@@ -6,8 +6,7 @@ import cv2
 
 from artemis.general.custom_types import TimeIntervalTuple, BGRImageArray
 from artemis.image_processing.image_utils import iter_images_from_video, fit_image_to_max_size
-from artemis.image_processing.video_reader import VideoReader, VideoFrameInfo
-from artemis.remote.utils import ARTEMIS_LOGGER
+from artemis.image_processing.video_reader import VideoReader, VideoFrameInfo, VideoMetaData
 
 
 def parse_time_delta_str_to_sec(time_delta_str: str) -> Optional[float]:
@@ -31,6 +30,10 @@ def parse_interval(interval_str: str) -> TimeIntervalTuple:
     return parse_time_delta_str_to_sec(start), parse_time_delta_str_to_sec(end)
 
 
+
+
+
+
 @dataclass
 class VideoSegment:
     """ """
@@ -43,6 +46,16 @@ class VideoSegment:
     max_size: Optional[Tuple[int, int]] = None
     frames_of_interest: Optional[Sequence[int]] = None
     verbose: bool = False
+
+    _metadata: Optional[VideoMetaData] = None
+
+    def get_metadata(self) -> VideoMetaData:
+        if self._metadata is None:
+            self._metadata = self.get_reader().get_metadata()
+        return self._metadata
+
+    def get_n_frames(self) -> int:
+        return self.get_reader().get_n_frames()
 
     def check_passthrough(self):
         assert os.path.exists(os.path.expanduser(self.path)), f"Path {self.path} does not exist."

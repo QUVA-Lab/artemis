@@ -1,3 +1,4 @@
+import datetime
 import itertools
 import os
 from dataclasses import dataclass
@@ -5,6 +6,7 @@ from typing import Tuple, Optional, Iterator
 import av
 
 from artemis.general.custom_types import BGRImageArray, TimeIntervalTuple
+from artemis.general.utils_utils import bytes_to_string
 from artemis.image_processing.image_utils import fit_image_to_max_size
 from artemis.general.item_cache import CacheDict
 
@@ -19,9 +21,28 @@ class VideoFrameInfo:
     def get_size_xy(self) -> Tuple[int, int]:
         return self.image.shape[1], self.image.shape[0]
 
-    def get_progress_string(self) -> str:
-        return f"t={self.seconds_into_video:.2f}s, frame={self.frame_ix}"
+    def get_progress_string(self, total_frames: Optional[int] = None) -> str:
+        if total_frames is None:
+            return f"t={self.seconds_into_video:.2f}s, frame={self.frame_ix}"
+        else:
+            return f"t={self.seconds_into_video:.2f}s/{total_frames/self.fps:.2f}s, frame={self.frame_ix}/{total_frames}"
 
+@dataclass
+class VideoMetaData:
+    duration: float
+    n_frames: int
+    fps: float
+    n_bytes: int
+    size_xy: Tuple[int, int]
+
+    def get_duration_string(self) -> str:
+        return str(datetime.timedelta(seconds=int(self.duration)))
+
+    def get_size_xy_string(self) -> str:
+        return f"{self.size_xy[0]}x{self.size_xy[1]}"
+
+    def get_size_string(self) -> str:
+        return bytes_to_string(self.n_bytes, decimals_precision=1)
 
 def get_actual_frame_interval(
         n_frames_total: int,
@@ -65,7 +86,7 @@ class VideoReader:
         cv2.waitKey(1)
 
     Implementation:
-    - Providing them in order should be FAST
+    - Providing them in order should be fast
     - Requesting the same frame twice or backtracking a few frames should be VERY FAST (ie - use a cache)
     - Requesting random frames should be reasonably fast (do not scan from start)
 
@@ -106,7 +127,21 @@ class VideoReader:
                                                             fps=self._fps,
                                                             frame_interval=frame_interval,
                                                             n_frames_total=self.container.streams.video[0].frames)
+        self._metadata: Optional[VideoMetaData] = None
         # self._n_frames =
+
+    def get_metadata(self) -> VideoMetaData:
+        file_stats = os.stat(self._path)
+        if self._metadata is None:
+            firstframe = self.request_frame(0)
+            self._metadata = VideoMetaData(
+                duration=self._n_frames/self._fps,
+                n_frames=self._n_frames,
+                fps=self._fps,
+                n_bytes=file_stats.st_size,
+                size_xy=(firstframe.image.shape[1], firstframe.image.shape[0])
+            )
+        return self._metadata
 
     def get_n_frames(self) -> int:
         return self._stop - self._start

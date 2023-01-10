@@ -86,5 +86,19 @@ def tee_and_specialize_iterator(
     return [make_sub_iterator(it_copy, arg) for it_copy, arg in zip(itertools.tee(iterator, len(args)), args)]
 
 
+def bytes_to_string(bytes: int, decimals_precision: 1) -> str:
+
+    size = bytes
+    prefix = ''
+    for this_prefix in 'kMGPE':
+        if size > 1024:
+            prefix = this_prefix
+            size = size / 1024
+        else:
+            break
+
+    return f"{{:.{decimals_precision}f}} {prefix}B".format(size)
+
+
 if __name__ == '__main__':
     demo_get_context_name()
