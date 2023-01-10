@@ -1,7 +1,8 @@
+import dataclasses
 import sys
 # from _typeshed import SupportsNext
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, is_dataclass
 from typing import Optional, TypeVar, Generic, Deque, Tuple, Any, Iterator
 import numpy as np
 ItemType = TypeVar('ItemType')
@@ -12,9 +13,15 @@ class OutOfBufferException(Exception):
 
 
 def get_memory_footprint(item: Any) -> int:
-    # TODO: Recurse through dataclasses
-    if isinstance(item, np.ndarray):
+
+    if is_dataclass(item):
+        return sum(get_memory_footprint(v) for v in dataclasses.asdict(item).values())
+    elif isinstance(item, np.ndarray):
         return item.itemsize * item.size
+    elif isinstance(item, (list, tuple, set)):
+        return sum(get_memory_footprint(v) for v in item)
+    elif isinstance(item, dict):
+        return sum(get_memory_footprint(v) for v in item.values())
     else:
         return sys.getsizeof(item)  # Only returns pointer-size, no recursion
 
