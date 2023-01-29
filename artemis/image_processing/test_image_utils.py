@@ -123,11 +123,11 @@ def test_image_view_info(show: bool = False):
     # image = cv2.imread(cv2.samples.find_file("starry_night.jpg"))
     frame1 = ImageViewInfo.from_initial_view(window_disply_wh=(500, 500), image_wh=(image.shape[1], image.shape[0]))
     display_xy_of_bottom_of_ear = frame1.pixel_xy_to_display_xy(pixel_xy_of_bottom_of_ear)
-    recon_pixel_xy_of_bottom_of_ear = frame1.display_xy_to_pixel_xy(display_xy_of_bottom_of_ear)
-    frame2 = frame1.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear)
-    frame3 = frame2.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear)
-    frame4 = frame3.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear)
-    frame5 = frame4.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear)
+    # recon_pixel_xy_of_bottom_of_ear = frame1.display_xy_to_pixel_xy(display_xy_of_bottom_of_ear, limit=False)
+    frame2 = frame1.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear, limit=False)
+    frame3 = frame2.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear, limit=False)
+    frame4 = frame3.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear, limit=False)
+    frame5 = frame4.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear, limit=False)
     f5_recon_pixel_xy_of_bottom_of_ear = frame5.display_xy_to_pixel_xy(display_xy_of_bottom_of_ear)
     assert tuple(np.round(f5_recon_pixel_xy_of_bottom_of_ear).astype(int)) == pixel_xy_of_bottom_of_ear
     # frame1 = frame.create_display_image(image)
@@ -137,9 +137,10 @@ def test_image_view_info(show: bool = False):
     frame8 = frame7.pan_by(display_rel_xy=(0, .5), limit=True)
     frame9 = frame8.pan_by(display_rel_xy=(0, .5), limit=True)
 
+    frame10 = frame9.zoom_by(relative_zoom=0.75, invariant_display_xy=(0, 0))
+    frame11 = frame5.zoom_out()
 
-
-    crops = [f.create_display_image(image) for f in [frame1, frame2, frame3, frame4, frame5, frame6, frame7, frame8, frame9]]
+    crops = [f.create_display_image(image) for f in [frame1, frame2, frame3, frame4, frame5, frame6, frame7, frame8, frame9, frame10, frame11]]
     # crops = [f.create_display_image(image) for f in [frame1, frame3]]
 
     # crop1 = frame.create_display_image(image)

@@ -781,17 +781,23 @@ class ImageViewInfo:
     def _get_min_zoom(self) -> float:
         return get_min_zoom(img_wh=self.image_wh, window_wh=self._get_display_wh())
 
-    def zoom_by(self, relative_zoom: float, invariant_display_xy: Tuple[float, float]) -> 'ImageViewInfo':
+    def zoom_out(self) -> 'ImageViewInfo':
+        new_zoom = self._get_min_zoom()
+        return replace(self, zoom_level=new_zoom).adjust_pan_to_boundary()
 
-        new_zoom = max(self._get_min_zoom(), self.zoom_level*relative_zoom)
+    def zoom_by(self, relative_zoom: float, invariant_display_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
 
+        new_zoom = max(self._get_min_zoom(), self.zoom_level*relative_zoom) if limit else self.zoom_level*relative_zoom
 
         invariant_display_xy = np.maximum(0, np.minimum(self._get_display_wh(), invariant_display_xy))
         invariant_pixel_xy = self.display_xy_to_pixel_xy(display_xy=invariant_display_xy)
 
         coeff = (1-1/relative_zoom)
         new_center_pixel_xy = tuple(np.array(self.center_pixel_xy)*(1-coeff) + np.array(invariant_pixel_xy)*coeff)
-        return replace(self, zoom_level=new_zoom, center_pixel_xy=new_center_pixel_xy)
+        result = replace(self, zoom_level=new_zoom, center_pixel_xy=new_center_pixel_xy)
+        if limit:
+            result = result.adjust_pan_to_boundary()
+        return result
 
     def adjust_pan_to_boundary(self) -> 'ImageViewInfo':
         display_edge_xy = np.asarray(self._get_display_midpoint_xy())
