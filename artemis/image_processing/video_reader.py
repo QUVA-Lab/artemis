@@ -226,7 +226,7 @@ class VideoReader:
             assert frame is not None, f"Error loading video frame at index {index_in_file}"
             return frame
         else:
-            max_seek_search = 100
+            max_seek_search = 200  # I have no idea what's up with this.  100 failed some time
             stream = self.container.streams.video[0]
             pts = int(index_in_file * stream.duration / stream.frames)
             self.container.seek(pts, stream=stream)

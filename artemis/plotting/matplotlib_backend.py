@@ -7,7 +7,7 @@ from six import string_types
 
 from artemis.config import get_artemis_config_value
 from artemis.general.should_be_builtins import bad_value
-from artemis.plotting.data_conversion import (put_data_in_grid, RecordBuffer, data_to_image,
+from artemis.plotting.data_conversion import (put_data_in_image_grid, RecordBuffer, data_to_image,
                                               put_list_of_images_in_array,
                                               UnlimitedRecordBuffer, ResamplingRecordBuffer)
 from matplotlib import pyplot as plt
@@ -111,7 +111,7 @@ class ImagePlot(HistoryFreePlot):
             if self._is_colour_data is None:
                 self._is_colour_data = data.shape[-1]==3
 
-            plottable_data = put_data_in_grid(data, clims = clims, cmap = self._cmap, is_color_data = self._is_colour_data, fill_colour = np.array((0, 0, 128)), nan_colour = np.array((0, 0, 128))) \
+            plottable_data = put_data_in_image_grid(data, clims = clims, cmap = self._cmap, is_color_data = self._is_colour_data, fill_colour = np.array((0, 0, 128)), nan_colour = np.array((0, 0, 128))) \
                 if not (self._is_colour_data and data.ndim==3 or data.ndim==2) else \
                 data_to_image(data, clims = clims, cmap = self._cmap, nan_colour = np.array((0, 0, 128)))
 

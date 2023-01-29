@@ -43,10 +43,10 @@ class CacheDict(Generic[KeyType, ItemType]):
         if self._buffer_length is not None and len(self._buffer) == self._buffer_length:
             self._remove_oldest_item()
 
-        print(f'Buffer lendgth: {len(self._buffer)} Buffer size: {self._current_buffer_size}')
+        # print(f'Buffer lendgth: {len(self._buffer)} Buffer size: {self._current_buffer_size}')
         if self.buffer_size_bytes is not None:
             size = get_memory_footprint(value) if not self._calculate_size_once or self._first_object_size is None else self._first_object_size
-            print(f'Memory footprint for {value.__class__} is {size} bytes')
+            # print(f'Memory footprint for {value.__class__} is {size} bytes')
             while len(self._buffer)>0 and self._current_buffer_size+size > self.buffer_size_bytes:
                 self._remove_oldest_item()
 

@@ -2,7 +2,7 @@ import dataclasses
 import itertools
 import os
 from abc import abstractmethod, ABCMeta
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import floor, ceil
 from typing import Iterable, Tuple, Union, Optional, Sequence, Callable, TypeVar, Iterator
 
@@ -12,6 +12,7 @@ from attr import attrs, attrib
 
 from artemis.general.custom_types import XYSizeTuple, BGRColorTuple, HeatMapArray, BGRImageDeltaArray, MaskImageArray, LabelImageArray, BGRFloatImageArray, GreyScaleImageArray, \
     BGRImageArray, TimeIntervalTuple, Array, GeneralImageArray
+from artemis.general.geometry import reframe_from_a_to_b, reframe_from_b_to_a
 
 
 class BGRColors:
@@ -453,8 +454,14 @@ class BoundingBox(BaseBox):
     # def from_lbwh(cls, l, b, w, h, label: str = '') -> 'BoundingBox':
     #     return BoundingBox(x_min=l, x_max=l+w, y_min=b, y_max=b+h, label=label)
 
-    def to_ij(self):
+    def to_ij(self) -> Tuple[int, int]:
+        """ Get the (row, col) of the center of the box """
         return round((self.y_min + self.y_max) / 2.), round((self.x_min + self.x_max) / 2.)
+
+    def to_crop_ij(self) -> Tuple[int, int]:
+        """ Get the (row, col) of the center of the box in the frame of the cropped image"""
+        i, j = self.to_ij()
+        return i-int(self.y_min), j-int(self.x_min)
 
     def compute_iou(self, other: 'BoundingBox') -> float:
         """ Get Intersection-over-Union overlap area between boxes - will be between zero and 1 """
@@ -617,6 +624,10 @@ def create_gap_image(  # Generate a colour image filled with one colour
     return img
 
 
+def create_random_image(size_xy: Tuple[int, int], in_color: bool = True, seed = None) -> BGRImageArray:
+    return np.random.RandomState(seed).randint(0, 256, size=(size_xy[1], size_xy[0])+((3, ) if in_color else ()), dtype=np.uint8)
+
+
 @attrs
 class TextDisplayer:
     """ Converts text to image """
@@ -718,6 +729,169 @@ def mask_to_boxes(mask: Array['H,W', bool]) -> Array['N,4', int]:
     y_starts = y_ixs[y_stops, x_stops]
     ltrb_boxes = np.hstack([x_starts[:, None], y_starts[:, None], x_stops[:, None] + 1, y_stops[:, None] + 1])
     return ltrb_boxes
+
+
+def display_to_pixel_dim(display_coord: float, pixel_center_coord: float, window_dim: int, zoom: float, pixel_limit: Optional[int] = None) -> float:
+    pixel_coord = pixel_center_coord + (display_coord - (window_dim / 2)) / zoom
+    if pixel_limit is not None:
+        pixel_coord = np.maximum(0, np.minimum(pixel_limit, pixel_coord))
+    return pixel_coord
+
+
+def get_min_zoom(img_wh: Tuple[int, int], window_wh: Tuple[int, int]) -> float:
+    return min(window_wh[i]/img_wh[i] for i in (0, 1))
+
+
+def clip_to_slack_bounds(x: float, bound: Tuple[float, float]) -> float:
+
+    x_lower, x_upper = bound
+    if x_lower <= x_upper:
+        return np.clip(x, x_lower, x_upper)
+    else:
+        return (x_lower+x_upper)/2
+
+
+
+
+@dataclass
+class ImageViewInfo:
+    # image: BGRImageArray
+    zoom_level: float  # Zoom level
+    center_pixel_xy: Tuple[int, int]  # (x, y) coordinates of center-pixel
+    window_disply_wh: Tuple[int, int]  # (width, height) of display window
+    image_wh: Tuple[int, int]
+    scroll_bar_width: int = 10
+
+    @classmethod
+    def from_initial_view(cls, window_disply_wh: Tuple[int, int], image_wh: Tuple[int, int], scroll_bar_width: int = 10) -> 'ImageViewInfo':
+        return ImageViewInfo(
+            zoom_level = get_min_zoom(img_wh=image_wh, window_wh=np.asarray(window_disply_wh) - scroll_bar_width),
+            center_pixel_xy = tuple(s//2 for s in image_wh),
+            window_disply_wh=window_disply_wh,
+            image_wh=image_wh
+        )
+
+    def _get_display_wh(self) -> Tuple[int, int]:
+        return self.window_disply_wh[0] - self.scroll_bar_width, self.window_disply_wh[1] - self.scroll_bar_width
+
+    def _get_display_midpoint_xy(self) -> Tuple[float, float]:
+        w, h = self._get_display_wh()
+        return w/2, h/2
+
+    def _get_min_zoom(self) -> float:
+        return get_min_zoom(img_wh=self.image_wh, window_wh=self._get_display_wh())
+
+    def zoom_by(self, relative_zoom: float, invariant_display_xy: Tuple[float, float]) -> 'ImageViewInfo':
+
+        new_zoom = max(self._get_min_zoom(), self.zoom_level*relative_zoom)
+
+
+        invariant_display_xy = np.maximum(0, np.minimum(self._get_display_wh(), invariant_display_xy))
+        invariant_pixel_xy = self.display_xy_to_pixel_xy(display_xy=invariant_display_xy)
+
+        coeff = (1-1/relative_zoom)
+        new_center_pixel_xy = tuple(np.array(self.center_pixel_xy)*(1-coeff) + np.array(invariant_pixel_xy)*coeff)
+        return replace(self, zoom_level=new_zoom, center_pixel_xy=new_center_pixel_xy)
+
+    def adjust_pan_to_boundary(self) -> 'ImageViewInfo':
+        display_edge_xy = np.asarray(self._get_display_midpoint_xy())
+        pixel_edge_xy = display_edge_xy/self.zoom_level
+        adjusted_pixel_center_xy = tuple(clip_to_slack_bounds(v, bound=(e, self.image_wh[i]-e)) for i, (v, e) in enumerate(zip(self.center_pixel_xy, pixel_edge_xy)))
+        return replace(self, center_pixel_xy=adjusted_pixel_center_xy)
+
+    def pan_by(self, display_rel_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
+
+        pixel_shift_xy = np.asarray(display_rel_xy)*self._get_display_wh() * self.zoom_level
+        new_center_pixel_xy = tuple(np.array(self.center_pixel_xy) + pixel_shift_xy)
+        result = replace(self, center_pixel_xy=new_center_pixel_xy)
+        if limit:
+            result = result.adjust_pan_to_boundary()
+        return result
+
+    def display_xy_to_pixel_xy(self, display_xy: Array["N,2", float], limit: bool = True) -> Array["N,2", float]:
+        """ Map pixel-location in display image to pixel image.  Optionally, limit result to bounds of image """
+
+        pixel_xy = reframe_from_a_to_b(
+            xy_in_a=display_xy,
+            reference_xy_in_b=self.center_pixel_xy,
+            reference_xy_in_a=self._get_display_midpoint_xy(),
+            scale_in_a_of_b=1/self.zoom_level,
+        )
+        if limit:
+            pixel_xy = np.maximum(0, np.minimum(self.image_wh, pixel_xy))
+        return pixel_xy
+
+    def pixel_xy_to_display_xy(self, pixel_xy: Tuple[float, float], limit: bool = True) -> Tuple[float, float]:
+        """ Map pixel-location in image to displayt image """
+        display_xy = reframe_from_b_to_a(
+            xy_in_b=pixel_xy,
+            reference_xy_in_b=self.center_pixel_xy,
+            reference_xy_in_a=self._get_display_midpoint_xy(),
+            scale_in_a_of_b=1/self.zoom_level,
+        )
+        if limit:
+            display_xy = np.maximum(0, np.minimum(np.asarray(self._get_display_wh()), display_xy))
+        return display_xy
+
+    def create_display_image(self,
+                             image: BGRImageArray,
+                             gap_color = DEFAULT_GAP_COLOR,
+                             scroll_bg_color = BGRColors.DARK_GRAY,
+                             scroll_fg_color = BGRColors.LIGHT_GRAY,
+                             nearest_neighbor_zoom_threshold: float = 5,
+                             ) -> BGRImageArray:
+
+        result_array = np.full(self.window_disply_wh+image.shape[2:], dtype=image.dtype, fill_value=gap_color)
+        result_array[-self.scroll_bar_width:, :-self.scroll_bar_width] = scroll_bg_color
+        result_array[:-self.scroll_bar_width, -self.scroll_bar_width:] = scroll_bg_color
+
+        src_topleft_xy = self.display_xy_to_pixel_xy(display_xy=(0, 0), limit=True).astype(np.int)
+        src_bottomright_xy = self.display_xy_to_pixel_xy(display_xy=self._get_display_wh(), limit=True).astype(np.int)
+
+        dest_topleft_xy= self.pixel_xy_to_display_xy(pixel_xy=src_topleft_xy, limit=True).astype(np.int)
+        dest_bottomright_xy = self.pixel_xy_to_display_xy(pixel_xy=src_bottomright_xy, limit=True).astype(np.int)
+        (src_x1, src_y1), (src_x2, src_y2) = src_topleft_xy, src_bottomright_xy
+        (dest_x1, dest_y1), (dest_x2, dest_y2) = dest_topleft_xy, dest_bottomright_xy
+
+        # Add the image
+        src_image = image[src_y1:src_y2, src_x1:src_x2]
+        src_image_scaled = cv2.resize(src_image, (dest_x2-dest_x1, dest_y2-dest_y1), interpolation=cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR)
+        result_array[dest_y1:dest_y2, dest_x1:dest_x2] = src_image_scaled
+
+        # Add the scroll bars
+        scroll_fraxs_x: Tuple[float, float] = (src_x1/image.shape[1], src_x2/image.shape[1])
+        scroll_fraxs_y: Tuple[float, float] = (src_y1/image.shape[0], src_y2/image.shape[0])
+        space_x, space_y = self._get_display_wh()
+        scroll_bar_x_slice = slice(max(0, round(scroll_fraxs_x[0]*space_x)), min(space_x, round(scroll_fraxs_x[1]*space_x)))
+        scroll_bar_y_slice = slice(max(0, round(scroll_fraxs_y[0]*space_y)), min(space_y, round(scroll_fraxs_y[1]*space_y)))
+        result_array[scroll_bar_y_slice, -self.scroll_bar_width:] = scroll_fg_color
+        result_array[-self.scroll_bar_width:, scroll_bar_x_slice] = scroll_fg_color
+
+        return result_array
+
+
+def load_artemis_image() -> BGRImageArray:
+    path = os.path.join(os.path.split(os.path.abspath(__file__))[0], 'artemis.jpeg')
+    return cv2.imread(path)
+
+
+# @dataclass
+# class ImageBoxViewer:
+#     scroll_bar_width: int = 10
+#     background_colour: BGRColorTuple = DEFAULT_GAP_COLOR
+#     _canvas_cache: Optional[np.ndarray] = None
+#
+#     def view_box(self,
+#                  source_image: BGRImageArray,
+#                  center_pixel_xy: Tuple[int, int],  # (x,y) position of center in coordinates of source_image pixels
+#                  window_disply_wh: Tuple[int, int],  # (width, height) of display window
+#                  zoom_level: float = 0.,  #
+#                  ) -> ImageViewInfo:
+#         if self._canvas_cache is None or self._canvas_cache.shape[2] != (window_disply_wh[1], window_disply_wh[0]):
+#             self._canvas_cache = np.empty((window_disply_wh[1], window_disply_wh[0])+source_image.shape[2:], dtype=source_image.dtype)
+#
+#         # TODO: Fill in
+
 
 
 #

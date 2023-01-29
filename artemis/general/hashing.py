@@ -1,7 +1,10 @@
+import base64
 import hashlib
 import pickle
 from collections import OrderedDict
 import itertools
+from enum import Enum
+
 import numpy as np
 from six import string_types, next
 
@@ -22,12 +25,20 @@ def fixed_hash_eq(obj1, obj2):
     return compute_fixed_hash(obj1)==compute_fixed_hash(obj2)
 
 
-def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _count=None):
+class HashRep(Enum):
+    HEX = 'hex'
+    BASE_32 = 'base32'
+    BASE_64 = 'base64'
+
+
+def compute_fixed_hash(obj, try_objects=False, use_only_public_fields: bool = False, hashrep: HashRep = HashRep.BASE_32, _hasher = None, _memo = None, _count=None):
     """
     Given an object, return a hash that will always be the same (not just for the lifetime of the
     object, but for all future runs of the program too).
     :param obj: Some nested container of primitives
     :param try_objects: Try to break into objects
+    :param use_only_public_fields: When breaking into objects, only use fields that do not begin with underscore
+    :param hashrep: How to represent the hash string
     :param _hasher: (for internal use - note that this is stateful, so calling this function with this argument changes
         the hasher object)
     :param _memo: (for internal use - to remember hashed objects and avoid infinite recursion)
@@ -49,7 +60,7 @@ def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _co
     if _hasher is None:
         _hasher = hashlib.md5()
 
-    kwargs = dict(_hasher=_hasher, try_objects=try_objects, _memo=_memo, _count=_count)
+    kwargs = dict(_hasher=_hasher, try_objects=try_objects, use_only_public_fields=use_only_public_fields, _memo=_memo, _count=_count)
 
     _hasher.update(obj.__class__.__name__.encode('utf-8'))
     if isinstance(obj, np.ndarray):
@@ -74,7 +85,7 @@ def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _co
     elif hasattr(obj, 'memo_hashable'):  # Deprecated, just here for back-compatibility
         compute_fixed_hash(obj.memo_hashable(), **kwargs)
     elif try_objects:
-        keys = sorted(obj.__dict__.keys())
+        keys = sorted(k for k in obj.__dict__.keys() if not use_only_public_fields or not k.startswith('_'))
         for k in keys:
             compute_fixed_hash(k, **kwargs)
             compute_fixed_hash(obj.__dict__[k], **kwargs)
@@ -84,7 +95,14 @@ def compute_fixed_hash(obj, try_objects=False, _hasher = None, _memo = None, _co
         raise NotImplementedError("Don't have a method for hashing this %s" % (obj, ))
 
     _hasher.update(_END_CODE)  # Necessary to distinguish ([a, b], c) from ([a, b, c])
-    result = _hasher.hexdigest()
+    if hashrep == HashRep.HEX:
+        result = _hasher.hexdigest()
+    elif hashrep == HashRep.BASE_32:
+        result = base64.b32encode(_hasher.digest()).decode('ascii').rstrip('=')
+    elif hashrep == HashRep.BASE_64:
+        result = base64.b64encode(_hasher.digest()).decode('ascii').rstrip('=')
+    else:
+        raise Exception(f"No hash rep {hashrep}")
     _memo[id(obj)] = result
     return result
 

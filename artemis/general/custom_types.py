@@ -23,6 +23,7 @@ class Array(Generic[Shape, DType], np.ndarray):
 GeneralImageArray = np.ndarray  # Can be (H, W, C) or (H, W), uint8 or float or int or whatever
 BGRImageArray = np.ndarray
 RGBImageArray = np.ndarray
+IndexImageArray = np.ndarray  # A (H, W) array of integer indices
 FlatBGRImageArray = np.ndarray
 GreyScaleImageArray = np.ndarray
 BGRFloatImageArray = np.ndarray  # A BGR image containing floating point data (expected to be in range 0-255, but possibly outside)

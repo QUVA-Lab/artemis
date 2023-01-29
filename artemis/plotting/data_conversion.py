@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import Optional, Tuple
 
 from artemis.general.should_be_builtins import memoize
 import numpy as np
@@ -36,7 +37,7 @@ def put_vector_in_grid(vec, shape = None, empty_val = 0):
 
 
 @memoize
-def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_width, is_colour = None):
+def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape: Optional[Tuple[int, int]], boundary_width: int, is_colour = None, min_size_xy: Tuple[int, int] = (0, 0)):
 
     assert len(shape) in (3, 4) or len(shape)==5 and shape[-1]==3
     if is_colour is None:
@@ -48,7 +49,12 @@ def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_wi
         grid_shape = vector_length_to_tile_dims(shape[0]) if is_vector else shape[:2]
     n_rows, n_cols = grid_shape
 
-    output_shape = n_rows*(size_y+boundary_width)+1, n_cols*(size_x+boundary_width)+1
+    minx, miny = min_size_xy
+
+    output_shape_initial = n_rows*(size_y+boundary_width)+1, n_cols*(size_x+boundary_width)+1
+    output_shape = max(miny, n_rows*(size_y+boundary_width)+1), max(minx, n_cols*(size_x+boundary_width)+1)
+    offset_y, offset_x = (max(0, (s2-s1)//2) for s1, s2 in zip(output_shape_initial, output_shape))
+
     index_pairs = []
     for i in xrange(n_rows):
         for j in xrange(n_cols):
@@ -58,20 +64,34 @@ def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_wi
                     break
             else:
                 pull_indices = (i, j)
-            start_row, start_col = i*(size_y+1)+1, j*(size_x+1)+1
+            start_row, start_col = i*(size_y+1)+1+offset_y, j*(size_x+1)+1+offset_x
             push_indices = slice(start_row, start_row+size_y), slice(start_col, start_col+size_x)
             index_pairs.append((pull_indices, push_indices))
     return output_shape, index_pairs
 
 
-def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128), dtype = 'uint8'), cmap = 'gray',
-        boundary_width = 1, clims = None, is_color_data=None, nan_colour=None):
+def put_data_in_grid(data, fill_value, grid_shape = None, boundary_width: int = 1, min_size_xy: Tuple[int, int] = (0, 0)):
     """
     Given a 3-d or 4-D array, put it in a 2-d grid.
     :param data: A 4-D array of any data type
     :return: A 3-D uint8 array of shape (n_rows, n_cols, 3)
     """
-    output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width, is_colour=is_color_data)
+    output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width, is_colour=False, min_size_xy=min_size_xy)
+    output_data = np.empty(output_shape, dtype=data.dtype)
+    output_data[..., :] = fill_value  # Maybe more efficient just to set the spaces.
+    for pull_slice, push_slice in slice_pairs:
+        output_data[push_slice] = data[pull_slice]
+    return output_data
+
+
+def put_data_in_image_grid(data, grid_shape: Optional[Tuple[int, int]] = None, fill_colour = np.array((0, 0, 128), dtype ='uint8'), cmap ='gray',
+                           boundary_width = 1, clims = None, is_color_data=None, nan_colour=None, min_size_xy: Tuple[int, int] = (0, 0)):
+    """
+    Given a 3-d or 4-D array, put it in a 2-d grid.
+    :param data: A 4-D array of any data type
+    :return: A 3-D uint8 array of shape (n_rows, n_cols, 3)
+    """
+    output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width, is_colour=is_color_data, min_size_xy=min_size_xy)
     output_data = np.empty(output_shape+(3, ), dtype='uint8')
     output_data[..., :] = fill_colour  # Maybe more efficient just to set the spaces.
     scaled_data = data_to_image(data, clims = clims, cmap = cmap, is_color_data=is_color_data, nan_colour=nan_colour)
@@ -80,7 +100,7 @@ def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128)
     return output_data
 
 
-def put_list_of_images_in_array(list_of_images, fill_colour = np.array((0, 0, 0))):
+def put_list_of_images_in_array(list_of_images, fill_colour = np.array((0, 0, 0)), padding: int = 0):
     """
     Arrange a list of images into a grid.  They do not necessairlily need to have the same size.
 
@@ -88,8 +108,8 @@ def put_list_of_images_in_array(list_of_images, fill_colour = np.array((0, 0, 0)
     :param fill_colour: The colour with which to fill the gaps
     :return: A (n_images, size_y, size_x, 3) array of images.
     """
-    size_y = max(im.shape[0] for im in list_of_images)
-    size_x = max(im.shape[1] for im in list_of_images)
+    size_y = max(im.shape[0] for im in list_of_images)+padding*2
+    size_x = max(im.shape[1] for im in list_of_images)+padding*2
     im_array = np.zeros((len(list_of_images), size_y, size_x, 3))+fill_colour
     for g, im in zip(im_array, list_of_images):
         top = int((size_y-im.shape[0])/2)

@@ -124,7 +124,7 @@ class ImageBuilder:
     def draw_box(self, box: BoundingBox | RelativeBoundingBox, colour: BGRColorTuple = BGRColors.RED,
                  secondary_colour: Optional[BGRColorTuple] = None,
                  text_background_color: Optional[BGRColorTuple] = None,
-
+                 text_scale = 0.7,
                  thickness: int = 1, box_id: Optional[int] = None,
                  include_labels = True, show_score_in_label: bool = True,  score_as_pct: bool = False) -> 'ImageBuilder':
 
@@ -141,7 +141,7 @@ class ImageBuilder:
         label = ','.join(str(i) for i in [box_id, box.label, None if not show_score_in_label else f"{box.score:.0%}" if score_as_pct else f"{box.score:.2f}"] if i is not None)
         if include_labels:
 
-            put_text_at(self.image, text=label, position_xy=(jmin, imin if box.y_min > box.y_max-box.y_min else imax), scale=.7*self.image.shape[1]/640, color=colour, shadow_color = BGRColors.BLACK, background_color=text_background_color, thickness=thickness)
+            put_text_at(self.image, text=label, position_xy=(jmin, imin if box.y_min > box.y_max-box.y_min else imax), scale=text_scale*self.image.shape[1]/640, color=colour, shadow_color = BGRColors.BLACK, background_color=text_background_color, thickness=thickness)
             # cv2.putText(self.image, text=label, org=(imin, jmin), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=.7*self.image.shape[1]/640,
             #             color=colour, thickness=thickness)
 
@@ -165,6 +165,7 @@ class ImageBuilder:
                             secondary_colour: Optional[BGRColorTuple] = BGRColors.BLACK,
                             text_background_colors: Optional[Iterable[BGRColorTuple]] = None,
                             thickness: int = 2,
+                            text_scale=0.7,
                             score_as_pct: bool = False,
                             include_labels: bool = True,
                             show_score_in_label: bool = False,
@@ -177,7 +178,7 @@ class ImageBuilder:
             text_background_colors = (None for _ in itertools.count(0))
         for bb, bg in zip(boxes, text_background_colors):
             self.draw_box(bb, colour=colour, secondary_colour=secondary_colour, text_background_color=bg, thickness=thickness, score_as_pct=score_as_pct, show_score_in_label=show_score_in_label,
-                          include_labels=include_labels)
+                          include_labels=include_labels, text_scale=text_scale)
         if include_inset:
             self.draw_corner_inset(
                 ImageRow(*(ImageBuilder(b.slice_image(original_image)).rescale(inset_zoom_factor).image for b in boxes)).render(),
@@ -185,7 +186,17 @@ class ImageBuilder:
         return self
 
     def draw_border(self, color: BGRColorTuple, thickness: int = 2) -> 'ImageBuilder':
-        return self.draw_box(BoundingBox.from_ltrb(0, 0, self.image.shape[1]-1, self.image.shape[0]-1), thickness=thickness, colour=color, include_labels=False)
+        # border_ixs = list(range(thickness))+list(range(-thickness, 0))
+        # self.image[border_ixs, border_ixs] = color
+
+        self.image[:thickness, :] = color
+        self.image[-thickness:, : ] = color
+        self.image[:, :thickness] = color
+        self.image[:, -thickness:] = color
+
+
+        return self
+        # return self.draw_box(BoundingBox.from_ltrb(0, 0, self.image.shape[1]-1, self.image.shape[0]-1), thickness=thickness, colour=color, include_labels=False)
 
     def draw_zoom_inset_from_box(self, box: BoundingBox, scale_factor: int, border_color=BGRColors.GREEN, border_thickness: int = 2, corner = 'br', backup_corner='bl') -> 'ImageBuilder':
         # TODO: Make it nor crash when box is too big

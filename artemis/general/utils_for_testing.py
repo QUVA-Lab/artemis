@@ -2,7 +2,7 @@ import shutil
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Optional, Callable
 import os
 import numpy as np
 
@@ -18,22 +18,52 @@ def stringlist_to_mask(*stringlist: Sequence[str]) -> MaskImageArray:
     return np.array([list(row) for row in stringlist])=='X'
 
 
+def delete_existing(path: str) -> bool:
+    if os.path.exists(path):
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+    return True
+
+
+def prepare_path_for_write(path: str, overwright_callback: Callable[[str], bool] = lambda s: True) -> str:
+    final_path = os.path.expanduser(path)
+    if os.path.exists(final_path):
+        if overwright_callback(path):
+            raise FileExistsError(f"File {path} already exists")
+    parent_dir, _ = os.path.split(final_path)
+    os.makedirs(parent_dir, exist_ok=True)
+    return final_path
+
+
 @contextmanager
-def hold_tempdir():
+def hold_tempdir(path_if_successful: Optional[str] = None):
 
     tempdir = tempfile.mkdtemp()
     try:
         yield tempdir
+        if path_if_successful:
+            if os.path.exists(tempdir):
+                final_path = prepare_path_for_write(path_if_successful, overwright_callback=delete_existing)
+                shutil.move(tempdir, final_path)
     finally:
         if os.path.exists(tempdir):
             shutil.rmtree(tempdir)
 
 
 @contextmanager
-def hold_tempfile(ext = ''):
+def hold_tempfile(ext = '', path_if_successful: Optional[str] = None):
     tempfilename = tempfile.mktemp() + ext
     try:
         yield tempfilename
+        if path_if_successful:
+            if os.path.exists(tempfilename):
+                final_path = prepare_path_for_write(path_if_successful)
+                shutil.move(tempfilename, final_path)
+                print(f"Wrote temp file to {final_path}")
+            else:
+                print(f"Temp file did not exist, so could not save it to {tempfilename}")
     finally:
         if os.path.exists(tempfilename):
             os.remove(tempfilename)

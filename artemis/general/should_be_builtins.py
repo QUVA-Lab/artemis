@@ -345,6 +345,18 @@ def remove_common_string_prefix(list_of_strings, separator = '', max_elements = 
     return [separator.join(strlist) for strlist in shortened_list_of_lists]
 
 
+def remove_prefix(string: str, prefix: str) -> str:
+    if string.startswith(prefix):
+        return string[len(prefix):]
+    return string
+
+
+def remove_suffix(string: str, suffix: str) -> str:
+    if string.endswith(suffix):
+        return string[:-len(suffix)]
+    return string
+
+
 def get_absolute_module(obj):
     """
     Get the abolulte path to the module for the given object.

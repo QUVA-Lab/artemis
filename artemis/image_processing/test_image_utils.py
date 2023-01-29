@@ -1,9 +1,12 @@
+from artemis.general.custom_types import BGRImageArray
+from artemis.plotting.cv2_plotting import just_show
+from artemis.plotting.easy_window import ImageRow
 from eagle_eyes.datasets.videos import DroneVideos
-from artemis.image_processing.image_utils import iter_images_from_video, mask_to_boxes, conditional_running_min, slice_image_with_pad
+from artemis.image_processing.image_utils import iter_images_from_video, mask_to_boxes, conditional_running_min, slice_image_with_pad, ImageViewInfo, load_artemis_image
 import numpy as np
-
+import os
 from artemis.general.utils_for_testing import stringlist_to_mask
-
+import cv2
 
 def test_iter_images_from_video():
 
@@ -111,10 +114,47 @@ def test_slice_image_with_pad():
 
 
 
+def test_image_view_info(show: bool = False):
+
+    image = load_artemis_image()
+
+    pixel_xy_of_bottom_of_ear = (512, 228)
+
+    # image = cv2.imread(cv2.samples.find_file("starry_night.jpg"))
+    frame1 = ImageViewInfo.from_initial_view(window_disply_wh=(500, 500), image_wh=(image.shape[1], image.shape[0]))
+    display_xy_of_bottom_of_ear = frame1.pixel_xy_to_display_xy(pixel_xy_of_bottom_of_ear)
+    recon_pixel_xy_of_bottom_of_ear = frame1.display_xy_to_pixel_xy(display_xy_of_bottom_of_ear)
+    frame2 = frame1.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear)
+    frame3 = frame2.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear)
+    frame4 = frame3.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear)
+    frame5 = frame4.zoom_by(relative_zoom=1.5, invariant_display_xy=display_xy_of_bottom_of_ear)
+    f5_recon_pixel_xy_of_bottom_of_ear = frame5.display_xy_to_pixel_xy(display_xy_of_bottom_of_ear)
+    assert tuple(np.round(f5_recon_pixel_xy_of_bottom_of_ear).astype(int)) == pixel_xy_of_bottom_of_ear
+    # frame1 = frame.create_display_image(image)
+
+    frame6 = frame3.pan_by(display_rel_xy=(0.5, 0), limit=True)
+    frame7 = frame6.pan_by(display_rel_xy=(0.5, 0), limit=True)
+    frame8 = frame7.pan_by(display_rel_xy=(0, .5), limit=True)
+    frame9 = frame8.pan_by(display_rel_xy=(0, .5), limit=True)
+
+
+
+    crops = [f.create_display_image(image) for f in [frame1, frame2, frame3, frame4, frame5, frame6, frame7, frame8, frame9]]
+    # crops = [f.create_display_image(image) for f in [frame1, frame3]]
+
+    # crop1 = frame.create_display_image(image)
+    # crop2 = frame.zoom_by(relative_zoom=1.5, invariant_display_xy=(500, 250)).create_display_image(image)
+
+    if show:
+        display_img = ImageRow(image, *crops, wrap=6).render()
+        just_show(display_img, hang_time=10)
+
+
+
 if __name__ == "__main__":
     # test_iter_images_from_video()
     # test_mask_to_boxes()
     # test_conditional_running_min()
-    test_slice_image_with_pad()
-
+    # test_slice_image_with_pad()
+    test_image_view_info(show=True)
 
