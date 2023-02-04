@@ -132,10 +132,10 @@ def test_image_view_info(show: bool = False):
     assert tuple(np.round(f5_recon_pixel_xy_of_bottom_of_ear).astype(int)) == pixel_xy_of_bottom_of_ear
     # frame1 = frame.create_display_image(image)
 
-    frame6 = frame3.pan_by(display_rel_xy=(0.5, 0), limit=True)
-    frame7 = frame6.pan_by(display_rel_xy=(0.5, 0), limit=True)
-    frame8 = frame7.pan_by(display_rel_xy=(0, .5), limit=True)
-    frame9 = frame8.pan_by(display_rel_xy=(0, .5), limit=True)
+    frame6 = frame3.pan_by_display_relshift(display_rel_xy=(0.5, 0), limit=True)
+    frame7 = frame6.pan_by_display_relshift(display_rel_xy=(0.5, 0), limit=True)
+    frame8 = frame7.pan_by_display_relshift(display_rel_xy=(0, .5), limit=True)
+    frame9 = frame8.pan_by_display_relshift(display_rel_xy=(0, .5), limit=True)
 
     frame10 = frame9.zoom_by(relative_zoom=0.75, invariant_display_xy=(0, 0))
     frame11 = frame5.zoom_out()

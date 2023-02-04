@@ -128,6 +128,10 @@ class VideoReader:
                                                             frame_interval=frame_interval,
                                                             n_frames_total=self.container.streams.video[0].frames)
         self._metadata: Optional[VideoMetaData] = None
+        self._is_destroyed = False
+        # Call a function to notify us when this object gets destroyed
+        # def is_des
+
         # self._n_frames =
 
     def get_metadata(self) -> VideoMetaData:
@@ -151,6 +155,9 @@ class VideoReader:
 
     def frame_index_to_nearest_frame(self, index: int) -> int:
         return max(0, min(self.get_n_frames() - 1, index))
+
+    def frame_index_to_time(self, frame_ix: int) -> float:
+        return frame_ix / self._fps
 
     def iter_frame_ixs(self, time_interval: TimeIntervalTuple = (None, None),
                        frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)
@@ -191,6 +198,9 @@ class VideoReader:
         Request a frame of the video.  If the requested frame is out of bounds, this will return the frame
         on the closest edge.
         """
+        if self._is_destroyed:
+            raise Exception("This object has been explicitly destroyed.")
+        # print(f"Requesting frame {index}")
         if index < 0:
             index = self.get_n_frames() + index
         index = max(0, min(self.get_n_frames() - 1, index))
@@ -239,3 +249,12 @@ class VideoReader:
                     break
             self._next_index_to_be_read = index_in_file
             return self.request_frame(index)
+
+    def destroy(self):
+        self._iterator = None
+        self._frame_cache = None
+        self._is_destroyed = True
+
+
+    # def __del__(self):
+    #     print(f"Video reader {id(self)} closed!")

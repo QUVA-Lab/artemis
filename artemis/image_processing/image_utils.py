@@ -72,24 +72,26 @@ _ALTERNATE_SHOW_FUNC: Optional[ShowFunction] = None
 # Alternate function for showing an image.  Returns a key-string if any key pressed.
 
 
-def resize_to_fit(image: BGRImageArray, xy_size: Union[int, Tuple[int, int]], expand: bool = False) -> BGRImageArray:
+def resize_to_fit(image: BGRImageArray, xy_size: Union[int, Tuple[int, int]], expand: bool = False, interpolation=cv2.INTER_AREA
+                  ) -> BGRImageArray:
     if isinstance(xy_size, int):
         xy_size = (xy_size, xy_size)
     sy, sx = image.shape[:2]
     smx, smy = xy_size
     x_rat, y_rat = sx / smx, sy / smy
     if x_rat >= y_rat and (expand or y_rat > 1):
-        return cv2.resize(image, dsize=(smx, int(sy / x_rat)))
+        return cv2.resize(image, dsize=(smx, int(sy / x_rat)), interpolation=interpolation)
     elif y_rat >= x_rat and (expand or x_rat > 1):
-        return cv2.resize(image, dsize=(int(sx / y_rat), smy))
+        return cv2.resize(image, dsize=(int(sx / y_rat), smy), interpolation=interpolation)
     else:
         return image
 
 
 def put_image_in_box(image: BGRImageArray, xy_size: Union[int, Tuple[int, int]],
                      gap_colour: BGRColorTuple = DEFAULT_GAP_COLOR, expand=True,
+                     interpolation=cv2.INTER_AREA
                      ) -> BGRImageArray:
-    resized_image = resize_to_fit(image, xy_size=xy_size, expand=expand)
+    resized_image = resize_to_fit(image, xy_size=xy_size, expand=expand, interpolation=interpolation)
     box = create_gap_image(xy_size, gap_colour=gap_colour)
     y_start = (xy_size[1] - resized_image.shape[0]) // 2
     x_start = (xy_size[0] - resized_image.shape[1]) // 2
@@ -216,9 +218,8 @@ def iter_passthrough_write_video(image_stream: Iterable[BGRImageArray], path: st
     print(f'Saved video to {path}')
 
 
-
 def fade_image(image: BGRImageArray, fade_level: float) -> BGRImageArray:
-    return (image.astype(np.float)*fade_level).astype(np.uint8)
+    return (image.astype(np.float) * fade_level).astype(np.uint8)
 
 
 def mask_to_color_image(mask: MaskImageArray) -> BGRImageArray:
@@ -461,7 +462,7 @@ class BoundingBox(BaseBox):
     def to_crop_ij(self) -> Tuple[int, int]:
         """ Get the (row, col) of the center of the box in the frame of the cropped image"""
         i, j = self.to_ij()
-        return i-int(self.y_min), j-int(self.x_min)
+        return i - int(self.y_min), j - int(self.x_min)
 
     def compute_iou(self, other: 'BoundingBox') -> float:
         """ Get Intersection-over-Union overlap area between boxes - will be between zero and 1 """
@@ -613,8 +614,8 @@ def vstack_images(images: Sequence[BGRImageArray], gap_colour: BGRColorTuple = D
 
 def create_gap_image(  # Generate a colour image filled with one colour
         size: Tuple[int, int],  # Image (width, height))
-        gap_colour: Optional[Tuple[int, int, int]] = None  # BGR color to fill gap, or None to use default
-) -> 'array(H,W,3)[uint8]':
+        gap_colour: BGRColorTuple = None  # BGR color to fill gap, or None to use default
+) -> BGRImageArray:
     if gap_colour is None:
         gap_colour = DEFAULT_GAP_COLOR
 
@@ -624,8 +625,22 @@ def create_gap_image(  # Generate a colour image filled with one colour
     return img
 
 
-def create_random_image(size_xy: Tuple[int, int], in_color: bool = True, seed = None) -> BGRImageArray:
-    return np.random.RandomState(seed).randint(0, 256, size=(size_xy[1], size_xy[0])+((3, ) if in_color else ()), dtype=np.uint8)
+def create_placeholder_image(  # Generate a colour image filled with one colour
+        size: Tuple[int, int],  # Image (width, height))
+        gap_colour: BGRColorTuple = None,  # BGR color to fill gap, or None to use default
+        x_color: BGRColorTuple = BGRColors.LIGHT_GRAY,
+) -> BGRImageArray:
+    gap_image = create_gap_image(gap_colour=gap_colour, size=size)
+    n_steps = max(gap_image.shape[:2])
+    row_ixs = np.linspace(0, gap_image.shape[0] - 1, n_steps).astype(np.int)
+    col_ixs = np.linspace(0, gap_image.shape[1] - 1, n_steps).astype(np.int)
+    gap_image[row_ixs, col_ixs] = x_color
+    gap_image[row_ixs, -col_ixs] = x_color
+    return gap_image
+
+
+def create_random_image(size_xy: Tuple[int, int], in_color: bool = True, seed=None) -> BGRImageArray:
+    return np.random.RandomState(seed).randint(0, 256, size=(size_xy[1], size_xy[0]) + ((3,) if in_color else ()), dtype=np.uint8)
 
 
 @attrs
@@ -739,18 +754,15 @@ def display_to_pixel_dim(display_coord: float, pixel_center_coord: float, window
 
 
 def get_min_zoom(img_wh: Tuple[int, int], window_wh: Tuple[int, int]) -> float:
-    return min(window_wh[i]/img_wh[i] for i in (0, 1))
+    return min(window_wh[i] / img_wh[i] for i in (0, 1))
 
 
 def clip_to_slack_bounds(x: float, bound: Tuple[float, float]) -> float:
-
     x_lower, x_upper = bound
     if x_lower <= x_upper:
         return np.clip(x, x_lower, x_upper)
     else:
-        return (x_lower+x_upper)/2
-
-
+        return (x_lower + x_upper) / 2
 
 
 @dataclass
@@ -765,18 +777,21 @@ class ImageViewInfo:
     @classmethod
     def from_initial_view(cls, window_disply_wh: Tuple[int, int], image_wh: Tuple[int, int], scroll_bar_width: int = 10) -> 'ImageViewInfo':
         return ImageViewInfo(
-            zoom_level = get_min_zoom(img_wh=image_wh, window_wh=np.asarray(window_disply_wh) - scroll_bar_width),
-            center_pixel_xy = tuple(s//2 for s in image_wh),
+            zoom_level=get_min_zoom(img_wh=image_wh, window_wh=np.asarray(window_disply_wh) - scroll_bar_width),
+            center_pixel_xy=tuple(s // 2 for s in image_wh),
             window_disply_wh=window_disply_wh,
             image_wh=image_wh
         )
+
+    def adjust_frame_and_image_size(self, new_frame_wh: Tuple[int, int], new_image_wh: Tuple[int, int]) -> 'ImageViewInfo':
+        return replace(self, window_disply_wh=new_frame_wh, image_wh=new_image_wh)
 
     def _get_display_wh(self) -> Tuple[int, int]:
         return self.window_disply_wh[0] - self.scroll_bar_width, self.window_disply_wh[1] - self.scroll_bar_width
 
     def _get_display_midpoint_xy(self) -> Tuple[float, float]:
         w, h = self._get_display_wh()
-        return w/2, h/2
+        return w / 2, h / 2
 
     def _get_min_zoom(self) -> float:
         return get_min_zoom(img_wh=self.image_wh, window_wh=self._get_display_wh())
@@ -787,13 +802,13 @@ class ImageViewInfo:
 
     def zoom_by(self, relative_zoom: float, invariant_display_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
 
-        new_zoom = max(self._get_min_zoom(), self.zoom_level*relative_zoom) if limit else self.zoom_level*relative_zoom
+        new_zoom = max(self._get_min_zoom(), self.zoom_level * relative_zoom) if limit else self.zoom_level * relative_zoom
 
         invariant_display_xy = np.maximum(0, np.minimum(self._get_display_wh(), invariant_display_xy))
         invariant_pixel_xy = self.display_xy_to_pixel_xy(display_xy=invariant_display_xy)
 
-        coeff = (1-1/relative_zoom)
-        new_center_pixel_xy = tuple(np.array(self.center_pixel_xy)*(1-coeff) + np.array(invariant_pixel_xy)*coeff)
+        coeff = (1 - 1 / relative_zoom)
+        new_center_pixel_xy = tuple(np.array(self.center_pixel_xy) * (1 - coeff) + np.array(invariant_pixel_xy) * coeff)
         result = replace(self, zoom_level=new_zoom, center_pixel_xy=new_center_pixel_xy)
         if limit:
             result = result.adjust_pan_to_boundary()
@@ -801,27 +816,32 @@ class ImageViewInfo:
 
     def adjust_pan_to_boundary(self) -> 'ImageViewInfo':
         display_edge_xy = np.asarray(self._get_display_midpoint_xy())
-        pixel_edge_xy = display_edge_xy/self.zoom_level
-        adjusted_pixel_center_xy = tuple(clip_to_slack_bounds(v, bound=(e, self.image_wh[i]-e)) for i, (v, e) in enumerate(zip(self.center_pixel_xy, pixel_edge_xy)))
+        pixel_edge_xy = display_edge_xy / self.zoom_level
+        adjusted_pixel_center_xy = tuple(clip_to_slack_bounds(v, bound=(e, self.image_wh[i] - e)) for i, (v, e) in enumerate(zip(self.center_pixel_xy, pixel_edge_xy)))
         return replace(self, center_pixel_xy=adjusted_pixel_center_xy)
 
-    def pan_by(self, display_rel_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
-
-        pixel_shift_xy = np.asarray(display_rel_xy)*self._get_display_wh() * self.zoom_level
+    def pan_by_pixel_shift(self, pixel_shift_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
         new_center_pixel_xy = tuple(np.array(self.center_pixel_xy) + pixel_shift_xy)
         result = replace(self, center_pixel_xy=new_center_pixel_xy)
         if limit:
             result = result.adjust_pan_to_boundary()
         return result
 
+    def pan_by_display_relshift(self, display_rel_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
+        pixel_shift_xy = np.asarray(display_rel_xy) * self._get_display_wh() * self.zoom_level
+        return self.pan_by_pixel_shift(pixel_shift_xy=pixel_shift_xy, limit=limit)
+
+    def pan_by_display_shift(self, display_shift_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
+        pixel_shift_xy = np.asarray(display_shift_xy) * self.zoom_level
+        return self.pan_by_pixel_shift(pixel_shift_xy=pixel_shift_xy, limit=limit)
+
     def display_xy_to_pixel_xy(self, display_xy: Array["N,2", float], limit: bool = True) -> Array["N,2", float]:
         """ Map pixel-location in display image to pixel image.  Optionally, limit result to bounds of image """
-
         pixel_xy = reframe_from_a_to_b(
             xy_in_a=display_xy,
             reference_xy_in_b=self.center_pixel_xy,
             reference_xy_in_a=self._get_display_midpoint_xy(),
-            scale_in_a_of_b=1/self.zoom_level,
+            scale_in_a_of_b=1 / self.zoom_level,
         )
         if limit:
             pixel_xy = np.maximum(0, np.minimum(self.image_wh, pixel_xy))
@@ -833,7 +853,7 @@ class ImageViewInfo:
             xy_in_b=pixel_xy,
             reference_xy_in_b=self.center_pixel_xy,
             reference_xy_in_a=self._get_display_midpoint_xy(),
-            scale_in_a_of_b=1/self.zoom_level,
+            scale_in_a_of_b=1 / self.zoom_level,
         )
         if limit:
             display_xy = np.maximum(0, np.minimum(np.asarray(self._get_display_wh()), display_xy))
@@ -841,45 +861,48 @@ class ImageViewInfo:
 
     def create_display_image(self,
                              image: BGRImageArray,
-                             gap_color = DEFAULT_GAP_COLOR,
-                             scroll_bg_color = BGRColors.DARK_GRAY,
-                             scroll_fg_color = BGRColors.LIGHT_GRAY,
+                             gap_color=DEFAULT_GAP_COLOR,
+                             scroll_bg_color=BGRColors.DARK_GRAY,
+                             scroll_fg_color=BGRColors.LIGHT_GRAY,
                              nearest_neighbor_zoom_threshold: float = 5,
                              ) -> BGRImageArray:
 
-        result_array = np.full(self.window_disply_wh+image.shape[2:], dtype=image.dtype, fill_value=gap_color)
+        result_array = np.full(self.window_disply_wh[::-1] + image.shape[2:], dtype=image.dtype, fill_value=gap_color)
         result_array[-self.scroll_bar_width:, :-self.scroll_bar_width] = scroll_bg_color
         result_array[:-self.scroll_bar_width, -self.scroll_bar_width:] = scroll_bg_color
 
         src_topleft_xy = self.display_xy_to_pixel_xy(display_xy=(0, 0), limit=True).astype(np.int)
         src_bottomright_xy = self.display_xy_to_pixel_xy(display_xy=self._get_display_wh(), limit=True).astype(np.int)
 
-        dest_topleft_xy= self.pixel_xy_to_display_xy(pixel_xy=src_topleft_xy, limit=True).astype(np.int)
+        dest_topleft_xy = self.pixel_xy_to_display_xy(pixel_xy=src_topleft_xy, limit=True).astype(np.int)
         dest_bottomright_xy = self.pixel_xy_to_display_xy(pixel_xy=src_bottomright_xy, limit=True).astype(np.int)
         (src_x1, src_y1), (src_x2, src_y2) = src_topleft_xy, src_bottomright_xy
         (dest_x1, dest_y1), (dest_x2, dest_y2) = dest_topleft_xy, dest_bottomright_xy
 
         # Add the image
         src_image = image[src_y1:src_y2, src_x1:src_x2]
-        src_image_scaled = cv2.resize(src_image, (dest_x2-dest_x1, dest_y2-dest_y1), interpolation=cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR)
+        src_image_scaled = cv2.resize(src_image, (dest_x2 - dest_x1, dest_y2 - dest_y1), interpolation=cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR)
         result_array[dest_y1:dest_y2, dest_x1:dest_x2] = src_image_scaled
 
         # Add the scroll bars
-        scroll_fraxs_x: Tuple[float, float] = (src_x1/image.shape[1], src_x2/image.shape[1])
-        scroll_fraxs_y: Tuple[float, float] = (src_y1/image.shape[0], src_y2/image.shape[0])
+        scroll_fraxs_x: Tuple[float, float] = (src_x1 / image.shape[1], src_x2 / image.shape[1])
+        scroll_fraxs_y: Tuple[float, float] = (src_y1 / image.shape[0], src_y2 / image.shape[0])
         space_x, space_y = self._get_display_wh()
-        scroll_bar_x_slice = slice(max(0, round(scroll_fraxs_x[0]*space_x)), min(space_x, round(scroll_fraxs_x[1]*space_x)))
-        scroll_bar_y_slice = slice(max(0, round(scroll_fraxs_y[0]*space_y)), min(space_y, round(scroll_fraxs_y[1]*space_y)))
+        scroll_bar_x_slice = slice(max(0, round(scroll_fraxs_x[0] * space_x)), min(space_x, round(scroll_fraxs_x[1] * space_x)))
+        scroll_bar_y_slice = slice(max(0, round(scroll_fraxs_y[0] * space_y)), min(space_y, round(scroll_fraxs_y[1] * space_y)))
         result_array[scroll_bar_y_slice, -self.scroll_bar_width:] = scroll_fg_color
         result_array[-self.scroll_bar_width:, scroll_bar_x_slice] = scroll_fg_color
 
         return result_array
 
 
-def load_artemis_image() -> BGRImageArray:
-    path = os.path.join(os.path.split(os.path.abspath(__file__))[0], 'artemis.jpeg')
+def load_artemis_image(which: str = 'statue') -> BGRImageArray:
+    path = {
+        'statue': os.path.join(os.path.split(os.path.abspath(__file__))[0], 'artemis.jpeg'),
+        'drawing': os.path.join(os.path.split(os.path.abspath(__file__))[0], 'artemis-drawing.jpeg'),
+    }[which]
+    # path = os.path.join(os.path.split(os.path.abspath(__file__))[0], 'artemis.jpeg')
     return cv2.imread(path)
-
 
 # @dataclass
 # class ImageBoxViewer:
@@ -897,7 +920,6 @@ def load_artemis_image() -> BGRImageArray:
 #             self._canvas_cache = np.empty((window_disply_wh[1], window_disply_wh[0])+source_image.shape[2:], dtype=source_image.dtype)
 #
 #         # TODO: Fill in
-
 
 
 #

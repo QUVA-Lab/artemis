@@ -28,9 +28,12 @@ def delete_existing(path: str) -> bool:
 
 
 def prepare_path_for_write(path: str, overwright_callback: Callable[[str], bool] = lambda s: True) -> str:
+    """
+    Prepare a path for writing.  Overwright callback will be called if the file exists already and returns True if it is ok to overwright
+    """
     final_path = os.path.expanduser(path)
     if os.path.exists(final_path):
-        if overwright_callback(path):
+        if not overwright_callback(path):
             raise FileExistsError(f"File {path} already exists")
     parent_dir, _ = os.path.split(final_path)
     os.makedirs(parent_dir, exist_ok=True)
@@ -43,10 +46,10 @@ def hold_tempdir(path_if_successful: Optional[str] = None):
     tempdir = tempfile.mkdtemp()
     try:
         yield tempdir
-        if path_if_successful:
-            if os.path.exists(tempdir):
-                final_path = prepare_path_for_write(path_if_successful, overwright_callback=delete_existing)
-                shutil.move(tempdir, final_path)
+        if path_if_successful and os.path.exists(tempdir):
+            final_path = prepare_path_for_write(path_if_successful, overwright_callback=delete_existing)
+            shutil.move(tempdir, final_path)
+            print(f"Wrote temp dir to {final_path}")
     finally:
         if os.path.exists(tempdir):
             shutil.rmtree(tempdir)
