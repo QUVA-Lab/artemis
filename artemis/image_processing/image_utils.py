@@ -211,7 +211,9 @@ def iter_passthrough_write_video(image_stream: Iterable[BGRImageArray], path: st
     for img in image_stream:
         if cap is None:
             # cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps=fps, frameSize=(img.shape[1], img.shape[0]))
-            cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('H', '2', '6', '4'), fps=fps, frameSize=(img.shape[1], img.shape[0]))
+            # cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('H', '2', '6', '4'), fps=fps, frameSize=(img.shape[1], img.shape[0]))
+            # Make it write high-quality video
+            cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps=fps, frameSize=(img.shape[1], img.shape[0]), isColor=True)
         cap.write(img)
         yield img
     cap.release()
@@ -828,7 +830,7 @@ class ImageViewInfo:
         return result
 
     def pan_by_display_relshift(self, display_rel_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
-        pixel_shift_xy = np.asarray(display_rel_xy) * self._get_display_wh() * self.zoom_level
+        pixel_shift_xy = np.asarray(display_rel_xy) * self._get_display_wh() #* self.zoom_level
         return self.pan_by_pixel_shift(pixel_shift_xy=pixel_shift_xy, limit=limit)
 
     def pan_by_display_shift(self, display_shift_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
@@ -871,11 +873,11 @@ class ImageViewInfo:
         result_array[-self.scroll_bar_width:, :-self.scroll_bar_width] = scroll_bg_color
         result_array[:-self.scroll_bar_width, -self.scroll_bar_width:] = scroll_bg_color
 
-        src_topleft_xy = self.display_xy_to_pixel_xy(display_xy=(0, 0), limit=True).astype(np.int)
-        src_bottomright_xy = self.display_xy_to_pixel_xy(display_xy=self._get_display_wh(), limit=True).astype(np.int)
+        src_topleft_xy = self.display_xy_to_pixel_xy(display_xy=(0, 0), limit=True).astype(int)
+        src_bottomright_xy = self.display_xy_to_pixel_xy(display_xy=self._get_display_wh(), limit=True).astype(int)
 
-        dest_topleft_xy = self.pixel_xy_to_display_xy(pixel_xy=src_topleft_xy, limit=True).astype(np.int)
-        dest_bottomright_xy = self.pixel_xy_to_display_xy(pixel_xy=src_bottomright_xy, limit=True).astype(np.int)
+        dest_topleft_xy = self.pixel_xy_to_display_xy(pixel_xy=src_topleft_xy, limit=True).astype(int)
+        dest_bottomright_xy = self.pixel_xy_to_display_xy(pixel_xy=src_bottomright_xy, limit=True).astype(int)
         (src_x1, src_y1), (src_x2, src_y2) = src_topleft_xy, src_bottomright_xy
         (dest_x1, dest_y1), (dest_x2, dest_y2) = dest_topleft_xy, dest_bottomright_xy
 

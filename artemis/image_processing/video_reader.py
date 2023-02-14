@@ -9,6 +9,8 @@ from artemis.general.custom_types import BGRImageArray, TimeIntervalTuple
 from artemis.general.utils_utils import bytes_to_string
 from artemis.image_processing.image_utils import fit_image_to_max_size
 from artemis.general.item_cache import CacheDict
+from artemis.general.parsing import parse_time_delta_str_to_sec
+from video_scanner.general_utils.srt_files import SRTInfo
 
 
 @dataclass
@@ -158,6 +160,29 @@ class VideoReader:
 
     def frame_index_to_time(self, frame_ix: int) -> float:
         return frame_ix / self._fps
+
+    def time_indicator_to_nearest_frame(self, time_indicator: str) -> Optional[int]:
+        """ Get the frame index nearest the time-indicator
+        e.g. "0:32.5" "32.5s", "53%", "975" (frame number)
+        Returns None if the time_indicator is invalid
+        """
+        if time_indicator in ('s', 'start'):
+            return 0
+        elif time_indicator in ('e', 'end'):
+            return self.get_n_frames() - 1
+        elif ':' in time_indicator:
+            sec = parse_time_delta_str_to_sec(time_indicator)
+            return round(sec * self.get_metadata().fps)
+        elif time_indicator.endswith('s'):
+            sec = float(time_indicator.rstrip('s'))
+            return round(sec * self.get_metadata().fps)
+        elif time_indicator.endswith('%'):
+            percent = float(time_indicator.rstrip('%'))
+            return round(percent / 100 * self.get_n_frames())
+        elif all(c in '0123456789' for c in time_indicator):
+            return int(time_indicator)
+        else:
+            return None
 
     def iter_frame_ixs(self, time_interval: TimeIntervalTuple = (None, None),
                        frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)
