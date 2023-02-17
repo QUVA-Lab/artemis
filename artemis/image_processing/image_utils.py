@@ -211,9 +211,9 @@ def iter_passthrough_write_video(image_stream: Iterable[BGRImageArray], path: st
     for img in image_stream:
         if cap is None:
             # cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps=fps, frameSize=(img.shape[1], img.shape[0]))
-            # cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('H', '2', '6', '4'), fps=fps, frameSize=(img.shape[1], img.shape[0]))
+            cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('H', '2', '6', '4'), fps=fps, frameSize=(img.shape[1], img.shape[0]))
             # Make it write high-quality video
-            cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps=fps, frameSize=(img.shape[1], img.shape[0]), isColor=True)
+            # cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps=fps, frameSize=(img.shape[1], img.shape[0]), isColor=True)
         cap.write(img)
         yield img
     cap.release()
@@ -830,7 +830,7 @@ class ImageViewInfo:
         return result
 
     def pan_by_display_relshift(self, display_rel_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
-        pixel_shift_xy = np.asarray(display_rel_xy) * self._get_display_wh() #* self.zoom_level
+        pixel_shift_xy = np.asarray(display_rel_xy) * self._get_display_wh() / self.zoom_level
         return self.pan_by_pixel_shift(pixel_shift_xy=pixel_shift_xy, limit=limit)
 
     def pan_by_display_shift(self, display_shift_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':

@@ -10,7 +10,6 @@ from artemis.general.utils_utils import bytes_to_string
 from artemis.image_processing.image_utils import fit_image_to_max_size
 from artemis.general.item_cache import CacheDict
 from artemis.general.parsing import parse_time_delta_str_to_sec
-from video_scanner.general_utils.srt_files import SRTInfo
 
 
 @dataclass
@@ -142,7 +141,7 @@ class VideoReader:
             firstframe = self.request_frame(0)
             self._metadata = VideoMetaData(
                 duration=self._n_frames/self._fps,
-                n_frames=self._n_frames,
+                n_frames=max(1, self._n_frames),  # It seems to give 0 for images which aint right
                 fps=self._fps,
                 n_bytes=file_stats.st_size,
                 size_xy=(firstframe.image.shape[1], firstframe.image.shape[0])
