@@ -128,6 +128,16 @@ def iter_images_from_video(path: str, max_size: Optional[Tuple[int, int]] = None
                            rotation: int = 0,
                            verbose: bool = False,
                            ) -> Iterable[BGRImageArray]:
+
+    # On windows machines the normal video reading does not work for images
+    if any(path.lower().endswith(e) for e in ('.jpg', '.jpeg')):
+        image = cv2.imread(path)
+        if max_size is not None:
+            image = fit_image_to_max_size(image, max_size)
+        assert image is not None, f"Could not read any image from {path}"
+        yield image
+        return
+
     assert not use_scan_selection, "This does not work.  See bug: https://github.com/opencv/opencv/issues/9053"
     path = os.path.expanduser(path)
     cap = cv2.VideoCapture(path)
