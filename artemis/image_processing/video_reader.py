@@ -9,6 +9,7 @@ from artemis.general.custom_types import BGRImageArray, TimeIntervalTuple
 from artemis.general.utils_utils import byte_size_to_string
 from artemis.image_processing.image_utils import fit_image_to_max_size
 from artemis.general.item_cache import CacheDict
+from artemis.general.parsing import parse_time_delta_str_to_sec
 
 
 @dataclass
@@ -140,7 +141,7 @@ class VideoReader:
             firstframe = self.request_frame(0)
             self._metadata = VideoMetaData(
                 duration=self._n_frames/self._fps,
-                n_frames=self._n_frames,
+                n_frames=max(1, self._n_frames),  # It seems to give 0 for images which aint right
                 fps=self._fps,
                 n_bytes=file_stats.st_size,
                 size_xy=(firstframe.image.shape[1], firstframe.image.shape[0])
@@ -158,6 +159,29 @@ class VideoReader:
 
     def frame_index_to_time(self, frame_ix: int) -> float:
         return frame_ix / self._fps
+
+    def time_indicator_to_nearest_frame(self, time_indicator: str) -> Optional[int]:
+        """ Get the frame index nearest the time-indicator
+        e.g. "0:32.5" "32.5s", "53%", "975" (frame number)
+        Returns None if the time_indicator is invalid
+        """
+        if time_indicator in ('s', 'start'):
+            return 0
+        elif time_indicator in ('e', 'end'):
+            return self.get_n_frames() - 1
+        elif ':' in time_indicator:
+            sec = parse_time_delta_str_to_sec(time_indicator)
+            return round(sec * self.get_metadata().fps)
+        elif time_indicator.endswith('s'):
+            sec = float(time_indicator.rstrip('s'))
+            return round(sec * self.get_metadata().fps)
+        elif time_indicator.endswith('%'):
+            percent = float(time_indicator.rstrip('%'))
+            return round(percent / 100 * self.get_n_frames())
+        elif all(c in '0123456789' for c in time_indicator):
+            return int(time_indicator)
+        else:
+            return None
 
     def iter_frame_ixs(self, time_interval: TimeIntervalTuple = (None, None),
                        frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)
