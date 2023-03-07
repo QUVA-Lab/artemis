@@ -6,7 +6,7 @@ from typing import Tuple, Optional, Iterator
 import av
 
 from artemis.general.custom_types import BGRImageArray, TimeIntervalTuple
-from artemis.general.utils_utils import bytes_to_string
+from artemis.general.utils_utils import byte_size_to_string
 from artemis.image_processing.image_utils import fit_image_to_max_size
 from artemis.general.item_cache import CacheDict
 
@@ -42,7 +42,7 @@ class VideoMetaData:
         return f"{self.size_xy[0]}x{self.size_xy[1]}"
 
     def get_size_string(self) -> str:
-        return bytes_to_string(self.n_bytes, decimals_precision=1)
+        return byte_size_to_string(self.n_bytes, decimals_precision=1)
 
 def get_actual_frame_interval(
         n_frames_total: int,

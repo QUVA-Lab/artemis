@@ -156,7 +156,7 @@ class ImageBuilder:
             points_xy = {(x, y): str(i) for i, (x, y) in enumerate(points_xy)}
         for ((x, y), label), c in zip(points_xy.items(), color):
             cv2.circle(self.image, center=(round(x), round(y)), radius=radius, color=c, thickness=thickness)
-            put_text_at(self.image, text=label, pos=(round(x)+10, round(y)+10), color=c, shadow_color=None)
+            put_text_at(self.image, text=label, position_xy=(round(x)+10, round(y)+10), color=c, shadow_color=None)
         return self
 
     def draw_bounding_boxes(self,

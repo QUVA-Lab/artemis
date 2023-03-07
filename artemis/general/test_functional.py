@@ -3,7 +3,7 @@ from functools import partial
 import sys
 from pytest import raises
 from artemis.general.functional import infer_arg_values, get_partial_chain, \
-    partial_reparametrization, advanced_getargspec
+    partial_reparametrization, advanced_getargspec, chain_functions
 
 
 def test_get_full_args():
@@ -129,9 +129,21 @@ def test_advanced_getargspec():
     assert defaults == dict(d=4)
 
 
+def test_chain_functions():
+    def func1(a: str) -> int:
+        return len(a)
+
+    def func2(a: int) -> int:
+        return a + 1
+
+    assert chain_functions(func1, func2)('abc') == 4
+    assert chain_functions(func1, func2)('abcd') == 5
+
+
 if __name__ == '__main__':
-    test_get_full_args()
-    test_get_partial_chain()
-    test_advanced_getargspec()
-    test_partial_reparametrization()
-    test_advanced_getargspec_on_partials()
+    # test_get_full_args()
+    # test_get_partial_chain()
+    # test_advanced_getargspec()
+    # test_partial_reparametrization()
+    # test_advanced_getargspec_on_partials()
+    test_chain_functions()

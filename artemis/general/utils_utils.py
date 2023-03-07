@@ -86,7 +86,7 @@ def tee_and_specialize_iterator(
     return [make_sub_iterator(it_copy, arg) for it_copy, arg in zip(itertools.tee(iterator, len(args)), args)]
 
 
-def bytes_to_string(bytes: int, decimals_precision: 1) -> str:
+def byte_size_to_string(bytes: int, decimals_precision: int = 1) -> str:
 
     size = bytes
     prefix = ''
