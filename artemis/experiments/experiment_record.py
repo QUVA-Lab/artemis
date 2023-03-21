@@ -13,6 +13,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from getpass import getuser
 from pickle import PicklingError
+import itertools
 
 from datetime import datetime, timedelta
 from uuid import getnode
@@ -23,7 +24,7 @@ from artemis.fileman.persistent_ordered_dict import PersistentOrderedDict
 from artemis.general.display import CaptureStdOut
 from artemis.general.functional import get_partial_chain, get_defined_and_undefined_args
 from artemis.general.hashing import compute_fixed_hash
-from artemis.general.should_be_builtins import nested
+from artemis.general.should_be_builtins import nested, natural_keys
 from artemis.general.test_mode import is_test_mode
 from artemis.general.test_mode import set_test_mode
 from artemis._version import __version__ as ARTEMIS_VERSION
@@ -240,6 +241,7 @@ class ExperimentRecord(object):
         :return: A list of string file paths.
         """
         locs = [f for f in os.listdir(self._experiment_directory) if f.startswith('fig-')]
+        locs = sorted(locs, key=natural_keys)
         if include_directory:
             return [os.path.join(self._experiment_directory, f) for f in locs]
         else:
@@ -289,7 +291,7 @@ class ExperimentRecord(object):
         """
         Load the experiment associated with this record.
         Note that this will raise an ExperimentNotFoundError if the experiment has not been imported.
-        :return: An Experiment object
+        :return Experiment: An Experiment object
         """
         from artemis.experiments.experiments import load_experiment
         return load_experiment(self.get_experiment_id())
@@ -310,7 +312,10 @@ class ExperimentRecord(object):
         """
         :return datetime.timedelta: A timedelta object
         """
-        return timedelta(seconds=self.info.get_field(ExpInfoFields.RUNTIME))
+        try:
+            return timedelta(seconds=self.info.get_field(ExpInfoFields.RUNTIME))
+        except KeyError:  # Which will happen if the experiment is still running or was killed without due process
+            return None
 
     def get_dir(self):
         """
@@ -506,6 +511,7 @@ def get_current_record_id():
 def get_current_record_dir(default_if_none = True):
     """
     The directory in which the results of the current experiment are recorded.
+    :param default_if_none: True to put records in the "default" dir if no experiment is running.
     """
     if _CURRENT_EXPERIMENT_RECORD is None and default_if_none:
         return get_artemis_data_path('experiments/default/', make_local_dir=True)
@@ -657,7 +663,19 @@ def clear_experiment_records(ids):
         ExperimentRecord(exp_path).delete()
 
 
-def save_figure_in_record(name, fig=None, default_ext='.pkl'):
+_figure_ixs = {}
+
+
+def _get_next_figure_name(name_pattern, directory):
+    start_ix = _figure_ixs[directory] if directory in _figure_ixs else 0
+    for ix in itertools.count(start_ix):
+        full_path = os.path.join(directory, name_pattern).format(ix)
+        if not os.path.exists(full_path):
+            _figure_ixs[directory] = ix+1
+            return full_path
+
+
+def save_figure_in_record(name=None, fig=None, default_ext='.pkl'):
     '''
     Saves the given figure in the experiment directory. If no figure is passed, plt.gcf() is saved instead.
     :param name: The name of the figure to be saved
@@ -667,11 +685,17 @@ def save_figure_in_record(name, fig=None, default_ext='.pkl'):
     '''
     import matplotlib.pyplot as plt
     from artemis.plotting.saving_plots import save_figure
+
     if fig is None:
         fig = plt.gcf()
-    save_path = os.path.join(get_current_record_dir(), name)
-    save_figure(fig, path=save_path, default_ext=default_ext)
-    return save_path
+
+    current_dir = get_current_record_dir()
+    if name is None:
+        path = _get_next_figure_name(name_pattern='fig-{}.pkl', directory=current_dir)
+    else:
+        path = os.path.join(current_dir, name)
+    save_figure(fig, path=path, default_ext=default_ext)
+    return path
 
 
 def get_serialized_args(argdict):

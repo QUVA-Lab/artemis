@@ -3,14 +3,23 @@ import inspect
 from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
+from typing import Optional, Mapping, Callable, Any, Iterator, Tuple
+from typing import Sequence
 
 from six import string_types
 
 from artemis.experiments.experiment_record import ExpStatusOptions, experiment_id_to_record_ids, load_experiment_record, \
     get_all_record_ids, clear_experiment_records
+from artemis.experiments.experiment_record import ExperimentRecord
 from artemis.experiments.experiment_record import run_and_record
+from artemis.experiments.experiment_record_view import compare_experiment_records, show_record
+from artemis.experiments.hyperparameter_search import parameter_search
+from artemis.general.display import sensible_str
+
 from artemis.general.functional import get_partial_root, partial_reparametrization, \
     advanced_getargspec, PartialReparametrization
+from artemis.general.should_be_builtins import izip_equal
+from artemis.general.test_mode import is_test_mode
 
 
 class Experiment(object):
@@ -19,8 +28,15 @@ class Experiment(object):
     create variants using decorated_function.add_variant()
     """
 
-    def __init__(self, function=None, show=None, compare=None, one_liner_function=None,
-                 name=None, is_root=False):
+    def __init__(self,
+                 function: Optional[Callable] = None,
+                 show: Optional[Callable[[ExperimentRecord], None]] = None,
+                 compare: Optional[Callable[[Sequence[ExperimentRecord]], bool]] = None,
+                 one_liner_function=Optional[Callable[[ExperimentRecord], str]],
+                 result_parser: Optional[Callable[[ExperimentRecord], Sequence[Tuple[str, str]]]] = None,
+                 name: Optional[str] = None,
+                 is_root=False
+                 ):
         """
         :param function: The function defining the experiment
         :param display_function: A function that can be called to display the results returned by function.
@@ -31,36 +47,48 @@ class Experiment(object):
         """
         self.name = name
         self.function = function
-        self._show = show
-        self._one_liner_results = one_liner_function
-        self._compare = compare
+        self._show = show_record if show is None else show
+        self._one_liner_results = sensible_str if one_liner_function is None else one_liner_function
+        self._result_parser = (lambda result: [('Result', self.one_liner_function(result))]) if result_parser is None else result_parser
+        self._compare = compare_experiment_records if compare is None else compare
         self.variants = OrderedDict()
         self._notes = []
         self.is_root = is_root
+        self._tags = set()
 
         if not is_root:
             all_args, varargs_name, kargs_name, defaults = advanced_getargspec(function)
             undefined_args = [a for a in all_args if a not in defaults]
-            assert len(undefined_args)==0, "{} is not a root-experiment, but arguments {} are undefined.  Either provide a value for these arguments or define this as a root_experiment (see {})."\
-                .format(self, undefined_args, 'X.add_root_variant(...)' if isinstance(function, partial) else 'X.add_config_root_variant(...)' if isinstance(function, PartialReparametrization) else '@experiment_root')
+            assert len(
+                undefined_args) == 0, "{} is not a root-experiment, but arguments {} are undefined.  Either provide a value for these arguments or define this as a root_experiment (see {})." \
+                .format(self, undefined_args, 'X.add_root_variant(...)' if isinstance(function, partial) else 'X.add_config_root_variant(...)' if isinstance(function,
+                                                                                                                                                             PartialReparametrization) else '@experiment_root')
 
         _register_experiment(self)
 
     @property
-    def show(self):
+    def show(self) -> Callable[[ExperimentRecord], None]:
+        """ A function that somehow displays the experiment record to the user. """
         return self._show
 
     @property
-    def one_liner_function(self):
+    def one_liner_function(self) -> Callable[[ExperimentRecord], str]:
+        """ A function which summarizes the experiment result as a one-line string """
         return self._one_liner_results
 
     @property
-    def compare(self):
+    def compare(self) -> Callable[[Sequence[ExperimentRecord]], None]:
+        """ Get a function that visually compares multiple records """
         return self._compare
 
     @compare.setter
     def compare(self, val):
         self._compare = val
+
+    @property
+    def result_parser(self) -> Callable[[ExperimentRecord], Sequence[Tuple[str, str]]]:
+        """ Get the function that parses the experiment result into a sequence of (column, column_value) for display as a row of a table """
+        return self._result_parser
 
     def __call__(self, *args, **kwargs):
         """ Run the function as normal, without recording or anything.  You can also modify with arguments. """
@@ -69,20 +97,20 @@ class Experiment(object):
     def __str__(self):
         return 'Experiment {}'.format(self.name)
 
-    def get_args(self):
+    def get_args(self) -> Mapping[str, Any]:
         """
         :return OrderedDict[str, Any]: An OrderedDict of arguments to the experiment
         """
         all_arg_names, _, _, defaults = advanced_getargspec(self.function)
         return OrderedDict((name, defaults[name]) for name in all_arg_names)
 
-    def get_root_function(self):
+    def get_root_function(self) -> Callable:
         return get_partial_root(self.function)
 
-    def is_generator(self):
+    def is_generator(self) -> bool:
         return inspect.isgeneratorfunction(self.get_root_function())
 
-    def call(self, *args, **kwargs):
+    def call(self, *args, **kwargs) -> ExperimentRecord:
         """
         Call the experiment function without running as an experiment.  If the experiment is a function, this is the same
         as just result = my_exp_func().  If it's defined as a generator, it loops and returns the last result.
@@ -97,7 +125,8 @@ class Experiment(object):
         return result
 
     def run(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
-            display_results=False, notes = (), **experiment_record_kwargs):
+            display_results=False, notes: Optional[str] = (), **experiment_record_kwargs
+            ) -> ExperimentRecord:
         """
         Run the experiment, and return the ExperimentRecord that is generated.
 
@@ -119,20 +148,23 @@ class Experiment(object):
         """
 
         for exp_rec in self.iterator(print_to_console=print_to_console, show_figs=show_figs, test_mode=test_mode, keep_record=keep_record,
-                    raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **experiment_record_kwargs):
+                                     raise_exceptions=raise_exceptions, display_results=display_results, notes=notes, **experiment_record_kwargs):
             pass
 
         return exp_rec
 
     def iterator(self, print_to_console=True, show_figs=None, test_mode=None, keep_record=None, raise_exceptions=True,
-            display_results=False, notes = (), **experiment_record_kwargs):
+                 display_results=False, notes=(), **experiment_record_kwargs
+                 ) -> Iterator[ExperimentRecord]:
+        """ Create an iteratator from an experiment defined on a generator-function.
+         The iterator yields an ExperimentResults wrapping the yield of the generator-function """
 
         if keep_record is None:
             keep_record = keep_record_by_default if keep_record_by_default is not None else not test_mode
 
         exp_rec = None
         for exp_rec in run_and_record(
-                function = self.function,
+                function=self.function,
                 experiment_id=self.name,
                 print_to_console=print_to_console,
                 show_figs=show_figs,
@@ -141,16 +173,18 @@ class Experiment(object):
                 raise_exceptions=raise_exceptions,
                 notes=notes,
                 **experiment_record_kwargs
-                ):
+        ):
             yield exp_rec
         assert exp_rec is not None, 'Should nevah happen.'
         if display_results:
             self.show(exp_rec)
         return
 
-    def _create_experiment_variant(self, args, kwargs, is_root):
+    def _create_experiment_variant(self, args: Sequence[Any], kwargs: Mapping[str, Any], is_root: bool
+                                   ) -> 'Experiment':
         # TODO: For non-root variants, assert that all args are defined
-        assert len(args) in (0, 1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
+        assert len(args) in (0,
+                             1), "When creating an experiment variant, you can either provide one unnamed argument (the experiment name), or zero, in which case the experiment is named after the named argumeents.  See add_variant docstring"
         name = args[0] if len(args) == 1 else _kwargs_to_experiment_name(kwargs)
         assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
@@ -161,12 +195,14 @@ class Experiment(object):
             show=self._show,
             compare=self._compare,
             one_liner_function=self.one_liner_function,
+            result_parser=self._result_parser,
             is_root=is_root
         )
         self.variants[name] = ex
         return ex
 
-    def add_variant(self, variant_name = None, **kwargs):
+    def add_variant(self, variant_name=None, **kwargs
+                    ) -> 'Experiment':
         """
         Add a variant to this experiment, and register it on the list of experiments.
         There are two ways you can do this:
@@ -183,11 +219,12 @@ class Experiment(object):
 
         :param variant_name: Optionally, the name of the experiment
         :param kwargs: The named arguments which will differ from the base experiment.
-        :return: The experiment.
+        :return Experiment: The experiment.
         """
-        return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=False)
+        return self._create_experiment_variant(() if variant_name is None else (variant_name,), kwargs, is_root=False)
 
-    def add_root_variant(self, variant_name=None, **kwargs):
+    def add_root_variant(self, variant_name=None, **kwargs
+                         ) -> 'Experiment':
         """
         Add a variant to this experiment, but do NOT register it on the list of experiments.
         There are two ways you can do this:
@@ -204,11 +241,11 @@ class Experiment(object):
 
         :param variant_name: Optionally, the name of the experiment
         :param kwargs: The named arguments which will differ from the base experiment.
-        :return: The experiment.
+        :return Experiment: The experiment.
         """
-        return self._create_experiment_variant(() if variant_name is None else (variant_name, ), kwargs, is_root=True)
+        return self._create_experiment_variant(() if variant_name is None else (variant_name,), kwargs, is_root=True)
 
-    def copy_variants(self, other_experiment):
+    def copy_variants(self, other_experiment: 'Experiment') -> None:
         """
         Copy over the variants from another experiment.
 
@@ -218,12 +255,13 @@ class Experiment(object):
         for variant in other_experiment.get_variants():
             if variant is not self:
                 variant_args = variant.get_args()
-                different_args = {k: v for k, v in variant_args.items() if base_args[k]!=v}
-                name_diff = variant.get_id()[len(other_experiment.get_id())+1:]
+                different_args = {k: v for k, v in variant_args.items() if base_args[k] != v}
+                name_diff = variant.get_id()[len(other_experiment.get_id()) + 1:]
                 v = self.add_variant(name_diff, **different_args)
                 v.copy_variants(variant)
 
-    def _add_config(self, name, arg_constructors, is_root):
+    def _add_config(self, name: str, arg_constructors: Mapping[str, Callable[[], Any]], is_root: bool
+                    ) -> 'Experiment':
         assert isinstance(name, str), 'Name should be a string.  Not: {}'.format(name)
         assert name not in self.variants, 'Variant "%s" already exists.' % (name,)
         assert '/' not in name, 'Experiment names cannot have "/" in them: {}'.format(name)
@@ -239,7 +277,8 @@ class Experiment(object):
         self.variants[name] = ex
         return ex
 
-    def add_config_variant(self, name, **arg_constructors):
+    def add_config_variant(self, name: str, **arg_constructors
+                           ) -> 'Experiment':
         """
         Add a variant where you redefine the constructor for arguments to the experiment.  e.g.
 
@@ -259,19 +298,21 @@ class Experiment(object):
         """
         return self._add_config(name, arg_constructors=arg_constructors, is_root=False)
 
-    def add_config_root_variant(self, name, **arg_constructors):
+    def add_config_root_variant(self, name: str, **arg_constructors
+                                ) -> 'Experiment':
         """
         Add a config variant which requires additional parametrization.  (See add_config_variant)
         """
         return self._add_config(name, arg_constructors=arg_constructors, is_root=True)
 
-    def get_id(self):
+    def get_id(self) -> str:
         """
         :return: A string uniquely identifying this experiment.
         """
         return self.name
 
-    def get_variant(self, variant_name=None, **kwargs):
+    def get_variant(self, variant_name: Optional[str] = None, **kwargs
+                    ) -> 'Experiment':
         """
         Get a variant on this experiment.
 
@@ -282,11 +323,12 @@ class Experiment(object):
         if variant_name is None:
             variant_name = _kwargs_to_experiment_name(kwargs)
         else:
-            assert len(kwargs)==0, 'If you provide a variant name ({}), there is no need to specify the keyword arguments. ({})'.format(variant_name, kwargs)
+            assert len(kwargs) == 0, 'If you provide a variant name ({}), there is no need to specify the keyword arguments. ({})'.format(variant_name, kwargs)
         assert variant_name in self.variants, "No variant '{}' exists.  Existing variants: {}".format(variant_name, list(self.variants.keys()))
         return self.variants[variant_name]
 
-    def get_records(self, only_completed=False):
+    def get_records(self, only_completed=False
+                    ) -> 'Sequence[ExperimentRecord]':
         """
         Get all records associated with this experiment.
 
@@ -295,12 +337,12 @@ class Experiment(object):
         """
         records = [load_experiment_record(rid) for rid in experiment_id_to_record_ids(self.name)]
         if only_completed:
-            records = [record for record in records if record.get_status()==ExpStatusOptions.FINISHED]
+            records = [record for record in records if record.get_status() == ExpStatusOptions.FINISHED]
         return records
 
-    def browse(self, command=None, catch_errors = False, close_after = False, filterexp=None, filterrec = None,
-            view_mode ='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
-            cache_result_string = False, remove_prefix = None, display_format='nested', **kwargs):
+    def browse(self, command: Optional[str] = None, catch_errors=False, close_after=False, filterexp: Optional[str] = None, filterrec=None,
+               view_mode='full', raise_display_errors=False, run_args=None, keep_record=True, truncate_result_to=100,
+               cache_result_string=False, remove_prefix=None, display_format='nested', **kwargs) -> None:
         """
         Open up the UI, which allows you to run experiments and view their results.
 
@@ -320,12 +362,13 @@ class Experiment(object):
         :param display_format: How experements and their records are displayed: 'nested' or 'flat'.  'nested' might be
             better for narrow console outputs.
         """
-        from artemis.experiments.ui import browse_experiments
-        browse_experiments(command = command, root_experiment=self, catch_errors=catch_errors, close_after=close_after,
-            filterexp=filterexp, filterrec=filterrec,
-            view_mode=view_mode, raise_display_errors=raise_display_errors, run_args=run_args, keep_record=keep_record,
-            truncate_result_to=truncate_result_to, cache_result_string=cache_result_string, remove_prefix=remove_prefix,
-            display_format=display_format, **kwargs)
+        from artemis.experiments.ui import ExperimentBrowser
+        experiments = get_ordered_descendents_of_root(root_experiment=self)
+        browser = ExperimentBrowser(experiments=experiments, catch_errors=catch_errors, close_after=close_after,
+                                    filterexp=filterexp, filterrec=filterrec, view_mode=view_mode, raise_display_errors=raise_display_errors,
+                                    run_args=run_args, keep_record=keep_record, truncate_result_to=truncate_result_to, cache_result_string=cache_result_string,
+                                    remove_prefix=remove_prefix, display_format=display_format, **kwargs)
+        browser.launch(command=command)
 
     # Above this line is the core api....
     # -----------------------------------
@@ -341,7 +384,7 @@ class Experiment(object):
         records = self.get_records(only_completed=completed)
         if valid:
             records = [record for record in records if record.args_valid()]
-        return len(records)>0
+        return len(records) > 0
 
     def get_variants(self):
         return self.variants.values()
@@ -363,20 +406,23 @@ class Experiment(object):
     def test(self, **kwargs):
         self.run(test_mode=True, **kwargs)
 
-    def get_latest_record(self, only_completed=False, if_none = 'skip'):
+    def get_latest_record(self, only_completed=False, if_none='skip'):
         """
         Return the ExperimentRecord from the latest run of this Experiment.
 
         :param only_completed: Only search among records of that have run to completion.
-        :param err_if_none: If True, raise an error if no record exists.  Otherwise, just return None in this case.
+        :param if_none: What to do if no record exists.  Options are:
+            'skip': Return None
+            'err': Raise an exception
+            'run': Run the experiment to get the record
         :return ExperimentRecord: An ExperimentRecord object
         """
         assert if_none in ('skip', 'err', 'run')
         records = self.get_records(only_completed=only_completed)
-        if len(records)==0:
-            if if_none=='run':
+        if len(records) == 0:
+            if if_none == 'run':
                 return self.run()
-            elif if_none=='err':
+            elif if_none == 'err':
                 raise Exception('No{} records for experiment "{}"'.format(' completed' if only_completed else '', self.name))
             else:
                 return None
@@ -408,13 +454,86 @@ class Experiment(object):
             else:
                 return exp_record_dict
 
+    def add_parameter_search(self, name='parameter_search', fixed_args={}, space=None, n_calls=None, search_params=None, scalar_func=None):
+        """
+        :param name: Name of the Experiment to be created
+        :param dict[str, Any] fixed_args: Any fixed-arguments to provide to all experiments.
+        :param dict[str, skopt.space.Dimension] space: A dict mapping param name to Dimension.
+            e.g.    space=dict(a = Real(1, 100, 'log-uniform'), b = Real(1, 100, 'log-uniform'))
+        :param Callable[[Any], float] scalar_func: Takes the return value of the experiment and turns it into a scalar
+            which we aim to minimize.
+        :param dict[str, Any] search_params: Args passed to parameter_search
+        :return Experiment: A new experiment which runs the search and yields current-best parameters with every iteration.
+        """
+
+        assert space is not None, "You must specify a parameter search space.  See this method's documentation"
+        if name is None:  # TODO: Set name=None in the default after deadline
+            name = 'parameter_search[{}]'.format(','.join(space.keys()))
+
+        if search_params is None:
+            search_params = {}
+
+        def objective(**current_params):
+            output = self.call(**current_params)
+            if scalar_func is not None:
+                output = scalar_func(output)
+            return output
+
+        from artemis.experiments import ExperimentFunction
+
+        def search_func(fixed):
+            n_calls_to_make = n_calls if n_calls is not None else 3 if is_test_mode() else 100
+            this_objective = partial(objective, **fixed)
+            for iter_info in parameter_search(this_objective, n_calls=n_calls_to_make, space=space, **search_params):
+                info = dict(names=list(space.keys()), x_iters=iter_info.x_iters, func_vals=iter_info.func_vals, score=iter_info.func_vals, x=iter_info.x, fun=iter_info.fun)
+                latest_info = {name: val for name, val in izip_equal(info['names'], iter_info.x_iters[-1])}
+                print('Latest: {}, Score: {:.3g}'.format(latest_info, iter_info.func_vals[-1]))
+                yield info
+
+        # The following is a hack to dynamically create a function with the given args
+        # arg_string = ', '.join('{}={}'.format(k, v) for k, v in fixed_args.items())
+        # param_search = None
+        # exec('global param_search\ndef func({fixed}): search_func(fixed_args=dict({fixed})); param_search=func'.format(fixed=arg_string))
+        # param_search = locals()['param_search']
+        search_exp_func = partial(search_func, fixed=fixed_args)  # We do this so that the fixed parameters will be recorded and we will see if they changed.
+
+        search_exp = ExperimentFunction(name=self.name + '.' + name, show=show_parameter_search_record, one_liner_function=parameter_search_one_liner)(search_exp_func)
+        self.variants[name] = search_exp
+        search_exp.tag('psearch')  # Secret feature that makes it easy to select all parameter experiments in ui with "filter tag:psearch"
+        return search_exp
+
+    def tag(self, tag):
+        """
+        Add a "tag" - a string identifying the experiment as being in some sort of group.
+        You can use tags in the UI with 'filter tag:my_tag' to select experiments with a given tag
+        :param tag:
+        :return:
+        """
+        self._tags.add(tag)
+        return self
+
+    def get_tags(self):
+        return self._tags
+
+
+def show_parameter_search_record(record):
+    from tabulate import tabulate
+    result = record.get_result()
+    table = tabulate([list(xs) + [fun] for xs, fun in zip(result['x_iters'], result['func_vals'])], headers=list(result['names']) + ['score'])
+    print(table)
+
+
+def parameter_search_one_liner(result):
+    return '{} Runs : '.format(len(result["x_iters"])) + ', '.join('{}={:.3g}'.format(k, v) for k, v in izip_equal(result['names'], result['x'])) + ' : Score = {:.3g}'.format(
+        result["fun"])
+
 
 _GLOBAL_EXPERIMENT_LIBRARY = OrderedDict()
 
 
 class ExperimentNotFoundError(Exception):
     def __init__(self, experiment_id):
-        Exception.__init__(self,'Experiment "{}" could not be loaded, either because it has not been imported, or its definition was removed.'.format(experiment_id))
+        Exception.__init__(self, 'Experiment "{}" could not be loaded, either because it has not been imported, or its definition was removed.'.format(experiment_id))
 
 
 def clear_all_experiments():
@@ -434,7 +553,6 @@ def capture_created_experiments():
             return a+b
 
         with capture_created_experiments() as exps:
-            add_two_numbers.add_variant(a=2)
             add_two_numbers.add_variant(a=3)
 
         for ex in exps:
@@ -445,17 +563,28 @@ def capture_created_experiments():
     current_len = len(_GLOBAL_EXPERIMENT_LIBRARY)
     new_experiments = []
     yield new_experiments
-    for ex in _GLOBAL_EXPERIMENT_LIBRARY.values()[current_len:]:
+    for ex in list(_GLOBAL_EXPERIMENT_LIBRARY.values())[current_len:]:
         new_experiments.append(ex)
 
 
 def _register_experiment(experiment):
-    assert experiment.name not in _GLOBAL_EXPERIMENT_LIBRARY, 'You have already registered an experiment named {} in {}'.format(experiment.name, inspect.getmodule(experiment.get_root_function()).__name__)
+    assert experiment.name not in _GLOBAL_EXPERIMENT_LIBRARY, 'You have already registered an experiment named {} in {}'.format(experiment.name, inspect.getmodule(
+        experiment.get_root_function()).__name__)
     _GLOBAL_EXPERIMENT_LIBRARY[experiment.name] = experiment
 
 
 def get_nonroot_global_experiment_library():
     return OrderedDict((name, exp) for name, exp in _GLOBAL_EXPERIMENT_LIBRARY.items() if not exp.is_root)
+
+
+def get_ordered_descendents_of_root(root_experiment):
+    """
+    :param Experiment root_experiment: An experiment which has variants
+    :return List[Experiment]: A list of the descendents (i.e. variants and subvariants) of the root experiment, in the
+        order in which they were created
+    """
+    descendents_of_root = set(ex for ex in root_experiment.get_all_variants(include_self=True))
+    return [ex for ex in get_nonroot_global_experiment_library().values() if ex in descendents_of_root]
 
 
 def get_experiment_info(name):
@@ -480,8 +609,9 @@ def _kwargs_to_experiment_name(kwargs):
     string = string.replace('/', '_SLASH_')
     return string
 
+
 @contextmanager
-def hold_global_experiment_libary(new_lib = None):
+def hold_global_experiment_libary(new_lib=None):
     if new_lib is None:
         new_lib = OrderedDict()
 
@@ -500,7 +630,7 @@ keep_record_by_default = None
 
 
 @contextmanager
-def experiment_testing_context(close_figures_at_end = True, new_experiment_lib = False):
+def experiment_testing_context(close_figures_at_end=True, new_experiment_lib=False):
     """
     Use this context when testing the experiment/experiment_record infrastructure.
     Should only really be used in test_experiment_record.py

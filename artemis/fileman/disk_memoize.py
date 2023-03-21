@@ -1,5 +1,8 @@
+import inspect
 import logging
 import os
+import time
+from contextlib import contextmanager
 from functools import partial
 from shutil import rmtree
 
@@ -7,6 +10,7 @@ from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.functional import infer_arg_values
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.test_mode import is_test_mode
+from eagle_eyes.utils.utils_for_testing import hold_tempdir
 
 logging.basicConfig()
 LOGGER = logging.getLogger(__name__)
@@ -18,6 +22,16 @@ __author__ = 'peter'
 MEMO_WRITE_ENABLED = True
 MEMO_READ_ENABLED = True
 MEMO_DIR = get_artemis_data_path('memoize_to_disk')
+
+
+@contextmanager
+def hold_temp_memo_dir():
+    global MEMO_DIR
+    oldone = MEMO_DIR
+    with hold_tempdir() as path:
+        MEMO_DIR = path
+        yield path
+    MEMO_DIR = oldone
 
 
 def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickle = False, suppress_info = False):
@@ -83,8 +97,12 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickl
                 with open(filepath, 'rb') as f:
                     try:
                         if not suppress_info:
-                            LOGGER.info('Reading memo for function {}'.format(fcn.__name__, ))
+                            LOGGER.info('Reading memo for function {}...'.format(fcn.__name__, ))
+                        tstart = time.monotonic()
                         result = pickle.load(f)
+                        if not suppress_info:
+                            LOGGER.info(f'...Reading memo for function {fcn.__name__} took {time.monotonic()-tstart:.5f}s'.format(fcn.__name__, ))
+
                     except (ValueError, ImportError, EOFError) as err:
                         if isinstance(err, (ValueError, EOFError)) and not suppress_info:
                             LOGGER.warn('Memo-file "{}" was corrupt.  ({}: {}).  Recomputing.'.format(filepath, err.__class__.__name__, str(err)))
@@ -94,7 +112,13 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickl
                         result = fcn(*args, **kwargs)
             else:
                 result_computed = True
-                result = fcn(*args, **kwargs)
+                if inspect.isgeneratorfunction(fcn):
+                    # TODO: Do this properly - caching results one at a time
+                    LOGGER.info(f"Computing results from generator {fcn} in advance...")
+                    result = list(fcn(*args, **kwargs))
+                    LOGGER.info('... Done')
+                else:
+                    result = fcn(*args, **kwargs)
         else:
             result_computed = True
             result = fcn(*args, **kwargs)
