@@ -1,8 +1,9 @@
 import inspect
 from abc import abstractmethod
 from collections import OrderedDict
-from functools import partial
+from functools import partial, reduce
 import collections
+from typing import TypeVar, Callable
 
 from cv2.gapi.ie.detail import PARAM_DESC_KIND_LOAD
 
@@ -244,3 +245,16 @@ def infer_arg_values(f, args=(), kwargs={}):
     #     assert len(different_given_args)==0, "Function {} was given args {} but didn't ask for them".format(f, different_given_args)
     # assert len(different_args)==0, "Function {} needs values for args {} but didn't get them".format(f, different_args)
     return OrderedDict(full_args)
+
+
+def chain_functions(*funcs: Callable) -> Callable:
+    """
+    Chain functions together, so that the output of one function is the input of the next function.
+    Obviously the input type of function i must match the output type of function i-1.
+
+    :param funcs: A sequence of functions
+    :return: A function which is the chain of all the functions
+    """
+    def chained_call(arg):
+        return reduce(lambda r, f: f(r), funcs, arg)
+    return chained_call

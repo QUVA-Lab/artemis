@@ -1,4 +1,4 @@
-from typing import Union, Mapping, Sequence, Tuple
+from typing import Union, Mapping, Sequence, Tuple, Optional
 
 import numpy as np
 
@@ -12,6 +12,7 @@ def generate_image_mosaic_and_index_grid(
         mosaic: Union[Mapping[int, BGRImageArray], Sequence[BGRImageArray]],
         gap_color: BGRColorTuple = DEFAULT_GAP_COLOR,
         desired_aspect_ratio = 1.,  # TODO: Make it work
+        grid_shape: Tuple[Optional[int], Optional[int]] = (None, None),  # (rows, columns)
         min_size_xy: Tuple[int, int] = (640, 480),
         padding: int = 1,
        ) -> Tuple[BGRImageArray, IndexImageArray]:
@@ -33,8 +34,8 @@ def generate_image_mosaic_and_index_grid(
     id_array = np.zeros(image_array.shape[:3], dtype=int)
     id_array += np.array(ids)[:, None, None]
 
-    image_grid = put_data_in_image_grid(image_array, fill_colour=gap_color, boundary_width=padding, min_size_xy=min_size_xy)
-    id_grid = put_data_in_grid(id_array, fill_value=-1, min_size_xy=min_size_xy)
+    image_grid = put_data_in_image_grid(image_array, grid_shape=grid_shape, fill_colour=gap_color, boundary_width=padding, min_size_xy=min_size_xy)
+    id_grid = put_data_in_grid(id_array, grid_shape=grid_shape, fill_value=-1, min_size_xy=min_size_xy)
 
     return image_grid, id_grid
 

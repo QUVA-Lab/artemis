@@ -156,7 +156,7 @@ class ImageBuilder:
             points_xy = {(x, y): str(i) for i, (x, y) in enumerate(points_xy)}
         for ((x, y), label), c in zip(points_xy.items(), color):
             cv2.circle(self.image, center=(round(x), round(y)), radius=radius, color=c, thickness=thickness)
-            put_text_at(self.image, text=label, pos=(round(x)+10, round(y)+10), color=c, shadow_color=None)
+            put_text_at(self.image, text=label, position_xy=(round(x)+10, round(y)+10), color=c, shadow_color=None)
         return self
 
     def draw_bounding_boxes(self,
@@ -225,6 +225,11 @@ class ImageBuilder:
             self.image[max(0, vb_slice.start-border_thickness): vb_slice.stop+border_thickness, max(0, hb_slice.start-border_thickness): hb_slice.stop+border_thickness] = secondary_border_color
         self.image[vb_slice, hb_slice] = border_color
         self.image[vslice, hslice] = image
+        return self
+
+    def draw_text_label(self, label: str, top_side: bool = True, rel_font_size: int = 0.05, color: BGRColorTuple = BGRColors.WHITE, background_color: Optional[BGRColorTuple] = None, thickness: int = 2) -> 'ImageBuilder':
+        text_image = ImageBuilder.from_text(text=label, text_displayer=TextDisplayer(text_color=color, background_color=background_color, scale=rel_font_size*self.image.shape[0]/20., thickness=thickness)).get_image()
+        self.image = ImageCol(text_image, self.image).render() if top_side else ImageCol(self.image, text_image).render()
         return self
 
     def draw_text(self, text: str, loc_xy: Tuple[int, int], colour: BGRColorTuple, anchor_xy: Tuple[float, float] = (0., 0.), shadow_color: Optional[BGRColorTuple] = None, background_color: Optional[BGRColorTuple] = None, thickness=1,

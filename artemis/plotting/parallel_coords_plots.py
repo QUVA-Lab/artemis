@@ -3,7 +3,7 @@ import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
 
-from artemis.general.mymath import cosine_distance
+from artemis.general.mymath import cosine_similarity
 from artemis.general.should_be_builtins import izip_equal
 from artemis.plotting.pyplot_plus import axhlines
 
@@ -69,7 +69,7 @@ def parallel_coords_plot(field_names, values, special_formats = {}, scales = {},
     if alpha=='auto':
         mean_param = np.mean(norm_lines, axis=0)
         for i, line in enumerate(norm_lines):
-            sameness = max(0, cosine_distance(mean_param, line))  # (0 to 1 where 1 means same as the mean)
+            sameness = max(0, cosine_similarity(mean_param, line))  # (0 to 1 where 1 means same as the mean)
             alpha = sameness * (1./np.sqrt(values.shape[0])) + (1-sameness)*1.
             formats[i]['alpha'] = alpha
     else:

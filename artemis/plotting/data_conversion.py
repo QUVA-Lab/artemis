@@ -37,7 +37,7 @@ def put_vector_in_grid(vec, shape = None, empty_val = 0):
 
 
 @memoize
-def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape: Optional[Tuple[int, int]], boundary_width: int, is_colour = None, min_size_xy: Tuple[int, int] = (0, 0)):
+def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape: Optional[Tuple[Optional[int], Optional[int]]], boundary_width: int, is_colour = None, min_size_xy: Tuple[int, int] = (0, 0)):
 
     assert len(shape) in (3, 4) or len(shape)==5 and shape[-1]==3
     if is_colour is None:
@@ -45,9 +45,15 @@ def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape: Optional[Tu
     size_y, size_x = (shape[-3], shape[-2]) if is_colour else (shape[-2], shape[-1])
     is_vector = (len(shape)==4 and is_colour) or (len(shape)==3 and not is_colour)
 
-    if grid_shape is None:
-        grid_shape = vector_length_to_tile_dims(shape[0]) if is_vector else shape[:2]
-    n_rows, n_cols = grid_shape
+    if grid_shape is None or grid_shape==(None, None):
+        n_rows, n_cols = vector_length_to_tile_dims(shape[0]) if is_vector else shape[:2]
+    else:
+        assert len(grid_shape)==2
+        n_rows, n_cols = grid_shape
+        if n_rows is None:
+            n_rows = int(np.ceil(shape[0]/n_cols))
+        if n_cols is None:
+            n_cols = int(np.ceil(shape[0]/n_rows))
 
     minx, miny = min_size_xy
 
@@ -84,7 +90,7 @@ def put_data_in_grid(data, fill_value, grid_shape = None, boundary_width: int = 
     return output_data
 
 
-def put_data_in_image_grid(data, grid_shape: Optional[Tuple[int, int]] = None, fill_colour = np.array((0, 0, 128), dtype ='uint8'), cmap ='gray',
+def put_data_in_image_grid(data, grid_shape: Optional[Tuple[Optional[int], Optional[int]]] = None, fill_colour = np.array((0, 0, 128), dtype ='uint8'), cmap ='gray',
                            boundary_width = 1, clims = None, is_color_data=None, nan_colour=None, min_size_xy: Tuple[int, int] = (0, 0)):
     """
     Given a 3-d or 4-D array, put it in a 2-d grid.

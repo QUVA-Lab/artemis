@@ -6,7 +6,7 @@ import cv2
 
 from artemis.general.custom_types import TimeIntervalTuple, BGRImageArray
 from artemis.image_processing.image_utils import iter_images_from_video, fit_image_to_max_size
-from artemis.image_processing.video_reader import VideoReader, VideoFrameInfo, VideoMetaData
+from artemis.image_processing.video_reader import VideoReader, VideoFrameInfo, VideoMetaData, ImageSequenceReader, IVideoReader
 
 
 @dataclass
@@ -37,11 +37,26 @@ class VideoSegment:
         return self
 
     def iter_images(self, max_size: Optional[Tuple[int, int]] = None, max_count: Optional[int] = None) -> Iterator[BGRImageArray]:
-        yield from iter_images_from_video(self.path, time_interval=self.time_interval, max_size=max_size or self.max_size, rotation=self.rotation, frame_interval=(None, max_count))
+        if self._is_image_sequence():
+            yield from (f.image for f in self.iter_frame_info())
+        else:
+            yield from iter_images_from_video(self.path, time_interval=self.time_interval, max_size=max_size or self.max_size, rotation=self.rotation, frame_interval=(None, max_count))
 
-    def get_reader(self, buffer_size_bytes: int = 1024**3, use_cache: bool = True) -> VideoReader:
-        return VideoReader(self.path, time_interval=self.time_interval, frame_interval=self.frame_interval,
-                           buffer_size_bytes=buffer_size_bytes, use_cache=use_cache, max_size_xy=self.max_size)
+    def _is_image_sequence(self) -> bool:
+        return ';' in self.path
+
+    def get_reader(self, buffer_size_bytes: int = 1024**3, use_cache: bool = True) -> IVideoReader:
+
+        if self._is_image_sequence():
+            assert self.max_size is None, "Not supported"
+            assert self.frame_interval == (None, None), "Not Supported"
+            assert self.time_interval == (None, None), "Not Supported"
+            assert self.rotation == 0, "Not Supported"
+            assert self.frames_of_interest is None, "Not Supported"
+            return ImageSequenceReader(self.path.split(';'))
+        else:
+            return VideoReader(self.path, time_interval=self.time_interval, frame_interval=self.frame_interval,
+                               buffer_size_bytes=buffer_size_bytes, use_cache=use_cache, max_size_xy=self.max_size)
 
     def recut(self, start_time: Optional[float] = None, end_time: Optional[float] = None):
         return replace(self, time_interval=(start_time, end_time), frame_interval=self.frame_interval)
@@ -50,7 +65,10 @@ class VideoSegment:
         """
         TODO: Replace with
             yield from self.get_reader().iter_frames()
+        (Problem is is't currently slow)
         """
+        if self._is_image_sequence():
+            yield from self.get_reader().iter_frames()
 
         assert not self.use_scan_selection, "This does not work.  See bug: https://github.com/opencv/opencv/issues/9053"
         path = os.path.expanduser(self.path)

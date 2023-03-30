@@ -1,7 +1,7 @@
 import itertools
 from pytest import raises
 
-from artemis.general.utils_utils import tee_and_specialize_iterator, bytes_to_string
+from artemis.general.utils_utils import tee_and_specialize_iterator, byte_size_to_string
 
 
 def test_tee_and_specialize_iterator():
@@ -22,9 +22,9 @@ def test_tee_and_specialize_iterator():
 
 def test_bytes_to_string():
 
-    assert bytes_to_string(2, decimals_precision=1)=='2.0 B'
-    assert bytes_to_string(2000, decimals_precision=1)=='2.0 kB'
-    assert bytes_to_string(2500000, decimals_precision=1)=='2.4 MB'
+    assert byte_size_to_string(2, decimals_precision=1) == '2.0 B'
+    assert byte_size_to_string(2000, decimals_precision=1) == '2.0 kB'
+    assert byte_size_to_string(2500000, decimals_precision=1) == '2.4 MB'
 
 
 if __name__ == '__main__':
