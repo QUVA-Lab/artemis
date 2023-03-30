@@ -137,14 +137,22 @@ class VideoReader:
 
     def get_metadata(self) -> VideoMetaData:
         file_stats = os.stat(self._path)
-        if self._metadata is None:
+
+        try:
+            width = self.container.streams.video[0].codec_context.width
+            height = self.container.streams.video[0].codec_context.height
+        except Exception as err:
+            print("Error getting width and height from video stream. Using first frame instead. Error: ", err)
             firstframe = self.request_frame(0)
+            width, height = firstframe.image.shape[1], firstframe.image.shape[0]
+
+        if self._metadata is None:
             self._metadata = VideoMetaData(
                 duration=self._n_frames/self._fps,
                 n_frames=max(1, self._n_frames),  # It seems to give 0 for images which aint right
                 fps=self._fps,
                 n_bytes=file_stats.st_size,
-                size_xy=(firstframe.image.shape[1], firstframe.image.shape[0])
+                size_xy=(width, height)
             )
         return self._metadata
 

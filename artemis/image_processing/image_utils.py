@@ -119,6 +119,7 @@ def fit_image_to_max_size(image: BGRImageArray, max_size: Tuple[int, int]):
 """ Deprecated.  Use VideoSegment.iter_images """
 
 
+
 def iter_images_from_video(path: str, max_size: Optional[Tuple[int, int]] = None,
                            frame_interval: Tuple[Optional[int], Optional[int]] = (None, None),
                            time_interval: TimeIntervalTuple = (None, None),
@@ -137,6 +138,9 @@ def iter_images_from_video(path: str, max_size: Optional[Tuple[int, int]] = None
         assert image is not None, f"Could not read any image from {path}"
         yield image
         return
+
+
+
 
     assert not use_scan_selection, "This does not work.  See bug: https://github.com/opencv/opencv/issues/9053"
     path = os.path.expanduser(path)
