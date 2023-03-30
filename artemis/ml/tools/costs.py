@@ -1,12 +1,12 @@
 import numpy as np
 
-from artemis.general.mymath import cosine_distance, softmax
+from artemis.general.mymath import cosine_similarity, softmax
 
 
 def get_evaluation_function(name):
     return {
         'mse': mean_squared_error,
-        'mean_cosine_distance': lambda a, b: cosine_distance(a, b, axis=1).mean(),
+        'mean_cosine_distance': lambda a, b: cosine_similarity(a, b, axis=1).mean(),
         'mean_squared_error': mean_squared_error,
         'mean_l1_error': mean_l1_error,
         'percent_argmax_correct': percent_argmax_correct,

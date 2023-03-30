@@ -893,7 +893,11 @@ class ImageViewInfo:
 
         # Add the image
         src_image = image[src_y1:src_y2, src_x1:src_x2]
-        src_image_scaled = cv2.resize(src_image, (dest_x2 - dest_x1, dest_y2 - dest_y1), interpolation=cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR)
+        try:
+            src_image_scaled = cv2.resize(src_image, (dest_x2 - dest_x1, dest_y2 - dest_y1), interpolation=cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR)
+        except Exception as err:
+            print(f"Resize failed on images of shape {src_image} with dest shape {(dest_x2 - dest_x1, dest_y2 - dest_y1)} and interpolation {cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR}")
+            raise err
         result_array[dest_y1:dest_y2, dest_x1:dest_x2] = src_image_scaled
 
         # Add the scroll bars

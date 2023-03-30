@@ -4,6 +4,7 @@ import os
 import time
 from contextlib import contextmanager
 from functools import partial
+from pickle import UnpicklingError
 from shutil import rmtree
 
 from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
@@ -86,6 +87,18 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickl
         # It may be more efficient to use the built-in hashability of certain types for the local cash, and just have special
         # ways of dealing with non-hashables like lists and numpy arrays - it's a bit dangerous because we need to check
         # that no object or subobjects have been changed.
+
+        def compute_result_from_func():
+            if inspect.isgeneratorfunction(fcn):
+                # TODO: Do this properly - caching results one at a time
+                LOGGER.info(f"Computing results from generator {fcn} in advance...")
+                result = list(fcn(*args, **kwargs))
+                LOGGER.info('... Done')
+            else:
+                result = fcn(*args, **kwargs)
+            return result
+
+
         if MEMO_READ_ENABLED:
             if local_cache:
                 # local_cache_signature = get_local_cache_signature(args, kwargs)
@@ -103,22 +116,23 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickl
                         if not suppress_info:
                             LOGGER.info(f'...Reading memo for function {fcn.__name__} took {time.monotonic()-tstart:.5f}s'.format(fcn.__name__, ))
 
-                    except (ValueError, ImportError, EOFError) as err:
-                        if isinstance(err, (ValueError, EOFError)) and not suppress_info:
+                    except (ValueError, ImportError, EOFError, UnpicklingError) as err:
+                        if isinstance(err, (ValueError, EOFError, UnpicklingError)) and not suppress_info:
                             LOGGER.warn('Memo-file "{}" was corrupt.  ({}: {}).  Recomputing.'.format(filepath, err.__class__.__name__, str(err)))
                         elif isinstance(err, ImportError) and not suppress_info:
                             LOGGER.warn('Memo-file "{}" was tried to reference an old class and got ImportError: {}.  Recomputing.'.format(filepath, str(err)))
+                        result = compute_result_from_func()
                         result_computed = True
-                        result = fcn(*args, **kwargs)
             else:
+                result = compute_result_from_func()
                 result_computed = True
-                if inspect.isgeneratorfunction(fcn):
-                    # TODO: Do this properly - caching results one at a time
-                    LOGGER.info(f"Computing results from generator {fcn} in advance...")
-                    result = list(fcn(*args, **kwargs))
-                    LOGGER.info('... Done')
-                else:
-                    result = fcn(*args, **kwargs)
+                # if inspect.isgeneratorfunction(fcn):
+                #     # TODO: Do this properly - caching results one at a time
+                #     LOGGER.info(f"Computing results from generator {fcn} in advance...")
+                #     result = list(fcn(*args, **kwargs))
+                #     LOGGER.info('... Done')
+                # else:
+                #     result = fcn(*args, **kwargs)
         else:
             result_computed = True
             result = fcn(*args, **kwargs)

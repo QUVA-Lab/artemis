@@ -1,15 +1,20 @@
 import datetime
 import itertools
 import os
+from _py_abc import ABCMeta
+from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Optional, Iterator
+from typing import Tuple, Optional, Iterator, Sequence
 import av
-
-from artemis.general.custom_types import BGRImageArray, TimeIntervalTuple
+import cv2
+import exif
+import numpy as np
+from artemis.general.custom_types import BGRImageArray, TimeIntervalTuple, Array
 from artemis.general.utils_utils import byte_size_to_string
 from artemis.image_processing.image_utils import fit_image_to_max_size
 from artemis.general.item_cache import CacheDict
 from artemis.general.parsing import parse_time_delta_str_to_sec
+from video_scanner.general_utils.srt_files import read_image_time_or_none
 
 
 @dataclass
@@ -70,7 +75,97 @@ def get_actual_frame_interval(
 
 
 @dataclass
-class VideoReader:
+class IVideoReader(metaclass=ABCMeta):
+    """
+    Interface for something behaving like a video reader.
+    """
+
+    @abstractmethod
+    def get_metadata(self) -> VideoMetaData:
+        """ Get data showing number of frames, size, etc. """
+
+    @abstractmethod
+    def get_n_frames(self) -> int:
+        """ Get the number of frames in the video """
+
+    @abstractmethod
+    def time_to_nearest_frame(self, t: float) -> int:
+        """ Get the frame index nearest the time t """
+
+    @abstractmethod
+    def frame_index_to_nearest_frame(self, index: int) -> int:
+        """ Get the frame index nearest the time t """
+
+    @abstractmethod
+    def frame_index_to_time(self, frame_ix: int) -> float:
+        """ Get the time corresponding to the frame index """
+
+    @abstractmethod
+    def time_indicator_to_nearest_frame(self, time_indicator: str) -> Optional[int]:
+        """ Get the frame index nearest the time-indicator
+        e.g. "0:32.5" "32.5s", "53%", "975" (frame number)
+        Returns None if the time_indicator is invalid
+        """
+
+    @abstractmethod
+    def iter_frame_ixs(self) -> Iterator[int]:
+        """ Iterate through frame indices """
+
+    @abstractmethod
+    def iter_frames(self) -> Iterator[VideoFrameInfo]:
+        """ Iterate through the frames of the video """
+
+    @abstractmethod
+    def cut(self, time_interval: TimeIntervalTuple = (None, None),
+            frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)) -> 'IVideoReader':
+        """ Cut the video to the given time interval """
+
+    @abstractmethod
+    def request_frame(self, index: int) -> VideoFrameInfo:
+        """
+        Request a frame of the video.  If the requested frame is out of bounds, this will return the frame
+        on the closest edge.
+        """
+
+    @abstractmethod
+    def destroy(self):
+        """ Destroy the video reader (prevents memory leaks) """
+
+
+def time_indicator_to_nearest_frame(time_indicator: str, n_frames: int, fps: Optional[float] = None, frame_times: Optional[Sequence[float]] = None) -> Optional[int]:
+    """ Get the frame index nearest the time-indicator
+    e.g. "0:32.5" "32.5s", "53%", "975" (frame number)
+    Returns None if the time_indicator is invalid
+    """
+    assert (fps is not None) != (frame_times is not None), "You must provide either fps or frame_times.  Not both and not neither."
+
+    def lookup_frame_ix(t: float) -> int:
+        if frame_times is None:
+            return round(t * fps)
+        else:
+            return np.searchsorted(frame_times, t, side='left')
+
+    if time_indicator in ('s', 'start'):
+        return 0
+    elif time_indicator in ('e', 'end'):
+        return n_frames - 1
+    elif ':' in time_indicator:
+        sec = parse_time_delta_str_to_sec(time_indicator)
+        return lookup_frame_ix(sec)
+    elif time_indicator.endswith('s'):
+        sec = float(time_indicator.rstrip('s'))
+        return lookup_frame_ix(sec)
+    elif time_indicator.endswith('%'):
+        percent = float(time_indicator.rstrip('%'))
+        return round(percent / 100 * n_frames)
+    elif all(c in '0123456789' for c in time_indicator):
+        return int(time_indicator)
+    else:
+        return None
+
+
+@dataclass
+class VideoReader(IVideoReader):
     """
     The reader efficiently provides access to video frames.
     It uses pyav: https://pyav.org/docs/stable/
@@ -165,43 +260,20 @@ class VideoReader:
         e.g. "0:32.5" "32.5s", "53%", "975" (frame number)
         Returns None if the time_indicator is invalid
         """
-        if time_indicator in ('s', 'start'):
-            return 0
-        elif time_indicator in ('e', 'end'):
-            return self.get_n_frames() - 1
-        elif ':' in time_indicator:
-            sec = parse_time_delta_str_to_sec(time_indicator)
-            return round(sec * self.get_metadata().fps)
-        elif time_indicator.endswith('s'):
-            sec = float(time_indicator.rstrip('s'))
-            return round(sec * self.get_metadata().fps)
-        elif time_indicator.endswith('%'):
-            percent = float(time_indicator.rstrip('%'))
-            return round(percent / 100 * self.get_n_frames())
-        elif all(c in '0123456789' for c in time_indicator):
-            return int(time_indicator)
-        else:
-            return None
+        return time_indicator_to_nearest_frame(time_indicator, n_frames=self.get_n_frames(), fps=self._fps)
 
-    def iter_frame_ixs(self, time_interval: TimeIntervalTuple = (None, None),
-                       frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)
-                       ) -> Iterator[int]:
-        start, stop = get_actual_frame_interval(fps=self._fps, time_interval=time_interval,
-                                                frame_interval=frame_interval,
-                                                n_frames_total=self.get_n_frames())
+    def iter_frame_ixs(self) -> Iterator[int]:
+        start, stop = get_actual_frame_interval(fps=self._fps, n_frames_total=self.get_n_frames())
         """ 
         TODO: Get rid of arguments - just use cut instead 
         """
         return range(start, stop)
 
-    def iter_frames(self,
-                    time_interval: TimeIntervalTuple = (None, None),
-                    frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)
-                    ) -> Iterator[VideoFrameInfo]:
+    def iter_frames(self) -> Iterator[VideoFrameInfo]:
         """
         TODO: Get rid of arguments - just use cut instead
         """
-        for i in self.iter_frame_ixs(time_interval=time_interval, frame_interval=frame_interval):
+        for i in self.iter_frame_ixs():
             yield self.request_frame(i)
 
     def cut(self, time_interval: TimeIntervalTuple = (None, None),
@@ -280,5 +352,78 @@ class VideoReader:
         self._is_destroyed = True
 
 
-    # def __del__(self):
-    #     print(f"Video reader {id(self)} closed!")
+def get_time_ordered_image_paths(image_paths: Sequence[str], fallback_fps: float = 1.
+                                 ) -> Tuple[Sequence[str], Sequence[float]]:
+    image_times = [read_image_time_or_none(path) for path in image_paths]
+    if any(t is None for t in image_times):
+        image_times = [i / fallback_fps for i in range(len(image_paths))]
+    ixs = np.argsort(image_times)
+    return [image_paths[ix] for ix in ixs], image_times[ixs]
+
+
+@dataclass
+class ImageSequenceReader(IVideoReader):
+    """ Reads through a seqence of images as if they were a videos."""
+
+    def __init__(self, image_paths: Sequence[str], fallback_fps: float = 1., reorder = False):
+        self._image_paths = image_paths
+        if reorder:
+            self._image_paths, self._image_times = get_time_ordered_image_paths(image_paths, fallback_fps)
+        else:
+            self._image_times = [i / fallback_fps for i in range(len(image_paths))]
+
+    def get_sorted_paths(self) -> Sequence[str]:
+        return self._image_paths
+
+    def get_metadata(self) -> VideoMetaData:
+        image_meta = exif.Image(self._image_paths[0])
+        size_xy = image_meta.pixel_x_dimension, image_meta.pixel_y_dimension
+        return VideoMetaData(
+            duration=self._image_times[-1] - self._image_times[0],
+            n_frames=len(self._image_paths),
+            fps=len(self._image_paths) / (self._image_times[-1] - self._image_times[0]),
+            size_xy=size_xy,
+            n_bytes=sum(os.path.getsize(path) for path in self._image_paths)
+        )
+
+    def get_n_frames(self) -> int:
+        return len(self._image_paths)
+
+    def time_to_nearest_frame(self, t: float) -> int:
+        return np.searchsorted(self._image_times, t, side='left')
+
+    def frame_index_to_nearest_frame(self, index: int) -> int:
+        return min(max(0, index), self.get_n_frames() - 1)
+
+    def frame_index_to_time(self, frame_ix: int) -> float:
+        return self._image_times[frame_ix]
+
+    def time_indicator_to_nearest_frame(self, time_indicator: str) -> Optional[int]:
+        return time_indicator_to_nearest_frame(time_indicator, n_frames=self.get_n_frames(), frame_times=self._image_times)
+
+    def iter_frame_ixs(self) -> Iterator[int]:
+        return range(self.get_n_frames())
+
+    def iter_frames(self) -> Iterator[VideoFrameInfo]:
+        for i in self.iter_frame_ixs():
+            yield self.request_frame(i)
+
+    def cut(self, time_interval: TimeIntervalTuple = (None, None), frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)) -> 'ImageSequenceReader':
+        if time_interval[0] is not None:
+            frame_interval = (self.time_to_nearest_frame(time_interval[0]), frame_interval[1])
+        if time_interval[1] is not None:
+            frame_interval = (frame_interval[0], self.time_to_nearest_frame(time_interval[1]))
+        return ImageSequenceReader(self._image_paths[frame_interval[0]:frame_interval[1]])
+
+    def request_frame(self, index: int) -> VideoFrameInfo:
+        image = cv2.imread(self._image_paths[index])
+        assert image is not None, f"Could not load image at path {self._image_paths[index]}"
+        return VideoFrameInfo(
+            image=image,
+            seconds_into_video=self._image_times[index],
+            frame_ix=index,
+            fps=self.get_metadata().fps
+        )
+
+    def destroy(self):
+        pass

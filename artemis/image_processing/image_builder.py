@@ -227,6 +227,11 @@ class ImageBuilder:
         self.image[vslice, hslice] = image
         return self
 
+    def draw_text_label(self, label: str, top_side: bool = True, rel_font_size: int = 0.05, color: BGRColorTuple = BGRColors.WHITE, background_color: Optional[BGRColorTuple] = None, thickness: int = 2) -> 'ImageBuilder':
+        text_image = ImageBuilder.from_text(text=label, text_displayer=TextDisplayer(text_color=color, background_color=background_color, scale=rel_font_size*self.image.shape[0]/20., thickness=thickness)).get_image()
+        self.image = ImageCol(text_image, self.image).render() if top_side else ImageCol(self.image, text_image).render()
+        return self
+
     def draw_text(self, text: str, loc_xy: Tuple[int, int], colour: BGRColorTuple, anchor_xy: Tuple[float, float] = (0., 0.), shadow_color: Optional[BGRColorTuple] = None, background_color: Optional[BGRColorTuple] = None, thickness=1,
                   scale=1., font=cv2.FONT_HERSHEY_PLAIN
                   ) -> 'ImageBuilder':

@@ -225,16 +225,17 @@ def angle_between(a, b, axis=None, in_degrees = False):
 
     Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
-    cos_dist = cosine_distance(a, b, axis=axis)
+    cos_dist = cosine_similarity(a, b, axis=axis)
     angle = np.arccos(cos_dist)
     if in_degrees:
         angle = angle * 180/np.pi
     return angle
 
 
-def cosine_distance(a, b, axis=None):
+def cosine_similarity(a, b, axis=None):
     """
     Return the cosine distance between two vectors a and b.  Raise an exception if one is a zero vector
+
     :param a: An array
     :param b: Another array of the same shape
     :return: The cosine distance between a and b, reduced along the given axis.
