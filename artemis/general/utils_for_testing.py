@@ -9,6 +9,12 @@ import numpy as np
 from artemis.general.custom_types import MaskImageArray, Array
 
 
+
+# ASSET_FOLDER_PATH = "~/projects/eagle_eyes_app/app/src/main/assets"
+# VIDEO_SCANNER_RESOURCE_MODELS_PATH = "~/projects/eagle_eyes_video_scanner/resources/models"
+
+
+
 def mask_to_imstring(mask: MaskImageArray) -> str:
 
     return '\n'.join(''.join('X' if m else '•' for m in row) for row in mask)

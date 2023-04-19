@@ -279,6 +279,7 @@ class ExperimentRecord(object):
             pickle.dump(result, f, protocol=pickle.HIGHEST_PROTOCOL)
             ARTEMIS_LOGGER.info('Saving Result for Experiment "{}"'.format(self.get_id(),))
 
+
     def get_id(self):
         """
         Get the id of this experiment record.  Generally in format '<datetime>-<experiment_name>'

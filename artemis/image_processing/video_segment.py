@@ -42,6 +42,9 @@ class VideoSegment:
         else:
             yield from iter_images_from_video(self.path, time_interval=self.time_interval, max_size=max_size or self.max_size, rotation=self.rotation, frame_interval=(None, max_count))
 
+    def exists(self) -> bool:
+        return all(os.path.exists(os.path.expanduser(f)) for f in self.path.split(';'))
+
     def _is_image_sequence(self) -> bool:
         return ';' in self.path
 
