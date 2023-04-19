@@ -651,8 +651,8 @@ def create_placeholder_image(  # Generate a colour image filled with one colour
 ) -> BGRImageArray:
     gap_image = create_gap_image(gap_colour=gap_colour, size=size)
     n_steps = max(gap_image.shape[:2])
-    row_ixs = np.linspace(0, gap_image.shape[0] - 1, n_steps).astype(np.int)
-    col_ixs = np.linspace(0, gap_image.shape[1] - 1, n_steps).astype(np.int)
+    row_ixs = np.linspace(0, gap_image.shape[0] - 1, n_steps).astype(int)
+    col_ixs = np.linspace(0, gap_image.shape[1] - 1, n_steps).astype(int)
     gap_image[row_ixs, col_ixs] = x_color
     gap_image[row_ixs, -col_ixs] = x_color
     return gap_image

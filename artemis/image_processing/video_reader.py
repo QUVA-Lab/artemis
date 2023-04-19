@@ -347,7 +347,7 @@ class VideoReader(IVideoReader):
             self._iterator = self._iter_frame_data()
             for j, f in enumerate(self._iterator):
                 if j > max_seek_search:
-                    raise RuntimeError(f'Did not find target within {max_seek_search} frames of seek')
+                    raise RuntimeError(f'Did not find target frame {index} within {max_seek_search} frames of seek')
                 if f.pts >= pts - 1:
                     self._iterator = itertools.chain([f], self._iterator)
                     break
@@ -385,11 +385,18 @@ class ImageSequenceReader(IVideoReader):
 
     def get_metadata(self) -> VideoMetaData:
         image_meta = exif.Image(self._image_paths[0])
-        size_xy = image_meta.pixel_x_dimension, image_meta.pixel_y_dimension
+        if hasattr(image_meta, 'pixel_x_dimension'):
+            size_xy = image_meta.pixel_x_dimension, image_meta.pixel_y_dimension
+        elif hasattr(image_meta, 'image_width'):
+            size_xy = image_meta.image_width, image_meta.image_height
+        else:  # Load it and find out
+            img = cv2.imread(self._image_paths[0])
+            size_xy = img.shape[1], img.shape[0]
+
         return VideoMetaData(
             duration=self._image_times[-1] - self._image_times[0],
             n_frames=len(self._image_paths),
-            fps=len(self._image_paths) / (self._image_times[-1] - self._image_times[0]),
+            fps=len(self._image_paths) / (self._image_times[-1] - self._image_times[0] if len(self._image_paths) > 1 else 1.),
             size_xy=size_xy,
             n_bytes=sum(os.path.getsize(path) for path in self._image_paths)
         )
