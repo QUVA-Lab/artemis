@@ -385,11 +385,12 @@ class ImageSequenceReader(IVideoReader):
 
     def get_metadata(self) -> VideoMetaData:
         image_meta = exif.Image(self._image_paths[0])
-        if hasattr(image_meta, 'pixel_x_dimension'):
-            size_xy = image_meta.pixel_x_dimension, image_meta.pixel_y_dimension
-        elif hasattr(image_meta, 'image_width'):
-            size_xy = image_meta.image_width, image_meta.image_height
-        else:  # Load it and find out
+        try:
+            if hasattr(image_meta, 'pixel_x_dimension'):
+                size_xy = image_meta.pixel_x_dimension, image_meta.pixel_y_dimension
+            elif hasattr(image_meta, 'image_width'):
+                size_xy = image_meta.image_width, image_meta.image_height
+        except:  # Load it and find out
             img = cv2.imread(self._image_paths[0])
             size_xy = img.shape[1], img.shape[0]
 
