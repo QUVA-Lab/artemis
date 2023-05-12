@@ -6,7 +6,8 @@ import cv2
 
 from artemis.general.custom_types import TimeIntervalTuple, BGRImageArray
 from artemis.image_processing.image_utils import iter_images_from_video, fit_image_to_max_size
-from artemis.image_processing.video_reader import VideoReader, VideoFrameInfo, VideoMetaData, ImageSequenceReader, IVideoReader
+from artemis.image_processing.video_reader import VideoReader, VideoMetaData, ImageSequenceReader, IVideoReader
+from artemis.image_processing.video_frame import VideoFrameInfo
 
 
 @dataclass

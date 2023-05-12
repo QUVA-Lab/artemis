@@ -3,10 +3,12 @@ import itertools
 import os
 from abc import abstractmethod, ABCMeta
 from dataclasses import dataclass, replace
+from datetime import datetime
 from math import floor, ceil
 from typing import Iterable, Tuple, Union, Optional, Sequence, Callable, TypeVar, Iterator
 
 import cv2
+import exif
 import numpy as np
 from attr import attrs, attrib
 
@@ -118,6 +120,14 @@ def fit_image_to_max_size(image: BGRImageArray, max_size: Tuple[int, int]):
 
 """ Deprecated.  Use VideoSegment.iter_images """
 
+
+def iter_images_from_livestream(livestream_url) -> Iterator[BGRImageArray]:
+    cap = cv2.VideoCapture(livestream_url)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        yield frame
 
 
 def iter_images_from_video(path: str, max_size: Optional[Tuple[int, int]] = None,
@@ -1010,3 +1020,16 @@ def load_artemis_image(which: str = 'statue') -> BGRImageArray:
 #                 xstops[i, j] = ystops[i, j] = False
 #
 #     return xystops
+def read_image_time_or_none(image_path: str) -> Optional[float]:
+    """ Get the epoch time of the image as a float """
+    with open(image_path, 'rb') as image_file:
+        try:
+            exif_data = exif.Image(image_file)
+        except Exception as err:
+            return None
+        if exif_data.has_exif:
+            # parse string like '2022:11:20 14:03:13' into datetime
+            datetime_obj = datetime.strptime(exif_data.datetime_original, '%Y:%m:%d %H:%M:%S')
+            return datetime_obj.timestamp()
+        else:
+            return None

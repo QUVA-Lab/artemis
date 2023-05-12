@@ -1,6 +1,7 @@
 import datetime
 import itertools
 import os
+import time
 from _py_abc import ABCMeta
 from abc import abstractmethod
 from dataclasses import dataclass
@@ -9,29 +10,14 @@ import av
 import cv2
 import exif
 import numpy as np
-from artemis.general.custom_types import BGRImageArray, TimeIntervalTuple, Array
+from artemis.general.custom_types import TimeIntervalTuple
 from artemis.general.utils_utils import byte_size_to_string
-from artemis.image_processing.image_utils import fit_image_to_max_size
+from artemis.image_processing.image_utils import fit_image_to_max_size, read_image_time_or_none
 from artemis.general.item_cache import CacheDict
 from artemis.general.parsing import parse_time_delta_str_to_sec
-from video_scanner.general_utils.srt_files import read_image_time_or_none
+from artemis.image_processing.livestream_recorder import LiveStreamRecorderAgent
+from artemis.image_processing.video_frame import VideoFrameInfo
 
-
-@dataclass
-class VideoFrameInfo:
-    image: BGRImageArray
-    seconds_into_video: float
-    frame_ix: int
-    fps: float
-
-    def get_size_xy(self) -> Tuple[int, int]:
-        return self.image.shape[1], self.image.shape[0]
-
-    def get_progress_string(self, total_frames: Optional[int] = None) -> str:
-        if total_frames is None:
-            return f"t={self.seconds_into_video:.2f}s, frame={self.frame_ix}"
-        else:
-            return f"t={self.seconds_into_video:.2f}s/{total_frames/self.fps:.2f}s, frame={self.frame_ix}/{total_frames}"
 
 @dataclass
 class VideoMetaData:
@@ -42,13 +28,14 @@ class VideoMetaData:
     size_xy: Tuple[int, int]
 
     def get_duration_string(self) -> str:
-        return str(datetime.timedelta(seconds=int(self.duration)))
+        return str(datetime.timedelta(seconds=int(self.duration))) if self.duration != float('inf') else '∞'
 
     def get_size_xy_string(self) -> str:
         return f"{self.size_xy[0]}x{self.size_xy[1]}"
 
     def get_size_string(self) -> str:
         return byte_size_to_string(self.n_bytes, decimals_precision=1)
+
 
 def get_actual_frame_interval(
         n_frames_total: int,
@@ -164,7 +151,6 @@ def time_indicator_to_nearest_frame(time_indicator: str, n_frames: int, fps: Opt
         return None
 
 
-@dataclass
 class VideoReader(IVideoReader):
     """
     The reader efficiently provides access to video frames.
@@ -384,8 +370,8 @@ class ImageSequenceReader(IVideoReader):
         return self._image_paths
 
     def get_metadata(self) -> VideoMetaData:
-        image_meta = exif.Image(self._image_paths[0])
         try:
+            image_meta = exif.Image(self._image_paths[0])
             if hasattr(image_meta, 'pixel_x_dimension'):
                 size_xy = image_meta.pixel_x_dimension, image_meta.pixel_y_dimension
             elif hasattr(image_meta, 'image_width'):
@@ -443,3 +429,156 @@ class ImageSequenceReader(IVideoReader):
 
     def destroy(self):
         pass
+
+
+@dataclass
+class LiveVideoReader(IVideoReader):
+
+    stream_url: str
+    frames_seen_so_far: int = 0
+    record: bool = True
+    _iterator: Optional[Iterator[VideoFrameInfo]] = None
+
+    _last_frame: Optional[VideoFrameInfo] = None
+
+    def get_metadata(self) -> VideoMetaData:
+        return VideoMetaData(
+            duration=np.inf,
+            n_frames=0,
+            fps=np.inf,
+            size_xy=(-1, -1),
+            n_bytes=-1
+        )
+
+    def get_n_frames(self) -> int:
+        return 1
+
+    def time_to_nearest_frame(self, t: float) -> int:
+        return 0
+
+    def frame_index_to_nearest_frame(self, index: int) -> int:
+        return 0
+
+    def frame_index_to_time(self, frame_ix: int) -> float:
+        return 0.
+
+    def time_indicator_to_nearest_frame(self, time_indicator: str) -> Optional[int]:
+        return 0
+
+    def iter_frame_ixs(self) -> Iterator[int]:
+        yield 0
+
+    def iter_frames(self) -> Iterator[VideoFrameInfo]:
+        cap = cv2.VideoCapture(self.stream_url)
+        t_start = time.monotonic()
+        count = 0
+        while True:
+            count += 1
+            ret, frame = cap.read()
+            if not ret:
+                break
+            elapsed = time.monotonic() - t_start
+            yield VideoFrameInfo(
+                image=frame,
+                seconds_into_video=elapsed,
+                frame_ix=self.frames_seen_so_far,
+                fps=self.get_metadata().fps
+            )
+            self.frames_seen_so_far += 1
+
+    def cut(self, time_interval: TimeIntervalTuple = (None, None), frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)) -> 'IVideoReader':
+        raise NotImplementedError("Can't cut a live stream")
+
+    def request_frame(self, index: int) -> VideoFrameInfo:
+        if self._iterator is None:
+            self._iterator = self.iter_frames()
+        return next(self._iterator)
+        # assert self._last_frame is not None, "Can't request a frame from a live stream without iterating through it"
+        # return self._last_frame
+
+    def destroy(self):
+        pass
+
+
+@dataclass
+class LiveRecordingVideoReader(IVideoReader):
+
+    agent: LiveStreamRecorderAgent
+
+    # stream_url: str
+    # record_url: str
+    _frames_seen_so_far: int = 0
+    _recorded_video_reader: Optional[VideoReader] = None
+    # _iterator: Optional[Iterator[VideoFrameInfo]] = None
+
+    # _last_frame: Optional[VideoFrameInfo] = None
+
+    def _get_recorded_video_reader(self) -> VideoReader:
+        if self._recorded_video_reader is None:
+            self._recorded_video_reader = VideoReader(self.agent.writing_video_path)
+        return self._recorded_video_reader
+
+    def get_metadata(self) -> VideoMetaData:
+        return VideoMetaData(
+            duration=np.inf,
+            n_frames=self._frames_seen_so_far,
+            fps=np.inf,
+            size_xy=(-1, -1),
+            n_bytes=-1
+        )
+
+    def get_n_frames(self) -> int:
+        return self._frames_seen_so_far
+
+    def time_to_nearest_frame(self, t: float) -> int:
+        return 0
+
+    def frame_index_to_nearest_frame(self, index: int) -> int:
+        return 0
+
+    def frame_index_to_time(self, frame_ix: int) -> float:
+        return 0.
+
+    def time_indicator_to_nearest_frame(self, time_indicator: str) -> Optional[int]:
+        return 0
+
+    def iter_frame_ixs(self) -> Iterator[int]:
+        yield 0
+
+    def iter_frames(self) -> Iterator[VideoFrameInfo]:
+        raise NotImplementedError()
+        # cap = cv2.VideoCapture(self.stream_url)
+        # t_start = time.monotonic()
+        # count = 0
+        # while True:
+        #     count += 1
+        #     ret, frame = cap.read()
+        #     if not ret:
+        #         break
+        #     elapsed = time.monotonic() - t_start
+        #     yield VideoFrameInfo(
+        #         image=frame,
+        #         seconds_into_video=elapsed,
+        #         frame_ix=self._frames_seen_so_far,
+        #         fps=self.get_metadata().fps
+        #     )
+        #     self._frames_seen_so_far += 1
+
+    def cut(self, time_interval: TimeIntervalTuple = (None, None), frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)) -> 'IVideoReader':
+        raise NotImplementedError("Can't cut a live stream")
+
+    def request_frame(self, index: int) -> VideoFrameInfo:
+        print("Requesting frame ", index)
+        if index==-1 or index==self._frames_seen_so_far:
+            frame = self.agent.get_last_frame_blocking()
+            self._frames_seen_so_far = frame.frame_ix + 1
+            print("Requesting last frame from live stream")
+            return frame
+        else:
+            print("Requesting frame from recorded video")
+            return self._get_recorded_video_reader().request_frame(index)
+
+    def destroy(self):
+        pass
+
+
