@@ -24,10 +24,14 @@ import logging
 LIVESTREAM_LOGGER = logging.getLogger("livestream_recorder")
 
 
+LATEST_FRAME_DONE_INDICATER = 'This string indicates that the poison pill has been received'
+
+
 def read_stream_and_save_to_disk(
         stream_url: str,
         writing_video_path: Optional[str] = None,
         poison_pill_input_queue: Optional["Queue[bool]"] = None,
+        poison_pill_ack_queue: Optional["Queue[bool]"] = None,
         latest_frame_return_queue: Optional["Queue[VideoFrameInfo]"] = None,
         verbose: bool = False
 ):
@@ -49,7 +53,7 @@ def read_stream_and_save_to_disk(
     try:
         while cap.isOpened():
             ret, frame = cap.read()
-
+            print(f"Got frame of shape {frame.shape if frame is not None else None} from agent")
             if ret:
                 LIVESTREAM_LOGGER.debug(f"Process: Found frame of size {frame.shape}")
                 if writing_video_path is not None and writer is None:
@@ -71,13 +75,16 @@ def read_stream_and_save_to_disk(
                                             frame_ix=frame_ix, fps=cap.get(cv2.CAP_PROP_FPS))
                 if latest_frame_return_queue is not None:
                     if not latest_frame_return_queue.full():
+                        print(f"Adding a frame {frame_info.frame_ix} to the queue, which has size {latest_frame_return_queue.qsize()}")
                         latest_frame_return_queue.put(frame_info)
                 frame_ix += 1
             else:
                 LIVESTREAM_LOGGER.debug("Process: Found no frame from stream")
-                break
+                # break
 
             if poison_pill_input_queue is not None and not poison_pill_input_queue.empty():
+                LIVESTREAM_LOGGER.critical("Process: Got poison pill, exiting")
+                print("Process: Got poison pill, exiting")
                 if poison_pill_input_queue.get():
                     break
     finally:
@@ -88,6 +95,14 @@ def read_stream_and_save_to_disk(
         else:
             LIVESTREAM_LOGGER.debug("Process: Done!")
     LIVESTREAM_LOGGER.warning("Ending Livestream Process")
+    if poison_pill_ack_queue is not None:
+        poison_pill_ack_queue.put(True)
+
+
+def make_queue(maxsize: Optional[int]):
+    m = multiprocessing.Manager()
+    q = m.Queue(maxsize=maxsize)
+    return q
 
 
 @dataclass
@@ -95,22 +110,38 @@ class LiveStreamRecorderAgent:
     stream_url: str
     writing_video_path: Optional[str] = None
     poison_pill_input_queue: Optional["Queue[bool]"] = field(default_factory=lambda: Queue(maxsize=1))
-    latest_frame_return_queue: Optional["Queue[VideoFrameInfo]"] = field(default_factory=lambda: Queue(maxsize=2))
+    poison_pill_ack_queue: Optional["Queue[bool]"] = field(default_factory=lambda: Queue(maxsize=1))
+    latest_frame_return_queue: Optional["Queue[VideoFrameInfo]"] = field(default_factory=lambda: make_queue(maxsize=2))
+    _is_done: bool = False
+
 
     def launch(self):
+        print("Launching agent...")
+        print("Processes under this one before launching agent:")
+        print(multiprocessing.active_children())
+
         self.process = multiprocessing.Process(
             target=partial(read_stream_and_save_to_disk,
                            stream_url=self.stream_url,
                            writing_video_path=self.writing_video_path,
                            poison_pill_input_queue=self.poison_pill_input_queue,
+                           poison_pill_ack_queue=self.poison_pill_ack_queue,
                            latest_frame_return_queue=self.latest_frame_return_queue
                            )
         )
         self.process.start()
+        print("Processes under this one after launching agent:")
+        print(multiprocessing.active_children())
 
     def get_last_frame(self) -> Optional[VideoFrameInfo]:
         try:
-            return self.latest_frame_return_queue.get_nowait()
+            if self._is_done:
+                return None
+            frame = self.latest_frame_return_queue.get_nowait()
+            if frame == LATEST_FRAME_DONE_INDICATER:
+                self._is_done = True
+                return None
+            return frame
         except queue.Empty:
             return None
 
@@ -120,29 +151,23 @@ class LiveStreamRecorderAgent:
     @contextmanager
     def launch_and_iter_frames_context(self):
         try:
-            yield self.launch_and_iter_frames()
+            self.launch()
+            while True:
+                try:
+                    # print("Main: Trying to get frame")
+                    frame_info = self.latest_frame_return_queue.get(timeout=0.1)
+                except queue.Empty:
+                    # print("Main: But no frame")
+                    continue
+                yield frame_info
         finally:
             self.kill()
 
-    def launch_and_iter_frames(self):
-        self.launch()
-        while True:
-            try:
-                # print("Main: Trying to get frame")
-                frame_info = self.latest_frame_return_queue.get(timeout=0.1)
-            except queue.Empty:
-                # print("Main: But no frame")
-                continue
-            yield frame_info
-
     def kill(self):
         print("Stopping Livestrean process...")
+        self._is_done = True
         self.poison_pill_input_queue.put(True)
-        while not self.latest_frame_return_queue.empty():
-            try:
-                self.latest_frame_return_queue.get_nowait()
-            except queue.Empty:
-                continue
+        self.poison_pill_ack_queue.get()  # Wait for the child process to acknowledge the poison pill
         self.process.terminate()  # Forcefully stop the child process
         self.process.join()  # Wait for the child process to stop
         print("Stopped Livestrean process.")
