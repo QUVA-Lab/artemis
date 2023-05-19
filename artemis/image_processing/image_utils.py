@@ -843,6 +843,9 @@ class ImageViewInfo:
             result = result.adjust_pan_to_boundary()
         return result
 
+    def zoom_to_pixel(self, pixel_xy: Tuple[int, int], zoom_level: float) -> 'ImageViewInfo':
+        return replace(self, center_pixel_xy=pixel_xy, zoom_level=zoom_level)
+
     def adjust_pan_to_boundary(self) -> 'ImageViewInfo':
         display_edge_xy = np.asarray(self._get_display_midpoint_xy())
         pixel_edge_xy = display_edge_xy / self.zoom_level

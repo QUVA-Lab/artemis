@@ -35,6 +35,17 @@ def hold_temp_memo_dir():
     MEMO_DIR = oldone
 
 
+@contextmanager
+def hold_memo_dir_as(path):
+    global MEMO_DIR
+    oldone = MEMO_DIR
+    MEMO_DIR = path
+    try:
+        yield path
+    finally:
+        MEMO_DIR = oldone
+
+
 def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickle = False, suppress_info = False):
     """
     Save (memoize) computed results to disk, so that the same function, called with the

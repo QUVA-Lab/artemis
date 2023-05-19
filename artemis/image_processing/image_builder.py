@@ -124,10 +124,12 @@ class ImageBuilder:
     def draw_box(self, box: BoundingBox | RelativeBoundingBox, colour: BGRColorTuple = BGRColors.RED,
                  secondary_colour: Optional[BGRColorTuple] = None,
                  text_background_color: Optional[BGRColorTuple] = None,
+                 text_color: Optional[BGRColorTuple] = None,
                  text_scale = 0.7,
                  thickness: int = 1, box_id: Optional[int] = None,
                  include_labels = True, show_score_in_label: bool = True,  score_as_pct: bool = False) -> 'ImageBuilder':
-
+        if text_color is None:
+            text_color = colour
         if isinstance(box, RelativeBoundingBox):
             box = box.to_bounding_box((self.image.shape[1], self.image.shape[0]))
         # xmin, xmax, ymin, ymax = xx_yy_box
@@ -141,7 +143,7 @@ class ImageBuilder:
         label = ','.join(str(i) for i in [box_id, box.label, None if not show_score_in_label else f"{box.score:.0%}" if score_as_pct else f"{box.score:.2f}"] if i is not None)
         if include_labels:
 
-            put_text_at(self.image, text=label, position_xy=(jmin, imin if box.y_min > box.y_max-box.y_min else imax), scale=text_scale*self.image.shape[1]/640, color=colour, shadow_color = BGRColors.BLACK, background_color=text_background_color, thickness=thickness)
+            put_text_at(self.image, text=label, position_xy=(jmin, imin if box.y_min > box.y_max-box.y_min else imax), scale=text_scale*self.image.shape[1]/640, color=text_color, shadow_color = BGRColors.BLACK, background_color=text_background_color, thickness=thickness)
             # cv2.putText(self.image, text=label, org=(imin, jmin), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=.7*self.image.shape[1]/640,
             #             color=colour, thickness=thickness)
 
@@ -164,6 +166,7 @@ class ImageBuilder:
                             colour: BGRColorTuple = BGRColors.WHITE,
                             secondary_colour: Optional[BGRColorTuple] = BGRColors.BLACK,
                             text_background_colors: Optional[Iterable[BGRColorTuple]] = None,
+                            text_colors: Optional[Iterable[BGRColorTuple]] = None,
                             thickness: int = 2,
                             text_scale=0.7,
                             score_as_pct: bool = False,
@@ -176,8 +179,10 @@ class ImageBuilder:
         original_image = self.image.copy()
         if text_background_colors is None:
             text_background_colors = (None for _ in itertools.count(0))
-        for bb, bg in zip(boxes, text_background_colors):
-            self.draw_box(bb, colour=colour, secondary_colour=secondary_colour, text_background_color=bg, thickness=thickness, score_as_pct=score_as_pct, show_score_in_label=show_score_in_label,
+        if text_colors is None:
+            text_colors = (None for _ in itertools.count(0))
+        for bb, bg, tc in zip(boxes, text_background_colors, text_colors):
+            self.draw_box(bb, colour=colour, text_color=tc, secondary_colour=secondary_colour, text_background_color=bg, thickness=thickness, score_as_pct=score_as_pct, show_score_in_label=show_score_in_label,
                           include_labels=include_labels, text_scale=text_scale)
         if include_inset:
             self.draw_corner_inset(
