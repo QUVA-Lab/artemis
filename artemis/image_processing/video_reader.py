@@ -96,6 +96,7 @@ class IVideoReader(metaclass=ABCMeta):
         """ Get the frame index nearest the time-indicator
         e.g. "0:32.5" "32.5s", "53%", "975" (frame number)
         Returns None if the time_indicator is invalid
+        Note - frame-index in string is 1-based, output is 0-based, so "975" -> 974
         """
 
     @abstractmethod
@@ -149,8 +150,8 @@ def time_indicator_to_nearest_frame(time_indicator: str, n_frames: int, fps: Opt
     elif time_indicator.endswith('%'):
         percent = float(time_indicator.rstrip('%'))
         return round(percent / 100 * n_frames)
-    elif all(c in '0123456789' for c in time_indicator):
-        return int(time_indicator)
+    elif time_indicator.isdigit():
+        return max(0, int(time_indicator)-1)
     else:
         return None
 
@@ -401,7 +402,7 @@ class ImageSequenceReader(IVideoReader):
         )
 
     def get_progress_indicator(self, frame_ix) -> str:
-        return f"Frame {frame_ix+1}/{self.get_n_frames() - 1}: {os.path.split(self._image_paths[frame_ix])[-1]}"
+        return f"Frame {frame_ix+1}/{self.get_n_frames()}: {os.path.split(self._image_paths[frame_ix])[-1]}"
 
     def get_n_frames(self) -> int:
         return len(self._image_paths)

@@ -137,8 +137,8 @@ class ImageBuilder:
         # xmin, xmax, ymin, ymax = xx_yy_box
         jmin, imin = self._xy_to_ji((box.x_min, box.y_min))
         jmax, imax = self._xy_to_ji((box.x_max, box.y_max))
+        imean, jmean = box.to_ij()
         if as_circle:
-            imean, jmean = box.to_ij()
             cv2.circle(self.image, center=(jmean, imean), radius=round((jmax-jmin)/2), color=colour, thickness=thickness)
             if secondary_colour is not None:
                 cv2.circle(self.image, center=(jmean, imean), radius=round((jmax-jmin)/2)+thickness, color=secondary_colour, thickness=thickness)
@@ -153,13 +153,13 @@ class ImageBuilder:
         if include_labels:
 
             put_text_at(self.image, text=label,
-                        position_xy=(jmin, imin if box.y_min > box.y_max-box.y_min else imax),
+                        position_xy=(jmean, imin if box.y_min > box.y_max-box.y_min else imax),
                         anchor_xy=(0.5, 0.) if as_circle else (0., 0.),
                         scale=text_scale*self.image.shape[1]/640,
                         color=text_color,
                         shadow_color = BGRColors.BLACK,
                         background_color=text_background_color,
-                        thickness=thickness
+                        thickness=2
                         )
             # cv2.putText(self.image, text=label, org=(imin, jmin), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=.7*self.image.shape[1]/640,
             #             color=colour, thickness=thickness)
