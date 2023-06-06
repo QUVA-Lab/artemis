@@ -11,8 +11,8 @@ import queue
 from contextlib import contextmanager
 from functools import partial
 from multiprocessing import Queue
-from typing import Optional
-
+from typing import Optional, Tuple
+import time
 import cv2
 import numpy as np
 from dataclasses import dataclass, field
@@ -53,7 +53,7 @@ def read_stream_and_save_to_disk(
     try:
         while cap.isOpened():
             ret, frame = cap.read()
-            print(f"Got frame of shape {frame.shape if frame is not None else None} from agent")
+            # print(f"Got frame of shape {frame.shape if frame is not None else None} from agent")
             if ret:
                 LIVESTREAM_LOGGER.debug(f"Process: Found frame of size {frame.shape}")
                 if writing_video_path is not None and writer is None:
@@ -75,7 +75,7 @@ def read_stream_and_save_to_disk(
                                             frame_ix=frame_ix, fps=cap.get(cv2.CAP_PROP_FPS))
                 if latest_frame_return_queue is not None:
                     if not latest_frame_return_queue.full():
-                        print(f"Adding a frame {frame_info.frame_ix} to the queue, which has size {latest_frame_return_queue.qsize()}")
+                        # print(f"Adding a frame {frame_info.frame_ix} to the queue, which has size {latest_frame_return_queue.qsize()}")
                         latest_frame_return_queue.put(frame_info)
                 frame_ix += 1
             else:
@@ -113,6 +113,7 @@ class LiveStreamRecorderAgent:
     poison_pill_ack_queue: Optional["Queue[bool]"] = field(default_factory=lambda: Queue(maxsize=1))
     latest_frame_return_queue: Optional["Queue[VideoFrameInfo]"] = field(default_factory=lambda: make_queue(maxsize=2))
     _is_done: bool = False
+    _latest_time_and_frame: Optional[Tuple[float, VideoFrameInfo]] = None
 
 
     def launch(self):
@@ -138,12 +139,16 @@ class LiveStreamRecorderAgent:
             if self._is_done:
                 return None
             frame = self.latest_frame_return_queue.get_nowait()
+            self._latest_time_and_frame = time.monotonic(), frame
             if frame == LATEST_FRAME_DONE_INDICATER:
                 self._is_done = True
                 return None
             return frame
         except queue.Empty:
-            return None
+            if self._latest_time_and_frame is not None and time.monotonic() - self._latest_time_and_frame[0] < 1.0:
+                return self._latest_time_and_frame[1]
+            else:
+                return
 
     def get_last_frame_blocking(self, timeout: Optional[float] = None) -> VideoFrameInfo:
         return self.latest_frame_return_queue.get(timeout=timeout)
