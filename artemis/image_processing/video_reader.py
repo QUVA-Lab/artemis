@@ -88,6 +88,10 @@ class IVideoReader(metaclass=ABCMeta):
         """ Get the time corresponding to the frame index """
 
     @abstractmethod
+    def get_progress_indicator(self, frame_ix) -> str:
+        """ Return a human-readable string that indicates progress at this frame. """
+
+    @abstractmethod
     def time_indicator_to_nearest_frame(self, time_indicator: str) -> Optional[int]:
         """ Get the frame index nearest the time-indicator
         e.g. "0:32.5" "32.5s", "53%", "975" (frame number)
@@ -236,6 +240,14 @@ class VideoReader(IVideoReader):
                 size_xy=(width, height)
             )
         return self._metadata
+
+    def get_progress_indicator(self, frame_ix) -> str:
+        seconds_into_video = frame_ix / self._fps if self._fps else 0
+        total_frames = self.get_n_frames()
+        if total_frames is None:
+            return f"t={seconds_into_video:.2f}s, frame={frame_ix+1}"
+        else:
+            return f"t={seconds_into_video:.2f}s/{total_frames/self._fps:.2f}s, frame={frame_ix+1}/{total_frames}"
 
     def get_n_frames(self) -> int:
         return self._stop - self._start
@@ -388,6 +400,9 @@ class ImageSequenceReader(IVideoReader):
             n_bytes=sum(os.path.getsize(path) for path in self._image_paths)
         )
 
+    def get_progress_indicator(self, frame_ix) -> str:
+        return f"Frame {frame_ix+1}/{self.get_n_frames() - 1}: {os.path.split(self._image_paths[frame_ix])[-1]}"
+
     def get_n_frames(self) -> int:
         return len(self._image_paths)
 
@@ -434,13 +449,14 @@ class ImageSequenceReader(IVideoReader):
 @dataclass
 class LiveVideoReader(IVideoReader):
 
-    stream_url: str
+    cap: cv2.VideoCapture
     frames_seen_so_far: int = 0
     record: bool = True
     _iterator: Optional[Iterator[VideoFrameInfo]] = None
 
     _last_frame: Optional[VideoFrameInfo] = None
 
+    @classmethod
     def get_metadata(self) -> VideoMetaData:
         return VideoMetaData(
             duration=np.inf,
@@ -469,12 +485,12 @@ class LiveVideoReader(IVideoReader):
         yield 0
 
     def iter_frames(self) -> Iterator[VideoFrameInfo]:
-        cap = cv2.VideoCapture(self.stream_url)
+        # cap = cv2.VideoCapture(self.stream_url)
         t_start = time.monotonic()
         count = 0
         while True:
             count += 1
-            ret, frame = cap.read()
+            ret, frame = self.cap.read()
             if not ret:
                 break
             elapsed = time.monotonic() - t_start
