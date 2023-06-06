@@ -126,7 +126,9 @@ class ImageBuilder:
                  text_background_color: Optional[BGRColorTuple] = None,
                  text_color: Optional[BGRColorTuple] = None,
                  text_scale = 0.7,
+                 label: Optional[str] = None,
                  thickness: int = 1, box_id: Optional[int] = None,
+                 as_circle: bool = False,
                  include_labels = True, show_score_in_label: bool = True,  score_as_pct: bool = False) -> 'ImageBuilder':
         if text_color is None:
             text_color = colour
@@ -135,15 +137,30 @@ class ImageBuilder:
         # xmin, xmax, ymin, ymax = xx_yy_box
         jmin, imin = self._xy_to_ji((box.x_min, box.y_min))
         jmax, imax = self._xy_to_ji((box.x_max, box.y_max))
-        cv2.rectangle(self.image, pt1=(jmin, imin), pt2=(jmax, imax), color=colour, thickness=thickness)
-        if secondary_colour is not None:
-            cv2.rectangle(self.image, pt1=(jmin-thickness, imin-thickness), pt2=(jmax+thickness, imax+thickness), color=secondary_colour, thickness=thickness)
+        if as_circle:
+            imean, jmean = box.to_ij()
+            cv2.circle(self.image, center=(jmean, imean), radius=round((jmax-jmin)/2), color=colour, thickness=thickness)
+            if secondary_colour is not None:
+                cv2.circle(self.image, center=(jmean, imean), radius=round((jmax-jmin)/2)+thickness, color=secondary_colour, thickness=thickness)
+        else:
+            cv2.rectangle(self.image, pt1=(jmin, imin), pt2=(jmax, imax), color=colour, thickness=thickness)
+            if secondary_colour is not None:
+                cv2.rectangle(self.image, pt1=(jmin-thickness, imin-thickness), pt2=(jmax+thickness, imax+thickness), color=secondary_colour, thickness=thickness)
 
         # if box.label or box_id is not None:
-        label = ','.join(str(i) for i in [box_id, box.label, None if not show_score_in_label else f"{box.score:.0%}" if score_as_pct else f"{box.score:.2f}"] if i is not None)
+        if label is None:
+            label = ','.join(str(i) for i in [box_id, box.label, None if not show_score_in_label else f"{box.score:.0%}" if score_as_pct else f"{box.score:.2f}"] if i is not None)
         if include_labels:
 
-            put_text_at(self.image, text=label, position_xy=(jmin, imin if box.y_min > box.y_max-box.y_min else imax), scale=text_scale*self.image.shape[1]/640, color=text_color, shadow_color = BGRColors.BLACK, background_color=text_background_color, thickness=thickness)
+            put_text_at(self.image, text=label,
+                        position_xy=(jmin, imin if box.y_min > box.y_max-box.y_min else imax),
+                        anchor_xy=(0.5, 0.) if as_circle else (0., 0.),
+                        scale=text_scale*self.image.shape[1]/640,
+                        color=text_color,
+                        shadow_color = BGRColors.BLACK,
+                        background_color=text_background_color,
+                        thickness=thickness
+                        )
             # cv2.putText(self.image, text=label, org=(imin, jmin), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=.7*self.image.shape[1]/640,
             #             color=colour, thickness=thickness)
 
@@ -174,6 +191,7 @@ class ImageBuilder:
                             show_score_in_label: bool = False,
                             include_inset = False,
                             inset_zoom_factor = 3,
+                            as_circles: bool = False,
                             ) -> 'ImageBuilder':
 
         original_image = self.image.copy()
@@ -183,7 +201,7 @@ class ImageBuilder:
             text_colors = (None for _ in itertools.count(0))
         for bb, bg, tc in zip(boxes, text_background_colors, text_colors):
             self.draw_box(bb, colour=colour, text_color=tc, secondary_colour=secondary_colour, text_background_color=bg, thickness=thickness, score_as_pct=score_as_pct, show_score_in_label=show_score_in_label,
-                          include_labels=include_labels, text_scale=text_scale)
+                          include_labels=include_labels, text_scale=text_scale, as_circle=as_circles)
         if include_inset:
             self.draw_corner_inset(
                 ImageRow(*(ImageBuilder(b.slice_image(original_image)).rescale(inset_zoom_factor).image for b in boxes)).render(),
@@ -232,7 +250,7 @@ class ImageBuilder:
         self.image[vslice, hslice] = image
         return self
 
-    def draw_text_label(self, label: str, top_side: bool = True, rel_font_size: int = 0.05, color: BGRColorTuple = BGRColors.WHITE, background_color: Optional[BGRColorTuple] = None, thickness: int = 2) -> 'ImageBuilder':
+    def draw_text_label(self, label: str, top_side: bool = True, rel_font_size: float = 0.05, color: BGRColorTuple = BGRColors.WHITE, background_color: Optional[BGRColorTuple] = None, thickness: int = 2) -> 'ImageBuilder':
         text_image = ImageBuilder.from_text(text=label, text_displayer=TextDisplayer(text_color=color, background_color=background_color, scale=rel_font_size*self.image.shape[0]/20., thickness=thickness)).get_image()
         self.image = ImageCol(text_image, self.image).render() if top_side else ImageCol(self.image, text_image).render()
         return self

@@ -53,7 +53,7 @@ def read_stream_and_save_to_disk(
     try:
         while cap.isOpened():
             ret, frame = cap.read()
-            print(f"Got frame of shape {frame.shape if frame is not None else None} from agent")
+            # print(f"Got frame of shape {frame.shape if frame is not None else None} from agent")
             if ret:
                 LIVESTREAM_LOGGER.debug(f"Process: Found frame of size {frame.shape}")
                 if writing_video_path is not None and writer is None:
@@ -75,7 +75,7 @@ def read_stream_and_save_to_disk(
                                             frame_ix=frame_ix, fps=cap.get(cv2.CAP_PROP_FPS))
                 if latest_frame_return_queue is not None:
                     if not latest_frame_return_queue.full():
-                        print(f"Adding a frame {frame_info.frame_ix} to the queue, which has size {latest_frame_return_queue.qsize()}")
+                        # print(f"Adding a frame {frame_info.frame_ix} to the queue, which has size {latest_frame_return_queue.qsize()}")
                         latest_frame_return_queue.put(frame_info)
                 frame_ix += 1
             else:

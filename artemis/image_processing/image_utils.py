@@ -145,7 +145,7 @@ def iter_images_from_video(path: str, max_size: Optional[Tuple[int, int]] = None
         for i, image_path in enumerate(path.split(';')):
             if frames_of_interest is not None and i not in frames_of_interest:
                 continue
-            image = cv2.imread(image_path)
+            image = cv2.imread(os.path.expanduser(image_path))
             if max_size is not None:
                 image = fit_image_to_max_size(image, max_size)
             assert image is not None, f"Could not read any image from {image_path}"

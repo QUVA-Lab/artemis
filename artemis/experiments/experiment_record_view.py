@@ -6,6 +6,8 @@ import itertools
 from six import string_types
 from tabulate import tabulate
 import numpy as np
+
+import video_scanner.ui.camera_livestream_setup
 from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, \
     load_experiment_record, is_matplotlib_imported, UnPicklableArg
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, \
@@ -552,19 +554,19 @@ def browse_record_figs(record):
         nonlocals.this_fig = plt.gcf()
 
     def changefig(keyevent):
-        if keyevent.key=='right':
+        if video_scanner.ui.camera_livestream_setup.key == 'right':
             nonlocals.figno = (nonlocals.figno+1)%len(fig_locs)
-        elif keyevent.key=='left':
+        elif video_scanner.ui.camera_livestream_setup.key == 'left':
             nonlocals.figno = (nonlocals.figno-1)%len(fig_locs)
-        elif keyevent.key=='up':
+        elif video_scanner.ui.camera_livestream_setup.key == 'up':
             nonlocals.figno = (nonlocals.figno-10)%len(fig_locs)
-        elif keyevent.key=='down':
+        elif video_scanner.ui.camera_livestream_setup.key == 'down':
             nonlocals.figno = (nonlocals.figno+10)%len(fig_locs)
 
-        elif keyevent.key==' ':
+        elif video_scanner.ui.camera_livestream_setup.key == ' ':
             nonlocals.figno = queryfig()
         else:
-            print("No handler for key: {}.  Changing Nothing".format(keyevent.key))
+            print("No handler for key: {}.  Changing Nothing".format(video_scanner.ui.camera_livestream_setup.key))
         show_figure(nonlocals.figno)
 
     def queryfig():

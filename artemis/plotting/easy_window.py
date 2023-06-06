@@ -11,9 +11,10 @@ import rpack
 from attr import attrib, attrs
 from rpack import PackingImpossibleError
 
-from artemis.general.custom_types import BGRColorTuple, BGRImageArray
+from artemis.general.custom_types import BGRColorTuple, BGRImageArray, Array
 from artemis.plotting.cv_keys import Keys, cvkey_to_key
-from artemis.image_processing.image_utils import BGRColors, DEFAULT_GAP_COLOR, create_gap_image, normalize_to_bgr_image, TextDisplayer
+from artemis.image_processing.image_utils import BGRColors, DEFAULT_GAP_COLOR, create_gap_image, normalize_to_bgr_image, \
+    TextDisplayer, heatmap_to_greyscale_image
 from artemis.plotting.cv2_plotting import hold_alternate_show_func
 
 DEFAULT_WINDOW_NAME = 'Window'
@@ -172,6 +173,42 @@ def put_text_at(
     if shadow_color is not None:
         cv2.putText(img=img, text=text, org=(px, py), fontFace=font, fontScale=scale, color=shadow_color, thickness=thickness + 3, bottomLeftOrigin=False)
     cv2.putText(img=img, text=text, org=(px, py), fontFace=font, fontScale=scale, color=color, thickness=thickness, bottomLeftOrigin=False)
+
+
+def draw_matrix(
+        matrix: Array['H,W', float],
+        approx_size_wh: Tuple[float, float] = (400, 400),
+        text_color = BGRColors.GREEN,
+        row_headers: Optional[Sequence[str]] = None,
+        col_headers: Optional[Sequence[str]] = None,
+        header_pad: int = 100
+    ) -> BGRImageArray:
+
+    w, h = approx_size_wh
+    if matrix.size==0:
+        blank = np.zeros((h, w, 3), dtype=np.uint8)
+        put_text_at(blank, "No data", position_xy=(w//2, h//2), anchor_xy=(0.5, 0.5), scale=1, thickness=1, color=text_color, shadow_color=(0, 0, 0))
+        return blank
+
+
+    heatmap = cv2.resize(matrix, (w, h), interpolation=cv2.INTER_NEAREST)
+
+    rowpad = 0 if row_headers is None else header_pad
+    colpad = 0 if col_headers is None else header_pad
+
+    heatmap = np.pad(heatmap, ((rowpad, 0), (colpad, 0)))
+
+    img = heatmap_to_greyscale_image(heatmap, assume_zero_center=True, assume_zero_min=False)
+    for i, j in np.ndindex(matrix.shape):
+        put_text_at(img, f"{matrix[i, j]:.2f}", position_xy=(rowpad+(j+.5)*w/matrix.shape[1], colpad+(i+.5)*h/matrix.shape[0]), anchor_xy=(0.5, 0.5), scale=1.5, thickness=1, color=text_color, shadow_color=(0, 0, 0))
+        # cv2.circle(img, (int(i*w/matrix.shape[1]), int(j*h/matrix.shape[0])), 3, (255, 255, 255), -1)
+    if row_headers is not None:
+        for i, header in enumerate(row_headers):
+            put_text_at(img, str(header), position_xy=(rowpad//2, colpad+(i+.5)*h/matrix.shape[0]), anchor_xy=(0.5, 0.5), scale=1.5, thickness=1, color=text_color, shadow_color=(0, 0, 0))
+    if col_headers is not None:
+        for j, header in enumerate(col_headers):
+            put_text_at(img, str(header), position_xy=(rowpad+(j+.5)*w/matrix.shape[1], colpad//2), anchor_xy=(0.5, 0.5), scale=1.5, thickness=1, color=text_color, shadow_color=(0, 0, 0))
+    return img
 
 
 def draw_image_to_region_inplace(  # Assign an image to a region in a parent image
