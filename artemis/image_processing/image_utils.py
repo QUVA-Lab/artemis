@@ -829,11 +829,13 @@ class ImageViewInfo:
         new_zoom = self._get_min_zoom()
         return replace(self, zoom_level=new_zoom).adjust_pan_to_boundary()
 
-    def zoom_by(self, relative_zoom: float, invariant_display_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
+    def zoom_by(self, relative_zoom: float, invariant_display_xy: Optional[Tuple[float, float]] = None, limit: bool = True) -> 'ImageViewInfo':
 
         new_zoom = max(self._get_min_zoom(), self.zoom_level * relative_zoom) if limit else self.zoom_level * relative_zoom
-
-        invariant_display_xy = np.maximum(0, np.minimum(self._get_display_wh(), invariant_display_xy))
+        if invariant_display_xy is None:
+            invariant_display_xy = self._get_display_midpoint_xy()
+        else:
+            invariant_display_xy = np.maximum(0, np.minimum(self._get_display_wh(), invariant_display_xy))
         invariant_pixel_xy = self.display_xy_to_pixel_xy(display_xy=invariant_display_xy)
 
         coeff = (1 - 1 / relative_zoom)

@@ -2,23 +2,26 @@ from builtins import Exception
 from contextlib import contextmanager
 from time import monotonic
 from logging import Logger
+from typing import Callable, Optional
+
 PROFILE_LOG = Logger('easy_profile')
 
 PROFILE_DEPTH = 0
 
 
 @contextmanager
-def easy_profile(name: str, log_entry: bool = False, enable = True, time_unit='ms'):
+def easy_profile(name: str, log_entry: bool = False, enable = True, time_unit='ms') -> Callable[[], Optional[float]]:
     if not enable:
         yield
         return
     global PROFILE_DEPTH
     tstart = monotonic()
+    elapsed = None
     try:
         if log_entry:
             PROFILE_LOG.warn(f"Starting block '{name}...")
         PROFILE_DEPTH += 1
-        yield
+        yield lambda: elapsed
     finally:
         PROFILE_DEPTH -= 1
         elapsed = monotonic()-tstart

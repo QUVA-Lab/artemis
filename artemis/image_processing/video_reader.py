@@ -129,13 +129,15 @@ def time_indicator_to_nearest_frame(time_indicator: str, n_frames: int, fps: Opt
     e.g. "0:32.5" "32.5s", "53%", "975" (frame number)
     Returns None if the time_indicator is invalid
     """
-    assert (fps is not None) != (frame_times is not None), "You must provide either fps or frame_times.  Not both and not neither."
+    assert (fps is None) or (frame_times is None), "You must provide either fps or frame_times.  Not both."
 
-    def lookup_frame_ix(t: float) -> int:
+    def lookup_frame_ix(t: float) -> Optional[int]:
         if frame_times is None:
             return round(t * fps)
-        else:
+        elif fps is not None:
             return np.searchsorted(frame_times, t, side='left')
+        else:
+            return None
 
     if time_indicator in ('s', 'start'):
         return 0
@@ -454,7 +456,6 @@ class LiveVideoReader(IVideoReader):
     frames_seen_so_far: int = 0
     record: bool = True
     _iterator: Optional[Iterator[VideoFrameInfo]] = None
-
     _last_frame: Optional[VideoFrameInfo] = None
 
     @classmethod
