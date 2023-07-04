@@ -157,22 +157,23 @@ def put_text_at(
         font=cv2.FONT_HERSHEY_PLAIN,
         shift_down_by_baseline: bool = False,
     ):
-    (twidth, theight), baseline = cv2.getTextSize(text, font, scale, thickness)
-    px, py = position_xy
-    if px < 0:
-        px = img.shape[1]+px
-    if py < 0:
-        py = img.shape[0]+py
-    ax, ay = anchor_xy
-    px = round(px - ax*twidth)
-    py = round(py - ay*theight) + (2*baseline if shift_down_by_baseline else 0)
+    for i, line in enumerate(text.split('\n')):
+        (twidth, theight), baseline = cv2.getTextSize(line, font, scale, thickness)
+        px, py = position_xy
+        if px < 0:
+            px = img.shape[1]+px
+        if py < 0:
+            py = img.shape[0]+py
+        ax, ay = anchor_xy
+        px = round(px - ax*twidth)
+        py = round(py - ay*theight) + (2*baseline if shift_down_by_baseline else 0) + i*(theight+baseline)
 
-    if background_color is not None:
-        pad = 4
-        img[max(0, py-pad): py+theight+pad, max(0, px-pad): px+twidth+pad] = background_color
-    if shadow_color is not None:
-        cv2.putText(img=img, text=text, org=(px, py), fontFace=font, fontScale=scale, color=shadow_color, thickness=thickness + 3, bottomLeftOrigin=False)
-    cv2.putText(img=img, text=text, org=(px, py), fontFace=font, fontScale=scale, color=color, thickness=thickness, bottomLeftOrigin=False)
+        if background_color is not None:
+            pad = 4
+            img[max(0, py-pad): py+theight+pad, max(0, px-pad): px+twidth+pad] = background_color
+        if shadow_color is not None:
+            cv2.putText(img=img, text=line, org=(px, py), fontFace=font, fontScale=scale, color=shadow_color, thickness=thickness + 3, bottomLeftOrigin=False)
+        cv2.putText(img=img, text=line, org=(px, py), fontFace=font, fontScale=scale, color=color, thickness=thickness, bottomLeftOrigin=False)
 
 
 def draw_matrix(
