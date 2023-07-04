@@ -247,6 +247,14 @@ def iter_passthrough_write_video(image_stream: Iterable[BGRImageArray], path: st
     print(f'Saved video to {path}')
 
 
+def iter_passthrough_image_writer(image_stream: Iterable[BGRImageArray], path_function: Callable[[int], str]
+                                  ) -> Iterable[BGRImageArray]:
+    for i, img in enumerate(image_stream):
+        path = path_function(i)
+        cv2.imwrite(path, img)
+        yield img
+
+
 def fade_image(image: BGRImageArray, fade_level: float) -> BGRImageArray:
     return (image.astype(np.float) * fade_level).astype(np.uint8)
 
