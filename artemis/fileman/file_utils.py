@@ -1,6 +1,7 @@
 import os
 import shutil
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional, Sequence, Mapping, Iterator
 
@@ -53,6 +54,14 @@ def copy_creating_dir_if_needed(src_path: str, dest_path: str):
     if not os.path.exists(parent):
         os.makedirs(parent)
     shutil.copyfile(src_path, dest_path)
+
+
+@contextmanager
+def open_and_create_parent(path, mode='r'):
+    parent, _ = os.path.split(path)
+    os.makedirs(parent, exist_ok=True)
+    with open(path, mode) as f:
+        yield f
 
 
 def get_recursive_directory_contents_string(directory: str, indent_level=0, indent='  ', max_entries: Optional[int] = None) -> str:
