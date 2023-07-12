@@ -183,6 +183,7 @@ class VideoReader(IVideoReader):
         https://github.com/opencv/opencv/issues/9053
         We use "av": conda install av -c conda-forge
     """
+    # TODO: Remove, and replace with something that uses an IDecorder instead
 
     def __init__(self,
                  path: str,

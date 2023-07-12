@@ -6,6 +6,7 @@ from typing import Sequence, Tuple, Optional, Callable
 import os
 import numpy as np
 
+from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.custom_types import MaskImageArray, Array
 
 
@@ -109,3 +110,14 @@ class HeatmapBuilder:
         return self
 
 
+def get_or_download_sample_video() -> str:
+
+    url_path = 'https://github.com/petered/data/raw/master/images/dji_2022-11-16_16-47-48_0613.mp4'
+    local_path = get_artemis_data_path('test_data/sample_video.mp4', make_local_dir=True)
+    if not os.path.exists(local_path):
+        print(f"Downloading sample video to {local_path}")
+        import requests
+        r = requests.get(url_path, allow_redirects=True)
+        with open(local_path, 'wb') as f:
+            f.write(r.content)
+    return local_path
