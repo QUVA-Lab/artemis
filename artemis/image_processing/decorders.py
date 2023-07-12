@@ -11,20 +11,16 @@ Why?  Because decord
     (Note we use eva-decord which ostensibly supports M1 https://pypi.org/project/eva-decord/)
 """
 import itertools
+import os
 from abc import ABCMeta, abstractmethod
 from typing import Tuple, Optional, Iterator
 
 import av
-import os
-
-from attr import dataclass
-
-from artemis.general.custom_types import BGRImageArray
 import cv2
 
+from artemis.general.custom_types import BGRImageArray
 from artemis.general.item_cache import CacheDict
 from artemis.image_processing.image_utils import fit_image_to_max_size
-from artemis.image_processing.video_frame import VideoFrameInfo
 
 
 class IDecorder(metaclass=ABCMeta):
