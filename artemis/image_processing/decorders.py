@@ -51,24 +51,24 @@ class IDecorder(metaclass=ABCMeta):
 
 class FrameListDecorder(IDecorder):
 
-        def __init__(self,
-                    frames: Tuple[BGRImageArray, ...],
-                    fps: float,
-                    ):
-            self._frames = frames
-            self._fps = fps
+    def __init__(self,
+                frames: Tuple[BGRImageArray, ...],
+                fps: float,
+                ):
+        self._frames = frames
+        self._fps = fps
 
-        def __len__(self) -> int:
-            return len(self._frames)
+    def __len__(self) -> int:
+        return len(self._frames)
 
-        def __getitem__(self, item: int) -> BGRImageArray:
-            return self._frames[item]
+    def __getitem__(self, item: int) -> BGRImageArray:
+        return self._frames[item]
 
-        def get_avg_fps(self) -> float:
-            return self._fps
+    def get_avg_fps(self) -> float:
+        return self._fps
 
-        def get_frame_timestamp(self, frame_index: int) -> float:
-            return frame_index/self._fps
+    def get_frame_timestamp(self, frame_index: int) -> float:
+        return frame_index/self._fps
 
 
 class PyAvDecorder(IDecorder):
