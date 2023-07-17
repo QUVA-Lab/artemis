@@ -195,7 +195,8 @@ class VideoReader(IVideoReader):
                  use_cache: bool = True):
 
         self._path = os.path.expanduser(path)
-        assert os.path.exists(self._path), f"Cannot find a video at {path}"
+        if not os.path.exists(self._path):
+            raise FileNotFoundError(f"Cannot find a video at {path}")
 
         self.container = av.container.open(self._path)
         # self.stream = self.container.streams.video[0]
@@ -381,6 +382,8 @@ class ImageSequenceReader(IVideoReader):
             self._image_paths, self._image_times = get_time_ordered_image_paths(image_paths, fallback_fps)
         else:
             self._image_times = [i / fallback_fps for i in range(len(image_paths))]
+        if not os.path.exists(self._image_paths[0]):
+            raise FileNotFoundError(f"Image not found: {self._image_paths[0]}")
 
     def get_sorted_paths(self) -> Sequence[str]:
         return self._image_paths
