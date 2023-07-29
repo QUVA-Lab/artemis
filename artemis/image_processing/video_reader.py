@@ -1,11 +1,12 @@
 import datetime
 import itertools
 import os
+import threading
 import time
 from _py_abc import ABCMeta
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Optional, Iterator, Sequence
+from typing import Tuple, Optional, Iterator, Sequence, Callable
 import av
 import cv2
 import exif
@@ -17,6 +18,9 @@ from artemis.general.item_cache import CacheDict
 from artemis.general.parsing import parse_time_delta_str_to_sec
 from artemis.image_processing.livestream_recorder import LiveStreamRecorderAgent
 from artemis.image_processing.video_frame import VideoFrameInfo
+from threading import Lock
+
+from video_scanner.general_utils.srt_files import read_image_geodata_or_none
 
 
 @dataclass
@@ -26,6 +30,10 @@ class VideoMetaData:
     fps: float
     n_bytes: int
     size_xy: Tuple[int, int]
+
+    @classmethod
+    def from_null(cls):
+        return cls(duration=float('inf'), n_frames=-1, fps=float('inf'), n_bytes=-1, size_xy=(0, 0))
 
     def get_duration_string(self) -> str:
         return str(datetime.timedelta(seconds=int(self.duration))) if self.duration != float('inf') else '∞'
@@ -122,6 +130,10 @@ class IVideoReader(metaclass=ABCMeta):
     @abstractmethod
     def destroy(self):
         """ Destroy the video reader (prevents memory leaks) """
+
+    def is_live(self) -> bool:
+        """ Return True if this this can grow in size as it is read.  False if it is a fixed size. """
+        return False
 
 
 def time_indicator_to_nearest_frame(time_indicator: str, n_frames: int, fps: Optional[float] = None, frame_times: Optional[Sequence[float]] = None) -> Optional[int]:
@@ -374,16 +386,37 @@ def get_time_ordered_image_paths(image_paths: Sequence[str], fallback_fps: float
 
 @dataclass
 class ImageSequenceReader(IVideoReader):
-    """ Reads through a seqence of images as if they were a videos."""
+    """ Reads through a seqence of images as if they were a video."""
 
-    def __init__(self, image_paths: Sequence[str], fallback_fps: float = 1., reorder = False):
+    def __init__(self,
+                 image_paths: Sequence[str],
+                 fallback_fps: float = 1.,
+                 reorder = False,
+                 new_file_checker: Optional[Callable[[], Sequence[str]]] = None,
+                 cache_size: int = 1
+                 ):
         self._image_paths = image_paths
         if reorder:
-            self._image_paths, self._image_times = get_time_ordered_image_paths(image_paths, fallback_fps)
+            image_paths, self._image_times = get_time_ordered_image_paths(image_paths, fallback_fps)
+            self._image_paths = list(image_paths)
         else:
             self._image_times = [i / fallback_fps for i in range(len(image_paths))]
-        if not os.path.exists(self._image_paths[0]):
-            raise FileNotFoundError(f"Image not found: {self._image_paths[0]}")
+        self._new_file_checker = new_file_checker
+        self._fallback_fps = fallback_fps
+        self._cache = CacheDict(buffer_length=cache_size)
+        self._lock = threading.Lock()
+        self._geodata_cache = {}
+
+    def check_and_add_new_files(self) -> int:
+        with self._lock:
+            if self._new_file_checker is None:
+                return 0
+            new_files = self._new_file_checker()
+            for new_file in new_files:
+                if new_file not in self._image_paths:
+                    self._image_paths.append(new_file)
+                    self._image_times.append(read_image_time_or_none(new_file) or (len(self._image_paths)-1) / self._fallback_fps)
+            return len(new_files)
 
     def get_sorted_paths(self) -> Sequence[str]:
         return self._image_paths
@@ -396,19 +429,29 @@ class ImageSequenceReader(IVideoReader):
             elif hasattr(image_meta, 'image_width'):
                 size_xy = image_meta.image_width, image_meta.image_height
         except:  # Load it and find out
-            img = cv2.imread(self._image_paths[0])
-            size_xy = img.shape[1], img.shape[0]
+            if self._image_paths:
+                img = cv2.imread(self._image_paths[0])
+                size_xy = (img.shape[1], img.shape[0]) if img is not None else (-1, -1)
+            else:
+                size_xy = (-1, -1)
 
+        duration = self._image_times[-1] - self._image_times[0] if self._image_times else 0.
         return VideoMetaData(
-            duration=self._image_times[-1] - self._image_times[0],
+            duration=self._image_times[-1] - self._image_times[0] if self._image_times else 0.,
             n_frames=len(self._image_paths),
-            fps=len(self._image_paths) / (self._image_times[-1] - self._image_times[0] if len(self._image_paths) > 1 else 1.),
+            fps=len(self._image_paths) /duration if duration > 0 else 0.,
             size_xy=size_xy,
             n_bytes=sum(os.path.getsize(path) for path in self._image_paths)
         )
 
+    def get_image_paths(self) -> Sequence[str]:
+        return self._image_paths
+
     def get_progress_indicator(self, frame_ix) -> str:
-        return f"Frame {frame_ix+1}/{self.get_n_frames()}: {os.path.split(self._image_paths[frame_ix])[-1]}"
+        if self._image_paths:
+            return f"Frame {frame_ix+1}/{self.get_n_frames()}: {os.path.split(self._image_paths[frame_ix])[-1]}"
+        else:
+            return "No frames loaded yet"
 
     def get_n_frames(self) -> int:
         return len(self._image_paths)
@@ -429,8 +472,19 @@ class ImageSequenceReader(IVideoReader):
         return range(self.get_n_frames())
 
     def iter_frames(self) -> Iterator[VideoFrameInfo]:
-        for i in self.iter_frame_ixs():
-            yield self.request_frame(i)
+        if not self.is_live():
+            for i in self.iter_frame_ixs():
+                yield self.request_frame(i)
+        else:
+            i = 0
+            while True:
+                self.check_and_add_new_files()
+                for j in range(i, self.get_n_frames()):
+                    yield self.request_frame(j)
+                if not self.is_live():
+                    break
+                i = self.get_n_frames()
+                time.sleep(0.1)
 
     def cut(self, time_interval: TimeIntervalTuple = (None, None), frame_interval: Tuple[Optional[int], Optional[int]] = (None, None)) -> 'ImageSequenceReader':
         if time_interval[0] is not None:
@@ -440,17 +494,34 @@ class ImageSequenceReader(IVideoReader):
         return ImageSequenceReader(self._image_paths[frame_interval[0]:frame_interval[1]])
 
     def request_frame(self, index: int) -> VideoFrameInfo:
-        image = cv2.imread(self._image_paths[index])
-        assert image is not None, f"Could not load image at path {self._image_paths[index]}"
-        return VideoFrameInfo(
-            image=image,
-            seconds_into_video=self._image_times[index],
-            frame_ix=index,
-            fps=self.get_metadata().fps
-        )
+        with self._lock:
+            # image = cv2.imread(self._image_paths[index]) if index not in self._cache else self._cache[index]
+            if index in self._cache:
+                image = self._cache[index]
+            else:
+                image = cv2.imread(self._image_paths[index])
+                self._cache[index] = image
+            assert image is not None, f"Could not load image at path {self._image_paths[index]}"
+            return VideoFrameInfo(
+                image=image,
+                seconds_into_video=self._image_times[index],
+                frame_ix=index,
+                fps=self.get_metadata().fps
+            )
+
+    def read_frame_geodata_or_none(self, frame_ix):
+        if frame_ix not in self._geodata_cache:
+            self._geodata_cache[frame_ix] = read_image_geodata_or_none(self._image_paths[frame_ix])
+        return self._geodata_cache[frame_ix]
+
+    def stop_live(self):
+        self._new_file_checker = None
 
     def destroy(self):
         pass
+
+    def is_live(self) -> bool:
+        return self._new_file_checker is not None
 
 
 @dataclass

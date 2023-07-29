@@ -49,6 +49,9 @@ class IDecorder(metaclass=ABCMeta):
         return iter(self[i] for i in range(len(self)))
 
 
+
+
+
 class FrameListDecorder(IDecorder):
 
     def __init__(self,
@@ -79,7 +82,7 @@ class PyAvDecorder(IDecorder):
                  iter_with_opencv: bool = True,  # More efficient with same result
                  ):
         self._path = os.path.expanduser(path)
-        assert os.path.exists(self._path), f"Cannot find a video at {path}"
+        assert os.path.exists(self._path), f"Cannot find a video at '{path}'"
         self._threshold_frames_to_scan = threshold_frames_to_scan
         self.container = av.container.open(self._path)
         # self.stream = self.container.streams.video[0]

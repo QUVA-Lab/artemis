@@ -598,9 +598,10 @@ class RelativeBoundingBox(BaseBox):
                                        y_min=max(0., bbox.y_min / h), y_max=min(1., bbox.y_max / h),
                                        score=bbox.score, label=bbox.label)
         else:
+            print(f"Converting absolute bbox {bbox} to relative bbox without clipping.")
             return RelativeBoundingBox(x_min=bbox.x_min / w, x_max=bbox.x_max / w,
                                        y_min=bbox.y_min / h, y_max=bbox.y_max / h,
-                                       score=bbox.score, label=bbox.label)
+                                       score=bbox.score, label=bbox.label,)
 
     def to_xxyy(self):
         return self.x_min, self.x_max, self.y_min, self.y_max
@@ -876,7 +877,7 @@ class ImageViewInfo:
         return self.pan_by_pixel_shift(pixel_shift_xy=pixel_shift_xy, limit=limit)
 
     def pan_by_display_shift(self, display_shift_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
-        pixel_shift_xy = np.asarray(display_shift_xy) * self.zoom_level
+        pixel_shift_xy = np.asarray(display_shift_xy) / self.zoom_level
         return self.pan_by_pixel_shift(pixel_shift_xy=pixel_shift_xy, limit=limit)
 
     def display_xy_to_pixel_xy(self, display_xy: Array["N,2", float], limit: bool = True) -> Array["N,2", float]:
