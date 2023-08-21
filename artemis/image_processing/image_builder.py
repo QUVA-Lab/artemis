@@ -208,16 +208,21 @@ class ImageBuilder:
                 corner='br', border_color=colour, secondary_border_color=secondary_colour, border_thickness=thickness)
         return self
 
-    def draw_border(self, color: BGRColorTuple, thickness: int = 2) -> 'ImageBuilder':
+    def draw_border(self, color: BGRColorTuple, thickness: int = 2, external: bool = False, sides='ltrb') -> 'ImageBuilder':
         # border_ixs = list(range(thickness))+list(range(-thickness, 0))
         # self.image[border_ixs, border_ixs] = color
 
-        self.image[:thickness, :] = color
-        self.image[-thickness:, : ] = color
-        self.image[:, :thickness] = color
-        self.image[:, -thickness:] = color
+        l, t, r, b = ((s in sides)*thickness for s in 'ltrb')
 
-
+        if external:
+            new_image = np.empty(shape=(self.image.shape[0]+t+b, self.image.shape[1]+l+r, self.image.shape[2]), dtype=np.uint8)
+            new_image[t:-b or None, l:-r or None] = self.image
+            self.image = new_image
+        h, w = self.image.shape[:2]
+        self.image[:t, :] = color
+        self.image[h-b:, :] = color
+        self.image[:, :l] = color
+        self.image[:, w-r:] = color
         return self
         # return self.draw_box(BoundingBox.from_ltrb(0, 0, self.image.shape[1]-1, self.image.shape[0]-1), thickness=thickness, colour=color, include_labels=False)
 

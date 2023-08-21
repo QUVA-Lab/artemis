@@ -428,6 +428,8 @@ class ImageSequenceReader(IVideoReader):
                 size_xy = image_meta.pixel_x_dimension, image_meta.pixel_y_dimension
             elif hasattr(image_meta, 'image_width'):
                 size_xy = image_meta.image_width, image_meta.image_height
+            else:
+                size_xy = (-1, -1)
         except:  # Load it and find out
             if self._image_paths:
                 img = cv2.imread(self._image_paths[0])
@@ -499,6 +501,8 @@ class ImageSequenceReader(IVideoReader):
             if index in self._cache:
                 image = self._cache[index]
             else:
+                if not os.path.exists(self._image_paths[index]):
+                    raise FileNotFoundError(f"Could not find image at path {self._image_paths[index]}")
                 image = cv2.imread(self._image_paths[index])
                 self._cache[index] = image
             assert image is not None, f"Could not load image at path {self._image_paths[index]}"
