@@ -429,7 +429,7 @@ class ImageSequenceReader(IVideoReader):
             elif hasattr(image_meta, 'image_width'):
                 size_xy = image_meta.image_width, image_meta.image_height
             else:
-                size_xy = (-1, -1)
+                raise Exception("Cant read image size")
         except:  # Load it and find out
             if self._image_paths:
                 img = cv2.imread(self._image_paths[0])
