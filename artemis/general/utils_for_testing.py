@@ -66,8 +66,10 @@ def hold_tempdir(path_if_successful: Optional[str] = None):
             print(f"Wrote temp dir to {final_path}")
     finally:
         if os.path.exists(tempdir):
-            shutil.rmtree(tempdir)
-
+            try:
+                shutil.rmtree(tempdir)
+            except PermissionError:
+                print(f"Could not delete temp dir {tempdir} - its ok, this can happen on windows")
 
 @contextmanager
 def hold_tempfile(ext = '', path_if_successful: Optional[str] = None):
