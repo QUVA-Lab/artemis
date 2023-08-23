@@ -4,11 +4,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Sequence, Tuple, Optional, Callable
 import os
+
+import cv2
 import numpy as np
 
 from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.custom_types import MaskImageArray, Array
-
+from video_scanner.general_utils.threaded_cap import VideoLoopingCap
+from video_scanner.utils import AssetVideos
 
 
 # ASSET_FOLDER_PATH = "~/projects/eagle_eyes_app/app/src/main/assets"
@@ -45,6 +48,10 @@ def prepare_path_for_write(path: str, overwright_callback: Callable[[str], bool]
     parent_dir, _ = os.path.split(final_path)
     os.makedirs(parent_dir, exist_ok=True)
     return final_path
+
+
+def load_mock_video_cap(size_xy: Optional[Tuple[int, int]] = None) -> cv2.VideoCapture:
+    return VideoLoopingCap(AssetVideos.FOREST_BLUES.path, size_xy=size_xy)
 
 
 @contextmanager
