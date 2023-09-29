@@ -227,7 +227,8 @@ def iter_images_from_video(path: str, max_size: Optional[Tuple[int, int]] = None
         frame_ix += 1
 
 
-def iter_passthrough_write_video(image_stream: Iterable[BGRImageArray], path: str, fps: float = 30.) -> Iterable[BGRImageArray]:
+def iter_passthrough_write_video(image_stream: Iterable[BGRImageArray], path: str, fps: float = 30., assert_fixed_shape: bool = False
+                                 ) -> Iterable[BGRImageArray]:
     path = os.path.expanduser(path)
     dirs, _ = os.path.split(path)
     try:
@@ -235,12 +236,18 @@ def iter_passthrough_write_video(image_stream: Iterable[BGRImageArray], path: st
     except OSError:
         pass
     cap = None
-    for img in image_stream:
+    shape: Optional[Tuple[int, int, ...]] = None
+    for i, img in enumerate(image_stream):
+        if shape is None:
+            shape = img.shape
+        elif assert_fixed_shape:
+            assert img.shape == shape, f"Shape changed from {shape} to {img.shape} at frame {i}"
         if cap is None:
             # cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps=fps, frameSize=(img.shape[1], img.shape[0]))
             cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('H', '2', '6', '4'), fps=fps, frameSize=(img.shape[1], img.shape[0]))
             # Make it write high-quality video
             # cap = cv2.VideoWriter(path, fourcc=cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps=fps, frameSize=(img.shape[1], img.shape[0]), isColor=True)
+        # print(f'Writing frame {i+1} with shape {img.shape} to {path}')
         cap.write(img)
         yield img
     cap.release()
@@ -286,9 +293,10 @@ def heatmap_to_greyscale_image(heatmap: HeatMapArray, assume_zero_min: bool = Fa
 
 
 def heatmap_to_color_image(heatmap: HeatMapArray, assume_zero_min: bool = True, assume_zero_center: bool = False, show_range=False,
-                           upsample_factor: int = 1, additional_text: Optional[str] = None, text_scale=1.
+                           upsample_factor: int = 1, additional_text: Optional[str] = None, text_scale=1., heat_range: Optional[Tuple[float, float]] = None
                            ) -> BGRImageArray:
-    min_heat, max_heat = compute_heatmap_bounds(heatmap, assume_zero_min=assume_zero_min, assume_zero_center=assume_zero_center)
+    min_heat, max_heat = compute_heatmap_bounds(heatmap, assume_zero_min=assume_zero_min, assume_zero_center=assume_zero_center) \
+        if heat_range is None else heat_range
     if heatmap.ndim == 2:
         heatmap = heatmap[:, :, None]
     img = np.zeros(heatmap.shape[:2] + (3,), dtype=np.uint8)
@@ -385,6 +393,9 @@ class BaseBox:
     @classmethod
     def from_ijhw(cls, i, j, h, w, label: str = '', score: float = 1.) -> 'BaseBox':
         return cls(x_min=j - w / 2, x_max=j + w / 2, y_min=i - h / 2, y_max=i + h / 2, label=label, score=score)
+
+    def to_ijhw(self) -> Tuple[float, float, float, float]:
+        return (self.y_min+self.y_max)/2, (self.x_min+self.x_max)/2, self.y_max-self.y_min, self.x_max-self.x_min
 
     @classmethod
     def from_xywh(cls, x, y, w, h, label: str = '') -> 'BaseBox':

@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from typing import Tuple, Optional, Iterator, Sequence, Callable
 import av
 import cv2
+from more_itertools import first
+
 import exif
 import numpy as np
 from artemis.general.custom_types import TimeIntervalTuple
@@ -17,10 +19,8 @@ from artemis.image_processing.image_utils import fit_image_to_max_size, read_ima
 from artemis.general.item_cache import CacheDict
 from artemis.general.parsing import parse_time_delta_str_to_sec
 from artemis.image_processing.livestream_recorder import LiveStreamRecorderAgent
-from artemis.image_processing.video_frame import VideoFrameInfo
-from threading import Lock
-
-from video_scanner.general_utils.srt_files import read_image_geodata_or_none
+from artemis.image_processing.video_frame import VideoFrameInfo, FrameGeoData
+from artemis.image_processing.media_metadata import read_image_geodata_or_none
 
 
 @dataclass
@@ -393,7 +393,8 @@ class ImageSequenceReader(IVideoReader):
                  fallback_fps: float = 1.,
                  reorder = False,
                  new_file_checker: Optional[Callable[[], Sequence[str]]] = None,
-                 cache_size: int = 1
+                 cache_size: int = 1,
+                 geodata_reader: Callable[[str], FrameGeoData] = read_image_geodata_or_none
                  ):
         self._image_paths = image_paths
         if reorder:
@@ -406,6 +407,7 @@ class ImageSequenceReader(IVideoReader):
         self._cache = CacheDict(buffer_length=cache_size)
         self._lock = threading.Lock()
         self._geodata_cache = {}
+        self._geodata_reader = geodata_reader
 
     def check_and_add_new_files(self) -> int:
         with self._lock:
@@ -443,7 +445,7 @@ class ImageSequenceReader(IVideoReader):
             n_frames=len(self._image_paths),
             fps=len(self._image_paths) /duration if duration > 0 else 0.,
             size_xy=size_xy,
-            n_bytes=sum(os.path.getsize(path) for path in self._image_paths)
+            n_bytes=sum(os.path.getsize(path) if path else 0 for path in self._image_paths)
         )
 
     def get_image_paths(self) -> Sequence[str]:
@@ -501,11 +503,15 @@ class ImageSequenceReader(IVideoReader):
             if index in self._cache:
                 image = self._cache[index]
             else:
+                if index >= len(self._image_paths):
+                    index = len(self._image_paths) - 1
+                if not self._image_paths[index]:
+                    index = first((i for i in range(index, -1, -1) if self._image_paths[i]), default=0)
                 if not os.path.exists(self._image_paths[index]):
-                    raise FileNotFoundError(f"Could not find image at path {self._image_paths[index]}")
+                    raise FileNotFoundError(f"Could not find image at path: '{self._image_paths[index]}'")
                 image = cv2.imread(self._image_paths[index])
                 self._cache[index] = image
-            assert image is not None, f"Could not load image at path {self._image_paths[index]}"
+            assert image is not None, f"Could not load image at path: '{self._image_paths[index]}'"
             return VideoFrameInfo(
                 image=image,
                 seconds_into_video=self._image_times[index],
@@ -513,9 +519,9 @@ class ImageSequenceReader(IVideoReader):
                 fps=self.get_metadata().fps
             )
 
-    def read_frame_geodata_or_none(self, frame_ix):
+    def read_frame_geodata_or_none(self, frame_ix: int) -> FrameGeoData:
         if frame_ix not in self._geodata_cache:
-            self._geodata_cache[frame_ix] = read_image_geodata_or_none(self._image_paths[frame_ix])
+            self._geodata_cache[frame_ix] = self._geodata_reader(self._image_paths[frame_ix])
         return self._geodata_cache[frame_ix]
 
     def stop_live(self):

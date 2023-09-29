@@ -10,8 +10,12 @@ import numpy as np
 
 from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.custom_types import MaskImageArray, Array
+from video_scanner.app_utils.utils import AssetVideos
+from video_scanner.detection_utils.basic_utils import is_media_path
 from video_scanner.general_utils.threaded_cap import VideoLoopingCap
-from video_scanner.utils import AssetVideos
+
+
+# from video_scanner.app_utils.utils import AssetVideos
 
 
 # ASSET_FOLDER_PATH = "~/projects/eagle_eyes_app/app/src/main/assets"
@@ -86,6 +90,10 @@ def hold_tempfile(ext = '', path_if_successful: Optional[str] = None):
     finally:
         if os.path.exists(tempfilename):
             os.remove(tempfilename)
+
+
+def get_all_media_files_in_folder(folder: str) -> Sequence[str]:
+    return [os.path.join(folder, p) for p in os.listdir(folder) if is_media_path(p)]
 
 
 @dataclass
