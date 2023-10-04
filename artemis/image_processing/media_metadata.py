@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Tuple
 
 from datetime import datetime, timedelta
 from timezonefinder import TimezoneFinder
@@ -43,18 +43,21 @@ def get_timezone_finder_singleton() -> TimezoneFinder:
 
 
 def get_utc_epoch(
-        lat: float,
-        lon: float,
+        lat_long: Optional[Tuple[float, float]],
         local_timestamp_str: str,
         local_timestamp_format: str='%Y-%m-%d %H:%M:%S',
         requires_dst_correction: bool = False,
+        fail_on_no_timezone: bool = False,
     ) -> float:
+    """ Tries its best to get a UTC timestamp from the kind of metadata that comes with images and videos. """
     # Initialize timezone finder and find the timezone
     tf = get_timezone_finder_singleton()
-    tz_str = tf.timezone_at(lat=lat, lng=lon)
+    tz_str = tf.timezone_at(lat=lat_long[0], lng=lat_long[1]) if lat_long is not None else None
     if tz_str is None:
-        raise ValueError("Could not determine timezone")
-
+        if fail_on_no_timezone:
+            raise ValueError("No timezone found for lat/long")
+        print("Warning: No timezone found for lat/long, using UTC, even though it's probably wrong")
+        tz_str = 'UTC'
     # Parse the local timestamp string into a datetime object
     local_tz = pytz.timezone(tz_str)
     unlocalized_datetime = datetime.strptime(local_timestamp_str, local_timestamp_format)
@@ -97,9 +100,10 @@ def convert_exif_to_geodata_or_none(exif_data: exif.Image, requires_dst_correcti
             gps_latitude = -gps_latitude
         if exif_data.gps_longitude_ref == 'W':
             gps_longitude = -gps_longitude
+        lat_long = (gps_latitude, gps_longitude)
     except Exception as err:
         print(f"Error parsing GPS data: {err}")
-        return None
+        lat_long = None
     try:
         gps_altitude = exif_data.gps_altitude
     except Exception as err:
@@ -107,10 +111,10 @@ def convert_exif_to_geodata_or_none(exif_data: exif.Image, requires_dst_correcti
         gps_altitude = None
 
     # Seems the images already have UTC time in them, so we don't need to do this
-    epoch_timestamp = get_utc_epoch(lat=gps_latitude, lon=gps_longitude, local_timestamp_str=exif_data.datetime,
+    epoch_timestamp = get_utc_epoch(lat_long=lat_long, local_timestamp_str=exif_data.datetime,
                                     local_timestamp_format='%Y:%m:%d %H:%M:%S', requires_dst_correction=requires_dst_correction)
     epoch_time_us = int(epoch_timestamp * 1000000)
-    return FrameGeoData((gps_latitude, gps_longitude), epoch_time_us, altitude_from_sea=gps_altitude)
+    return FrameGeoData(lat_long=lat_long, epoch_time_us=epoch_time_us, altitude_from_sea=gps_altitude)
 
 
 def read_image_geodata_or_none(image_path: str, requires_dst_correction: bool = False) -> Optional[FrameGeoData]:

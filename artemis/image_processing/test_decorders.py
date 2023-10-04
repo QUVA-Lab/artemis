@@ -3,7 +3,8 @@ import numpy as np
 import pytest
 
 from artemis.general.should_be_builtins import all_equal
-from artemis.general.utils_for_testing import get_or_download_sample_video, hold_tempdir
+from artemis.general.utils_for_testing import hold_tempdir
+from video_scanner.general_utils.utils_for_app_testing import get_or_download_sample_video
 from artemis.image_processing.decorders import PyAvDecorder, DecordDecorder, FrameListDecorder, robustly_get_decorder
 
 

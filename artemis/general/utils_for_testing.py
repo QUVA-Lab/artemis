@@ -5,14 +5,9 @@ from dataclasses import dataclass
 from typing import Sequence, Tuple, Optional, Callable
 import os
 
-import cv2
 import numpy as np
 
-from artemis.fileman.local_dir import get_artemis_data_path
 from artemis.general.custom_types import MaskImageArray, Array
-from video_scanner.app_utils.utils import AssetVideos
-from video_scanner.detection_utils.basic_utils import is_media_path
-from video_scanner.general_utils.threaded_cap import VideoLoopingCap
 
 
 # from video_scanner.app_utils.utils import AssetVideos
@@ -54,10 +49,6 @@ def prepare_path_for_write(path: str, overwright_callback: Callable[[str], bool]
     return final_path
 
 
-def load_mock_video_cap(size_xy: Optional[Tuple[int, int]] = None) -> cv2.VideoCapture:
-    return VideoLoopingCap(AssetVideos.FOREST_BLUES.path, size_xy=size_xy)
-
-
 @contextmanager
 def hold_tempdir(path_if_successful: Optional[str] = None):
 
@@ -92,10 +83,6 @@ def hold_tempfile(ext = '', path_if_successful: Optional[str] = None):
             os.remove(tempfilename)
 
 
-def get_all_media_files_in_folder(folder: str) -> Sequence[str]:
-    return [os.path.join(folder, p) for p in os.listdir(folder) if is_media_path(p)]
-
-
 @dataclass
 class HeatmapBuilder:
 
@@ -127,14 +114,3 @@ class HeatmapBuilder:
         return self
 
 
-def get_or_download_sample_video() -> str:
-
-    url_path = 'https://github.com/petered/data/raw/master/images/dji_2022-11-16_16-47-48_0613.mp4'
-    local_path = get_artemis_data_path('test_data/sample_video.mp4', make_local_dir=True)
-    if not os.path.exists(local_path):
-        print(f"Downloading sample video to {local_path}")
-        import requests
-        r = requests.get(url_path, allow_redirects=True)
-        with open(local_path, 'wb') as f:
-            f.write(r.content)
-    return local_path
