@@ -66,3 +66,8 @@ class CacheDict(Generic[KeyType, ItemType]):
 
     def __contains__(self, key: Hashable):
         return key in self._buffer
+
+    def clear(self):
+        self._buffer.clear()
+        self._current_buffer_size = 0
+        self._first_object_size = None

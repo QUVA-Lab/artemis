@@ -558,3 +558,15 @@ class switch:
 
     def __call__(self, *mconds):
         return self._val in mconds
+
+
+def seconds_to_time_marker(seconds, decimals=2):
+    sign = "-" if seconds < 0 else ""
+    seconds = abs(seconds)
+    hours, rem = divmod(seconds, 3600)
+    minutes, sec = divmod(rem, 60)
+    time_format = "{:0.0f}:{:02.0f}:{:0"+str(decimals+3 if decimals else 2)+"." + str(decimals) + "f}"
+    formatted_time = time_format.format(hours, minutes, sec).lstrip("0:")
+    if formatted_time.startswith('.'):
+        formatted_time = '0' + formatted_time
+    return sign + formatted_time

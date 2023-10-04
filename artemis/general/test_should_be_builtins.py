@@ -4,7 +4,7 @@ import pytest
 
 from artemis.general.should_be_builtins import itermap, reducemap, separate_common_items, remove_duplicates, \
     detect_duplicates, remove_common_prefix, all_equal, get_absolute_module, insert_at, get_shifted_key_value, \
-    divide_into_subsets, entries_to_table, natural_keys, switch
+    divide_into_subsets, entries_to_table, natural_keys, switch, seconds_to_time_marker
 
 __author__ = 'peter'
 
@@ -148,6 +148,23 @@ def test_switch_statement():
     ]
 
 
+def test_seconds_to_time_marker():
+    assert seconds_to_time_marker(3661.25) == "1:01:01.25"
+    assert seconds_to_time_marker(3661.25, 3) == "1:01:01.250"
+    assert seconds_to_time_marker(21.25, 3) == "21.250"
+    assert seconds_to_time_marker(1201.25, 3) == "20:01.250"
+    assert seconds_to_time_marker(7200) == "2:00:00.00"
+    assert seconds_to_time_marker(0) == "0.00"
+    assert seconds_to_time_marker(60) == "1:00.00"
+    assert seconds_to_time_marker(3600) == "1:00:00.00"
+    assert seconds_to_time_marker(0.254, 3) == "0.254"
+    assert seconds_to_time_marker(-3661.25) == "-1:01:01.25"
+    assert seconds_to_time_marker(-21.25, 3) == "-21.250"
+    assert seconds_to_time_marker(-0.254, 3) == "-0.254"
+
+    print("All tests passed!")
+
+
 if __name__ == '__main__':
     test_separate_common_items()
     test_reducemap()
@@ -163,3 +180,4 @@ if __name__ == '__main__':
     test_entries_to_table()
     test_natural_keys()
     test_switch_statement()
+    test_seconds_to_time_marker()

@@ -14,6 +14,7 @@ from more_itertools import first
 import exif
 import numpy as np
 from artemis.general.custom_types import TimeIntervalTuple
+from artemis.general.should_be_builtins import seconds_to_time_marker
 from artemis.general.utils_utils import byte_size_to_string
 from artemis.image_processing.image_utils import fit_image_to_max_size, read_image_time_or_none
 from artemis.general.item_cache import CacheDict
@@ -258,13 +259,16 @@ class VideoReader(IVideoReader):
             )
         return self._metadata
 
-    def get_progress_indicator(self, frame_ix) -> str:
+    def get_progress_indicator(self, frame_ix, just_seconds: bool = False) -> str:
         seconds_into_video = frame_ix / self._fps if self._fps else 0
+        seconds_str = f"{seconds_into_video:.2f}s" if just_seconds else seconds_to_time_marker(seconds_into_video)
         total_frames = self.get_n_frames()
         if total_frames is None:
-            return f"t={seconds_into_video:.2f}s, frame={frame_ix+1}"
+            return f"t={seconds_str}, frame={frame_ix+1}"
         else:
-            return f"t={seconds_into_video:.2f}s/{total_frames/self._fps:.2f}s, frame={frame_ix+1}/{total_frames}"
+            total_seconds = total_frames / self._fps if self._fps else 0
+            total_seconds_str = f"{total_seconds:.2f}s" if just_seconds else seconds_to_time_marker(total_seconds)
+            return f"t={seconds_str}/{total_seconds_str}, frame={frame_ix+1}/{total_frames}"
 
     def get_n_frames(self) -> int:
         return self._stop - self._start
