@@ -1060,3 +1060,12 @@ def read_image_time_or_none(image_path: str) -> Optional[float]:
             return datetime_obj.timestamp()
         else:
             return None
+
+
+def imread_any_path(path: str) -> Optional[BGRImageArray]:
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+    image = cv2.imread(path)
+    if image is None:
+        image = cv2.imdecode(np.fromfile(path, np.uint8), cv2.IMREAD_COLOR)
+    return image
