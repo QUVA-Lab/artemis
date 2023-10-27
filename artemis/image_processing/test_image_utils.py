@@ -151,11 +151,29 @@ def test_image_view_info(show: bool = False):
         just_show(display_img, hang_time=10)
 
 
+from video_scanner.general_utils.file_utils import imread_any_path
+from video_scanner.general_utils.utils_for_app_testing import DroneDataDirectory
+
+
+def test_read_file_with_cyrillic_path():
+    # Latin path
+    path = DroneDataDirectory().get_file('test_data\casara_on\DJI_202305261131_040_Targets\DJI_20230526120735_0001_W.JPG')
+    image = imread_any_path(path)
+    assert image is not None
+    assert image.shape == (3000, 4000, 3)
+
+    # Path containing cyrillic
+    path = DroneDataDirectory().get_file('test_data\\test_дir\dji_2023-07-06_18-09-26_0007.jpg')
+    image = imread_any_path(path)
+    assert image is not None
+    assert image.shape == (3024, 4032, 3)
+
 
 if __name__ == "__main__":
     # test_iter_images_from_video()
     # test_mask_to_boxes()
     # test_conditional_running_min()
     # test_slice_image_with_pad()
-    test_image_view_info(show=True)
+    # test_image_view_info(show=True)
+    test_read_file_with_cyrillic_path()
 

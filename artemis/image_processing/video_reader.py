@@ -16,7 +16,7 @@ import numpy as np
 from artemis.general.custom_types import TimeIntervalTuple
 from artemis.general.should_be_builtins import seconds_to_time_marker
 from artemis.general.utils_utils import byte_size_to_string
-from artemis.image_processing.image_utils import fit_image_to_max_size, read_image_time_or_none
+from artemis.image_processing.image_utils import fit_image_to_max_size, read_image_time_or_none, imread_any_path
 from artemis.general.item_cache import CacheDict
 from artemis.general.parsing import parse_time_delta_str_to_sec
 from artemis.image_processing.livestream_recorder import LiveStreamRecorderAgent
@@ -513,7 +513,7 @@ class ImageSequenceReader(IVideoReader):
                     index = first((i for i in range(index, -1, -1) if self._image_paths[i]), default=0)
                 if not os.path.exists(self._image_paths[index]):
                     raise FileNotFoundError(f"Could not find image at path: '{self._image_paths[index]}'")
-                image = cv2.imread(self._image_paths[index])
+                image = imread_any_path(self._image_paths[index])
                 self._cache[index] = image
             assert image is not None, f"Could not load image at path: '{self._image_paths[index]}'"
             return VideoFrameInfo(
