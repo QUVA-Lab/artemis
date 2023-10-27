@@ -832,6 +832,15 @@ class ImageViewInfo:
             image_wh=image_wh
         )
 
+    def get_image_slice(self) -> Tuple[slice, slice]:
+        """ Get the slice of the image that should be displayed """
+        w, h = self.window_disply_wh
+        x, y = self.center_pixel_xy
+        zoom = self.zoom_level
+        # return slice(int(y - h / 2 / zoom), int(y + h / 2 / zoom)), slice(int(x - w / 2 / zoom), int(x + w / 2 / zoom))
+        # Dont forget to clip
+        return slice(max(0, int(y - h / 2 / zoom)), min(self.image_wh[1], int(y + h / 2 / zoom))), slice(max(0, int(x - w / 2 / zoom)), min(self.image_wh[0], int(x + w / 2 / zoom)))
+
     def adjust_frame_and_image_size(self, new_frame_wh: Tuple[int, int], new_image_wh: Tuple[int, int]) -> 'ImageViewInfo':
         return replace(self, window_disply_wh=new_frame_wh, image_wh=new_image_wh)
 
