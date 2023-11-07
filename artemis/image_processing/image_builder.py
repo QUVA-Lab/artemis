@@ -10,7 +10,7 @@ import numpy as np
 
 from artemis.general.custom_types import BGRImageArray, XYPointTuple, IJPixelTuple, HeatMapArray, XYSizeTuple, BGRColorTuple, Array, GreyScaleImageArray, BGRFloatImageArray
 from artemis.plotting.easy_window import ImageRow, ImageCol, put_text_at, put_text_in_corner
-from artemis.image_processing.image_utils import heatmap_to_color_image, BoundingBox, BGRColors, DEFAULT_GAP_COLOR, RelativeBoundingBox, TextDisplayer
+from artemis.image_processing.image_utils import heatmap_to_color_image, BoundingBox, BGRColors, DEFAULT_GAP_COLOR, RelativeBoundingBox, TextDisplayer, put_image_in_box
 
 
 @dataclass
@@ -72,6 +72,10 @@ class ImageBuilder:
 
     def rescale(self, factor: float, interp=cv2.INTER_NEAREST):
         self.image = cv2.resize(self.image, dsize=None, fx=factor, fy=factor, interpolation=interp)
+        return self
+
+    def rescale_to_fit(self, xy_size: XYSizeTuple, interp=cv2.INTER_AREA) -> 'ImageBuilder':
+        self.image = put_image_in_box(self.image, xy_size=xy_size, interpolation=interp)
         return self
 
     def copy(self) -> 'ImageBuilder':

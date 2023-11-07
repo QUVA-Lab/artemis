@@ -60,7 +60,11 @@ def get_utc_epoch(
         tz_str = 'UTC'
     # Parse the local timestamp string into a datetime object
     local_tz = pytz.timezone(tz_str)
-    unlocalized_datetime = datetime.strptime(local_timestamp_str, local_timestamp_format)
+    if '.' in local_timestamp_str:
+        unlocalized_datetime = datetime.strptime(local_timestamp_str, local_timestamp_format+'.%f')
+    else:
+        unlocalized_datetime = datetime.strptime(local_timestamp_str, local_timestamp_format)
+    # unlocalized_datetime = datetime.strptime(local_timestamp_str, local_timestamp_format)
 
     # Localize the timestamp to the local timezone
     localized_datetime = local_tz.localize(unlocalized_datetime)
@@ -110,10 +114,14 @@ def convert_exif_to_geodata_or_none(exif_data: exif.Image, requires_dst_correcti
         print(f"Error parsing GPS altitude: {err}")
         gps_altitude = None
 
-    # Seems the images already have UTC time in them, so we don't need to do this
-    epoch_timestamp = get_utc_epoch(lat_long=lat_long, local_timestamp_str=exif_data.datetime,
-                                    local_timestamp_format='%Y:%m:%d %H:%M:%S', requires_dst_correction=requires_dst_correction)
-    epoch_time_us = int(epoch_timestamp * 1000000)
+    try:
+        # Seems the images already have UTC time in them, so we don't need to do this
+        epoch_timestamp = get_utc_epoch(lat_long=lat_long, local_timestamp_str=exif_data.datetime,
+                                        local_timestamp_format='%Y:%m:%d %H:%M:%S', requires_dst_correction=requires_dst_correction)
+        epoch_time_us = int(epoch_timestamp * 1000000)
+    except Exception as err:
+        print(f"Error parsing GPS timestamp: {err}")
+        epoch_time_us = 0
     return FrameGeoData(lat_long=lat_long, epoch_time_us=epoch_time_us, altitude_from_sea=gps_altitude)
 
 
