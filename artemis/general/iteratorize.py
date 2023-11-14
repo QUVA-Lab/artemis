@@ -4,7 +4,7 @@
 Thanks to Brice for this piece of code.  Taken from https://stackoverflow.com/a/9969000/851699
 
 """
-from collections import Iterable
+from typing import Iterable
 import sys
 if sys.version_info < (3, 0):
     from Queue import Queue
