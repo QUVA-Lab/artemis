@@ -1,6 +1,4 @@
-import inspect
-from collections import OrderedDict, Iterable
-from functools import partial
+from collections import OrderedDict
 
 import numpy as np
 from six import string_types, next
