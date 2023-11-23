@@ -154,9 +154,8 @@ class ImageBuilder:
 
         # if box.label or box_id is not None:
         if label is None:
-            label = ','.join(str(i) for i in [box_id, box.label, None if not show_score_in_label else f"{box.score:.0%}" if score_as_pct else f"{box.score:.2f}"] if i is not None)
+            label = ','.join(str(i) for i in [box_id, box.label, None if not show_score_in_label else f"{box.score:.0%}" if score_as_pct else f"{box.score:.2f}"] if i)
         if include_labels:
-
             put_text_at(self.image, text=label,
                         position_xy=(jmean, imin if box.y_min > box.y_max-box.y_min else imax),
                         anchor_xy=(0.5, 0.) if as_circle else (0., 0.),

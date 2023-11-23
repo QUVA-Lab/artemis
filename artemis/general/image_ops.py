@@ -1,4 +1,4 @@
-from scipy.misc.pilutil import imresize
+
 import numpy as np
 __author__ = 'peter'
 
@@ -12,6 +12,7 @@ def resize_while_preserving_aspect_ratio(im, x_dim=None, y_dim=None):
     :param y_dim: An integer indicating the desired size, or None, to leave it loose.
     :return: A new image whose x_dim or y_dim matches the constraint
     """
+    from scipy.misc.pilutil import imresize
     assert not (x_dim is None and y_dim is None), 'You can not leave both constraints at None!'
 
     x_dim = float('inf') if x_dim is None else x_dim
