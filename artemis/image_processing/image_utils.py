@@ -152,9 +152,6 @@ def iter_images_from_video(path: str, max_size: Optional[Tuple[int, int]] = None
             yield image
         return
 
-
-
-
     assert not use_scan_selection, "This does not work.  See bug: https://github.com/opencv/opencv/issues/9053"
     path = os.path.expanduser(path)
     cap = cv2.VideoCapture(path)
@@ -506,6 +503,10 @@ class BoundingBox(BaseBox):
     def to_ij(self) -> Tuple[int, int]:
         """ Get the (row, col) of the center of the box """
         return round((self.y_min + self.y_max) / 2.), round((self.x_min + self.x_max) / 2.)
+
+    def to_ijhw(self) -> Tuple[int, int, int, int]:
+        """ Get the (row, col) of the center of the box """
+        return self.to_ij()+(round(self.y_max - self.y_min), round(self.x_max - self.x_min))
 
     def to_crop_ij(self) -> Tuple[int, int]:
         """ Get the (row, col) of the center of the box in the frame of the cropped image"""

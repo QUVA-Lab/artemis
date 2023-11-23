@@ -49,6 +49,16 @@ class VideoSegment:
     def _is_image_sequence(self) -> bool:
         return ';' in self.path
 
+
+    # def time_to_nearest_frame(self, time: float) -> int:
+    #     """
+    #     Lookup the frame index for a given time.
+    #     """
+    #     if self._is_image_sequence():
+    #         raise NotImplementedError()
+    #     else:
+    #         return self.get_reader().time_to_nearest_frame(time)
+
     def get_reader(self, buffer_size_bytes: int = 1024**3, use_cache: bool = True) -> IVideoReader:
 
         if self._is_image_sequence():

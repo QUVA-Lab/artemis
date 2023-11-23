@@ -259,6 +259,9 @@ class VideoReader(IVideoReader):
             )
         return self._metadata
 
+    def get_path(self) -> str:
+        return self._path
+
     def get_progress_indicator(self, frame_ix, just_seconds: bool = False) -> str:
         seconds_into_video = frame_ix / self._fps if self._fps else 0
         seconds_str = f"{seconds_into_video:.2f}s" if just_seconds else seconds_to_time_marker(seconds_into_video)

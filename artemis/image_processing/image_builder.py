@@ -134,6 +134,7 @@ class ImageBuilder:
                  thickness: int = 1, box_id: Optional[int] = None,
                  as_circle: bool = False,
                  include_labels = True, show_score_in_label: bool = True,  score_as_pct: bool = False) -> 'ImageBuilder':
+        colour = tuple(int(c) for c in colour)
         if text_color is None:
             text_color = colour
         if isinstance(box, RelativeBoundingBox):
