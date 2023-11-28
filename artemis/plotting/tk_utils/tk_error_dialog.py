@@ -1,10 +1,9 @@
 import tkinter as tk
-import webbrowser
-from tkinter import messagebox
-from typing import Optional, Tuple
 import traceback
-import requests
+import webbrowser
 from dataclasses import dataclass
+from tkinter import messagebox
+from typing import Optional
 
 
 # from video_scanner.app_utils.utils import ErrorDetail
@@ -17,25 +16,25 @@ class ErrorDetail:
 
 
 
-def send_paste(error_message: str, pastebin_key: str) -> Tuple[bool, Optional[str]]:
-    """ Does not work... """
-    api_url = 'https://pastebin.com/api/api_post.php'
-    paste_name = 'Error Traceback'
-    data = {
-        'api_dev_key': pastebin_key,
-        'api_option': 'paste',
-        'api_paste_code': error_message,
-        'api_paste_name': paste_name,
-        'api_paste_private': 1,  # 0=public, 1=unlisted, 2=private
-        'api_paste_expire_date': '1M',
-
-    }
-    response = requests.post(api_url, data=data)
-    if response.status_code == 200:  # success
-        return True, response.text
-    else:
-        print('Failed to create paste. Status:', response.status_code)
-        return False, response.text
+# def send_paste(error_message: str, pastebin_key: str) -> Tuple[bool, Optional[str]]:
+#     """ Does not work... """
+#     api_url = 'https://pastebin.com/api/api_post.php'
+#     paste_name = 'Error Traceback'
+#     data = {
+#         'api_dev_key': pastebin_key,
+#         'api_option': 'paste',
+#         'api_paste_code': error_message,
+#         'api_paste_name': paste_name,
+#         'api_paste_private': 1,  # 0=public, 1=unlisted, 2=private
+#         'api_paste_expire_date': '1M',
+#
+#     }
+#     response = requests.post(api_url, data=data)
+#     if response.status_code == 200:  # success
+#         return True, response.text
+#     else:
+#         print('Failed to create paste. Status:', response.status_code)
+#         return False, response.text
 
 def open_url(url):
     webbrowser.open(url)
@@ -50,7 +49,6 @@ def tk_show_error_dialog(exception: Exception, title: str = "Error", message: Op
     # Define the behavior for "Report and Close"
     def report_and_close():
         if pastebin_key and traceback_str:
-            response = send_paste(traceback_str, pastebin_key)
             messagebox.showinfo(title="Reported", message=f"Error reported.  Thank you!")
         root.destroy()
 
