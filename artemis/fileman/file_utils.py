@@ -21,9 +21,9 @@ def get_dest_filepath(src_path: str, src_root_dir: str, dest_root_dir: str, time
     src_name, ext = os.path.splitext(src_filename)
     src_order_number = src_name.split('_', 1)[1]  # 'DJI_0215' -> '0215'
     timestamp = os.path.getmtime(src_path)
-    # if is_daylight:
-    #     timestamp += 3600.
-    # timestamp -= 3600. if time.daylight else 0
+    if is_daylight:
+        timestamp += 3600.
+    timestamp -= 3600. if time.daylight else 0
     new_filename = f'{modified_timestamp_to_filename(timestamp, time_format=time_format)}_{src_order_number}{ext.lower()}'
     return os.path.join(dest_root_dir, src_rel_folder, new_filename)
 

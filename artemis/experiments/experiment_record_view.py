@@ -1,13 +1,10 @@
-import re
 from collections import OrderedDict
 from functools import partial
-import itertools
 
+import numpy as np
 from six import string_types
 from tabulate import tabulate
-import numpy as np
 
-import video_scanner.ui.camera_livestream_setup
 from artemis.experiments.experiment_record import NoSavedResultError, ExpInfoFields, ExperimentRecord, \
     load_experiment_record, is_matplotlib_imported, UnPicklableArg
 from artemis.general.display import deepstr, truncate_string, hold_numpy_printoptions, side_by_side, \
@@ -17,10 +14,7 @@ from artemis.general.nested_structures import flatten_struct, PRIMATIVE_TYPES
 from artemis.general.should_be_builtins import separate_common_items, bad_value, izip_equal, \
     remove_duplicates, get_unique_name, entries_to_table
 from artemis.general.tables import build_table
-import os
-
 from artemis.plotting.parallel_coords_plots import plot_hyperparameter_search_parallel_coords
-from artemis.plotting.pyplot_plus import get_color_cycle_map
 
 
 def get_record_result_string(record, func='deep', truncate_to = None, array_print_threshold=8, array_float_format='.3g', oneline=False, default_one_liner_func=str):
@@ -529,10 +523,8 @@ def browse_record_figs(record):
     """
     # TODO: Generalize this to just browse through the figures in a directory.
 
-    from artemis.plotting.saving_plots import interactive_matplotlib_context
     import pickle
     from matplotlib import pyplot as plt
-    from artemis.plotting.drawing_plots import redraw_figure
     fig_locs = record.get_figure_locs()
 
     class nonlocals:
@@ -554,19 +546,19 @@ def browse_record_figs(record):
         nonlocals.this_fig = plt.gcf()
 
     def changefig(keyevent):
-        if video_scanner.ui.camera_livestream_setup.key == 'right':
+        if keyevent.key == 'right':
             nonlocals.figno = (nonlocals.figno+1)%len(fig_locs)
-        elif video_scanner.ui.camera_livestream_setup.key == 'left':
+        elif keyevent.key == 'left':
             nonlocals.figno = (nonlocals.figno-1)%len(fig_locs)
-        elif video_scanner.ui.camera_livestream_setup.key == 'up':
+        elif keyevent.key == 'up':
             nonlocals.figno = (nonlocals.figno-10)%len(fig_locs)
-        elif video_scanner.ui.camera_livestream_setup.key == 'down':
+        elif keyevent.key == 'down':
             nonlocals.figno = (nonlocals.figno+10)%len(fig_locs)
 
-        elif video_scanner.ui.camera_livestream_setup.key == ' ':
+        elif keyevent.key == ' ':
             nonlocals.figno = queryfig()
         else:
-            print("No handler for key: {}.  Changing Nothing".format(video_scanner.ui.camera_livestream_setup.key))
+            print("No handler for key: {}.  Changing Nothing".format(keyevent.key))
         show_figure(nonlocals.figno)
 
     def queryfig():
