@@ -102,7 +102,6 @@ class DualPanelFrame(tk.Frame):
         if self._frame_click_callback is not None:
             self._frame_click_callback(xy, side)
 
-
     def _set_view_frame(self, image_view_info: ImageViewInfo, view: ZoomableImageFrame):
         if self._lock_view_frames and view.get_image_view_frame_or_none() != image_view_info:
             view.set_image_frame(image_view_info)

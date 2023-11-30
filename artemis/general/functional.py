@@ -1,15 +1,10 @@
 import inspect
+import sys
+import types
 from abc import abstractmethod
 from collections import OrderedDict
 from functools import partial, reduce
-import collections
-from typing import TypeVar, Callable
-
-from cv2.gapi.ie.detail import PARAM_DESC_KIND_LOAD
-
-from artemis.general.should_be_builtins import separate_common_items
-import sys
-import types
+from typing import Callable
 
 
 def get_partial_chain(f):

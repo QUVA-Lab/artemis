@@ -129,6 +129,9 @@ class ToggleLabel(RespectableLabel):
         self._off_bg = off_bg
         self.set_toggle_state(initial_state, call_callback=call_switch_callback_immidiately)
 
+    def set_state_switch_callback(self, callback: Optional[Callable[[bool], Any]]):
+        self._state_switch_callback = callback
+
     def set_toggle_state(self, state: bool, call_callback: bool = True):
         if self._state_switch_pre_callback is not None:
             state = self._state_switch_pre_callback(state)
