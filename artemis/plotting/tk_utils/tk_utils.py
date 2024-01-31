@@ -621,6 +621,14 @@ def hold_tkinter_root_context():
         except tk.TclError:  # This can happen if the root is destroyed before the context is exited
             pass
 
+#
+# def get_widget_overlay_frame(
+#         widget: tk.Widget,
+#     ) -> tk.Frame:
+
+
+
+
 
 if __name__ == '__main__':
     # reply = messagebox.askyesnocancel(message="Wooooo")

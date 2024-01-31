@@ -230,6 +230,11 @@ class ImageBuilder:
         return self
         # return self.draw_box(BoundingBox.from_ltrb(0, 0, self.image.shape[1]-1, self.image.shape[0]-1), thickness=thickness, colour=color, include_labels=False)
 
+    def paint_bucket(self, loc_xy: XYPointTuple, color: BGRColorTuple, tolerance: int = 0) -> 'ImageBuilder':
+        loc_ji = self._xy_to_ji(loc_xy)
+        cv2.floodFill(self.image, None, loc_ji, newVal=color, loDiff=tolerance, upDiff=tolerance)
+        return self
+
     def draw_zoom_inset_from_box(self, box: BoundingBox, scale_factor: int, border_color=BGRColors.GREEN, border_thickness: int = 2, corner = 'br', backup_corner='bl') -> 'ImageBuilder':
         # TODO: Make it nor crash when box is too big
         assert corner in ('br', 'tr', 'bl', 'tl')

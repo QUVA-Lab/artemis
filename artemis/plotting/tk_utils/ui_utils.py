@@ -5,12 +5,12 @@ import subprocess
 import tkinter as tk
 import traceback
 from contextlib import contextmanager
-from typing import Callable, Any, TypeVar, Union, Tuple, Dict
+from enum import Enum
+from typing import Callable, Any, TypeVar, Union, Tuple, Dict, Generic
 from typing import Sequence, Optional
 
 import cv2
 from PIL import Image, ImageTk
-
 
 from artemis.general.custom_types import BGRImageArray
 from artemis.image_processing.image_builder import ImageBuilder
@@ -68,7 +68,34 @@ def is_global_termination_request():
     return GLOBAL_TERMINATION_REQUEST
 
 
-class RespectableLabel(tk.Label):
+def get_shortcut_string(shortcut: str) -> str:
+    """ Formats the shortcut as a string to display in a tooltip
+    Replaces upper-case letters with 'Shift-<letter>' unless Shift is already in the shortcut
+    E.g. 'Control-A' -> 'Ctrl-Shift-A'
+    """
+    shortcut_stroke = shortcut.strip('<>')
+    # display_stroke = re.sub(r'([A-Z])', r'Shift-\1', shortcut_stroke) if 'Shift' not in shortcut_stroke else shortcut_stroke
+    # Change above so that it only subs lone capital lettes
+    display_stroke = re.sub(r'(?<![A-Za-z])([A-Z])(?![A-Za-z])', r'Shift-\1', shortcut_stroke)
+    return display_stroke
+
+
+class EmphasizableMixin:
+
+    def __init__(self, *args, **kwargs):
+        # super().__init__(*args, **kwargs)
+        self._original_highlighting = {}
+        if isinstance(self, tk.Label):
+            self._original_highlighting.update({k: v[4] for k, v in self.config().items() if len(v)>4 and k in ['highlightbackground', 'highlightthickness', 'fg']})
+    def set_emphasis(self, emphasis: bool):
+
+        if emphasis:
+            self.configure(highlightbackground=ThemeColours.HIGHLIGHT_COLOR, highlightthickness=2, fg=ThemeColours.HIGHLIGHT_COLOR, relief=tk.RAISED)
+        else:
+            self.configure(**self._original_highlighting)
+
+
+class RespectableLabel(tk.Label, EmphasizableMixin):
 
     def __init__(self,
                  master: tk.Frame,
@@ -81,6 +108,7 @@ class RespectableLabel(tk.Label):
                  **kwargs
                  ):
         tk.Label.__init__(self, master, text=text, **kwargs)
+        EmphasizableMixin.__init__(self, master, text=text, **kwargs)
         if command is not None:
             self.bind("<Button-1>", lambda event: command())
             self.config(cursor="hand2", relief=tk.RAISED)
@@ -93,8 +121,7 @@ class RespectableLabel(tk.Label):
             master.winfo_toplevel().bind(shortcut, self._execute_shortcut)
         if tooltip is not None or (shortcut is not None and add_shortcut_to_tooltip):
             if add_shortcut_to_tooltip and shortcut is not None:
-                shortcut_stroke = shortcut.strip('<>')
-                shortcut_stroke = re.sub(r'([A-Z])', r'Shift-\1', shortcut_stroke)
+                shortcut_stroke = get_shortcut_string(shortcut)
                 tooltip = f"({shortcut_stroke})" if tooltip is None else f"{tooltip} ({shortcut_stroke})"
             create_tooltip(widget=self, text=tooltip, background=ThemeColours.TOOLTIP_BACKGROUND)
 
@@ -171,7 +198,16 @@ def register_button(button_id: str, callback: Callable):
         _BUTTON_CALLBACK_ACCESSORS[button_id] = callback
 
 
-class RespectableButton(tk.Button):
+class ReparentableWidgetMixin(tk.Widget):
+
+    def __init__(self, **kwargs):
+        self._copy_kwargs = kwargs
+
+    def adopt_to_new_parent(self, parent: tk.Widget, **kwargs) -> tk.Widget:
+        return self.__class__(parent, **{**self._copy_kwargs, **kwargs})
+
+
+class RespectableButton(tk.Button, ReparentableWidgetMixin, EmphasizableMixin):
 
     def __init__(self,
                  master: tk.Frame,
@@ -180,10 +216,22 @@ class RespectableButton(tk.Button):
                  error_handler: Optional[Callable[[ErrorDetail], Any]] = None,
                  tooltip: Optional[str] = None,
                  shortcut: Optional[Union[str, Sequence[str]]] = None,
+                 add_shortcut_to_tooltip: bool = True,
                  button_id: Optional[str] = None,  # Use this in hold_button_callback_accessors with register_button
+                 as_label: bool = False,
                  **kwargs
                  ):
-        tk.Button.__init__(self, master, text=text, **kwargs)
+        if as_label:
+            tk.Label.__init__(self, master, text=text, relief=tk.RAISED if command else None, **kwargs)
+        else:
+            tk.Button.__init__(self, master, text=text, **kwargs)
+        ReparentableWidgetMixin.__init__(self, text=text, command=command, error_handler=error_handler, tooltip=tooltip,
+                          shortcut=shortcut, button_id=button_id, **kwargs)
+        EmphasizableMixin.__init__(self, **kwargs)
+
+        if add_shortcut_to_tooltip and shortcut is not None:
+            shortcut_stroke = get_shortcut_string(shortcut)
+            tooltip = f"({shortcut_stroke})" if tooltip is None else f"{tooltip} ({shortcut_stroke})"
 
         if button_id is not None:
             register_button(button_id, command)
@@ -205,7 +253,14 @@ class RespectableButton(tk.Button):
             create_tooltip(widget=self, text=tooltip, background=ThemeColours.TOOLTIP_BACKGROUND)
         if shortcut is not None:
             for s in [shortcut] if isinstance(shortcut, str) else shortcut:
+                s = f"<{s.strip('<>')}>"
                 master.winfo_toplevel().bind(s, lambda event: self._call_callback_with_safety())
+
+    def get_command(self) -> Callable[[], Any]:
+        return self._callback
+
+    def get_tooltip(self) -> Optional[str]:
+        return self._original_tooltip
 
     def restore(self):
         self.config(**self._original_config)
@@ -257,17 +312,24 @@ class ButtonPanel(tk.Frame):
                  error_handler: Optional[Callable[[ErrorDetail], Any]] = None,
                  as_row: bool = True,  # False = column
                  font: Optional[Union[str, Tuple[str, int]]] = (None, 14),
+                 max_buttons_before_expand: Optional[int] = None,
                  **kwargs):
         tk.Frame.__init__(self, master, **kwargs)
         self._error_handler = error_handler
         self._buttons = []
         self._as_row = as_row
         self._font = font
+        self._max_buttons_before_expand = max_buttons_before_expand
+        self._is_adding_expand_button = False
         if as_row:
             self.rowconfigure(0, weight=1)
         else:
             self.columnconfigure(0, weight=1)
-        self._count = 0
+
+    def add_label(self, text: str, weight: int = 1):
+        label = RespectableLabel(self, text=text)
+        self._add_next_widget(label, weight=weight)
+        return label
 
     def add_button(self,
                    text: str,
@@ -276,6 +338,10 @@ class ButtonPanel(tk.Frame):
                    shortcut: Optional[str] = None,
                    highlight: bool = False,
                    weight: int = 1,
+                   as_label: bool = False,
+                   padx=0,
+                   pady=0,
+                   surround_padding: int = 0,
                    **kwargs
                    ) -> RespectableButton:
         button = RespectableButton(
@@ -284,22 +350,77 @@ class ButtonPanel(tk.Frame):
             tooltip=tooltip,
             shortcut=shortcut,
             command=command,
-            padx=0,
-            pady=0,
+            padx=padx,
+            pady=pady,
             font=self._font,
+            as_label=as_label,
             # width=1,
             highlightbackground=ThemeColours.HIGHLIGHT_COLOR if highlight else None,
             error_handler=self._error_handler,
             **kwargs
         )
-        if self._as_row:
-            button.grid(column=self._count, row=0, sticky=tk.NSEW)
-            self.columnconfigure(self._count, weight=weight)
-        else:
-            button.grid(column=0, row=self._count, sticky=tk.NSEW)
-            self.rowconfigure(self._count, weight=weight)
-        self._count += 1
+        # if self._as_row:
+        #     button.grid(column=self._count, row=0, sticky=tk.NSEW)
+        #     self.columnconfigure(self._count, weight=weight)
+        # else:
+        #     button.grid(column=0, row=self._count, sticky=tk.NSEW)
+        #     self.rowconfigure(self._count, weight=weight)
+        # self._count += 1
+        self._add_next_widget(button, weight=weight, padding=surround_padding)
         return button
+
+    def _expand(self):
+
+        def on_button_press(original_callback: Callable[[], None]):
+            def callback():
+
+                original_callback()
+                print('Calling destroy')
+                new_window.destroy()
+            return callback
+
+        new_window = tk.Toplevel(self.master)
+        new_window.title("Additional Buttons")
+        new_window.geometry(f"600x{min(500, 50*len(self._buttons)+50)}")
+        new_window.resizable(False, False)
+
+        # Keep it on top until clicked
+        new_window.attributes("-topmost", True)
+
+        for button in self._buttons[self._max_buttons_before_expand:]:
+            new_button = button.adopt_to_new_parent(new_window, command=on_button_press(button.get_command()), text=button.cget('text')+(" : "+t if (t:=button.get_tooltip()) is not None else ''))
+            new_button.pack(fill=tk.BOTH, expand=True)
+
+        # Add a cancel button
+        cancel_button = RespectableButton(new_window, text='Cancel', command=new_window.destroy)
+        cancel_button.pack(fill=tk.BOTH, expand=True)
+
+        # Clicking anywhere outside the window will close it
+        new_window.bind("<FocusOut>", lambda *args: new_window.destroy())
+
+        new_window.update()
+        new_window.wait_window()
+
+        # self.destroy()
+
+    def _add_next_widget(self, widget: tk.Widget, weight: int = 1, padding: int = 0):
+        count = len(self._buttons)
+        if self._max_buttons_before_expand is not None and count+1 == self._max_buttons_before_expand and not self._is_adding_expand_button:
+            # If we're at the limit - add the expand button
+            self._is_adding_expand_button = True
+            self.add_button('...', self._expand, tooltip="Show other buttons", weight=weight)
+            self._is_adding_expand_button = False
+
+        if self._max_buttons_before_expand is not None and count+1 > self._max_buttons_before_expand:
+            pass
+        elif self._as_row:
+            widget.grid(column=count, row=0, sticky=tk.NSEW, padx=padding, pady=padding)
+            self.columnconfigure(count, weight=weight, uniform='button')
+        else:
+            widget.grid(column=0, row=count, sticky=tk.NSEW, padx=padding, pady=padding)
+            self.rowconfigure(count, weight=weight, uniform='button')
+        if not self._is_adding_expand_button:
+            self._buttons.append(widget)
 
 # def add_respectable_button(
 #         frame: tk.Frame,
@@ -342,3 +463,56 @@ class ButtonPanel(tk.Frame):
 #         button.restore = restore
 #
 #     return button
+
+
+MultiStateEnumType = TypeVar('MultiStateEnumType', bound=Enum)
+
+
+class MultiStateToggle(ButtonPanel, Generic[MultiStateEnumType]):
+
+    def __init__(self,
+                 master: tk.Frame,
+                 enum_type: type(MultiStateEnumType),
+                 error_handler: Optional[Callable[[ErrorDetail], Any]] = None,
+                 initial_state: Optional[MultiStateEnumType] = None,
+                 on_state_change_callback: Optional[Callable[[MultiStateEnumType], None]] = None,
+                 call_callback_immediately: bool = True,
+                 pad: int = 5,
+                 surround_padding: int = 0,
+                 on_button_config: Optional[dict] = None,
+                 off_button_config: Optional[dict] = None,
+                 tooltip_maker: Optional[Callable[[MultiStateEnumType], str]] = None,
+                 **kwargs
+                 ):
+        ButtonPanel.__init__(self, master, error_handler=error_handler, **kwargs)
+        self._active_state: Optional[MultiStateEnumType] = None
+        self._on_button_config = on_button_config or {}
+        self._off_button_config = off_button_config or {}
+        if initial_state is None:
+            initial_state = list(enum_type)[0]
+        self._on_state_change_callback = on_state_change_callback if call_callback_immediately else None
+        for state in enum_type:
+            if tooltip_maker is not None:
+                tooltip = tooltip_maker(state)
+            else:
+                tooltip = f"Switch to '{state.value}'"
+            self.add_button(text=state.value, command=lambda s=state: self.set_state(s), tooltip=tooltip,
+                            as_label=True, padx=pad, pady=pad, surround_padding=surround_padding)
+        self.set_state(initial_state)
+        self._on_state_change_callback = on_state_change_callback
+
+    def set_state(self, state: MultiStateEnumType):
+        old_state = self._active_state
+        state_index = list(type(state)).index(state)
+        for i, button in enumerate(self._buttons):
+            if i == state_index:
+                button.config(relief=tk.SUNKEN, **self._on_button_config)
+            else:
+                button.config(relief=tk.RAISED, **self._off_button_config)
+        self._active_state = state
+        if self._on_state_change_callback is not None and old_state != state:  # Avoid recursion
+            self._on_state_change_callback(state)
+
+    def get_state(self) -> MultiStateEnumType:
+        assert self._active_state is not None, "No state set"
+        return self._active_state

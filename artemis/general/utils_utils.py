@@ -100,5 +100,18 @@ def byte_size_to_string(bytes: int, decimals_precision: int = 1) -> str:
     return f"{{:.{decimals_precision}f}} {prefix}B".format(size)
 
 
+def number_to_ordinal_string(n: int) -> str:
+    """
+    Thanks Ben: https://stackoverflow.com/a/20007730/851699
+    :param n: number, e.g. 23
+    :return: number with ordinal suffix, e.g. 23rd
+    """
+    if 11 <= (n % 100) <= 13:
+        suffix = 'th'
+    else:
+        suffix = ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
+    return str(n) + suffix
+
+
 if __name__ == '__main__':
     demo_get_context_name()

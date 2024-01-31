@@ -1,13 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
-from datetime import datetime, timedelta
-from timezonefinder import TimezoneFinder
 import pytz
+from timezonefinder import TimezoneFinder
 
 import exif
-from pymediainfo import MediaInfo
-
 from artemis.image_processing.video_frame import FrameGeoData
 
 

@@ -16,7 +16,7 @@ from artemis.fileman.smart_io import smart_load_image
 from artemis.general.custom_types import BGRImageArray, BGRColorTuple
 from artemis.image_processing.image_utils import ImageViewInfo, BGRColors
 from artemis.plotting.tk_utils.machine_utils import is_windows_machine
-from artemis.plotting.tk_utils.tk_error_dialog import tk_show_eagle_eyes_error_dialog, ErrorDetail
+from artemis.plotting.tk_utils.tk_error_dialog import tk_error_detail_handler, ErrorDetail
 from artemis.plotting.tk_utils.tk_utils import bind_callbacks_to_widget
 from artemis.plotting.tk_utils.ui_utils import bgr_image_to_pil_image
 
@@ -34,7 +34,7 @@ class ZoomableImageFrame(tk.Label):
                  max_zoom: float = 40.0,
                  pan_jump_factor=0.2,
                  mouse_scroll_speed: float = 2.0,
-                 error_handler: Optional[Callable[[ErrorDetail], None]] = tk_show_eagle_eyes_error_dialog,
+                 error_handler: Optional[Callable[[ErrorDetail], None]] = tk_error_detail_handler,
                  zoom_scrolling_mode: bool = False,  # Use mouse scrollwheel to zoom,
                  after_view_change_callback: Optional[Callable[[ImageViewInfo], None]] = None,
                  additional_canvas_callbacks: Optional[Mapping[str, Callable[[Event], None]]] = None,

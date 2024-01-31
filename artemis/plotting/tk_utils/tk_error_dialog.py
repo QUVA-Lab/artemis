@@ -141,7 +141,7 @@ def tk_show_error_dialog(exception: Exception, title: str = "Error", message: Op
     print("Exiting error dialog")
 
 
-def tk_show_eagle_eyes_error_dialog(error_details: ErrorDetail):
+def tk_error_detail_handler(error_details: ErrorDetail):
     trace_str = error_details.traceback or traceback.format_exc()
     print(trace_str)
     tk_show_error_dialog(

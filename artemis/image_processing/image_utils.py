@@ -569,6 +569,14 @@ class BoundingBox(BaseBox):
         w, h = self.get_xy_size()
         return BoundingBox.from_xywh(sx, sy, w * factor, h * factor, label=self.label)
 
+    def adjust_aspect_ratio(self, aspect_ratio: float, change_width: bool = True) -> 'BoundingBox':
+        sx, sy = self.get_center()
+        w, h = self.get_xy_size()
+        if change_width:
+            return BoundingBox.from_xywh(sx, sy, h * aspect_ratio, h, label=self.label)
+        else:
+            return BoundingBox.from_xywh(sx, sy, w, w / aspect_ratio, label=self.label)
+
     def pad(self, pad: float) -> 'BoundingBox':
         sx, sy = self.get_center()
         w, h = self.get_xy_size()
@@ -714,7 +722,7 @@ class TextDisplayer:
         longest_line = max(lines, key=len)
         (text_width, text_height), baseline = cv2.getTextSize(longest_line, self.font, self.scale, self.thickness)
 
-        width, height = text_width + 10, int(len(lines) * text_height * (1 + self.vspace))
+        width, height = text_width, int(len(lines) * text_height * (1 + self.vspace))
         wmax, hmax = self.max_size
         if self.match_max_size:
             assert wmax is not None and hmax is not None, f"If you match max size, you need to specify.  Got {self.max_size}"
@@ -867,7 +875,13 @@ class ImageViewInfo:
         if invariant_display_xy is None:
             invariant_display_xy = self._get_display_midpoint_xy()
         else:
-            invariant_display_xy = np.maximum(0, np.minimum(self._get_display_wh(), invariant_display_xy))
+            dw, dh = self._get_display_wh()
+            dx, dy = invariant_display_xy
+            is_inside_bounds = (0 <= dx < dw) and (0 <= dy < dh)
+            if is_inside_bounds:
+                invariant_display_xy = np.maximum(0, np.minimum(self._get_display_wh(), invariant_display_xy))
+            else:
+                invariant_display_xy = self._get_display_midpoint_xy()
         invariant_pixel_xy = self.display_xy_to_pixel_xy(display_xy=invariant_display_xy)
 
         coeff = (1 - 1 / relative_zoom)
@@ -933,6 +947,7 @@ class ImageViewInfo:
                              nearest_neighbor_zoom_threshold: float = 5,
                              ) -> BGRImageArray:
 
+        assert image is not None, "Image was None"
         result_array = np.full(self.window_disply_wh[::-1] + image.shape[2:], dtype=image.dtype, fill_value=gap_color)
         result_array[-self.scroll_bar_width:, :-self.scroll_bar_width] = scroll_bg_color
         result_array[:-self.scroll_bar_width, -self.scroll_bar_width:] = scroll_bg_color
@@ -947,12 +962,14 @@ class ImageViewInfo:
 
         # Add the image
         src_image = image[src_y1:src_y2, src_x1:src_x2]
-        try:
-            src_image_scaled = cv2.resize(src_image, (dest_x2 - dest_x1, dest_y2 - dest_y1), interpolation=cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR)
-        except Exception as err:
-            print(f"Resize failed on images of shape {src_image} with dest shape {(dest_x2 - dest_x1, dest_y2 - dest_y1)} and interpolation {cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR}")
-            raise err
-        result_array[dest_y1:dest_y2, dest_x1:dest_x2] = src_image_scaled
+
+        if (dest_y2 - dest_y1) > 0 and (dest_x2 - dest_x1) > 0:
+            try:
+                src_image_scaled = cv2.resize(src_image, (dest_x2 - dest_x1, dest_y2 - dest_y1), interpolation=cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR)
+            except Exception as err:
+                print(f"Resize failed on images of shape {src_image} with dest shape {(dest_x2 - dest_x1, dest_y2 - dest_y1)} and interpolation {cv2.INTER_NEAREST if self.zoom_level > nearest_neighbor_zoom_threshold else cv2.INTER_LINEAR}")
+                raise err
+            result_array[dest_y1:dest_y2, dest_x1:dest_x2] = src_image_scaled
 
         # Add the scroll bars
         scroll_fraxs_x: Tuple[float, float] = (src_x1 / image.shape[1], src_x2 / image.shape[1])

@@ -2,6 +2,7 @@ class UIColours:
     BLACK = '#000000'
     WHITE = '#ffffff'
     RED = '#cc0000'
+    BLOOD_RED = '#990000'
     PALE_RED = '#ff8888'
     DARK_GREY = '#222222'
     DARKISH_GREY = '#444444'
@@ -16,6 +17,7 @@ class ThemeColours:
     BACKGROUND = UIColours.DARK_GREY
     MIDGROUND = UIColours.GREY
     SELECTED_ROW_BACKGROUND = UIColours.EYE_BLUE_FADED
+    EXIT_BUTTON_BACKGROUND = UIColours.BLOOD_RED
     ROW_BACKGROUND = UIColours.DARKISH_GREY
     TITLE_BACKGROUND = UIColours.DARK_GREY
     TEXT = UIColours.WHITE

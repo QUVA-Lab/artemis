@@ -29,6 +29,7 @@ class HashRep(Enum):
     HEX = 'hex'
     BASE_32 = 'base32'
     BASE_64 = 'base64'
+    INT = 'int'
 
 
 def compute_fixed_hash(obj, try_objects=False, use_only_public_fields: bool = False, hashrep: HashRep = HashRep.BASE_32, _hasher = None, _memo = None, _count=None):
@@ -101,6 +102,8 @@ def compute_fixed_hash(obj, try_objects=False, use_only_public_fields: bool = Fa
         result = base64.b32encode(_hasher.digest()).decode('ascii').rstrip('=')
     elif hashrep == HashRep.BASE_64:
         result = base64.b64encode(_hasher.digest()).decode('ascii').rstrip('=')
+    elif hashrep == HashRep.INT:
+        result = int.from_bytes(_hasher.digest(), byteorder='big')
     else:
         raise Exception(f"No hash rep {hashrep}")
     _memo[id(obj)] = result

@@ -157,7 +157,11 @@ def time_indicator_to_nearest_frame(time_indicator: str, n_frames: int, fps: Opt
     elif time_indicator in ('e', 'end'):
         return n_frames - 1
     elif ':' in time_indicator:
-        sec = parse_time_delta_str_to_sec(time_indicator)
+        try:
+            sec = parse_time_delta_str_to_sec(time_indicator)
+        except Exception as err:
+            print(f"Error parsing time indicator: {err}")
+            return None
         return lookup_frame_ix(sec)
     elif time_indicator.endswith('s'):
         sec = float(time_indicator.rstrip('s'))
