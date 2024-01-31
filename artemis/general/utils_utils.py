@@ -2,7 +2,7 @@ import itertools
 import os.path
 from datetime import datetime
 from functools import partial
-from typing import Optional, Iterable, Callable, TypeVar, Tuple, Sequence, Iterator
+from typing import Optional, Iterable, Callable, TypeVar, Tuple, Sequence, Iterator, Any
 import inspect
 import time
 
@@ -111,6 +111,11 @@ def number_to_ordinal_string(n: int) -> str:
     else:
         suffix = ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
     return str(n) + suffix
+
+
+def display_dataclass_instance_without_defaults(instance: Any) -> str:
+    """ Display a dataclass instance without showing default values """
+    return f'{instance.__class__.__name__}({", ".join([f"{k}={v}" for k, v in instance.__dict__.items() if v != instance.__class__.__dataclass_fields__[k].default])})'
 
 
 if __name__ == '__main__':

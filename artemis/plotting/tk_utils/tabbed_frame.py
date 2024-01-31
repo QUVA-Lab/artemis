@@ -57,7 +57,7 @@ class TabbedFrame(tk.Frame, Generic[MultiStateEnumType]):
         self._pre_state_change_callback = pre_state_change_callback
         self._on_state_change_callback = on_state_change_callback
 
-        self.set_active_tab(initial_state, skip_if_unchanged=False)
+        self.set_active_tab(initial_state)
 
         # Callback
         if tab_forward_shortcut is not None:
@@ -89,10 +89,11 @@ class TabbedFrame(tk.Frame, Generic[MultiStateEnumType]):
         self._tab_controls.append(tab_control)
         return tab_control
 
-    def set_active_tab(self, state: MultiStateEnumType, skip_if_unchanged: bool = True, skip_callback: bool = False) -> None:
+    def set_active_tab(self, state: MultiStateEnumType, skip_callback: bool = False) -> None:
 
-        if skip_if_unchanged and state == self._main_tab_control.get_state():
-            return  # Already in this state
+        # if skip_if_unchanged and state == self._main_tab_control.get_state():
+        #     print(f"Skipping tab change to {state} because it's already in state {self._main_tab_control.get_state()}.")
+        #     return  # Already in this state
         do_change = True
         if self._pre_state_change_callback is not None:
             do_change = self._pre_state_change_callback(state)
