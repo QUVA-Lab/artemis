@@ -12,7 +12,8 @@ from artemis.general.measuring_periods import PeriodicChecker
 from artemis.plotting.tk_utils.tk_error_dialog import ErrorDetail
 from artemis.plotting.tk_utils.ui_utils import RespectableButton
 from artemis.plotting.tk_utils.constants import UIColours, ThemeColours
-
+import platform
+import subprocess
 
 # from artemis.plotting.tk_utils.bitmap_view import TkImageWidget
 # from video_scanner.utils import ResourceFiles
@@ -627,7 +628,34 @@ def hold_tkinter_root_context():
 #     ) -> tk.Frame:
 
 
+def is_dark_mode():
+    os_name = platform.system()
 
+    if os_name == "Darwin":  # macOS
+        try:
+            theme = subprocess.check_output(
+                "defaults read -g AppleInterfaceStyle", shell=True
+            ).decode().strip()
+            return theme == "Dark"
+        except subprocess.CalledProcessError:
+            return False  # Default is light mode if the command fails
+
+    elif os_name == "Windows":
+        try:
+            import winreg
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+            )
+            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+            return value == 0
+        except:
+            return False  # Default or error
+
+    else:  # Linux and other OSes
+        # This is more complex due to the variety of Linux environments.
+        # Placeholder for now.
+        return False
 
 
 if __name__ == '__main__':

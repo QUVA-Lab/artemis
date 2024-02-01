@@ -68,11 +68,13 @@ def is_global_termination_request():
     return GLOBAL_TERMINATION_REQUEST
 
 
-def get_shortcut_string(shortcut: str) -> str:
+def get_shortcut_string(shortcut: Union[str, Sequence[str]]) -> str:
     """ Formats the shortcut as a string to display in a tooltip
     Replaces upper-case letters with 'Shift-<letter>' unless Shift is already in the shortcut
     E.g. 'Control-A' -> 'Ctrl-Shift-A'
     """
+    if not isinstance(shortcut, str):
+        shortcut = ' or '.join(shortcut)
     shortcut_stroke = shortcut.strip('<>')
     # display_stroke = re.sub(r'([A-Z])', r'Shift-\1', shortcut_stroke) if 'Shift' not in shortcut_stroke else shortcut_stroke
     # Change above so that it only subs lone capital lettes
@@ -105,6 +107,7 @@ class RespectableLabel(tk.Label, EmphasizableMixin):
                  tooltip: Optional[str] = None,
                  button_id: Optional[str] = None,
                  add_shortcut_to_tooltip: bool = True,
+                 shortcut_binding_widget: Optional[tk.Widget] = None,
                  **kwargs
                  ):
         tk.Label.__init__(self, master, text=text, **kwargs)
@@ -118,7 +121,9 @@ class RespectableLabel(tk.Label, EmphasizableMixin):
 
         self._command = command
         if shortcut is not None:
-            master.winfo_toplevel().bind(shortcut, self._execute_shortcut)
+            if shortcut_binding_widget is None:
+                shortcut_binding_widget = master.winfo_toplevel()
+            shortcut_binding_widget.bind(shortcut, self._execute_shortcut)
         if tooltip is not None or (shortcut is not None and add_shortcut_to_tooltip):
             if add_shortcut_to_tooltip and shortcut is not None:
                 shortcut_stroke = get_shortcut_string(shortcut)

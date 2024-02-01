@@ -3,21 +3,18 @@ import tkinter as tk
 from abc import ABCMeta
 from abc import abstractmethod
 from dataclasses import dataclass, field, fields, replace
-import pprint
-from tkinter import messagebox, ttk
+from tkinter import ttk, filedialog
 from typing import Optional, TypeVar, Sequence, get_origin, get_args, Any, Dict, Callable, Union, Generic, Tuple, Mapping
 
-from more_itertools import first
 from more_itertools.more import first
 
 # Assuming the required modules from artemis.plotting.tk_utils are available
-from artemis.plotting.tk_utils.constants import ThemeColours
-from artemis.plotting.tk_utils.tk_utils import hold_tkinter_root_context
-from artemis.plotting.tk_utils.tooltip import create_tooltip
-from artemis.plotting.tk_utils.ui_utils import ButtonPanel
-from video_scanner.ui.ui_utils import RespectableLabel
+from artemis.plotting.tk_utils.ui_utils import ButtonPanel, RespectableLabel
 
 ParametersType = TypeVar('ParametersType')
+
+class NoDefault:
+    pass
 
 
 def get_default_for_param_type(param_type: type) -> Any:
@@ -27,8 +24,8 @@ def get_default_for_param_type(param_type: type) -> Any:
         return []
     elif isinstance(get_origin(param_type), type) and is_optional_type(param_type):
         return None
-    elif hasattr(param_type, "__dataclass_fields__"):
-        return param_type()
+    # elif hasattr(param_type, "__dataclass_fields__"):
+    #     return param_type()
     elif param_type == str:
         return ""
     elif param_type == int:
@@ -36,7 +33,8 @@ def get_default_for_param_type(param_type: type) -> Any:
     elif param_type == float:
         return 0.0
     else:
-        raise NotImplementedError(f"Type {param_type} not supported.")
+        return NoDefault
+        # raise NotImplementedError(f"Type {param_type} not supported.")
 
 
 class MockVariable(tk.Variable):
@@ -231,10 +229,16 @@ class OptionalParameterSelectionFrame(IParameterSelectionFrame[Optional[Any]]):
         self._checkbox_var = tk.BooleanVar(value=self._builder.initial_value is not None)
         check_box = tk.Checkbutton(self, variable=self._checkbox_var)
         check_box.grid(column=0, row=0, sticky="w")
+        if not builder.editable_fields:
+            check_box.configure(state=tk.DISABLED)
         # self._child_frame = build_parameter_frame(self, param_type, initial_value if initial_value is not None else get_default_for_param_type(param_type), editable_fields=editable_fields)
+        param_type_if_checked = get_args(self._builder.param_type)[0]
+        default_value = get_default_for_param_type(param_type_if_checked)
         self._child_frame = replace(self._builder,
-                                    param_type=get_args(self._builder.param_type)[0],
-                                    initial_value=self._builder.initial_value if self._builder.initial_value is not None else get_default_for_param_type(get_args(self._builder.param_type)[0]),
+                                    param_type=param_type_if_checked,
+                                    custom_constructors={k.removesuffix(".checked") if k.startswith(builder.path.lstrip('.')) else k: v for k, v in self._builder.custom_constructors.items()},
+                                    initial_value=self._builder.initial_value if self._builder.initial_value is not None else default_value
+                                    # initial_value=self._builder.initial_value if self._builder.initial_value is not None else None,
                                     ).build_parameter_frame(self)
         self._on_checkbox_change(self._checkbox_var.get())
 
@@ -249,6 +253,65 @@ class OptionalParameterSelectionFrame(IParameterSelectionFrame[Optional[Any]]):
 
     def get_variables(self) -> Mapping[Tuple[Union[int, str], ...], tk.Variable]:
         return self._child_frame.get_variables() if self._checkbox_var.get() else {}
+
+
+class FileListParameterSelectionFrame(IParameterSelectionFrame[Sequence[str]]):
+
+    def __init__(self,
+                 master: tk.Widget,
+                 builder: 'ParameterUIBuilder',
+                 separator: str = ';',
+
+                 ):
+        super().__init__(master, **builder.general_kwargs)
+        # self._builder = builder
+        self.var = tk.StringVar(self, builder.initial_value if builder.initial_value is not NoDefault else '')
+        frame = tk.Frame(self)
+        frame.grid(column=0, row=0, sticky="ew")
+        self._file_list_label = RespectableLabel(frame, text="", anchor=tk.W)
+        self._file_list_label.grid(column=0, row=0, sticky="ew")
+        # self._filelist = tk.Listbox(frame, state=tk.NORMAL if builder.editable_fields else tk.DISABLED, height=min(5, len(self._builder.initial_value)))
+        self._filelist = tk.Listbox(frame, height=min(5, len(builder.initial_value) if builder.initial_value is not NoDefault else 1))
+        # Insert one item called "aaa"
+
+        self._filelist.grid(column=0, row=1, sticky=tk.EW)
+        self._separator = separator
+
+        self._rebuild_file_list()
+        if builder.editable_fields:
+            # Add a "select files" button (with unicode icon)
+            RespectableLabel(frame, text="📂", command=self._select_files)
+
+    def get_filled_parameters(self) -> Optional[ParametersType]:
+        return self.var.get().split(self._separator)
+
+    def get_common_dir_and_relative_paths(self) -> Tuple[Optional[str], Sequence[str]]:
+
+        dirs = [os.path.dirname(file) for file in self.var.get().split(self._separator)]
+        if len(dirs)>0:
+            common_directory = os.path.commonpath(dirs)
+            return common_directory, [os.path.relpath(file, common_directory) for file in self.var.get().split(self._separator)]
+        else:
+            return None, []
+
+    def _select_files(self):
+        common_directory, _ = self.get_common_dir_and_relative_paths()
+        files = filedialog.askopenfilenames(initialdir=common_directory)
+        if files is not None:
+            self.var.set(self._separator.join(files))
+            self._rebuild_file_list()
+
+    def _rebuild_file_list(self):
+
+        # common_directory = os.path.commonpath(self.var.get().split(self._separator)) if len(self.var.get()) > 0 else None
+        # rel_paths = self.var.get().split(self._separator)
+        common_directory, rel_paths = self.get_common_dir_and_relative_paths()
+        self._file_list_label.configure(text=f"{len(rel_paths)} files in {common_directory}:" if common_directory is not None else "<No rel_paths selected>")
+        self._filelist.delete(0, tk.END)
+        for file in rel_paths:
+            self._filelist.insert(tk.END, file)
+        # Display
+        self.update()
 
 
 class ButtonParameterSelectionFrame(IParameterSelectionFrame[ParametersType]):
@@ -344,6 +407,9 @@ class UneditableParameterSelectionFrame(IParameterSelectionFrame[ParametersType]
         return self._initial_value
 
 
+
+
+
 class WrapperParameterSelectionFrame(IParameterSelectionFrame[ParametersType]):
 
     def __init__(self, master: tk.Widget, frame: IParameterSelectionFrame):
@@ -405,8 +471,8 @@ def filter_subfields(original_editable_fields: Union[Sequence[str], bool], field
 class ParameterUIBuilder:
     """ A class that builds a UI for a parameter. """
     # parent: Optional[tk.Widget]  # The parent widget
-    param_type: type  # The type of the parameter.  If None, initial_value must be provided.
     initial_value: Any  # The initial value to display.  If None, param_type must be provided.
+    param_type: Optional[type] = None  # The type of the parameter.  If None, initial_value must be provided.
     path: str = ''  # The path to the parameter, e.g. "a.b.c" means the "c" field of the "b" field of the "a" field.
     editable_fields: Union[bool, Sequence[str]] = True  # Either
     end_field_patterns: Sequence[str] = ()  # Paths to fields that should not be expanded upon
@@ -437,11 +503,16 @@ class ParameterUIBuilder:
         return any(does_field_match_pattern(self.path, pattern) for pattern in self.end_field_patterns)
 
     def modify_for_subfield(self, subfield_index: Union[int, str], subfield_type: type) -> 'ParameterUIBuilder':
+        if self.initial_value is not None and self.initial_value is not NoDefault:
+            initial_value = getattr(self.initial_value, subfield_index) if isinstance(subfield_index, str) else self.initial_value[subfield_index]
+        else:
+            initial_value = None
+
         return replace(
             self,
             # parent=parent,
             path=self.path + "." + str(subfield_index),
-            initial_value=getattr(self.initial_value, subfield_index) if isinstance(subfield_index, str) else self.initial_value[subfield_index],
+            initial_value=initial_value,
             param_type=subfield_type,
         )
 
@@ -889,9 +960,10 @@ def ui_choose_parameters(
         ps_frame.pack()
 
     bottom_panel.pack(side=tk.BOTTOM, fill=tk.X)
-    bottom_panel.add_button("Cancel", on_cancel, shortcut="<Escape>")
+    if builder.editable_fields:
+        bottom_panel.add_button("Cancel", on_cancel, shortcut="<Escape>")
+        bottom_panel.add_button("Reset", on_reset, shortcut="<Control-r>")
     bottom_panel.add_button("OK", on_ok, shortcut="<Return>")
-    bottom_panel.add_button("Reset", on_reset, shortcut="<Control-r>")
 
     if timeout is not None:
         window.after(int(timeout * 1000), on_ok)
