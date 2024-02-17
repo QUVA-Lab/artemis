@@ -108,6 +108,7 @@ class RespectableLabel(tk.Label, EmphasizableMixin):
                  button_id: Optional[str] = None,
                  add_shortcut_to_tooltip: bool = True,
                  shortcut_binding_widget: Optional[tk.Widget] = None,
+                 error_handler: Optional[Callable[[ErrorDetail], Any]] = None,
                  **kwargs
                  ):
         tk.Label.__init__(self, master, text=text, **kwargs)
@@ -115,6 +116,8 @@ class RespectableLabel(tk.Label, EmphasizableMixin):
         if command is not None:
             self.bind("<Button-1>", lambda event: command())
             self.config(cursor="hand2", relief=tk.RAISED)
+
+        self._error_handler = error_handler
 
         if button_id is not None and command is not None:
             register_button(button_id, command)
@@ -133,7 +136,15 @@ class RespectableLabel(tk.Label, EmphasizableMixin):
     def _execute_shortcut(self, event: tk.Event):
         if not isinstance(event.widget, (tk.Text, tk.Entry)):
             # Block keystrokes from something is being typed into a text field
-            self._command()
+            try:
+                self._command()
+            except Exception as e:
+                err = e
+                traceback_str = traceback.format_exc()
+                print(traceback_str)
+                if self._error_handler:
+                    self._error_handler(ErrorDetail(error=err, traceback=traceback_str, additional_info=f"Button: '{self.cget('text')}'"))
+                raise e
 
 class ToggleLabel(RespectableLabel):
 
@@ -170,7 +181,16 @@ class ToggleLabel(RespectableLabel):
         self._state = state
         self.config(text=self._on_text if self._state else self._off_text, background=self._on_bg if self._state else self._off_bg, relief=tk.SUNKEN if self._state else tk.RAISED)
         if self._state_switch_callback is not None and call_callback:
-            self._state_switch_callback(self._state)
+            try:
+                self._state_switch_callback(self._state)
+            except Exception as e:
+                err = e
+                traceback_str = traceback.format_exc()
+                print(traceback_str)
+                if self._error_handler:
+                    self._error_handler(ErrorDetail(error=err, traceback=traceback_str, additional_info=f"Button: '{self.cget('text')}'"))
+                raise e
+
 
     def get_toggle_state(self) -> bool:
         return self._state
@@ -386,14 +406,20 @@ class ButtonPanel(tk.Frame):
 
         new_window = tk.Toplevel(self.master)
         new_window.title("Additional Buttons")
-        new_window.geometry(f"600x{min(500, 50*len(self._buttons)+50)}")
+        width = 600
+        new_window.geometry(f"{width}x{min(500, 50*len(self._buttons)+50)}")
         new_window.resizable(False, False)
 
         # Keep it on top until clicked
         new_window.attributes("-topmost", True)
 
         for button in self._buttons[self._max_buttons_before_expand:]:
-            new_button = button.adopt_to_new_parent(new_window, command=on_button_press(button.get_command()), text=button.cget('text')+(" : "+t if (t:=button.get_tooltip()) is not None else ''))
+            new_button = button.adopt_to_new_parent(
+                parent=new_window,
+                command=on_button_press(button.get_command()),
+                text=button.cget('text')+(" : "+t if (t:=button.get_tooltip()) is not None else ''),
+                wraplength=width-20,
+            )
             new_button.pack(fill=tk.BOTH, expand=True)
 
         # Add a cancel button

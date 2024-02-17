@@ -131,10 +131,14 @@ def put_text_in_corner(img: BGRImageArray, text: str, color: BGRColorTuple, shad
                        background_color: Optional[BGRColorTuple] = None, corner ='tl', scale=1, thickness=1, font=cv2.FONT_HERSHEY_PLAIN, ):
     """ Put text in the corner of the image"""
     # TODO: Convert to use put_text_at
-    assert corner in ('tl', 'tr', 'bl', 'br')
+    assert isinstance(corner, str) and len(corner) == 2, f"Corner must be a two-letter string (e.g. 'tl', 'br', 'cc'), not {corner}"
     cv, ch = corner
+    assert cv in ('t', 'b', 'c'), f"Vertical corner must be 't', 'b', or 'c', not {cv}"
+    assert ch in ('l', 'r', 'c'), f"Horizontal corner must be 'l', 'r', or 'c', not {ch}"
     (twidth, theight), baseline = cv2.getTextSize(text, font, scale, thickness)
-    position = ({'l': 0, 'r': img.shape[1]-twidth}[ch], {'t': theight+baseline, 'b': img.shape[0]}[cv])
+    position = (
+        {'l': 0, 'r': img.shape[1]-twidth, 'c': (img.shape[1]-twidth)//2}[ch],
+        {'t': theight+baseline, 'b': img.shape[0], 'c': img.shape[0]//2}[cv])
     if background_color is not None:
         pad = 4
         img[max(0, position[1]-theight-pad): position[1]+pad, max(0, position[0]-pad): position[0]+twidth+pad] = background_color
