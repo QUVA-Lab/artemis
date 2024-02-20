@@ -105,6 +105,7 @@ class RespectableLabel(tk.Label, EmphasizableMixin):
                  command: Optional[Callable[[], Any]] = None,
                  shortcut: Optional[str] = None,
                  tooltip: Optional[str] = None,
+                 tooltip_anchor: Optional[str] = tk.NW,
                  button_id: Optional[str] = None,
                  add_shortcut_to_tooltip: bool = True,
                  shortcut_binding_widget: Optional[tk.Widget] = None,
@@ -131,7 +132,7 @@ class RespectableLabel(tk.Label, EmphasizableMixin):
             if add_shortcut_to_tooltip and shortcut is not None:
                 shortcut_stroke = get_shortcut_string(shortcut)
                 tooltip = f"({shortcut_stroke})" if tooltip is None else f"{tooltip} ({shortcut_stroke})"
-            create_tooltip(widget=self, text=tooltip, background=ThemeColours.TOOLTIP_BACKGROUND)
+            create_tooltip(widget=self, text=tooltip, background=ThemeColours.TOOLTIP_BACKGROUND, anchor=tooltip_anchor)
 
     def _execute_shortcut(self, event: tk.Event):
         if not isinstance(event.widget, (tk.Text, tk.Entry)):

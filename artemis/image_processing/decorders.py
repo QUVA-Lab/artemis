@@ -159,9 +159,19 @@ class PyAvDecorder(IDecorder):
     def __iter__(self) -> Iterator[BGRImageArray]:
         if self._iter_with_opencv:
             cap = cv2.VideoCapture(self._path)
-            while True:
+            n_frames = self._n_frames
+            for i in itertools.count():
                 ret, frame = cap.read()
                 if not ret:
+                    if i < self._n_frames - 1:
+                        print(f"Finished prematurely on frame {i+1}/{self._n_frames} while iterating with OpenCV.  Falling Back on pyAV\n"
+                              "Something may be corrupted with this video."
+                              )
+                        print("Trying one more time...")
+                        ret, frame = cap.read()
+                        print(f"Got {'it again' if ret else 'nothing'}")
+                        yield frame
+                        continue
                     break
                 yield frame
             cap.release()
@@ -231,6 +241,7 @@ def robustly_get_decorder(
     if prefer_decord and DecordDecorder is not None:
         decorder = DecordDecorder(path)
     else:
+        print(f"Selected PyACDecorder for {path}")
         decorder = PyAvDecorder(path)
 
     if use_cache:

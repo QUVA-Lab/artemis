@@ -82,7 +82,8 @@ def sync_src_files_to_dest_files(
         src_path_to_new_path: Mapping[str, str],
         overwrite: bool = False,  # Overwrite existing files on machine
         check_byte_sizes=True,  # Check that, for existing files, file-size matches source.  If not, overwrite.
-        verbose: bool = True  # Prints a lot.
+        verbose: bool = True,  # Prints a lot.
+        prompt_user_for_confirmation: bool = True  # Prompt user to confirm sync (default true for historical reasons.  Should really default false)
 ):
     # Filter to only copy when destination file does not exist. TODO: Maybe check file size match here too
     src_path_to_size = {src_path: os.path.getsize(src_path) for src_path in src_path_to_new_path}
@@ -100,11 +101,15 @@ def sync_src_files_to_dest_files(
     if verbose:
         print('Files to be copied: ')
         print('  ' + '\n  '.join(f'{i}: {src} -> {dest} ' for i, (src, dest) in enumerate(src_to_dest_to_copy.items())))
-    response = input(
-        f"{len(src_to_dest_to_copy)}/{len(src_path_to_new_path)} files ({size_to_be_copied:,} bytes) will be copied.\n  Type 'copy' to copy >>")
+
+    if prompt_user_for_confirmation:
+        response = input(f"{len(src_to_dest_to_copy)}/{len(src_path_to_new_path)} files ({size_to_be_copied:,} bytes) will be copied.\n  Type 'copy' to copy >>")
+        go_for_it = response.strip(' ') == 'copy'
+    else:
+        go_for_it = True
 
     # Do the actual copying.
-    if response.strip(' ') == 'copy':
+    if go_for_it:
         print('Copying...')
         data_copied = 0
         for i, src_path in enumerate(sorted(src_to_dest_to_copy), start=1):

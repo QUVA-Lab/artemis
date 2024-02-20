@@ -28,9 +28,20 @@ class ToolTip(object):
         if self.tipwindow or not self._text:
             return
         x, y, cx, cy = self.widget.bbox("insert")
-        x = x + self.widget.winfo_rootx() + (57 if self._right_of_cursor else -57 - len(self._text)*self._font_size*0.4)
-        y = y + cy + self.widget.winfo_rooty() + (27 if self._below_cursor else -27 - self._font_size)
+
         self.tipwindow = tw = tk.Toplevel(self.widget)
+        text_width = len(self._text)*self._font_size*0.4
+        x_offset = 57
+        # print(f'Tip window width {self.tipwindow.winfo_width()}')
+        # is_on_right_edge = x_offset + x + text_width > self.tipwindow.winfo_width()
+        right_of_cursor = self._right_of_cursor
+
+        x = x + self.widget.winfo_rootx() + (x_offset if right_of_cursor else -x_offset - text_width)
+        y = y + cy + self.widget.winfo_rooty() + (27 if self._below_cursor else -27 - self._font_size)
+
+
+
+
         tw.wm_overrideredirect(1)
         tw.wm_geometry("+%d+%d" % (x, y))
         # Anchor window to left of cursor
