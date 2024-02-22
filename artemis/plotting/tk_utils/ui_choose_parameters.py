@@ -290,7 +290,10 @@ class FileListParameterSelectionFrame(IParameterSelectionFrame[Sequence[str]]):
         dirs = [os.path.dirname(file) for file in self.var.get().split(self._separator)]
         if len(dirs)>0:
             common_directory = os.path.commonpath(dirs)
-            return common_directory, [os.path.relpath(file, common_directory) for file in self.var.get().split(self._separator)]
+            joined_paths = self.var.get().strip()
+            paths = joined_paths.split(self._separator) if joined_paths else []
+            relative_paths = [os.path.relpath(file, common_directory) for file in paths]
+            return common_directory, relative_paths
         else:
             return None, []
 
