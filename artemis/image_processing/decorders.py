@@ -241,7 +241,7 @@ def robustly_get_decorder(
     if prefer_decord and DecordDecorder is not None:
         decorder = DecordDecorder(path)
     else:
-        print(f"Selected PyACDecorder for {path}")
+        # print(f"Selected PyACDecorder for {path}")
         decorder = PyAvDecorder(path)
 
     if use_cache:

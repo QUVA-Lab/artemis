@@ -908,7 +908,13 @@ class ImageViewInfo:
         return result
 
     def pan_by_display_relshift(self, display_rel_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':
+        """ Pan by a fraction of the width/height of the current display window """
         pixel_shift_xy = np.asarray(display_rel_xy) * self._get_display_wh() / self.zoom_level
+        return self.pan_by_pixel_shift(pixel_shift_xy=pixel_shift_xy, limit=limit)
+
+    def pan_by_image_relshift(self, image_rel_xy: Tuple[float, float], limit: bool = True):
+        """ Pan by a fraction of the width/height of the entire image """
+        pixel_shift_xy = np.asarray(image_rel_xy) * self.image_wh
         return self.pan_by_pixel_shift(pixel_shift_xy=pixel_shift_xy, limit=limit)
 
     def pan_by_display_shift(self, display_shift_xy: Tuple[float, float], limit: bool = True) -> 'ImageViewInfo':

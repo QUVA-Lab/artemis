@@ -68,7 +68,7 @@ def compute_fixed_hash(obj, try_objects=False, use_only_public_fields: bool = Fa
         _hasher.update(pickle.dumps(obj.dtype, protocol=2))
         _hasher.update(pickle.dumps(obj.shape, protocol=2))
         _hasher.update(obj.tostring())
-    elif isinstance(obj, (int, float, bool)+string_types) or (obj is None) or (obj in (int, str, float, bool)):
+    elif isinstance(obj, (int, float, bool, bytes)+string_types) or (obj is None) or (obj in (int, str, float, bool, bytes)):
         _hasher.update(pickle.dumps(obj, protocol=2))
     elif isinstance(obj, (list, tuple)):
         for el in obj:

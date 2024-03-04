@@ -1,5 +1,6 @@
 import tkinter as tk
 import traceback
+from abc import abstractmethod
 from collections import deque
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -115,6 +116,20 @@ def wrap_ui_callback_with_handler(
                 raise err
 
     return wrapped_callback
+
+
+def recursively_bind(widget: Widget, event: str, handler: Callable[[tk.Event], Any]) -> None:
+    """
+    Recursively bind an event to a widget and all its descendants.
+
+    Args:
+    - widget: The root widget to start binding from.
+    - event: The event to bind, e.g., '<Escape>'.
+    - handler: The function to call when the event occurs.
+    """
+    widget.bind(event, handler)
+    for child in widget.winfo_children():
+        recursively_bind(child, event, handler)
 
 
 def bind_callbacks_to_widget(
@@ -578,6 +593,22 @@ class CollapseableWidget(tk.Widget):
             # print(f"Uncollapsed {self} with {pack_manager} with args {args} and kwargs {kwargs}")
 
 
+class IEscapeHandler:
+    """
+    A mixin to handle escape events in a widget and its children
+    """
+
+    @abstractmethod
+    def on_escape(self) -> bool:
+        """ Handle escape, returning True to consume the event, or False to propagate it """
+        raise NotImplementedError()
+
+
+def handle_escape(widget: tk.Widget) -> bool:
+    if isinstance(widget, EscapeHandlerMixin):
+        return widget.handle_escape()
+
+
 class MessageListenerMixin:
 
     def __init__(self, message_listener: Optional[Callable[[str], None]] = None):
@@ -592,6 +623,8 @@ class MessageListenerMixin:
 
     def _send_hint_message(self, message: str):
         self._send_message(f"ℹ️: {message}")
+
+
 
 
 def assert_no_existing_root():

@@ -13,12 +13,18 @@ import cv2
 from PIL import ImageTk
 
 from artemis.fileman.smart_io import smart_load_image
+from artemis.general.command_registry import add_command_to_registry, NamedCommand
 from artemis.general.custom_types import BGRImageArray, BGRColorTuple
 from artemis.image_processing.image_utils import ImageViewInfo, BGRColors
 from artemis.plotting.tk_utils.machine_utils import is_windows_machine
 from artemis.plotting.tk_utils.tk_error_dialog import tk_error_detail_handler, ErrorDetail
 from artemis.plotting.tk_utils.tk_utils import bind_callbacks_to_widget
 from artemis.plotting.tk_utils.ui_utils import bgr_image_to_pil_image
+import os
+
+IS_WINDOWS = os.name == 'nt'
+
+MODIFIER_KEY = 'Control' if IS_WINDOWS else 'Command'
 
 
 class ZoomableImageFrame(tk.Label):
@@ -32,7 +38,8 @@ class ZoomableImageFrame(tk.Label):
                  scrollbar_color: BGRColorTuple = BGRColors.GRAY,
                  zoom_jump_factor: float = 1.2,
                  max_zoom: float = 40.0,
-                 pan_jump_factor=0.2,
+                 pan_jump_factor=0.2,  # This is relative to the display window
+                 fast_pan_jump_factor=0.1,  # This is relative to the whole image
                  mouse_scroll_speed: float = 2.0,
                  error_handler: Optional[Callable[[ErrorDetail], None]] = tk_error_detail_handler,
                  zoom_scrolling_mode: bool = False,  # Use mouse scrollwheel to zoom,
@@ -44,6 +51,7 @@ class ZoomableImageFrame(tk.Label):
                  scroll_indicator_width_pix: int = 10,
                  rel_area_change_to_reset_zoom: float = 0.25,
                  margin_gap: int = 4,  # Prevents infinite config-loop
+                 nearest_neighbor_zoom_threshold: float = 3.0,  # Zoom level at which to switch to nearest neighbor interpolation
                  ):
 
         # self.label = tk.Label(parent_frame)
@@ -52,6 +60,7 @@ class ZoomableImageFrame(tk.Label):
         # assert height is not None or width is not None, "You must specify height, width, or both to display image"
         # self.height = height
         # self.width = width
+        self._nearest_neighbor_zoom_threshold = nearest_neighbor_zoom_threshold
         self._after_view_change_callback = after_view_change_callback
         self._mouse_scroll_speed = mouse_scroll_speed
         self._image_view_frame: Optional[ImageViewInfo] = None
@@ -76,16 +85,23 @@ class ZoomableImageFrame(tk.Label):
         if image is not None:
             self.set_image(image)
 
+
         self._binding_dict: Dict[str, Callable[[Event], None]] = {
             **(additional_canvas_callbacks or {}),
             **{
+                f'<{MODIFIER_KEY}-=>': lambda event: self.set_image_frame(self._image_view_frame.zoom_by(zoom_jump_factor, invariant_display_xy=self._event_to_display_xy(event))),
+                f'<{MODIFIER_KEY}-minus>': lambda event: self.set_image_frame(self._image_view_frame.zoom_by(1 / zoom_jump_factor, invariant_display_xy=self._event_to_display_xy(event))),
                 '<z>': lambda event: self.set_image_frame(self._image_view_frame.zoom_by(zoom_jump_factor, invariant_display_xy=self._event_to_display_xy(event))),
                 '<x>': lambda event: self.set_image_frame(self._image_view_frame.zoom_by(1 / zoom_jump_factor, invariant_display_xy=self._event_to_display_xy(event))),
-                '<c>': lambda event: self.set_image_frame(self._image_view_frame.zoom_out()),
+                '<c>': lambda event: self.set_image_frame(self._image_view_frame.zoom_out() if self._image_view_frame else None),
                 '<w>': lambda event: self.set_image_frame(self._image_view_frame.pan_by_display_relshift(display_rel_xy=(0, -pan_jump_factor), limit=True)),
                 '<a>': lambda event: self.set_image_frame(self._image_view_frame.pan_by_display_relshift(display_rel_xy=(-pan_jump_factor, 0), limit=True)),
                 '<s>': lambda event: self.set_image_frame(self._image_view_frame.pan_by_display_relshift(display_rel_xy=(0, pan_jump_factor), limit=True)),
                 '<d>': lambda event: self.set_image_frame(self._image_view_frame.pan_by_display_relshift(display_rel_xy=(pan_jump_factor, 0), limit=True)),
+                '<W>': lambda event: self.set_image_frame(self._image_view_frame.pan_by_image_relshift(image_rel_xy=(0, -fast_pan_jump_factor), limit=True)),
+                '<A>': lambda event: self.set_image_frame(self._image_view_frame.pan_by_image_relshift(image_rel_xy=(-fast_pan_jump_factor, 0), limit=True)),
+                '<S>': lambda event: self.set_image_frame(self._image_view_frame.pan_by_image_relshift(image_rel_xy=(0, fast_pan_jump_factor), limit=True)),
+                '<D>': lambda event: self.set_image_frame(self._image_view_frame.pan_by_image_relshift(image_rel_xy=(fast_pan_jump_factor, 0), limit=True)),
                 '<Button-1>': self._on_click,  # For some reason, this is not working...
                 # '<Button-1>': lambda event: print("Single click"),  # This never gets called
                 '<Double-Button-1>': self._on_double_click,
@@ -97,8 +113,8 @@ class ZoomableImageFrame(tk.Label):
                 '<Button-4>': self._handle_mousewheel_event,
                 '<Configure>': self._on_configure,  # This may be unnecessary - and it can cause dangerous loops
                 # Add number-pad callbacks: 5 to zoom in, 0 to zoom out, 1-9 to pan
-                "<KP_5>": lambda event: self.set_image_frame(self._image_view_frame.zoom_by(zoom_jump_factor, invariant_display_xy=None)),
-                "<KP_0>": lambda event: self.set_image_frame(self._image_view_frame.zoom_by(1 / zoom_jump_factor, invariant_display_xy=None)),
+                "<KP_5>": lambda event: self.set_image_frame(self._image_view_frame.zoom_by(zoom_jump_factor, invariant_display_xy=self._event_to_display_xy(event))),
+                "<KP_0>": lambda event: self.set_image_frame(self._image_view_frame.zoom_by(1 / zoom_jump_factor, invariant_display_xy=self._event_to_display_xy(event))),
                 **{f"<KP_{i}>": lambda event, i=i: self.set_image_frame(self._image_view_frame.pan_by_display_relshift(display_rel_xy=(pan_jump_factor*(((i-1) % 3)-1), -pan_jump_factor*(((i-1)//3)-1)), limit=True)) for i in [1, 2, 3, 4, 6, 7, 8, 9]},
                 # Add callbacks for entering/exiting focus:
 
@@ -113,6 +129,10 @@ class ZoomableImageFrame(tk.Label):
                 #    },
                 # **{f"<{key}>": self.onKeyPress for key in 'zxcwasd'}
             }}
+
+        # redundant with below sort of
+        # add_command_to_registry(NamedCommand('Zoom out / Center (c)', command=lambda: self._binding_dict['<c>'](None), unique_command_id='image_player.zoom_out'))
+
         bind_callbacks_to_widget(callbacks=self._binding_dict, widget=self, bind_all=False, error_handler=error_handler)
         self.bind("<1>", lambda event: self.focus_set())
         # self.rebind()
@@ -143,7 +163,10 @@ class ZoomableImageFrame(tk.Label):
 
     def _on_mouse_drag_and_release(self, event: Event):
 
-        if self._mouse_callback is not None and self._image_view_frame is not None:
+        if self._image_view_frame is None:
+            return
+
+        if self._mouse_callback is not None:
             display_xy = self._event_to_display_xy(event)
             px, py = self._image_view_frame.display_xy_to_pixel_xy(display_xy)
             eat_event = self._mouse_callback(event, (int(px), int(py)))
@@ -224,14 +247,27 @@ class ZoomableImageFrame(tk.Label):
         if new_frame is not None:
             self.set_image_frame(new_frame)
 
-    def set_image(self, image: BGRImageArray, redraw_now: bool = True):
+    def set_image(self, image: BGRImageArray, redraw_now: bool = True, view_info: Optional[ImageViewInfo] = None):
         zoom_reset_needed = self._image is not None and self._image.shape != image.shape
         self._image = image
-        if redraw_now:
+        if view_info:
+            self.set_image_frame(view_info)
+        elif redraw_now:
             if zoom_reset_needed:
                 self.reset_zoom()
             else:
                 self.redraw()
+
+    def get_current_mouse_pixel_xy(self) -> Optional[Tuple[int, int]]:
+        if self._image_view_frame is None:
+            return None
+        display_xy = self.winfo_pointerxy()
+        px, py = self._image_view_frame.display_xy_to_pixel_xy(display_xy)
+        is_inside_image = 0 <= px < self._image.shape[1] and 0 <= py < self._image.shape[0]
+        if is_inside_image:
+            return int(px), int(py)
+        else:
+            return None
 
     @contextmanager
     def hold_off_redraw_context(self):
@@ -266,14 +302,14 @@ class ZoomableImageFrame(tk.Label):
     def get_image_view_frame_or_none(self) -> Optional[ImageViewInfo]:
         return self._image_view_frame
 
-    def rebind(self):
-        # self.unbind_keys()
-        bind_callbacks_to_widget(self._binding_dict, widget=self)
-        # self.bind("<1>", lambda event: self.focus_set())
-        self.bind()
-
-    def unbind_keys(self):
-        self.unbind_all(list(self._binding_dict.keys()))
+    # def rebind(self):
+    #     # self.unbind_keys()
+    #     bind_callbacks_to_widget(self._binding_dict, widget=self)
+    #     # self.bind("<1>", lambda event: self.focus_set())
+    #     self.bind()
+    #
+    # def unbind_keys(self):
+    #     self.unbind_all(list(self._binding_dict.keys()))
 
     #
     # def zoom_by(self, zoom_factor: float, invariant_display_xy: Tuple[int, int]):
@@ -317,7 +353,11 @@ class ZoomableImageFrame(tk.Label):
             self._image_view_frame = self._image_view_frame.adjust_frame_and_image_size(new_image_wh=(self._image.shape[1], self._image.shape[0]), new_frame_wh=(width, height))
             if not keep_old_zoom:
                 self._image_view_frame = self._image_view_frame.zoom_out()
-        disp_image = self._image_view_frame.create_display_image(self._image, gap_color=self._gap_color, scroll_fg_color = self._scrollbar_color)
+        disp_image = self._image_view_frame.create_display_image(self._image,
+                                                                 gap_color=self._gap_color,
+                                                                 scroll_fg_color = self._scrollbar_color,
+                                                                 nearest_neighbor_zoom_threshold = self._nearest_neighbor_zoom_threshold,
+                                                                 )
         # disp_image = cv2.cvtColor(disp_image, cv2.COLOR_BGR2RGB)
         # im_resized = put_image_in_box(self._image, (self.winfo_width(), self.winfo_height()))
         # print(f"Zoomable Display image shape: {disp_image.shape}, with width={width}, height={height}")

@@ -12,6 +12,7 @@ from typing import Sequence, Optional
 import cv2
 from PIL import Image, ImageTk
 
+from artemis.general.command_registry import add_command_to_registry, NamedCommand
 from artemis.general.custom_types import BGRImageArray
 from artemis.image_processing.image_builder import ImageBuilder
 from artemis.image_processing.image_utils import BGRColors
@@ -120,8 +121,8 @@ class RespectableLabel(tk.Label, EmphasizableMixin):
 
         self._error_handler = error_handler
 
-        if button_id is not None and command is not None:
-            register_button(button_id, command)
+        # if button_id is not None and command is not None:
+        #     register_button(button_id, command)
 
         self._command = command
         if shortcut is not None:
@@ -133,6 +134,13 @@ class RespectableLabel(tk.Label, EmphasizableMixin):
                 shortcut_stroke = get_shortcut_string(shortcut)
                 tooltip = f"({shortcut_stroke})" if tooltip is None else f"{tooltip} ({shortcut_stroke})"
             create_tooltip(widget=self, text=tooltip, background=ThemeColours.TOOLTIP_BACKGROUND, anchor=tooltip_anchor)
+
+        add_command_to_registry(NamedCommand(
+            name=text,
+            command=command,
+            description=tooltip,
+            unique_command_id=button_id or f'buttons.{text.lower().replace(" ", "_")}'
+        ))
 
     def _execute_shortcut(self, event: tk.Event):
         if not isinstance(event.widget, (tk.Text, tk.Entry)):
@@ -163,7 +171,8 @@ class ToggleLabel(RespectableLabel):
                  **kwargs
                  ):
 
-        RespectableLabel.__init__(self, master, text='', command=self.toggle, tooltip=tooltip, borderwidth=1, relief=tk.RAISED, **kwargs)
+        RespectableLabel.__init__(self, master, text='', command=self.toggle, tooltip=tooltip, borderwidth=1, relief=tk.RAISED,
+                                  button_id=f"{on_text}/{off_text}", **kwargs)
         self._state = False
         self._state_switch_pre_callback = state_switch_pre_callback
         self._state_switch_callback = state_switch_callback
@@ -259,8 +268,8 @@ class RespectableButton(tk.Button, ReparentableWidgetMixin, EmphasizableMixin):
             shortcut_stroke = get_shortcut_string(shortcut)
             tooltip = f"({shortcut_stroke})" if tooltip is None else f"{tooltip} ({shortcut_stroke})"
 
-        if button_id is not None:
-            register_button(button_id, command)
+        # if button_id is not None:
+        #     register_button(button_id, command)
 
         # Add callback when clicked
         self.bind("<Button-1>", lambda event: self._call_callback_with_safety())
@@ -281,6 +290,14 @@ class RespectableButton(tk.Button, ReparentableWidgetMixin, EmphasizableMixin):
             for s in [shortcut] if isinstance(shortcut, str) else shortcut:
                 s = f"<{s.strip('<>')}>"
                 master.winfo_toplevel().bind(s, lambda event: self._call_callback_with_safety())
+
+        add_command_to_registry(NamedCommand(
+            name=text,
+            command=command,
+            description=tooltip,
+            unique_command_id=f'buttons.{text.lower().replace(" ", "_")}'
+        ))
+
 
     def get_command(self) -> Callable[[], Any]:
         return self._callback
@@ -339,12 +356,16 @@ class ButtonPanel(tk.Frame):
                  as_row: bool = True,  # False = column
                  font: Optional[Union[str, Tuple[str, int]]] = (None, 14),
                  max_buttons_before_expand: Optional[int] = None,
+                 expand_button_text: str = '...',
+                 expand_button_tooltip: str = "Show other buttons",
                  **kwargs):
         tk.Frame.__init__(self, master, **kwargs)
         self._error_handler = error_handler
         self._buttons = []
         self._as_row = as_row
         self._font = font
+        self._expand_button_text = expand_button_text
+        self._expand_button_tooltip = expand_button_tooltip
         self._max_buttons_before_expand = max_buttons_before_expand
         self._is_adding_expand_button = False
         if as_row:
@@ -411,10 +432,10 @@ class ButtonPanel(tk.Frame):
         new_window.geometry(f"{width}x{min(500, 50*len(self._buttons)+50)}")
         new_window.resizable(False, False)
 
-        # Keep it on top until clicked
-        new_window.attributes("-topmost", True)
+        # Keep it on top until clicked (nevermind, it's annoying)
+        # new_window.attributes("-topmost", True)
 
-        for button in self._buttons[self._max_buttons_before_expand:]:
+        for button in self._buttons[max(0, self._max_buttons_before_expand-1):]:
             new_button = button.adopt_to_new_parent(
                 parent=new_window,
                 command=on_button_press(button.get_command()),
@@ -440,7 +461,7 @@ class ButtonPanel(tk.Frame):
         if self._max_buttons_before_expand is not None and count+1 == self._max_buttons_before_expand and not self._is_adding_expand_button:
             # If we're at the limit - add the expand button
             self._is_adding_expand_button = True
-            self.add_button('...', self._expand, tooltip="Show other buttons", weight=weight)
+            self.add_button(self._expand_button_text, self._expand, tooltip=self._expand_button_tooltip, weight=weight)
             self._is_adding_expand_button = False
 
         if self._max_buttons_before_expand is not None and count+1 > self._max_buttons_before_expand:

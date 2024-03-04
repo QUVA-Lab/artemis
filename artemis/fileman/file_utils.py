@@ -2,8 +2,13 @@ import os
 import shutil
 import time
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Sequence, Mapping, Iterator
+
+from more_itertools import first
+
+from artemis.general.utils_utils import byte_size_to_string
 
 
 def get_filename_without_extension(path):
@@ -56,6 +61,40 @@ def copy_creating_dir_if_needed(src_path: str, dest_path: str):
     shutil.copyfile(src_path, dest_path)
 
 
+def copy_file_with_mtime(src, dest, overwrite: bool = True, create_dir_if_needed: bool = True):
+    """
+    Copies a file from src to dest, preserving the file's modification time,
+    and expands the "~" to the user's home directory. It can optionally overwrite
+    the destination file (otherwise it will raise a FileExistsError if the
+    destination file already exists).
+    """
+    # Expand the "~" to the user's home directory for both source and destination
+    src = os.path.expanduser(src)
+    dest = os.path.expanduser(dest)
+
+    # Check if destination file exists
+    if os.path.exists(dest) and not overwrite:
+        raise FileExistsError(f"The file {dest} already exists and overwrite is set to False.")
+
+    # Ensure the destination directory exists
+    dest_dir = os.path.dirname(dest)
+    os.makedirs(dest_dir, exist_ok=True)
+
+    if create_dir_if_needed:
+        parent, _ = os.path.split(dest)
+        if not os.path.exists(parent):
+            os.makedirs(parent)
+
+    # Copy the file content
+    shutil.copyfile(src, dest)
+
+    # Copy the file metadata
+    shutil.copystat(src, dest)
+
+
+
+
+
 @contextmanager
 def open_and_create_parent(path, mode='r'):
     parent, _ = os.path.split(path)
@@ -76,6 +115,59 @@ def get_recursive_directory_contents_string(directory: str, indent_level=0, inde
         if os.path.isdir(fpath):
             lines.append(get_recursive_directory_contents_string(fpath, indent_level=indent_level + 1, max_entries=max_entries))
     return '\n'.join(lines)
+
+
+def get_files_to_sync(src_folder: str, dest_folder: str, allowed_extensions: Optional[Sequence[str]] = None, skip_existing: bool = True) -> Mapping[str, str]:
+    src_files = iter_filepaths_in_directory_recursive(src_folder, allowed_extensions, relative=True)
+    files_to_sync = {os.path.join(src_folder, src): os.path.join(dest_folder, src) for src in src_files}
+    if skip_existing:
+        files_to_sync = {src: dest for src, dest in files_to_sync.items() if not os.path.exists(dest)}
+    return files_to_sync
+
+
+@dataclass
+class SyncJobStatus:
+    files_completed: int
+    total_files: int
+    bytes_completed: int
+    total_bytes: int
+    time_elapsed: float
+    time_remaining: float
+    next_file: str
+
+    def get_sync_progress_string(self) -> str:
+        return f"Synced {self.files_completed}/{self.total_files} files ({byte_size_to_string(self.bytes_completed)} / {byte_size_to_string(self.total_bytes)}).  \nAbout: {self.time_remaining:.1f}s remaining.  Next: {self.next_file}"
+
+
+def iter_sync_files(src_path_to_new_path: Mapping[str, str], overwrite: bool = False, check_byte_sizes=True, verbose: bool = True) -> Iterator[SyncJobStatus]:
+    tstart = time.monotonic()
+    per_file_bytes = {src: os.path.getsize(src) for src in src_path_to_new_path}
+    total_bytes = sum(per_file_bytes.values())
+    total_n_files = len(src_path_to_new_path)
+    bytes_completed = 0
+
+    yield SyncJobStatus(files_completed=0, total_files=total_n_files, bytes_completed=0, total_bytes=sum(os.path.getsize(src) for src in src_path_to_new_path), time_elapsed=0, time_remaining=0, next_file=first(src_path_to_new_path.keys(), default=''))
+    pairs = list(src_path_to_new_path.items())
+    for i, (src_path, dest_path) in enumerate(pairs):
+        if overwrite or not os.path.exists(dest_path) or (check_byte_sizes and os.path.getsize(src_path) != os.path.getsize(dest_path)):
+            if verbose:
+                print(f'Copying {src_path} -> {dest_path}')
+            copy_creating_dir_if_needed(src_path, dest_path)
+        else:
+            if verbose:
+                print(f'Skipping {src_path} -> {dest_path}')
+        bytes_completed += per_file_bytes[src_path]
+        yield SyncJobStatus(
+            files_completed=i+1,
+            total_files=total_n_files,
+            bytes_completed=bytes_completed,
+            total_bytes=total_bytes,
+            time_elapsed=time.monotonic()-tstart,
+            time_remaining=(time.monotonic()-tstart)/(i+1)*(total_n_files-i-1),
+            next_file=pairs[i+1][0] if i+1<total_n_files else ''
+        )
+    if verbose:
+        print(f"Done syncing {total_n_files} files ({total_bytes:,} bytes) in {time.monotonic()-tstart:.1f} seconds")
 
 
 def sync_src_files_to_dest_files(
