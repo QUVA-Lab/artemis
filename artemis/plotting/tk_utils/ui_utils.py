@@ -426,7 +426,9 @@ class ButtonPanel(tk.Frame):
                 new_window.destroy()
             return callback
 
-        new_window = tk.Toplevel(self.master)
+        new_window = toplevel_centered(self.master)
+        # Center on parent window
+        new_window.geometry(f"+{self.master.winfo_rootx()+self.master.winfo_width()//2}+{self.master.winfo_rooty()+self.master.winfo_height()//2}")
         new_window.title("Additional Buttons")
         width = 600
         new_window.geometry(f"{width}x{min(500, 50*len(self._buttons)+50)}")
@@ -445,7 +447,7 @@ class ButtonPanel(tk.Frame):
             new_button.pack(fill=tk.BOTH, expand=True)
 
         # Add a cancel button
-        cancel_button = RespectableButton(new_window, text='Cancel', command=new_window.destroy)
+        cancel_button = RespectableButton(new_window, text='Cancel', command=new_window.destroy, shortcut='Escape')
         cancel_button.pack(fill=tk.BOTH, expand=True)
 
         # Clicking anywhere outside the window will close it
@@ -569,3 +571,45 @@ class MultiStateToggle(ButtonPanel, Generic[MultiStateEnumType]):
     def get_state(self) -> MultiStateEnumType:
         assert self._active_state is not None, "No state set"
         return self._active_state
+
+
+
+@contextmanager
+def hold_toplevel_centered(parent: Optional[tk.Widget], *args, **kwargs):
+    """ Create a toplevel window, and center it on the parent widget after its contents are filled in"""
+    if parent is None:
+        yield tk.Toplevel(*args, **kwargs)
+        return
+    parent = parent.winfo_toplevel()
+    try:
+        # Make parent unresponsive until the toplevel is closed
+        top = tk.Toplevel(master=parent, *args, **kwargs)
+        # if parent is not None:
+        #     parent_top = parent.winfo_toplevel()
+        #     top.geometry(f"+{int(parent_top.winfo_rootx() + parent_top.winfo_width() / 2 )}+"
+        #                  f"{int(parent_top.winfo_rooty() + parent_top.winfo_height() / 2)}")
+        yield top
+        top.update_idletasks()
+
+        top.geometry(f"+{int(parent.winfo_rootx() + parent.winfo_width() / 2 ) - int(top.winfo_width() / 2)}+"
+                        f"{int(parent.winfo_rooty() + parent.winfo_height() / 2) - int(top.winfo_height() / 2)}")
+
+        top.focus_force()
+
+        # Put it on top always
+        top.attributes('-topmost', True)
+        # top.wait_window()
+    finally:
+        parent.state('normal')
+
+
+
+
+def toplevel_centered(parent: Optional[tk.Widget] = None, *args, **kwargs):
+    """ Create a toplevel window, and center it on the parent widget after its contents are filled in"""
+    top = tk.Toplevel(master=parent, *args, **kwargs)
+    if parent is not None:
+        parent_top = parent.winfo_toplevel()
+        top.geometry(f"+{int(parent_top.winfo_rootx() + parent_top.winfo_width() / 2 )}+"
+                     f"{int(parent_top.winfo_rooty() + parent_top.winfo_height() / 2)}")
+    return top

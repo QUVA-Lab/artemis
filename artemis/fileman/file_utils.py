@@ -58,7 +58,7 @@ def copy_creating_dir_if_needed(src_path: str, dest_path: str):
     parent, _ = os.path.split(dest_path)
     if not os.path.exists(parent):
         os.makedirs(parent)
-    shutil.copyfile(src_path, dest_path)
+    shutil.copy2(src_path, dest_path)
 
 
 def copy_file_with_mtime(src, dest, overwrite: bool = True, create_dir_if_needed: bool = True):
@@ -136,10 +136,11 @@ class SyncJobStatus:
     next_file: str
 
     def get_sync_progress_string(self) -> str:
-        return f"Synced {self.files_completed}/{self.total_files} files ({byte_size_to_string(self.bytes_completed)} / {byte_size_to_string(self.total_bytes)}).  \nAbout: {self.time_remaining:.1f}s remaining.  Next: {self.next_file}"
+        return f"Synced {self.files_completed}/{self.total_files} files ({byte_size_to_string(self.bytes_completed)} / {byte_size_to_string(self.total_bytes)}).  \nAbout: {self.time_remaining:.1f}s remaining.  Next: {os.path.basename(self.next_file)}"
 
 
-def iter_sync_files(src_path_to_new_path: Mapping[str, str], overwrite: bool = False, check_byte_sizes=True, verbose: bool = True) -> Iterator[SyncJobStatus]:
+def iter_sync_files(src_path_to_new_path: Mapping[str, str], overwrite: bool = False, check_byte_sizes=True, verbose: bool = True
+                    ) -> Iterator[SyncJobStatus]:
     tstart = time.monotonic()
     per_file_bytes = {src: os.path.getsize(src) for src in src_path_to_new_path}
     total_bytes = sum(per_file_bytes.values())

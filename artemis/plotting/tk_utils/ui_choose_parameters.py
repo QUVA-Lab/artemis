@@ -3,9 +3,11 @@ import tkinter as tk
 from abc import ABCMeta
 from abc import abstractmethod
 from dataclasses import dataclass, field, fields, replace
+from datetime import datetime, timedelta
 from tkinter import ttk, filedialog
 from typing import Optional, TypeVar, Sequence, get_origin, get_args, Any, Dict, Callable, Union, Generic, Tuple, Mapping
 
+from chronyk import Chronyk, ChronykDelta
 from more_itertools.more import first
 
 # Assuming the required modules from artemis.plotting.tk_utils are available
@@ -75,17 +77,22 @@ class IParameterSelectionFrame(tk.Frame, Generic[ParametersType], metaclass=ABCM
 
 class EntryParameterSelectionFrame(IParameterSelectionFrame):
 
-    def __init__(self, master: tk.Widget, builder: 'ParameterUIBuilder'):
+    def __init__(self, master: tk.Widget, builder: 'ParameterUIBuilder', parser: Optional[Callable[[str], ParametersType]] = None):
         super().__init__(master, **builder.general_kwargs)
         self._builder = builder
-        self.var = tk.StringVar(master=self, value=self._builder.initial_value) if self._builder.param_type == str \
-            else tk.DoubleVar(master=self, value=self._builder.initial_value) if self._builder.param_type == float else \
-            tk.IntVar(master=self, value=self._builder.initial_value)
+        self._parser = parser
+        self.var = tk.DoubleVar(master=self, value=self._builder.initial_value) if self._builder.param_type == float \
+            else tk.IntVar(master=self, value=self._builder.initial_value) if self._builder.param_type == int \
+            else tk.StringVar(master=self, value=self._builder.initial_value)
         entry = tk.Entry(self, textvariable=self.var)
         entry.grid(column=0, row=0, sticky="ew")
 
     def get_filled_parameters(self) -> ParametersType:
-        return self.var.get()
+        entry_obj = self.var.get()
+        if self._parser:
+            return self._parser(entry_obj)
+        else:
+            return entry_obj
 
     def get_variables(self) -> Mapping[Tuple[Union[int, str], ...], tk.Variable]:
         return {(): self.var}
@@ -104,6 +111,7 @@ class EntryParameterSelectionFrame(IParameterSelectionFrame):
 
 
 class AddedWidgetParameterSelectionFrame(IParameterSelectionFrame[ParametersType]):
+    """ Adds a widget to the right of the parameter frame.  The widget is created by added_button_builder. """
 
     def __init__(self, master: tk.Widget, builder: 'ParameterUIBuilder', added_button_builder: Optional[Callable[[tk.Frame, 'ParameterUIBuilder'], tk.Widget]] = None):
         super().__init__(master, **builder.general_kwargs)
@@ -127,6 +135,9 @@ class AddedWidgetParameterSelectionFrame(IParameterSelectionFrame[ParametersType
 
     def get_filled_parameters(self) -> ParametersType:
         return self._child.get_filled_parameters()
+
+    def get_variables(self) -> Mapping[Tuple[Union[int, str], ...], tk.Variable]:
+        return self._child.get_variables()
 
 
 
@@ -227,7 +238,7 @@ class OptionalParameterSelectionFrame(IParameterSelectionFrame[Optional[Any]]):
         super().__init__(master, **builder.general_kwargs)
         self._builder = builder
         self._checkbox_var = tk.BooleanVar(value=self._builder.initial_value is not None)
-        check_box = tk.Checkbutton(self, variable=self._checkbox_var)
+        check_box = tk.Checkbutton(self, variable=self._checkbox_var, state=tk.NORMAL if builder.editable_fields else tk.DISABLED, command=lambda: self._on_checkbox_change(self._checkbox_var.get()))
         check_box.grid(column=0, row=0, sticky="w")
         if not builder.editable_fields:
             check_box.configure(state=tk.DISABLED)
@@ -247,12 +258,44 @@ class OptionalParameterSelectionFrame(IParameterSelectionFrame[Optional[Any]]):
             self._child_frame.grid(column=1, row=0, sticky="ew")
         else:
             self._child_frame.grid_forget()
+        self.update()
 
     def get_filled_parameters(self) -> Optional[Any]:
         return self._child_frame.get_filled_parameters() if self._checkbox_var.get() else None
 
     def get_variables(self) -> Mapping[Tuple[Union[int, str], ...], tk.Variable]:
         return self._child_frame.get_variables() if self._checkbox_var.get() else {}
+
+
+class FolderParameterSelectionFrame(IParameterSelectionFrame[str]):
+
+    def __init__(self, master: tk.Widget, builder: 'ParameterUIBuilder'):
+        super().__init__(master, **builder.general_kwargs)
+        self._builder = builder
+        self.var = tk.StringVar(self, builder.initial_value if builder.initial_value is not NoDefault else '')
+        frame = tk.Frame(self)
+        frame.grid(column=0, row=0, sticky="ew")
+        self._folder_label = RespectableLabel(frame, text="", anchor=tk.W)
+        self._folder_label.grid(column=0, row=0, sticky="ew")
+        self._folder_button = RespectableLabel(frame, text="📂", command=self._select_folder)
+        self._folder_button.grid(column=1, row=0, sticky="ew")
+        self._rebuild_folder_label()
+
+    def _select_folder(self):
+        folder = filedialog.askdirectory(initialdir=self.var.get())
+        if folder is not None:
+            self.var.set(folder)
+            self._rebuild_folder_label()
+
+    def _rebuild_folder_label(self):
+        self._folder_label.configure(text=self.var.get() if self.var.get() else "<No folder selected>")
+        self.update()
+
+    def get_filled_parameters(self) -> Optional[str]:
+        return self.var.get()
+
+    def get_variables(self) -> Mapping[Tuple[Union[int, str], ...], tk.Variable]:
+        return {(): self.var}
 
 
 class FileListParameterSelectionFrame(IParameterSelectionFrame[Sequence[str]]):
@@ -317,15 +360,19 @@ class FileListParameterSelectionFrame(IParameterSelectionFrame[Sequence[str]]):
         self.update()
 
 
+
+
+
 class ButtonParameterSelectionFrame(IParameterSelectionFrame[ParametersType]):
     """ Parameter is summarized in a clickable label which, when clicked, can open up an edit menu
      with ui_choose_parameters
      """
 
-    def __init__(self, master: tk.Widget, builder: 'ParameterUIBuilder'):
+    def __init__(self, master: tk.Widget, builder: 'ParameterUIBuilder', max_characthers: int = 50):
         super().__init__(master, **builder.general_kwargs)
         self._builder = builder
         self.var = MockVariable(self, initial_value=self._builder.initial_value)
+        self._max_characthers = max_characthers
         # self._param_type = param_type
         # self._current_value = initial_value
         self._label = RespectableLabel(self, anchor=tk.W, command=self._on_click, text="")
@@ -335,13 +382,18 @@ class ButtonParameterSelectionFrame(IParameterSelectionFrame[ParametersType]):
         self._update_label()
 
     def _update_label(self):
-        self._label.configure(text=str(self.var.get()))
+
+        string_description = str(self.var.get())
+        if len(string_description) > self._max_characthers:
+            string_description = string_description[:self._max_characthers] + "..."
+        self._label.configure(text=string_description)
 
     def _on_click(self):
         new_value = ui_choose_parameters(builder=self._builder)
         if new_value is not None:
             self.var.set(new_value)
             self._update_label()
+            # self._builder.on_change_callback
 
     def get_filled_parameters(self) -> ParametersType:
         return self.var.get()
@@ -372,7 +424,7 @@ class DataclassParameterSelectionFrame(IParameterSelectionFrame[ParametersType])
 
             # editable_subfields = [e for e in editable_fields if len((x := e.split("."))) and x[0] == f.name] if isinstance(editable_fields, Sequence) else editable_fields
             # editable_subfields = filter_subfields(editable_fields, f.name)
-            frame = self._builder.modify_for_subfield(subfield_index=f.name, subfield_type=f.type).build_parameter_frame(self)
+            frame = self._builder.modify_for_subfield(subfield_index=f.name, subfield_type=f.type, subfield_metadata=f.metadata).build_parameter_frame(self)
                 # parent=self,
                 # param_type=f.type,
                 # initial_value=getattr(initial_value, f.name) if initial_value is not None else None,
@@ -476,6 +528,7 @@ class ParameterUIBuilder:
     # parent: Optional[tk.Widget]  # The parent widget
     initial_value: Any  # The initial value to display.  If None, param_type must be provided.
     param_type: Optional[type] = None  # The type of the parameter.  If None, initial_value must be provided.
+    param_metadata: Optional[Dict[str, Any]] = None  # Metadata about the parameter
     path: str = ''  # The path to the parameter, e.g. "a.b.c" means the "c" field of the "b" field of the "a" field.
     editable_fields: Union[bool, Sequence[str]] = True  # Either
     end_field_patterns: Sequence[str] = ()  # Paths to fields that should not be expanded upon
@@ -505,7 +558,7 @@ class ParameterUIBuilder:
     def is_end_field(self) -> bool:
         return any(does_field_match_pattern(self.path, pattern) for pattern in self.end_field_patterns)
 
-    def modify_for_subfield(self, subfield_index: Union[int, str], subfield_type: type) -> 'ParameterUIBuilder':
+    def modify_for_subfield(self, subfield_index: Union[int, str], subfield_type: type, subfield_metadata: Optional[Mapping[str, Any]] = None) -> 'ParameterUIBuilder':
         if self.initial_value is not None and self.initial_value is not NoDefault:
             initial_value = getattr(self.initial_value, subfield_index) if isinstance(subfield_index, str) else self.initial_value[subfield_index]
         else:
@@ -517,6 +570,7 @@ class ParameterUIBuilder:
             path=self.path + "." + str(subfield_index),
             initial_value=initial_value,
             param_type=subfield_type,
+            param_metadata=subfield_metadata
         )
 
     def modify_for_new_menu_window(self) -> 'ParameterUIBuilder':
@@ -551,15 +605,23 @@ class ParameterUIBuilder:
         else:
             param_type = self.param_type
 
+        param_metadata = self.param_metadata or {}
+        # param_metadata_dict = getattr(param_type, "__metadata__", {})
         if (constructor:=first((f for pattern, f in self.custom_constructors.items() if does_field_match_pattern(self.path, pattern)), None)) is not None:
             return constructor(parent, self)
-        elif param_type in [str, int, float, bool]:  # It's just a single value we don't have to think about whether to break in
+        elif param_type in [str, int, float, bool, datetime, timedelta]:  # It's just a single value we don't have to think about whether to break in
             if not self.is_path_matching_editable_fields():  # If we're not editing anything, just show the value
                 frame = UneditableParameterSelectionFrame(parent, builder=self)
             elif param_type == bool:  # Start with shallow objects
                 frame = BooleanParameterSelectionFrame(parent, builder=self)
+            elif param_type == str and param_metadata.get('type', '') == "folder":
+                frame = FolderParameterSelectionFrame(parent, builder=self)
             elif param_type == str or param_type == int or param_type == float:
                 frame = EntryParameterSelectionFrame(parent, builder=self)
+            elif param_type == datetime:
+                frame = EntryParameterSelectionFrame(parent, builder=self, parser=lambda s: Chronyk(s).datetime())
+            elif param_type == timedelta:
+                frame = EntryParameterSelectionFrame(parent, builder=self, parser=lambda s: timedelta(seconds=ChronykDelta(s).seconds))
             else:
                 raise NotImplementedError(f"Type {param_type} not supported.")
         else:  # We need to break in
@@ -676,11 +738,15 @@ class ParameterSelectionFrame(tk.Frame):
 
     def __init__(self,
                  master: tk.Widget,
+                 builder: Optional[ParameterUIBuilder] = None,
                  on_change_callback: Optional[Callable[[Tuple[Union[int, str]], tk.Variable], None]] = None,
+
                  **kwargs):
         super().__init__(master, **kwargs)
 
         self._param_frame: Optional[IParameterSelectionFrame] = None
+        if builder is not None:
+            self.set_parameters(builder)
         # self._on_change_callback = on_change_callback
 
     def reset_frame(self):
@@ -705,6 +771,7 @@ class ParameterSelectionFrame(tk.Frame):
         first_editable_field: Optional[tk.Widget] = first((child for child in self._param_frame.winfo_children() if child.winfo_class() == "Entry"), default=None)
         if first_editable_field is not None:
             first_editable_field.focus_set()
+        self.update()  # Needed to ensure things actually display off the start
 
     def get_filled_parameters(self) -> Optional[ParametersType]:
         return self._param_frame.get_filled_parameters() if self._param_frame is not None else None
