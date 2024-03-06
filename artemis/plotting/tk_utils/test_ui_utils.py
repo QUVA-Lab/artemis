@@ -1,6 +1,6 @@
 from enum import Enum
 
-from artemis.plotting.tk_utils.tk_utils import hold_tkinter_root_context
+from artemis.plotting.tk_utils.tk_basic_utils import hold_tkinter_root_context
 from video_scanner.app_utils.constants import ThemeColours
 
 

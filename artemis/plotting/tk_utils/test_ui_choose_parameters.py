@@ -3,7 +3,7 @@ from typing import Sequence, Optional, Tuple, Any, Union
 
 import pytest
 
-from artemis.plotting.tk_utils.tk_utils import hold_tkinter_root_context
+from artemis.plotting.tk_utils.tk_basic_utils import hold_tkinter_root_context
 from artemis.plotting.tk_utils.ui_choose_parameters import ui_choose_parameters, ParameterSelectionFrame
 import tkinter as tk
 

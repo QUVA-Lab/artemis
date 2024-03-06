@@ -5,7 +5,7 @@ import numpy as np
 
 from artemis.general.custom_types import BGRImageArray
 from artemis.plotting.tk_utils.alternate_zoomable_image_view import ZoomableImageFrame
-from artemis.plotting.tk_utils.tk_utils import hold_tkinter_root_context
+from artemis.plotting.tk_utils.tk_basic_utils import hold_tkinter_root_context
 from artemis.plotting.tk_utils.ui_utils import RespectableButton
 
 

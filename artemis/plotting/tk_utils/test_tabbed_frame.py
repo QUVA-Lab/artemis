@@ -1,7 +1,7 @@
 from enum import Enum
 
 from artemis.plotting.tk_utils.tabbed_frame import TabbedFrame
-from video_scanner.ui.tk_utils import hold_tkinter_root_context
+from artemis.plotting.tk_utils.tk_basic_utils import hold_tkinter_root_context
 import tkinter as tk
 
 def test_exitable_side_frame():

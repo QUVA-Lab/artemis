@@ -2,7 +2,8 @@ import time
 from tkinter import colorchooser
 from tkinter.colorchooser import askcolor
 
-from artemis.plotting.tk_utils.tk_utils import BlockingTaskDialogFunction, hold_tkinter_root_context
+from artemis.plotting.tk_utils.tk_utils import BlockingTaskDialogFunction
+from artemis.plotting.tk_utils.tk_basic_utils import hold_tkinter_root_context
 import tkinter as tk
 
 

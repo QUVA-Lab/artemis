@@ -6,12 +6,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import partial
 from tkinter import Widget
-from typing import Iterable, Optional, Tuple, Mapping, TypeVar
+from typing import Iterable, TypeVar
 from typing import Mapping, Callable, Union, Any, Optional, Sequence, Tuple, List
 
 from artemis.general.measuring_periods import PeriodicChecker
 from artemis.plotting.tk_utils.tk_error_dialog import ErrorDetail
-from artemis.plotting.tk_utils.ui_utils import RespectableButton
+from artemis.plotting.tk_utils.ui_utils import RespectableButton, toplevel_centered
 from artemis.plotting.tk_utils.constants import UIColours, ThemeColours
 import platform
 import subprocess
@@ -116,6 +116,26 @@ def wrap_ui_callback_with_handler(
                 raise err
 
     return wrapped_callback
+
+
+def wrap_ui_command_with_handler(
+        command: Callable[[], Any],
+        error_handler: Callable[[ErrorDetail], None],
+        info_string: Optional[str] = None,
+        reraise: bool = True
+) -> Callable[[], Any]:
+    def wrapped_command() -> Any:
+        try:
+            command()
+        except Exception as err:
+            traceback_str = traceback.format_exc()
+            details = ErrorDetail(error=err, traceback=traceback_str, additional_info=info_string)
+            error_handler(details)
+            if reraise:
+                raise err
+
+    return wrapped_command
+
 
 
 def recursively_bind(widget: Widget, event: str, handler: Callable[[tk.Event], Any]) -> None:
@@ -248,6 +268,7 @@ class TkOptionListBuilder:
                          n_button_cols: int = 3,
                          call_callback_on_selection: bool = False,
                          font: Optional[Tuple[str, int]] = None,  # e.g. ('Helvetica', 24)
+                         parent: Optional[tk.Toplevel] = None
                          ) -> Optional[OptionInfo]:
         if len(self._options)==0:
             raise Exception("No options have been provided to select from.  Call add_option first.")
@@ -264,7 +285,7 @@ class TkOptionListBuilder:
             # choicewin.quit()
             choicewin.destroy()
 
-        choicewin = tk.Toplevel()
+        choicewin = tk.Toplevel() if parent is None else toplevel_centered(parent)
         # Keep this window on top
 
         choicewin.minsize(*min_size_xy)
@@ -367,7 +388,7 @@ class TkOptionListBuilder:
         else:
             # Get it to stay on top!
             choicewin.attributes('-topmost', True)
-            
+
             choicewin.wait_window()  # With this line commented in... CRASH (exit code 0, no message)
         # choicewin.mainloop()  # With this line... NO CRASH!
         # choicewin.grab_release()
@@ -388,6 +409,7 @@ def tk_select_option(choicelist: Sequence[str],
                      min_size_xy: Tuple[int, int] = (400, 300),
                      wrap_text_to_window_size: bool = True,
                      n_button_cols: int = 3,
+                     parent: Optional[tk.Toplevel] = None
                      ) -> Optional[str]:
 
     option_builder = TkOptionListBuilder()
@@ -398,7 +420,7 @@ def tk_select_option(choicelist: Sequence[str],
 
     selected = option_builder.ui_select_option(
         message=message, title=title, add_cancel_button=add_cancel_button, min_size_xy=min_size_xy,
-        wrap_text_to_window_size=wrap_text_to_window_size, n_button_cols=n_button_cols
+        wrap_text_to_window_size=wrap_text_to_window_size, n_button_cols=n_button_cols, parent=parent
     )
     return selected.text if selected is not None else None
 
@@ -521,13 +543,15 @@ class BlockingTaskDialogFunction:
     n_steps: Optional[int] = None
     max_update_period: float = 0.2
     message: str = "Processing... please wait."
+    display_iterator_output: bool = False
+    parent: Optional[tk.Toplevel] = None
 
     def show_blocking_task_dialog(
             self,
             blocking_task_iterator: Iterable[ItemType],
     ) -> Optional[Sequence[ItemType]]:
 
-        window = tk.Toplevel()
+        window = toplevel_centered(self.parent)
         # window.geometry('400x250')
         # Make that a minimum size for each dimention
         window.minsize(400, 250)
@@ -547,7 +571,10 @@ class BlockingTaskDialogFunction:
         items: Optional[List[ItemType]] = []
         for i, item in enumerate(blocking_task_iterator, start=1):
             if checker.is_time_for_update():
-                progress_label.config(text=f'{i} / {self.n_steps or "?"}' + (f" ({i / self.n_steps:.0%})" if self.n_steps else ''))
+                if self.display_iterator_output:
+                    progress_label.config(text=str(item))
+                else:
+                    progress_label.config(text=f'{i} / {self.n_steps or "?"}' + (f" ({i / self.n_steps:.0%})" if self.n_steps else ''))
                 window.update()
             if items is None:
                 break
@@ -630,30 +657,6 @@ class MessageListenerMixin:
 def assert_no_existing_root():
     assert tk._default_root is None, "A Tkinter root window already exists!"
 
-
-_EXISTING_ROOT: Optional[tk.Tk] = None
-
-
-@contextmanager
-def hold_tkinter_root_context():
-    """ A context manager that creates a Tk root and destroys it when the context is exited
-    Careful now: If you schedule something under root to run with widget.after, it may crash if the root is destroyed before it runs.
-    """
-    # assert_no_existing_root()
-    global _EXISTING_ROOT
-    old_value = _EXISTING_ROOT
-    root = tk.Tk() if _EXISTING_ROOT is None else _EXISTING_ROOT
-
-    try:
-        _EXISTING_ROOT = root
-        yield root
-    finally:
-        try:
-            if old_value is None:
-                _EXISTING_ROOT = None
-                root.destroy()
-        except tk.TclError:  # This can happen if the root is destroyed before the context is exited
-            pass
 
 #
 # def get_widget_overlay_frame(
