@@ -9,6 +9,7 @@ tabulate
 netifaces
 paramiko
 si-prefix
+recordclass
 # weave  #  Only works in python 2.X
 # Other things we may want (uncomment to add these to requirements)
 # scikit-learn

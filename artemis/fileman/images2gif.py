@@ -772,7 +772,7 @@ class NeuQuant:
     ---------------------------------------------------------
 
     Copyright (c) 1994 Anthony Dekker
-    Ported to python by Marius van Voorden in 2010
+    Ported to ui_code by Marius van Voorden in 2010
 
     NEUQUANT Neural-Net quantization algorithm by Anthony Dekker, 1994.
     See "Kohonen neural networks for optimal colour quantization"

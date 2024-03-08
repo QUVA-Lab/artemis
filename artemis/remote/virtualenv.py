@@ -6,6 +6,7 @@ import numpy as np
 import pip
 from six.moves import input
 
+import video_scanner.ui.camera_livestream_setup
 from artemis.fileman.config_files import get_config_value
 from artemis.config import get_artemis_config_value
 from artemis.remote.utils import get_ssh_connection
@@ -84,7 +85,7 @@ def check_diff_local_remote_virtualenv(ip_address, auto_install=None, auto_upgra
     '''
     print(("="*10 + " Checking remote virtualenv %s "%ip_address + "="*10))
     remote_packages = get_remote_installed_packages(ip_address)
-    local_packages = {i.key: i.version  for i in pip.get_installed_distributions(include_editables=False)}
+    local_packages = {video_scanner.ui.camera_livestream_setup.key: i.version for i in pip.get_installed_distributions(include_editables=False)}
     missing_packages = OrderedDict()
     different_versions = OrderedDict()
     for (local_key, local_version) in local_packages.items():

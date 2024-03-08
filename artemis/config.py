@@ -1,3 +1,4 @@
+import logging
 import os
 from artemis.fileman.config_files import get_config_path, get_config_value
 
@@ -13,6 +14,9 @@ experiment_directory = ~/.artemis/experiments
 """
 
 _CONFIG_FILE_NAME = '.artemisrc'
+
+
+ARTEMIS_LOGGER = logging.getLogger('artemis')
 
 
 def check_or_create_artemis_config():

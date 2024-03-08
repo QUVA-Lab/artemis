@@ -1,12 +1,17 @@
+import inspect
 import logging
 import os
+import time
+from contextlib import contextmanager
 from functools import partial
+from pickle import UnpicklingError
 from shutil import rmtree
 
 from artemis.fileman.local_dir import get_artemis_data_path, make_file_dir
 from artemis.general.functional import infer_arg_values
 from artemis.general.hashing import compute_fixed_hash
 from artemis.general.test_mode import is_test_mode
+from artemis.general.utils_for_testing import hold_tempdir
 
 logging.basicConfig()
 LOGGER = logging.getLogger(__name__)
@@ -18,6 +23,27 @@ __author__ = 'peter'
 MEMO_WRITE_ENABLED = True
 MEMO_READ_ENABLED = True
 MEMO_DIR = get_artemis_data_path('memoize_to_disk')
+
+
+@contextmanager
+def hold_temp_memo_dir():
+    global MEMO_DIR
+    oldone = MEMO_DIR
+    with hold_tempdir() as path:
+        MEMO_DIR = path
+        yield path
+    MEMO_DIR = oldone
+
+
+@contextmanager
+def hold_memo_dir_as(path):
+    global MEMO_DIR
+    oldone = MEMO_DIR
+    MEMO_DIR = path
+    try:
+        yield path
+    finally:
+        MEMO_DIR = oldone
 
 
 def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickle = False, suppress_info = False):
@@ -44,10 +70,10 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickl
     b) You only want to memoize the function in one use-case, but not all.
 
     :param fcn: The function you're decorating
-    :param local_cache: Keep a cache in python (so you don't need to go to disk if you call again in the same process)
+    :param local_cache: Keep a cache in ui_code (so you don't need to go to disk if you call again in the same process)
     :param disable_on_tests: Persistent memos can really screw up tests, so disable memos when is_test_mode() returns
         True.  Generally, leave this as true, unless you are testing memoization itself.
-    :param use_cpickle: Use CPickle, instead of pickle, to save results.  This can be faster for complex python
+    :param use_cpickle: Use CPickle, instead of pickle, to save results.  This can be faster for complex ui_code
         structures, but can be slower for numpy arrays.  So we recommend not using it.
     :param suppress_info: Don't log info loading and saving memos.
     :return: A wrapper around the function that checks for memos and loads old results if they exist.
@@ -72,6 +98,18 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickl
         # It may be more efficient to use the built-in hashability of certain types for the local cash, and just have special
         # ways of dealing with non-hashables like lists and numpy arrays - it's a bit dangerous because we need to check
         # that no object or subobjects have been changed.
+
+        def compute_result_from_func():
+            if inspect.isgeneratorfunction(fcn):
+                # TODO: Do this properly - caching results one at a time
+                LOGGER.info(f"Computing results from generator {fcn} in advance...")
+                result = list(fcn(*args, **kwargs))
+                LOGGER.info('... Done')
+            else:
+                result = fcn(*args, **kwargs)
+            return result
+
+
         if MEMO_READ_ENABLED:
             if local_cache:
                 # local_cache_signature = get_local_cache_signature(args, kwargs)
@@ -83,18 +121,29 @@ def memoize_to_disk(fcn, local_cache = False, disable_on_tests=False, use_cpickl
                 with open(filepath, 'rb') as f:
                     try:
                         if not suppress_info:
-                            LOGGER.info('Reading memo for function {}'.format(fcn.__name__, ))
+                            LOGGER.info('Reading memo for function {}...'.format(fcn.__name__, ))
+                        tstart = time.monotonic()
                         result = pickle.load(f)
-                    except (ValueError, ImportError, EOFError) as err:
-                        if isinstance(err, (ValueError, EOFError)) and not suppress_info:
+                        if not suppress_info:
+                            LOGGER.info(f'...Reading memo for function {fcn.__name__} took {time.monotonic()-tstart:.5f}s'.format(fcn.__name__, ))
+
+                    except (ValueError, ImportError, EOFError, UnpicklingError) as err:
+                        if isinstance(err, (ValueError, EOFError, UnpicklingError)) and not suppress_info:
                             LOGGER.warn('Memo-file "{}" was corrupt.  ({}: {}).  Recomputing.'.format(filepath, err.__class__.__name__, str(err)))
                         elif isinstance(err, ImportError) and not suppress_info:
                             LOGGER.warn('Memo-file "{}" was tried to reference an old class and got ImportError: {}.  Recomputing.'.format(filepath, str(err)))
+                        result = compute_result_from_func()
                         result_computed = True
-                        result = fcn(*args, **kwargs)
             else:
+                result = compute_result_from_func()
                 result_computed = True
-                result = fcn(*args, **kwargs)
+                # if inspect.isgeneratorfunction(fcn):
+                #     # TODO: Do this properly - caching results one at a time
+                #     LOGGER.info(f"Computing results from generator {fcn} in advance...")
+                #     result = list(fcn(*args, **kwargs))
+                #     LOGGER.info('... Done')
+                # else:
+                #     result = fcn(*args, **kwargs)
         else:
             result_computed = True
             result = fcn(*args, **kwargs)

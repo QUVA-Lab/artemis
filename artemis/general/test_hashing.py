@@ -6,7 +6,7 @@ _IS_PYTHON_3 = sys.version_info > (3, 0)
 
 
 def test_compute_fixed_hash():
-    # Not really sure why the fixed hash differes between python 2 and 4 here (maybe something do do with changes to strings)
+    # Not really sure why the fixed hash differes between ui_code 2 and 4 here (maybe something do do with changes to strings)
 
     complex_obj = [1, 'd', {'a': 4, 'b': np.arange(10)}, (7, list(range(10)))]
     original_code = compute_fixed_hash(complex_obj)

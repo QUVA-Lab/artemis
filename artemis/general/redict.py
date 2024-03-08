@@ -11,7 +11,7 @@ class ReDict(dict):
 
     If the number of keys matching your index does not equal 1 (0 or >=2), you get a KeyError.
 
-    See test_regexp_dict for examples, and documentation for python's "re" module for info on regular expressions.
+    See test_regexp_dict for examples, and documentation for ui_code's "re" module for info on regular expressions.
     """
 
     def __init__(self, dict_initializer):

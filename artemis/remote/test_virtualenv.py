@@ -10,19 +10,19 @@ is_local = ip_address in get_local_ips()
 @pytest.mark.skipif(ip_address="" or is_local, reason ="No sense for local ip")
 def test_check_diff_local_remote_virtualenv():
 
-    # original_virtual_env_value = get_config_value(".artemisrc", ip_address, "python")
+    # original_virtual_env_value = get_config_value(".artemisrc", ip_address, "ui_code")
     # import ConfigParser
     # import os
     #
     # Config = ConfigParser.ConfigParser()
     # Config.read(os.path.expanduser("~/.artemisrc"))
-    # Config.set(section=ip_address,option="python",value="~/virtualenvs/test_env/bin/python")
+    # Config.set(section=ip_address,option="ui_code",value="~/virtualenvs/test_env/bin/ui_code")
     # with open(os.path.expanduser("~/.artemisrc"), 'wb') as configfile:
     #     Config.write(configfile)
 
     check_diff_local_remote_virtualenv(ip_address, auto_install=False, auto_upgrade=False,ignore_warnings=True)
 
-    # Config.set(section=ip_address,option="python",value=original_virtual_env_value)
+    # Config.set(section=ip_address,option="ui_code",value=original_virtual_env_value)
     # with open(os.path.expanduser("~/.artemisrc"), 'wb') as configfile:
     #     Config.write(configfile)
 

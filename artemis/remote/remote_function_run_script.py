@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/ui_code
 import base64
 
 from artemis.remote.utils import one_time_send_to

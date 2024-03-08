@@ -58,6 +58,15 @@ class UniversalCollection(object):
     def __eq__(self, other):
         return self.to_struct() == (other.to_struct() if isinstance(other, UniversalCollection) else other)
 
+    def __and__(self, other):
+        return self.from_struct([a & b for a, b in izip_equal(self, other)])
+
+    def __or__(self, other):
+        return self.from_struct([a | b for a, b in izip_equal(self, other)])
+
+    def __invert__(self):
+        return self.from_struct([not a for a in self])
+
     @abstractmethod
     def to_struct(self):
         raise NotImplementedError()
@@ -87,6 +96,8 @@ class UniversalCollection(object):
             return DynamicSequence(struct)
         elif isinstance(struct, dict):
             return UniversalOrderedStruct(struct)
+        elif isinstance(struct, Duck):
+            return UniversalCollection.from_struct(struct.to_struct())
         elif struct is None or isinstance(struct, EmptyCollection):
             return EmptyCollection()
         else:
@@ -167,9 +178,19 @@ class DynamicSequence(list, UniversalCollection):
     def __getitem__(self, ix):
         if isinstance(ix, slice):
             return DynamicSequence(list.__getitem__(self, ix))
+        elif isinstance(ix, UniversalCollection):
+            return self.__getitem__(ix.to_struct())
         elif isinstance(ix, (list, tuple)):
-            return DynamicSequence((list.__getitem__(self, i) for i in ix))
+            arrix = np.array(ix)
+            if arrix.dtype==np.bool:
+                if len(arrix) != len(self):
+                    raise InvalidKeyError('If you use boolean indices, the length ({} here) must match the length of the collection ({} here)'.format(len(arrix), len(self)))
+                else:
+                    return DynamicSequence(a for a, b in izip_equal(self, arrix) if b)
+            else:
+                return DynamicSequence((list.__getitem__(self, i) for i in ix))
         else:
+            assert not isinstance(ix, bool), 'You cannot index with a boolean.'
             try:
                 return list.__getitem__(self, ix)
             except TypeError:
@@ -410,10 +431,13 @@ class Duck(UniversalCollection):
             new_substruct = self._struct[first_selector]
             if isinstance(new_substruct, UniversalCollection) and not isinstance(new_substruct, Duck):  # This will happen if the selector is a slice or something...
                 new_substruct = Duck(new_substruct, recurse=False)
+
             if len(indices)==1:  # Case 1: Simple... this is the last selector, so we can just return it.
                 return new_substruct
-            else:  # Case 2:
-                if isinstance(first_selector, (list, np.ndarray, slice)):  # Sliced selection, with more sub-indices
+            else:  # Case 2: There are deeper indices to get
+                if not isinstance(new_substruct, Duck):
+                    raise KeyError('Leave value "{}" can not be broken into with {}'.format(new_substruct, indices[1:]))
+                if isinstance(first_selector, (list, np.ndarray, slice, UniversalCollection)):  # Sliced selection, with more sub-indices
                     return new_substruct.map(lambda x: x.__getitem__(indices[1:]))
                 else:  # Simple selection, with more sub-indices
                     return new_substruct[indices[1:]]
@@ -634,8 +658,15 @@ class Duck(UniversalCollection):
         ixs = tuple(-1 if ix is next else ix for ix in ixs)
         return self[ixs]
 
-    def has_key(self, *key_chain):
-        return self._struct.has_key()
+    def has_key(self, key, *deeper_keys):
+
+        try:
+            self[(key, )+deeper_keys]
+            return True
+        except (KeyError, AttributeError):
+            return False
+        # Alternate definition that checks for exact key values but does not handle slices, negative indices, etc.
+        # return self._struct.has_key(key) and (len(deeper_keys)==0 or (isinstance(self._struct[key], Duck) and self._struct[key].has_key(*deeper_keys)))
 
     def keys(self, depth=None):
         if depth is None:
@@ -673,6 +704,15 @@ class Duck(UniversalCollection):
         for k in self.keys(depth=depth):
             yield k, self[k]
 
+    def only(self):
+        """
+        Assert that this duck contains only one element, and return that element.
+        :return: The only element inside this duck.
+        """
+        keys = list(self.keys())
+        assert len(keys)==1, 'You called Duck.only() on a duck with {} elements.  "only" can only be called on single-element ducks.'.format(len(self))
+        return self[keys[0]]
+
     def __str__(self, max_key_len=4):
         keys = list(self.keys())
         if len(keys)>max_key_len:
@@ -705,3 +745,19 @@ class Duck(UniversalCollection):
             if i>max_expansion:
                 break
         return ('' if _skip_intro else (str(self) + '')) + indent_string(key_value_string, indent='| ', include_first=False)
+
+    def each_eq(self, item):
+        """
+        :param item: Any ui_code object.
+        :return: A new Duck filled with boolean values indicating if each element of this Duck is equal to the given item.
+            (this can be used for boolean indexing)
+        """
+        return self.map(lambda x: item==x)
+
+    def each_in(self, item_set):
+        """
+        :param Sequence item: A set of items
+        :return: A new Duck filled with boolean values indicating if each element of this Duck is in the set.
+            (this can be used for boolean indexing)
+        """
+        return self.map(lambda x: (x in item_set))

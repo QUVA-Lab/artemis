@@ -21,13 +21,13 @@ def get_cifar_100_dataset(n_training_samples=None, n_test_samples=None, whiten_i
     '''
 
     directory = get_archive(relative_path='data/cifar-100', url='https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz')
-    with open(os.path.join(directory, "cifar-100-python", "train"), 'rb') as fo:
+    with open(os.path.join(directory, "cifar-100-ui_code", "train"), 'rb') as fo:
         dict = pickle.load(fo)
     x_tr = dict["data"].reshape(-1, 3, 32, 32)
     y_tr = dict["fine_labels"] if fine_labels else dict["coarse_labels"]
     y_tr = np.array(y_tr)
 
-    with open(os.path.join(directory, "cifar-100-python", "test"), 'rb') as fo:
+    with open(os.path.join(directory, "cifar-100-ui_code", "test"), 'rb') as fo:
         dict = pickle.load(fo)
     x_ts = dict["data"].reshape(-1, 3, 32, 32)
     y_ts = dict["fine_labels"] if fine_labels else dict["coarse_labels"]

@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import Optional, Tuple
 
 from artemis.general.should_be_builtins import memoize
 import numpy as np
@@ -24,19 +25,19 @@ def vector_length_to_tile_dims(vector_length, ):
     return grid_shape
 
 
-def put_vector_in_grid(vec, shape = None):
+def put_vector_in_grid(vec, shape = None, empty_val = 0):
     if shape is None:
         n_rows, n_cols = vector_length_to_tile_dims(len(vec))
     else:
         n_rows, n_cols = shape
-    grid = np.zeros(n_rows*n_cols, dtype = vec.dtype)
+    grid = np.zeros(n_rows*n_cols, dtype = vec.dtype) + empty_val
     grid[:len(vec)]=vec
     grid=grid.reshape(n_rows, n_cols)
     return grid
 
 
 @memoize
-def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_width, is_colour = None):
+def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape: Optional[Tuple[Optional[int], Optional[int]]], boundary_width: int, is_colour = None, min_size_xy: Tuple[int, int] = (0, 0)):
 
     assert len(shape) in (3, 4) or len(shape)==5 and shape[-1]==3
     if is_colour is None:
@@ -44,11 +45,22 @@ def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_wi
     size_y, size_x = (shape[-3], shape[-2]) if is_colour else (shape[-2], shape[-1])
     is_vector = (len(shape)==4 and is_colour) or (len(shape)==3 and not is_colour)
 
-    if grid_shape is None:
-        grid_shape = vector_length_to_tile_dims(shape[0]) if is_vector else shape[:2]
-    n_rows, n_cols = grid_shape
+    if grid_shape is None or grid_shape==(None, None):
+        n_rows, n_cols = vector_length_to_tile_dims(shape[0]) if is_vector else shape[:2]
+    else:
+        assert len(grid_shape)==2
+        n_rows, n_cols = grid_shape
+        if n_rows is None:
+            n_rows = int(np.ceil(shape[0]/n_cols))
+        if n_cols is None:
+            n_cols = int(np.ceil(shape[0]/n_rows))
 
-    output_shape = n_rows*(size_y+boundary_width)+1, n_cols*(size_x+boundary_width)+1
+    minx, miny = min_size_xy
+
+    output_shape_initial = n_rows*(size_y+boundary_width)+1, n_cols*(size_x+boundary_width)+1
+    output_shape = max(miny, n_rows*(size_y+boundary_width)+1), max(minx, n_cols*(size_x+boundary_width)+1)
+    offset_y, offset_x = (max(0, (s2-s1)//2) for s1, s2 in zip(output_shape_initial, output_shape))
+
     index_pairs = []
     for i in xrange(n_rows):
         for j in xrange(n_cols):
@@ -58,20 +70,34 @@ def _data_shape_and_boundary_width_to_grid_slices(shape, grid_shape, boundary_wi
                     break
             else:
                 pull_indices = (i, j)
-            start_row, start_col = i*(size_y+1)+1, j*(size_x+1)+1
+            start_row, start_col = i*(size_y+1)+1+offset_y, j*(size_x+1)+1+offset_x
             push_indices = slice(start_row, start_row+size_y), slice(start_col, start_col+size_x)
             index_pairs.append((pull_indices, push_indices))
     return output_shape, index_pairs
 
 
-def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128), dtype = 'uint8'), cmap = 'gray',
-        boundary_width = 1, clims = None, is_color_data=None, nan_colour=None):
+def put_data_in_grid(data, fill_value, grid_shape = None, boundary_width: int = 1, min_size_xy: Tuple[int, int] = (0, 0)):
     """
     Given a 3-d or 4-D array, put it in a 2-d grid.
     :param data: A 4-D array of any data type
     :return: A 3-D uint8 array of shape (n_rows, n_cols, 3)
     """
-    output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width, is_colour=is_color_data)
+    output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width, is_colour=False, min_size_xy=min_size_xy)
+    output_data = np.empty(output_shape, dtype=data.dtype)
+    output_data[..., :] = fill_value  # Maybe more efficient just to set the spaces.
+    for pull_slice, push_slice in slice_pairs:
+        output_data[push_slice] = data[pull_slice]
+    return output_data
+
+
+def put_data_in_image_grid(data, grid_shape: Optional[Tuple[Optional[int], Optional[int]]] = None, fill_colour = np.array((0, 0, 128), dtype ='uint8'), cmap ='gray',
+                           boundary_width = 1, clims = None, is_color_data=None, nan_colour=None, min_size_xy: Tuple[int, int] = (0, 0)):
+    """
+    Given a 3-d or 4-D array, put it in a 2-d grid.
+    :param data: A 4-D array of any data type
+    :return: A 3-D uint8 array of shape (n_rows, n_cols, 3)
+    """
+    output_shape, slice_pairs = _data_shape_and_boundary_width_to_grid_slices(data.shape, grid_shape, boundary_width, is_colour=is_color_data, min_size_xy=min_size_xy)
     output_data = np.empty(output_shape+(3, ), dtype='uint8')
     output_data[..., :] = fill_colour  # Maybe more efficient just to set the spaces.
     scaled_data = data_to_image(data, clims = clims, cmap = cmap, is_color_data=is_color_data, nan_colour=nan_colour)
@@ -80,7 +106,7 @@ def put_data_in_grid(data, grid_shape = None, fill_colour = np.array((0, 0, 128)
     return output_data
 
 
-def put_list_of_images_in_array(list_of_images, fill_colour = np.array((0, 0, 0))):
+def put_list_of_images_in_array(list_of_images, fill_colour = np.array((0, 0, 0)), padding: int = 0):
     """
     Arrange a list of images into a grid.  They do not necessairlily need to have the same size.
 
@@ -88,8 +114,8 @@ def put_list_of_images_in_array(list_of_images, fill_colour = np.array((0, 0, 0)
     :param fill_colour: The colour with which to fill the gaps
     :return: A (n_images, size_y, size_x, 3) array of images.
     """
-    size_y = max(im.shape[0] for im in list_of_images)
-    size_x = max(im.shape[1] for im in list_of_images)
+    size_y = max(im.shape[0] for im in list_of_images)+padding*2
+    size_x = max(im.shape[1] for im in list_of_images)+padding*2
     im_array = np.zeros((len(list_of_images), size_y, size_x, 3))+fill_colour
     for g, im in zip(im_array, list_of_images):
         top = int((size_y-im.shape[0])/2)
@@ -276,3 +302,43 @@ class UnlimitedRecordBuffer(DataBuffer):
 
     def retrieve_data(self):
         return self._buffer[:self._index]
+
+
+class ResamplingRecordBuffer(DataBuffer):
+    """
+    Keeps a buffer of incoming data.  When this data reaches the buffer size, it is culled (one of every cull_factor
+    samples is kept and the rest thrown away).  Not that this will throw away some data.
+    """
+    # TODO: Add option for averaging, instead of throwing away culled samples.
+
+    def __init__(self, buffer_len, cull_factor=2):
+        self._buffer = None
+        self._buffer_len = buffer_len
+        self._index = 0
+        self._cull_factor = cull_factor
+        self._sample_times = np.arange(buffer_len)
+        self._count = 0
+        self._n_culls = 0
+
+    def insert_data(self, data):
+
+        if self._count % (self._n_culls+1) == 0:
+
+            if self._buffer is None:
+                shape = () if np.isscalar(data) else data.shape
+                dtype = data.dtype if isinstance(data, np.ndarray) else type(data) if isinstance(data, (int, float, bool)) else object
+                self._buffer = np.empty((self._buffer_len, )+shape, dtype = dtype)
+
+            if self._index==self._buffer_len:
+                self._buffer[:int(np.ceil(self._buffer_len/float(self._cull_factor)))] = self._buffer[::self._cull_factor].copy()
+                self._sample_times = self._sample_times*self._cull_factor
+                self._index //= self._cull_factor
+                self._n_culls += 1
+
+            self._buffer[self._index] = data
+            self._index += 1
+
+        self._count+=1
+
+    def retrieve_data(self):
+        return self._sample_times[:self._index], self._buffer[:self._index]

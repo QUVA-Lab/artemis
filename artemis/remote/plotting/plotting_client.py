@@ -90,11 +90,11 @@ def set_up_plotting_server():
     if plotting_server_address == "":
         plotting_server_address = "127.0.0.1"
     if plotting_server_address in get_local_ips():
-        command = ["python", "-u", file_to_execute]
+        command = ["ui_code", "-u", file_to_execute]
     else:
         check_config_file(plotting_server_address) # Make sure all things are set
         check_ssh_connection(plotting_server_address) # Make sure the SSH-connection works
-        command =["export DISPLAY=:0.0;", "python","-u", file_to_execute]
+        command =["export DISPLAY=:0.0;", "ui_code","-u", file_to_execute]
         # TODO: Setting DISPLAY to :0.0 is a heuristic at the moment. I don't understand yet how these DISPLAY variables are set.
 
     # With the command set up, we can instantiate a child process and start it. Also we want to forward stdout and stderr from the remote process asynchronously.

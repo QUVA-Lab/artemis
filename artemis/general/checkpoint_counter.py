@@ -56,6 +56,7 @@ class Checkpoints(object):
             A string e.g. '3s', indicating "plot every 3 seconds"
             A generator object yielding checkpoints
             A list/tuple/array of checkpoints
+            A dict mapping progress point to interval.  e.g. {0: 0.25, 1: 0.5, 2: 1) means "move in steps of 0.25 at first, then 0.5 after 1 epoch, then 1 after 2 epochs"
             ('even', interval)
             ('exp', first, growth)
             None
@@ -81,19 +82,25 @@ class Checkpoints(object):
                 checkpoint_generator = (first*i*(1+growth)**(i-1) for i in itertools.count(0))
             else:
                 raise Exception("Can't make a checkpoint generator {}".format(checkpoint_generator))
+        elif isinstance(checkpoint_generator, dict):
+            checkpoint_generator = dictionary_interval_generator(checkpoint_generator)
         elif isinstance(checkpoint_generator, (list, tuple, np.ndarray)):
             checkpoint_generator = iter(checkpoint_generator)
         elif isinstance(checkpoint_generator, (int, float)):
             step = checkpoint_generator
             checkpoint_generator = (step*i for i in itertools.count(0))
+        elif checkpoint_generator is None:
+            checkpoint_generator = (np.inf for _ in itertools.count(0))
         else:
             assert isinstance(checkpoint_generator, types.GeneratorType)
 
-        if skip_first:
-            next(checkpoint_generator)
-
-        self.checkpoint_generator = checkpoint_generator
-        self._next_checkpoint = float('inf') if checkpoint_generator is None else next(checkpoint_generator)
+        try:
+            if skip_first:
+                next(checkpoint_generator)
+            self.checkpoint_generator = checkpoint_generator
+            self._next_checkpoint = next(checkpoint_generator)
+        except StopIteration:
+            raise Exception('Your checkpoint generator provided no checkpoints.')
         self._counter = 0
         self._start_time = time.time()
 
@@ -163,3 +170,25 @@ def do_every(interval, counter_id=None, units = None):
     if counter_id not in _COUNTERS_DICT:
         _COUNTERS_DICT[counter_id] = Checkpoints(checkpoint_generator=interval, default_units=units)
     return _COUNTERS_DICT[counter_id]()
+
+
+def dictionary_interval_generator(position_increment_dict):
+    """
+    Generate checkpoints based on a dictionary of <checkpoint: interval_to_next_checkpoint>.  Eg.
+        {0: 0.5, 2: 1, 5: 2} will generate
+        (0, 0.5, 1, 1.5, 2, 3, 4, 5, 7, 9, 11, ...}
+
+    :param Dict[float, float] position_increment_dict: A dict mapping the current position to the increment for the next position.
+    :return Generator[float]: A series of checkpoints.
+    """
+    change_points = sorted(position_increment_dict.keys())
+    intervals = [position_increment_dict[p] for p in change_points]
+    current_interval_index = 0
+    pt = change_points[0]
+    yield pt
+    while True:
+        increment = intervals[current_interval_index]
+        pt = pt+increment
+        yield pt
+        if current_interval_index < len(change_points)-1 and change_points[current_interval_index+1] <= pt:
+            current_interval_index+=1
