@@ -118,6 +118,24 @@ def wrap_ui_callback_with_handler(
     return wrapped_callback
 
 
+@contextmanager
+def suppress_widget_updates(widget):
+    """
+    Temporarily suppress widget updates in a Tkinter application.
+
+    :param widget: The root widget whose updates are to be suppressed.
+    """
+    try:
+        # Command to disable updates, e.g., by unbinding events or stopping redraws
+        widget.winfo_toplevel().update_idletasks()  # Process all pending idle tasks without updating the display
+        widget.pack_forget()  # Hide the widget or use grid_forget() as appropriate
+        yield
+    finally:
+        # Re-enable updates or redraw the widget as necessary
+        widget.pack()  # Or use grid() to put the widget back, as was originally done
+        widget.winfo_toplevel().update()  # Force the display to update
+
+
 def wrap_ui_command_with_handler(
         command: Callable[[], Any],
         error_handler: Callable[[ErrorDetail], None],

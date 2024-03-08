@@ -107,12 +107,12 @@ class TabbedFrame(tk.Frame, Generic[MultiStateEnumType]):
 
         if do_change:
             for tc in self._tab_controls:
-                tc.set_state(state)
+                tc.set_state(state, skip_callback=True)
             index_to_keep = list(self._tab_enum).index(state)
             for i, f in enumerate(self._frames):  # Just to be safe forget all frames
                 f.grid_forget()
             self._frames[index_to_keep].grid(row=1, column=0, sticky=tk.NSEW)
-            if self._on_state_change_callback is not None and state and not skip_callback:  # Avoid recursion
+            if self._on_state_change_callback is not None and not skip_callback:  # Avoid recursion
                 self._on_state_change_callback(state)
 
 

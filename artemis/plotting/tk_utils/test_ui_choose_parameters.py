@@ -100,7 +100,6 @@ def test_nested_parameter_selection():
     print(new_params)
 
 
-
 if __name__ == "__main__":
     # test_ui_choose_parameters()
     test_edit_params()

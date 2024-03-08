@@ -556,7 +556,7 @@ class MultiStateToggle(ButtonPanel, Generic[MultiStateEnumType]):
         self.set_state(initial_state)
         self._on_state_change_callback = on_state_change_callback
 
-    def set_state(self, state: MultiStateEnumType):
+    def set_state(self, state: MultiStateEnumType, skip_callback: bool = False):
         old_state = self._active_state
         state_index = list(type(state)).index(state)
         for i, button in enumerate(self._buttons):
@@ -565,7 +565,7 @@ class MultiStateToggle(ButtonPanel, Generic[MultiStateEnumType]):
             else:
                 button.config(relief=tk.RAISED, **self._off_button_config)
         self._active_state = state
-        if self._on_state_change_callback is not None and old_state != state:  # Avoid recursion
+        if self._on_state_change_callback is not None and old_state != state and not skip_callback:  # Avoid recursion
             self._on_state_change_callback(state)
 
     def get_state(self) -> MultiStateEnumType:

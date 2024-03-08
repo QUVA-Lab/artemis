@@ -2,6 +2,7 @@ import os
 import tkinter as tk
 from abc import ABCMeta
 from abc import abstractmethod
+from contextlib import contextmanager
 from dataclasses import dataclass, field, fields, replace
 from datetime import datetime, timedelta
 from tkinter import ttk, filedialog
@@ -10,8 +11,9 @@ from typing import Optional, TypeVar, Sequence, get_origin, get_args, Any, Dict,
 from chronyk import Chronyk, ChronykDelta
 from more_itertools.more import first
 
+from artemis.plotting.tk_utils.tk_utils import suppress_widget_updates
 # Assuming the required modules from artemis.plotting.tk_utils are available
-from artemis.plotting.tk_utils.ui_utils import ButtonPanel, RespectableLabel
+from artemis.plotting.tk_utils.ui_utils import ButtonPanel, RespectableLabel, toplevel_centered, hold_toplevel_centered
 
 ParametersType = TypeVar('ParametersType')
 
@@ -40,29 +42,34 @@ def get_default_for_param_type(param_type: type) -> Any:
 
 
 class MockVariable(tk.Variable):
-
     def __init__(self, parent: tk.Widget, initial_value: Any = None):
         super().__init__(parent)
         self.value = initial_value
-        self._write_callback: Optional[Callable[[Any], None]] = None
+        self._callbacks = {}  # Use a dictionary to store callbacks
 
     def get(self):
         return self.value
 
     def set(self, value):
         self.value = value
-        if self._write_callback is not None:
-            self._write_callback(value)
+        self.trigger_write_callback()
 
     def trigger_write_callback(self):
-        if self._write_callback is not None:
-            self._write_callback(self.value)
+        if 'write' in self._callbacks:
+            for callback in self._callbacks['write'].values():
+                callback(self.value)
 
-    def trace_add(self, mode: str, callback: Callable[[Any, Any, Any], None]):
-        if mode == "write":
-            self._write_callback = callback
-        else:
+    def trace_add(self, mode: str, callback: Callable):
+        if mode != "write":
             raise NotImplementedError(f"Mode {mode} not supported.")
+        # Generate a unique identifier for the callback
+        callback_id = f"callback_{len(self._callbacks.get(mode, {}))}"
+        self._callbacks.setdefault(mode, {})[callback_id] = callback
+        return callback_id
+
+    def trace_remove(self, mode: str, callback_id: str):
+        if mode in self._callbacks and callback_id in self._callbacks[mode]:
+            del self._callbacks[mode][callback_id]
 
 
 class IParameterSelectionFrame(tk.Frame, Generic[ParametersType], metaclass=ABCMeta):
@@ -84,7 +91,8 @@ class EntryParameterSelectionFrame(IParameterSelectionFrame):
         self.var = tk.DoubleVar(master=self, value=self._builder.initial_value) if self._builder.param_type == float \
             else tk.IntVar(master=self, value=self._builder.initial_value) if self._builder.param_type == int \
             else tk.StringVar(master=self, value=self._builder.initial_value)
-        entry = tk.Entry(self, textvariable=self.var)
+        estimated_width = len(str(self._builder.initial_value)) if self._builder.initial_value is not None else 10
+        entry = tk.Entry(self, textvariable=self.var, state=tk.NORMAL if builder.editable_fields else tk.DISABLED, width=max(estimated_width, 80))
         entry.grid(column=0, row=0, sticky="ew")
 
     def get_filled_parameters(self) -> ParametersType:
@@ -407,6 +415,8 @@ class DataclassParameterSelectionFrame(IParameterSelectionFrame[ParametersType])
     def __init__(self, master: tk.Widget, builder: 'ParameterUIBuilder'):
         super().__init__(master, **builder.general_kwargs)
         self._builder = builder
+
+        flds = fields(self._builder.param_type)
         flds = fields(self._builder.param_type)
         # self.params_type = self._param_builder.param_type
         self.columnconfigure(0, weight=0)
@@ -527,7 +537,7 @@ class ParameterUIBuilder:
     """ A class that builds a UI for a parameter. """
     # parent: Optional[tk.Widget]  # The parent widget
     initial_value: Any  # The initial value to display.  If None, param_type must be provided.
-    param_type: Optional[type] = None  # The type of the parameter.  If None, initial_value must be provided.
+    param_type: type  # The type of the parameter.  If None, initial_value must be provided.
     param_metadata: Optional[Dict[str, Any]] = None  # Metadata about the parameter
     path: str = ''  # The path to the parameter, e.g. "a.b.c" means the "c" field of the "b" field of the "a" field.
     editable_fields: Union[bool, Sequence[str]] = True  # Either
@@ -747,31 +757,71 @@ class ParameterSelectionFrame(tk.Frame):
         self._param_frame: Optional[IParameterSelectionFrame] = None
         if builder is not None:
             self.set_parameters(builder)
+        self._traces = {}
+        self._disable_setting_parameters = False
         # self._on_change_callback = on_change_callback
 
     def reset_frame(self):
         if self._param_frame is not None:
-            self._param_frame.pack_forget()
+            # print(f"Children before: {self._param_frame.winfo_children()}")
+            # Delete all children
+            # for child in self._param_frame.winfo_children():
+            #     child.destroy()
+            # print(f"Children after: {self._param_frame.winfo_children()}")
+
+            # Remove all traces
+            # print(f"Removing traces {list(zip(self._param_frame.get_variables().values(), self._traces))}")
+            # for path, var in self._param_frame.get_variables().items():
+            #     var.trace_remove("write", self._traces[path])  # Gives Error: wrong # args: should be "trace remove variable name opList command"
+
+
+            # self._param_frame.pack_forget()
             self._param_frame.destroy()
         self._param_frame = None
+        # self.update()
+
+    @contextmanager
+    def _hold_prevent_recurse(self):
+        """
+        Prevents the recursion that caused this frame to duplicate.
+        Problem was calls to (child_widger).update() triggered TreeView Select events outside of this frame,
+        which in turn called set_parameters on this frame - so set_parameters was opened multiple times before
+        the first one was done - leading to multiple frames being created.
+        """
+        self._disable_setting_parameters = True
+        try:
+            yield
+        finally:
+            self._disable_setting_parameters = False
 
     def set_parameters(self, builder: ParameterUIBuilder):
+        if self._disable_setting_parameters:
+            return
 
-        if self._param_frame is not None:
-            self._param_frame.destroy()
-        self._param_frame = builder.build_parameter_frame(self)
-        self._param_frame.pack(fill=tk.BOTH, expand=True)
-        if builder.on_change_callback is not None:
-            # TODO: Handle cases where number of variables changes
-            # Add a trace to all variables
-            for path, var in self._param_frame.get_variables().items():
-                var.trace_add("write", lambda *args, path=path, var=var: builder.on_change_callback(path, var))
+        with self._hold_prevent_recurse():
+            # if self._param_frame is not None:
+            self.reset_frame()
+            # self._param_frame.pack_forget()
+            # self._param_frame.destroy()
 
-        # Now, set the focus to the first editable field
-        first_editable_field: Optional[tk.Widget] = first((child for child in self._param_frame.winfo_children() if child.winfo_class() == "Entry"), default=None)
-        if first_editable_field is not None:
-            first_editable_field.focus_set()
-        self.update()  # Needed to ensure things actually display off the start
+            self._param_frame = builder.build_parameter_frame(self)
+            self._param_frame.pack_forget()
+
+            if builder.on_change_callback is not None:
+                # TODO: Handle cases where number of variables changes
+                # Add a trace to all variables
+                # print(f"Adding traces {list(self._param_frame.get_variables().values())}")
+                for path, var in self._param_frame.get_variables().items():
+                    var.trace_add("write", lambda *args, path=path, var=var: builder.on_change_callback(path, var))
+                    # trace_name = var.trace_add("write", lambda *args, path=path, var=var: builder.on_change_callback(path, var))
+                    # self._traces[path] = trace_name
+
+            # Now, set the focus to the first editable field
+            first_editable_field: Optional[tk.Widget] = first((child for child in self._param_frame.winfo_children() if child.winfo_class() == "Entry"), default=None)
+            if first_editable_field is not None:
+                first_editable_field.focus_set()
+            self._param_frame.pack(fill=tk.BOTH, expand=True)
+            self.update()  # Needed to ensure things actually display off the start
 
     def get_filled_parameters(self) -> Optional[ParametersType]:
         return self._param_frame.get_filled_parameters() if self._param_frame is not None else None
@@ -980,6 +1030,7 @@ def ui_choose_parameters(
         # params_type: Optional[type] = None,
         # initial_params: Optional[ParametersType] = None,
         # factory_reset_params: Optional[ParametersType] = None,
+        parent: Optional[tk.Widget] = None,
         timeout: Optional[float] = None,
         title: str = "Select Parameters",
         # editable_fields: Union[bool, Sequence[str]] = True,
@@ -1003,41 +1054,51 @@ def ui_choose_parameters(
     #     # custom_constructors=extra_widget_builders,
     #     )
 
-    window = tk.Toplevel()
-    window.title(title)
-    ps_frame = builder.build_parameter_frame(window)
-    # ps_frame = build_parameter_frame(window, params_type, initial_params, editable_fields=editable_fields)
-    ps_frame.pack()
-    bottom_panel = ButtonPanel(window)
 
-    final_params = None
+    with hold_toplevel_centered(parent) as window:
 
-    def on_cancel():
-        nonlocal final_params
+        # Minimum size
+        # window.minsize(600, 300)
+        window.title(title)
+        ps_frame = builder.build_parameter_frame(window)
+        # ps_frame = build_parameter_frame(window, params_type, initial_params, editable_fields=editable_fields)
+        ps_frame.pack(fill=tk.BOTH, expand=True)
+        bottom_panel = ButtonPanel(window)
+
         final_params = None
-        window.destroy()
 
-    def on_ok():
-        nonlocal final_params
-        final_params = ps_frame.get_filled_parameters()
-        window.destroy()
+        def on_cancel():
+            nonlocal final_params
+            final_params = None
+            window.destroy()
 
-    def on_reset():
-        nonlocal ps_frame
-        ps_frame.pack_forget()
-        # ps_frame = build_parameter_frame(window, params_type, factory_reset_params, editable_fields=editable_fields)
-        ps_frame = builder.build_parameter_frame()
-        ps_frame.pack()
+        def on_ok():
+            nonlocal final_params
+            final_params = ps_frame.get_filled_parameters()
+            window.destroy()
 
-    bottom_panel.pack(side=tk.BOTTOM, fill=tk.X)
-    if builder.editable_fields:
-        bottom_panel.add_button("Cancel", on_cancel, shortcut="<Escape>")
-        bottom_panel.add_button("Reset", on_reset, shortcut="<Control-r>")
-    bottom_panel.add_button("OK", on_ok, shortcut="<Return>")
+        def on_reset():
+            nonlocal ps_frame
+            ps_frame.pack_forget()
+            # ps_frame = build_parameter_frame(window, params_type, factory_reset_params, editable_fields=editable_fields)
+            ps_frame = builder.build_parameter_frame()
+            ps_frame.pack()
 
-    if timeout is not None:
-        window.after(int(timeout * 1000), on_ok)
-    # root.mainloop()
+        bottom_panel.pack(side=tk.BOTTOM, fill=tk.X)
+        if builder.editable_fields:
+            bottom_panel.add_button("Cancel", on_cancel, shortcut="<Escape>")
+            bottom_panel.add_button("Reset", on_reset, shortcut="<Control-r>")
+        bottom_panel.add_button("OK", on_ok, shortcut="<Return>")
+
+        if timeout is not None:
+            window.after(int(timeout * 1000), on_ok)
+        # root.mainloop()
+
+    # Trigger a Tab event in 100ms to focus the first field
+    # Focus on the window
+    window.grab_set()
+    window.after(100, lambda: window.event_generate("<Tab>"))
+
     window.wait_window()
     return final_params
 
