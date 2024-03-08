@@ -10,7 +10,7 @@ def experiment_function(f):
     """
     Use this decorator (@experiment_function) on a function that you want to run.  e.g.
 
-    .. code-block:: python
+    .. code-block:: ui_code
 
         @experiment_function
         def demo_my_experiment(a=1, b=2, c=3):
@@ -27,7 +27,7 @@ def experiment_root(f):
     """
     Use this decorator on a function that you want to build variants off of:
 
-    .. code-block:: python
+    .. code-block:: ui_code
 
         @experiment_root
         def demo_my_experiment(a, b=2, c=3):
@@ -44,7 +44,7 @@ class ExperimentFunction(object):
     This is the most general decorator.  You can use this to add details on the experiment.
     """
 
-    def __init__(self, show = show_record, compare = compare_experiment_records, display_function=None, comparison_function=None, one_liner_function=sensible_str, is_root=False):
+    def __init__(self, show = None, compare = compare_experiment_records, display_function=None, comparison_function=None, one_liner_function=None, result_parser = None, is_root=False, name=None):
         """
         :param show:  A function that is called when you "show" an experiment record in the UI.  It takes an experiment
             record as an argument.
@@ -55,16 +55,17 @@ class ExperimentFunction(object):
             You can use call this via the UI with the compare_experiment_results command.
         :param one_liner_function: A function that takes your results and returns a 1 line string summarizing them.
         :param is_root: True to make this a root experiment - so that it is not listed to be run itself.
+        :param name: Custom name (if None, experiment will be named after decorated function)
         """
         self.show = show
         self.compare = compare
 
         if display_function is not None:
-            assert show is show_record, "You can't set both display function and show.  (display_function is deprecated)"
+            assert show is None, "You can't set both display function and show.  (display_function is deprecated)"
             show = lambda rec: display_function(rec.get_result())
 
         if comparison_function is not None:
-            assert compare is compare_experiment_records, "You can't set both display function and show.  (display_function is deprecated)"
+            # assert sh is None, "You can't set both display function and show.  (display_function is deprecated)"
 
             def compare(records):
                 record_experiment_ids_uniquified = uniquify_duplicates(rec.get_experiment_id() for rec in records)
@@ -74,15 +75,23 @@ class ExperimentFunction(object):
         self.compare = compare
         self.is_root = is_root
         self.one_liner_function = one_liner_function
+        self.result_parser = result_parser
+        self.name = name
 
     def __call__(self, f):
+        """
+        :param Callable f: The function you decorated
+        :return Experiment: An Experiment object (It still behaves as the original function when you call it, but now
+            has additional methods attached to it associated with the experiment).
+        """
         f.is_base_experiment = True
         ex = Experiment(
-            name=f.__name__,
+            name=f.__name__ if self.name is None else self.name,
             function=f,
             show=self.show,
             compare = self.compare,
             one_liner_function=self.one_liner_function,
-            is_root=self.is_root
+            is_root=self.is_root,
+            result_parser=self.result_parser,
         )
         return ex

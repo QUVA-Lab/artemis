@@ -4,7 +4,8 @@ from pytest import raises
 from artemis.general.mymath import (softmax, cummean, cumvar, sigm, expected_sigm_of_norm, mode, cummode, normalize,
                                     is_parallel,
                                     align_curves, angle_between, fixed_diff, decaying_cumsum, geosum, selective_sum,
-                                    conv_fanout, conv2_fanout_map, proportional_random_assignment, clip_to_sum)
+                                    conv_fanout, conv2_fanout_map, proportional_random_assignment, clip_to_sum,
+                                    vector_projection)
 import numpy as np
 from six.moves import xrange
 
@@ -295,6 +296,14 @@ def test_clip_to_sum():
     assert np.array_equal(clip_to_sum([1,4,8,3], 20), [1,4,8,3])
 
 
+def test_projection():
+
+    v = np.array([[2, 2], [2, 1]])
+    u = np.array([[0, 1], [1, 1]])
+    v_proj_u = vector_projection(v, u, axis=1)
+    assert np.allclose(v_proj_u, [[0, 2], [1.5, 1.5]])
+
+
 if __name__ == '__main__':
     test_decaying_cumsum()
     test_fixed_diff()
@@ -315,3 +324,4 @@ if __name__ == '__main__':
     test_conv2_fanout_map()
     test_proportional_random_assignment()
     test_clip_to_sum()
+    test_projection()

@@ -40,7 +40,7 @@ def captured_output():
 def test_simple_process():
     for ip_address in ip_addresses:
         nanny = Nanny()
-        command = "python %s --callback=%s"%(get_test_functions_path(ip_address),"success_function")
+        command = "ui_code %s --callback=%s"%(get_test_functions_path(ip_address),"success_function")
         pyc = PythonChildProcess(name="Process", ip_address=ip_address,command=command)
         nanny.register_child_process(pyc,)
         with captured_output() as (out,err):
@@ -51,7 +51,7 @@ def test_simple_process():
 def test_several_simple_processes(N):
     for ip_address in ip_addresses:
         nanny = Nanny()
-        command = "python %s --callback=%s"%(get_test_functions_path(ip_address),"success_function")
+        command = "ui_code %s --callback=%s"%(get_test_functions_path(ip_address),"success_function")
         for i in range(N):
             pyc = PythonChildProcess(name="Process%i"%i, ip_address=ip_address,command=command)
             nanny.register_child_process(pyc,)
@@ -64,10 +64,10 @@ def test_several_simple_processes(N):
 def test_process_termination():
     for ip_address in ip_addresses:
         nanny = Nanny()
-        command = "python %s --callback=%s"%(get_test_functions_path(ip_address),"count_low")
+        command = "ui_code %s --callback=%s"%(get_test_functions_path(ip_address),"count_low")
         pyc = PythonChildProcess(name="Process1", ip_address=ip_address,command=command)
         nanny.register_child_process(pyc,)
-        command = "python %s --callback=%s"%(get_test_functions_path(ip_address),"count_high")
+        command = "ui_code %s --callback=%s"%(get_test_functions_path(ip_address),"count_high")
         pyc = PythonChildProcess(name="Process2", ip_address=ip_address,command=command)
         nanny.register_child_process(pyc,)
         with captured_output() as (out,err):
@@ -78,10 +78,10 @@ def test_process_termination():
 def test_output_monitor():
     for ip_address in ip_addresses:
         nanny = Nanny()
-        command = "python %s --callback=%s"%(get_test_functions_path(ip_address),"short_sleep")
+        command = "ui_code %s --callback=%s"%(get_test_functions_path(ip_address),"short_sleep")
         pyc = PythonChildProcess(name="Process1", ip_address=ip_address,command=command)
         nanny.register_child_process(pyc,monitor_if_stuck_timeout=5)
-        command = "python %s --callback=%s"%(get_test_functions_path(ip_address),"count_high")
+        command = "ui_code %s --callback=%s"%(get_test_functions_path(ip_address),"count_high")
         pyc = PythonChildProcess(name="Process2", ip_address=ip_address,command=command)
         nanny.register_child_process(pyc,monitor_if_stuck_timeout=3)
         with captured_output() as (out,err):
@@ -95,7 +95,7 @@ def test_output_monitor():
 def test_iter_print():
     for ip_address in ip_addresses:
         nanny = Nanny()
-        command = ["python","-u", get_test_functions_path(ip_address), "--callback=iter_print"]
+        command = ["ui_code","-u", get_test_functions_path(ip_address), "--callback=iter_print"]
         pyc = PythonChildProcess(name="P1",ip_address=ip_address,command=command)
         nanny.register_child_process(pyc)
         with captured_output() as (out, err):

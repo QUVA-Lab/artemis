@@ -39,17 +39,23 @@ def dict_to_str(d):
     :param dict d: A dict
     :return str: A nice, formatted version of this dict.
     """
-    return ', '.join('{}:{}'.format(k, repr(v)) for k, v in d.items())
+    if isinstance(d, (list, tuple)) and all(isinstance(el, (list, tuple)) and len(el)==2 for el in d):
+        items = d
+    elif isinstance(d, dict):
+        items = d.items()
+    else:
+        raise Exception("Can't interpret object {}".format(d))
+    return ', '.join('{}:{:.3g}'.format(k, v) if isinstance(v, float) else '{}:{}'.format(k, repr(v)) for k, v in items)
 
 
 def pyfuncstring_to_tex(pyfuncstr):
     """
     Placeholder - we'd like to fill this out later.  This should be a function that takes a short string representing a
-    python funciton and translates it to latex.  e.g.
+    ui_code funciton and translates it to latex.  e.g.
 
         pyfuncstring_to_text 'x**1.5/4' -> x^{1.5}/4
 
-    :param pyfuncstr: A string representing a python function
+    :param pyfuncstr: A string representing a ui_code function
     :return: A Tex string what could be used to render the function nicely.
     """
     string = pyfuncstr
@@ -72,7 +78,7 @@ def equalize_string_lengths(arr, side = 'left'):
     return strings
 
 
-def sensible_str(data, size_limit=4, compact=True):
+def sensible_str(data, size_limit=4, compact=True) -> str:
     """
     Crawl through an data structure and try to make a sensible compact representation of it.
     :param data: Some data structure.
@@ -289,7 +295,7 @@ class DocumentWrapper(textwrap.TextWrapper):
         return lines
 
 
-def side_by_side(multiline_strings, gap=4, max_linewidth=None):
+def side_by_side(multiline_strings, gap=4, gap_char = ' ', max_linewidth=None):
     """
     Return a string that displays two multiline strings side-by-side.
     :param multiline_strings: A list of multi-line strings (ie strings with newlines)
@@ -308,7 +314,7 @@ def side_by_side(multiline_strings, gap=4, max_linewidth=None):
 
     longests = [max(len(line) for line in lines) if len(lines)>0 else 0 for lines in lineses]
 
-    spacer = ' '*gap
+    spacer = gap_char*gap
     new_lines = []
     for i in xrange(max(len(lines) for lines in lineses)):
         line = [lines[i] if i<len(lines) else '' for lines in lineses]
@@ -399,7 +405,7 @@ def format_duration(seconds):
         else:
             return res
     else:
-        days = seconds//_seconds_in_day
+        days = int(seconds//_seconds_in_day)
         return '{:d}d,{}'.format(days, format_duration(seconds % _seconds_in_day))
 
 

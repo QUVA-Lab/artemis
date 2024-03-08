@@ -1,11 +1,10 @@
 import inspect
-from abc import abstractmethod
-from collections import OrderedDict
-from functools import partial
-import collections
-from artemis.general.should_be_builtins import separate_common_items
 import sys
 import types
+from abc import abstractmethod
+from collections import OrderedDict
+from functools import partial, reduce
+from typing import Callable
 
 
 def get_partial_chain(f):
@@ -42,7 +41,7 @@ class PartialReparametrization(object):
             assert arg_name in all_arg_names, "Function {} has no argument named '{}'".format(func, arg_name)
             assert callable(arg_constructor), "The configuration for argument '{}' must be a function which constructs the argument.  Got a {}".format(arg_name, type(arg_constructor).__name__)
             assert not inspect.isclass(arg_constructor),  "'{}' is a class object.  You must instead pass a function to construct an instance of this class.  You can use lambda for this.".format(arg_constructor.__name__)
-            assert isinstance(arg_constructor, types.FunctionType),  "The constructor '{}' appeared not to be a pure function.  If it is an instance of a callable class, you probably meant to give a either a constructor for that instance.".format(arg_constructor)
+            assert isinstance(arg_constructor, types.FunctionType),  "The constructor '{}' appeared not to be a pure function.  If it is an instance of a callable class, you should instead give a staticmethod constructor for that instance.".format(arg_constructor)
             sub_arg_names, _, _, _ = advanced_getargspec(arg_constructor)
             for a in sub_arg_names:
                 if a != arg_name:  # If the name of your reparemetrizing argument is not the same as the argument you are replacing....
@@ -162,7 +161,7 @@ def advanced_getargspec(f):
                     assert k in all_arg_names, "Constructed Argument '{}' appears not to exist in function {}".format(k, chain[0])
                 sub_all_arg_names, sub_varargs_name, sub_kwargs_name, sub_defaults = advanced_getargspec(constructor)
                 assert sub_varargs_name is None, "Currently can't handle unnamed arguments for argument constructor {}={}".format(k, constructor)
-                assert sub_kwargs_name is None, "Currently can't handle unnamed keyword arguments for argument constructor {}={}".format(k, constructor)
+                assert sub_kwargs_name is None, "Currently can't handle unnamed keyword arguments.  Constructor {}={}".format(k, constructor)
                 all_arg_names.remove(k)  # Since the argument has been reparameterized, it is removed from the  list of constructor signature
                 current_layer_arg_names.remove(k)
                 assert not any(a in current_layer_arg_names for a in sub_all_arg_names), "The constructor for argument '{}' has name '{}', which us already used by the function '{}'.  Rename it.".format(k, next(a for a in sub_all_arg_names if a in current_layer_arg_names), chain[0])
@@ -185,9 +184,12 @@ def get_defined_and_undefined_args(func):
     """
     undefined_arg_names, varargs_name, kwargs_name, defined_args = advanced_getargspec(func)
     assert varargs_name is None
-    assert kwargs_name is None
     for k in defined_args.keys():
-        undefined_arg_names.remove(k)
+        if kwargs_name is None:  # If the function does not have **kwargs
+            undefined_arg_names.remove(k)
+        else:
+            if k in undefined_arg_names:
+                undefined_arg_names.remove(k)
     return defined_args, undefined_arg_names
 
 
@@ -203,23 +205,51 @@ def infer_arg_values(f, args=(), kwargs={}):
     :param kwargs: A dict of keyword args
     :return: An OrderedDict(arg_name->arg_value)
     """
-    all_arg_names, varargs_name, kwargs_name, defaults = inspect.getargspec(f)
+    # all_arg_names, varargs_name, kwargs_name, defaults = inspect.getargspec(f)
 
-    assert varargs_name is None, "This function doesn't work with unnamed args"
-    default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-(len(defaults) if defaults is not None else 0):], defaults if defaults is not None else [])}
-    args_with_values = set(all_arg_names[:len(args)]+list(default_args.keys())+list(kwargs.keys()))
-    assert set(all_arg_names).issubset(args_with_values), "Arguments {} require values but are not given any.  ".format(tuple(set(all_arg_names).difference(args_with_values)))
+    sig = inspect.signature(f)
+    all_arg_names = sig.parameters
+
+    bound_args = sig.bind(*args, **kwargs)
+    bound_args.apply_defaults()
+
+    assert not any(p.kind.name=='VAR_POSITIONAL' for p in sig.parameters.values()), "This function doesn't work with unnamed args"
+    # assert varargs_name is None, "This function doesn't work with unnamed args"
+    # default_args = {k: v for k, v in zip(all_arg_names[len(all_arg_names)-(len(defaults) if defaults is not None else 0):], defaults if defaults is not None else [])}
+    # args_with_values = set(all_arg_names[:len(args)]+list(default_args.keys())+list(kwargs.keys()))
+
+
+    # assert set(all_arg_names).issubset(args_with_values), "Arguments {} require values but are not given any.  ".format(tuple(set(all_arg_names).difference(args_with_values)))
     assert len(args) <= len(all_arg_names), "You provided {} arguments, but the function only takes {}".format(len(args), len(all_arg_names))
-    full_args = tuple(
-        list(zip(all_arg_names, args))  # Handle unnamed args f(1, 2)
-        + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]]  # Handle named keyworkd args f(a=1, b=2)
-        + [(name, kwargs[name]) for name in kwargs if name not in all_arg_names[len(args):]]  # Need to handle case if f takes **kwargs
-        )
-    duplicates = tuple(item for item, count in collections.Counter([a for a, _ in full_args]).items() if count > 1)
-    assert len(duplicates)==0, 'Arguments {} have been defined multiple times: {}'.format(duplicates, full_args)
 
-    common_args, (different_args, different_given_args) = separate_common_items([tuple(all_arg_names), tuple(n for n, _ in full_args)])
-    if kwargs_name is None:  # There is no **kwargs
-        assert len(different_given_args)==0, "Function {} was given args {} but didn't ask for them".format(f, different_given_args)
-    assert len(different_args)==0, "Function {} needs values for args {} but didn't get them".format(f, different_args)
+    full_args = bound_args.arguments
+    # full_args = tuple(
+    #     (pname, )
+    # )
+    #
+    # full_args = tuple(
+    #     list(zip(all_arg_names, args))  # Handle unnamed args f(1, 2)
+    #     + [(name, kwargs[name] if name in kwargs else default_args[name]) for name in all_arg_names[len(args):]]  # Handle named keyworkd args f(a=1, b=2)
+    #     + [(name, kwargs[name]) for name in kwargs if name not in all_arg_names[len(args):]]  # Need to handle case if f takes **kwargs
+    #     )
+    # duplicates = tuple(item for item, count in collections.Counter([a for a, _ in full_args]).items() if count > 1)
+    # assert len(duplicates)==0, 'Arguments {} have been defined multiple times: {}'.format(duplicates, full_args)
+
+    # common_args, (different_args, different_given_args) = separate_common_items([tuple(all_arg_names), tuple(n for n, _ in full_args)])
+    # if kwargs_name is None:  # There is no **kwargs
+    #     assert len(different_given_args)==0, "Function {} was given args {} but didn't ask for them".format(f, different_given_args)
+    # assert len(different_args)==0, "Function {} needs values for args {} but didn't get them".format(f, different_args)
     return OrderedDict(full_args)
+
+
+def chain_functions(*funcs: Callable) -> Callable:
+    """
+    Chain functions together, so that the output of one function is the input of the next function.
+    Obviously the input type of function i must match the output type of function i-1.
+
+    :param funcs: A sequence of functions
+    :return: A function which is the chain of all the functions
+    """
+    def chained_call(arg):
+        return reduce(lambda r, f: f(r), funcs, arg)
+    return chained_call

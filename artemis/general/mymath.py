@@ -188,7 +188,10 @@ def recent_moving_average(x, axis = 0):
         a[t] = (1-frac)*a[t-1] + frac*x[t]
     """
 
-    import weave  # ONLY WORKS IN PYTHON 2.X !!!
+    try:
+        import weave  # ONLY WORKS IN PYTHON 2.X !!!
+    except:
+        raise ImportError('Weave module could not be found.  Maybe because it only works in Python 2.X')
     if x.ndim!=2:
         y = recent_moving_average(x.reshape(x.shape[0], x.size//x.shape[0]), axis=0)
         return y.reshape(x.shape)
@@ -222,16 +225,17 @@ def angle_between(a, b, axis=None, in_degrees = False):
 
     Credit to Pace: http://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
-    cos_dist = cosine_distance(a, b, axis=axis)
+    cos_dist = cosine_similarity(a, b, axis=axis)
     angle = np.arccos(cos_dist)
     if in_degrees:
         angle = angle * 180/np.pi
     return angle
 
 
-def cosine_distance(a, b, axis=None):
+def cosine_similarity(a, b, axis=None):
     """
     Return the cosine distance between two vectors a and b.  Raise an exception if one is a zero vector
+
     :param a: An array
     :param b: Another array of the same shape
     :return: The cosine distance between a and b, reduced along the given axis.
@@ -287,6 +291,21 @@ def is_parallel(a, b, angular_tolerance = 1e-7):
     assert 0 <= angular_tolerance <= 2*np.pi, "It doesn't make sense to specity an angular tolerance outside of [0, 2*pi].  Why are you doing this?"
     angle = angle_between(a, b)
     return angle < angular_tolerance
+
+
+def vector_projection(v, u, axis=-1, norm_factor=0.):
+    """
+    Project v onto u.
+    :param v: A vector or collection of vectors
+    :param u: A vector or collection of vectors which is broadcastable against v
+    :param axis: The axis of v along which the vector is defined.
+    :return: An array the same shape as v projected onto u.
+    """
+    return u*((norm_factor+(u*v).sum(axis=axis, keepdims=True)) / (norm_factor+(u*u).sum(axis=axis, keepdims=True)))
+    # true_axis = v.ndim+axis if axis<0 else axis
+    # u_norm = u/(u*u).sum(axis=axis, keepdims=True)
+    # vu_dot = (u*v).sum(axis=axis, keepdims=True) / (u*u).sum(axis=axis, keepdims=True)
+    # return vu_dot*u
 
 
 def align_curves(xs, ys, n_bins='median', xrange = ('min', 'max'), spacing = 'lin'):

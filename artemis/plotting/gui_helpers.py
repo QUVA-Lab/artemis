@@ -1,4 +1,4 @@
-from artemis.plotting.data_conversion import put_data_in_grid
+from artemis.plotting.data_conversion import put_data_in_image_grid
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -11,7 +11,7 @@ def select_image(images, selection_callback):
     :return:
     """
 
-    data = put_data_in_grid(images, is_color_data=True)
+    data = put_data_in_image_grid(images, is_color_data=True)
 
     plt.figure(figsize=(12, 12))
     plt.imshow(data)

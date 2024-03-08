@@ -3,6 +3,7 @@ from artemis.fileman.config_files import get_config_value
 from artemis.config import get_artemis_config_value
 import os
 from six.moves import xrange
+from os.path import expanduser
 
 __author__ = 'peter'
 
@@ -19,7 +20,7 @@ Where the path is referenced relative to the data directory on that machine.
 
 
 def get_default_local_path():
-    return os.path.join(os.getenv("HOME"), '.artemis')
+    return os.path.join(expanduser("~"), '.artemis')
 
 LOCAL_DIR = get_artemis_config_value(section='fileman', option='data_dir', default_generator = get_default_local_path, write_default = True)
 

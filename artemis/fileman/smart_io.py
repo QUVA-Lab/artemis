@@ -101,7 +101,7 @@ def smart_load_image(location, max_resolution = None, force_rgb=False, use_cache
     with smart_file(location, use_cache=use_cache) as local_path:
         return _load_image(local_path, max_resolution = max_resolution, force_rgb=force_rgb)
 
-_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif')
+_IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.tif')
 
 
 def _load_image(local_path, max_resolution = None, force_rgb = False):

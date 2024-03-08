@@ -215,16 +215,16 @@ class ChildProcess(object):
 
 class PythonChildProcess(ChildProcess):
     '''
-    This ChildProcess is designed to spawn python processes.
+    This ChildProcess is designed to spawn ui_code processes.
     '''
     def __init__(self, ip_address, command, **kwargs):
         '''
         Creates a PythonChildProcess
         :param ip_address: The command will be executed at this ip_address
-        :param command: the command to execute. Is assumed to be a python call
+        :param command: the command to execute. Is assumed to be a ui_code call
         :param name: optional name. If not set, will be process_i, with i a global counter
         :param take_care_of_deconstruct: If set to True, deconstruct() is registered at exit
-        :param port_for_structured_back_communication: If set, the ip-address of this device as well as a specific port will be appended as arguments to the executed python command in the format --port=1234 --address=127.0.0.1
+        :param port_for_structured_back_communication: If set, the ip-address of this device as well as a specific port will be appended as arguments to the executed ui_code command in the format --port=1234 --address=127.0.0.1
         The child process is responsible for reading these values out and communicating to it. If set, this child process will expose a queue on that address with get_queue_from_cp()
         :return:
         '''
@@ -254,22 +254,22 @@ class PythonChildProcess(ChildProcess):
                 command.append("--port=%i"%port)
                 command.append("--address=%s"%address)
             if not self.local_process:
-                command = [c.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python", default_generator=lambda: sys.executable)), 1) if c.startswith("python") else c for c in command]
+                command = [c.replace("ui_code", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="ui_code", default_generator=lambda: sys.executable)), 1) if c.startswith("ui_code") else c for c in command]
                 command = [s.replace("~",home_dir) for s in command]
                 command = " ".join([c for c in command])
             else:
                 command = [c.strip("'") for c in command]
-                command = [c.replace("python", sys.executable, 1) if c.startswith("python") else c for c in command]
+                command = [c.replace("ui_code", sys.executable, 1) if c.startswith("ui_code") else c for c in command]
                 command = [s.replace("~",home_dir) for s in command]
 
-        elif isinstance(command, string_types) and command.startswith("python"):
+        elif isinstance(command, string_types) and command.startswith("ui_code"):
             if self.set_up_port_for_structured_back_communication:
                 command += " --port=%i "%port
                 command += "--address=%s"%address
             if not self.local_process:
-                command = command.replace("python", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="python",default_generator=lambda: sys.executable)), 1)
+                command = command.replace("ui_code", self.get_extended_command(get_artemis_config_value(section=self.get_ip(), option="ui_code",default_generator=lambda: sys.executable)), 1)
             else:
-                command = command.replace("python", sys.executable)
+                command = command.replace("ui_code", sys.executable)
             command = command.replace("~",home_dir)
         else:
             raise NotImplementedError()
@@ -292,7 +292,7 @@ def listen_on_port(port=7000):
 
 class RemotePythonProcess(ChildProcess):
     """
-    Launch a python child process.
+    Launch a ui_code child process.
     """
 
     def __init__(self, function, ip_address, set_up_port_for_structured_back_communication=True, **kwargs):

@@ -114,8 +114,32 @@ def test_args_are_checked():
     assert XXXX() == 1+(5*5)*5
 
 
+@pytest.mark.skipif(True, reason='We dont want to make scikit-optimize a hard requirement just for this so we skip the test.')
+def test_parameter_search():
+
+    from skopt.space import Real
+
+    with experiment_testing_context(new_experiment_lib=True):
+
+        @experiment_root
+        def bowl(x, y):
+            return {'z': (x-2)**2 + (y+3)**2}
+
+        ex_search = bowl.add_parameter_search(
+            space = {'x': Real(-5, 5, 'uniform'), 'y': Real(-5, 5, 'uniform')},
+            scalar_func=lambda result: result['z'],
+            search_params=dict(n_calls=5),
+            )
+
+        record = ex_search.run()
+        result = record.get_result()
+        assert result['names']==['x', 'y']
+        assert result['func_vals'][-1] < result['func_vals'][0]
+
+
 if __name__ == '__main__':
     test_unpicklable_args()
     test_config_variant()
     test_config_bug_catching()
     test_args_are_checked()
+    test_parameter_search()

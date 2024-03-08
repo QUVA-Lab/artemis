@@ -21,7 +21,7 @@ def assert_variable_matches_between_runs(var, var_name, show='max_diff'):
             ....
             assert_variable_matches_between_runs(my_var, 'my_var')
 
-    :param var: A variable value (preferably a python primative or numpy array)
+    :param var: A variable value (preferably a ui_code primative or numpy array)
     :param var_name: A name to identify your variable
     """
 
@@ -43,7 +43,7 @@ def variable_matches_between_runs(var, var_name, raise_error = False, show='max_
             ....
             assert_variable_matches_between_runs(my_var, 'my_var')
 
-    :param var: A variable value (preferably a python primative or numpy array)
+    :param var: A variable value (preferably a ui_code primative or numpy array)
     :param var_name: A name to identify your variable
     """
 

@@ -1,8 +1,6 @@
-import matplotlib
-import pytest
-matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 from six.moves import xrange
 
 __author__ = 'peter'
