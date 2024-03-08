@@ -90,10 +90,6 @@ class TabbedFrame(tk.Frame, Generic[MultiStateEnumType]):
         return tab_control
 
     def set_active_tab(self, state: MultiStateEnumType, skip_callback: bool = False) -> None:
-
-        # if skip_if_unchanged and state == self._main_tab_control.get_state():
-        #     print(f"Skipping tab change to {state} because it's already in state {self._main_tab_control.get_state()}.")
-        #     return  # Already in this state
         do_change = True
         if self._pre_state_change_callback is not None:
             do_change = self._pre_state_change_callback(state)
@@ -106,19 +102,22 @@ class TabbedFrame(tk.Frame, Generic[MultiStateEnumType]):
             self._main_tab_control.grid(row=0, column=0, sticky=tk.EW)
 
         if do_change:
+            # Correctly define index_to_keep based on the state
+            index_to_keep = list(self._tab_enum).index(state)  # Ensure this line is before its usage
+
             for tc in self._tab_controls:
                 tc.set_state(state, skip_callback=True)
-            index_to_keep = list(self._tab_enum).index(state)
-            for i, f in enumerate(self._frames):  # Just to be safe forget all frames
+            for i, f in enumerate(self._frames):
                 f.grid_forget()
             self._frames[index_to_keep].grid(row=1, column=0, sticky=tk.NSEW)
-            if self._on_state_change_callback is not None and not skip_callback:  # Avoid recursion
+            self._frames[index_to_keep].focus_set()
+
+            if self._on_state_change_callback is not None and not skip_callback:
                 self._on_state_change_callback(state)
 
+        # Optionally, update the UI
+        self.update_idletasks()
 
-        # Redraw the window
-        self.update()
-        # self.winfo_toplevel().update()
 
     def get_active_tab(self) -> MultiStateEnumType:
         return self._main_tab_control.get_state()
